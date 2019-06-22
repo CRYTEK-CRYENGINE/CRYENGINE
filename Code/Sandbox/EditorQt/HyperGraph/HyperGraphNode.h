@@ -335,8 +335,8 @@ protected:
 	uint32         m_nFlags;
 	int            m_drawPriority;
 
-	unsigned int   m_bSizeValid : 1;
-	unsigned int   m_bSelected  : 1;
+	bool           m_bSizeValid : 1;
+	bool           m_bSelected  : 1;
 
 	// Input/Output ports.
 	Ports m_inputs;

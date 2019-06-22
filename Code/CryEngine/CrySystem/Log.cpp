@@ -22,6 +22,7 @@
 #include <CryGame/IGameFramework.h>
 #include <CryString/UnicodeFunctions.h>
 #include <CryString/StringUtils.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if CRY_PLATFORM_WINDOWS
 	#include <time.h>
@@ -347,7 +348,8 @@ CLog::~CLog()
 	assert(m_indentation == 0);
 #endif
 
-	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+	if (gEnv->pSystem->GetISystemEventDispatcher())
+	  gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
 
 	SAFE_DELETE(m_pLogThread);
 
@@ -556,7 +558,6 @@ void CLog::LogV(const ELogType type, int flags, const char* szFormat, va_list ar
 	}
 
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
-	//LOADING_TIME_PROFILE_SECTION(GetISystem());
 
 	bool bfile = false, bconsole = false;
 	const char* szCommand = szFormat;
@@ -742,7 +743,7 @@ void CLog::LogPlus(const char* szFormat, ...)
 		return;
 	}
 
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (!szFormat)
 		return;
@@ -1333,7 +1334,7 @@ void CLog::LogToFile(const char* szFormat, ...)
 //////////////////////////////////////////////////////////////////////
 void CLog::CreateBackupFile() const
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 #if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE || CRY_PLATFORM_DURANGO
 
 	if (!gEnv->pCryPak)
@@ -1406,9 +1407,10 @@ void CLog::CreateBackupFile() const
 	const string dstFileExt = PathUtil::GetExt(dstFileStr);
 	const string dstFilePath = PathUtil::Make(dstFileDir, dstFileName, dstFileExt);
 	
-	char adjusted[_MAX_PATH];
-	const string adjustedSrcFilePath = gEnv->pCryPak->AdjustFileName(m_filePath, adjusted, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
-	const string adjustedDstFilePath = gEnv->pCryPak->AdjustFileName(dstFilePath, adjusted, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
+	CryPathString adjustedSrcFilePath;
+	gEnv->pCryPak->AdjustFileName(m_filePath, adjustedSrcFilePath, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
+	CryPathString adjustedDstFilePath;
+	gEnv->pCryPak->AdjustFileName(dstFilePath, adjustedDstFilePath, ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_PATH_REAL);
 
 #if CRY_PLATFORM_DURANGO
 	// Xbox has some limitation in file names. No spaces in file name are allowed. The full path is limited by MAX_PATH, etc.
@@ -1422,8 +1424,7 @@ void CLog::CreateBackupFile() const
 	};
 	const wstring durangoSrcFilePath = processDurangoPath(adjustedSrcFilePath);
 	const wstring durangosDstFilePath = processDurangoPath(adjustedDstFilePath);
-	HRESULT result = CopyFile2(durangoSrcFilePath, durangosDstFilePath, nullptr);
-	CRY_ASSERT_MESSAGE(result == S_OK, "Error copying log backup file");
+	CRY_VERIFY_WITH_MESSAGE(CopyFile2(durangoSrcFilePath, durangosDstFilePath, nullptr) == S_OK, "Error copying log backup file");
 #else
 	CRY_ASSERT_MESSAGE(adjustedSrcFilePath[0] != '%' && adjustedDstFilePath[0] != '%', "Invalid %ALIAS% in CLog::CreateBackupFile()");
 	CopyFile(adjustedSrcFilePath, adjustedDstFilePath, false);

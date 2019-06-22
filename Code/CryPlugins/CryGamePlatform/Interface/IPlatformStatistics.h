@@ -8,6 +8,13 @@ namespace Cry
 {
 	namespace GamePlatform
 	{
+		//! Optional detail settings for a given achievement that are hidden by the platform api
+		struct SAchievementDetails
+		{
+			int32 minProgress = 0;
+			int32 maxProgress = 0;
+		};
+
 		//! Interface to the platform's remotely stored statistics for the local user
 		struct IStatistics
 		{
@@ -31,6 +38,7 @@ namespace Cry
 			virtual bool Download() = 0;
 			//! Uploads changed statistics
 			virtual bool Upload() = 0;
+
 			//! Sets the value of a statistic by name
 			virtual bool Set(const char* szName, int value) = 0;
 			//! Sets the value of a statistic by name
@@ -39,11 +47,13 @@ namespace Cry
 			virtual bool Get(const char* szName, int& value) const = 0;
 			//! Gets the value of a statistic by name
 			virtual bool Get(const char* szName, float& value) const = 0;
-			
+
 			//! Gets a pointer to a specific achievement by name
-			virtual IAchievement* GetAchievement(const char* szName) = 0;
+			//! On first use you need to supply the details for an achievement with progress
+			virtual IAchievement* GetAchievement(const char* szName, const SAchievementDetails* pDetails = nullptr) = 0;
 			//! Gets a pointer to a specific achievement by platform-specific identifier
-			virtual IAchievement* GetAchievement(int id) = 0;
+			//! On first use you need to supply the details for an achievement with progress
+			virtual IAchievement* GetAchievement(int id, const SAchievementDetails* pDetails = nullptr) = 0;
 		};
 	}
 }

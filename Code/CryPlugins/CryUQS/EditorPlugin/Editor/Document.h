@@ -4,7 +4,7 @@
 
 #include <CrySerialization/Forward.h>
 #include <CrySerialization/StringList.h>
-class PropertyTree;
+class PropertyTreeLegacy;
 
 #include "Settings.h"
 #include "ItemTypeName.h"
@@ -47,7 +47,7 @@ public:
 
 	void                        Serialize(Serialization::IArchive& archive);
 
-	void                        AttachToTree(PropertyTree* pTree);
+	void                        AttachToTree(PropertyTreeLegacy* pTree);
 	void                        DetachFromTree();
 
 	void                        ApplySettings(const SDocumentSettings& settings);
@@ -66,7 +66,7 @@ private:
 
 	friend class CUqsDocSerializationContext;
 
-	PropertyTree* m_pTree;
+	PropertyTreeLegacy* m_pTree;
 
 	std::unique_ptr<UQSEditor::CQueryBlueprint> m_pQueryBlueprint;
 	string                   m_queryName;

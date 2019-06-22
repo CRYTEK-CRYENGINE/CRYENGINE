@@ -12,6 +12,7 @@ float Script : STANDARDSGLOBAL
 		"Sky;"
 		"ShaderDrawType = Sky;"
 		"ShaderType = General;"
+		"DecalNoDepthOffset;" // Distance clouds are sky-decals
 >;
 
 #if !%SIMPLE

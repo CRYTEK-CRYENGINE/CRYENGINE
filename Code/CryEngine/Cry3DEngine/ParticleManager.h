@@ -3,11 +3,11 @@
 #pragma once
 
 #include "ParticleEffect.h"
-#include <CryCore/BitFiddling.h>
 #include "ParticleList.h"
 #include "ParticleEnviron.h"
 #include "ParticleMemory.h"
 #include <CrySystem/Profilers/IPerfHud.h>
+#include <CryThreading/IJobManager.h>
 
 #if !defined(_RELEASE)
 // when not in release, collect information about vertice/indice pool usage
@@ -72,8 +72,7 @@ public:
 
 	JobManager::SJobState*   AddUpdateJob(CParticleEmitter* pEmitter);
 
-	SAddParticlesToSceneJob& GetParticlesToSceneJob(const SRenderingPassInfo& passInfo)
-	{ return *m_ParticlesToScene[passInfo.ThreadID()].push_back(); }
+	SAddParticlesToSceneJob& GetParticlesToSceneJob(const SRenderingPassInfo& passInfo);
 
 	void SyncAllUpdateParticlesJobs();
 
@@ -148,12 +147,13 @@ public:
 
 	void OnFrameStart();
 	void Reset();
+	void ClearData();
 	void ClearRenderResources(bool bForceClear);
 	void ClearDeferredReleaseResources();
 	void Serialize(TSerialize ser);
 	void PostSerialize(bool bReading);
 
-	void SetTimer(ITimer* pTimer) { g_pParticleTimer = pTimer; };
+	void SetTimer(ITimer* pTimer) { g_pParticleTimer = pTimer; }
 
 	// Stats
 	void GetMemoryUsage(ICrySizer* pSizer) const;
@@ -379,13 +379,12 @@ private:
 
 #ifdef bEVENT_TIMINGS
 
-class CEventProfilerSection : public CFrameProfilerSection, public Cry3DEngineBase
+class CEventProfilerSection : public Cry3DEngineBase
 {
 public:
-	CEventProfilerSection(CFrameProfiler* pProfiler, const CParticleContainer* pCont = 0)
-		: CFrameProfilerSection(pProfiler)
+	CEventProfilerSection(const char* szName, const CParticleContainer* pCont = 0)
 	{
-		m_iEvent = m_pPartManager->StartEventTiming(pProfiler->m_name, pCont);
+		m_iEvent = m_pPartManager->StartEventTiming(szName, pCont);
 	}
 	~CEventProfilerSection()
 	{
@@ -395,9 +394,9 @@ protected:
 	int m_iEvent;
 };
 
-	#define FUNCTION_PROFILER_CONTAINER(pCont)                                                               \
-	  static CFrameProfiler staticFrameProfiler(PROFILE_PARTICLE, EProfileDescription::UNDEFINED, __FUNC__); \
-	  CEventProfilerSection eventProfilerSection(&staticFrameProfiler, pCont);
+	#define FUNCTION_PROFILER_CONTAINER(pCont) \
+	  CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);  \
+	  CEventProfilerSection eventProfilerSection(__FUNC__, pCont);
 
 #else
 

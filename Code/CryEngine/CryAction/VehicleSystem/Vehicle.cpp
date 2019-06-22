@@ -20,7 +20,6 @@
 #include <CryAnimation/ICryAnimation.h>
 #include <IActorSystem.h>
 #include <CryNetwork/ISerialize.h>
-#include <CryAISystem/IAgent.h>
 
 #include "IGameRulesSystem.h"
 
@@ -47,7 +46,6 @@
 #include "CryAction.h"
 #include "Serialization/XMLScriptLoader.h"
 #include "PersistantDebug.h"
-#include <CryAISystem/IAIObject.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 
 #include "CryActionCVars.h"
@@ -2570,7 +2568,7 @@ bool CVehicle::NetSerialize(TSerialize ser, EEntityAspects aspect, uint8 profile
 //------------------------------------------------------------------------
 void CVehicle::FullSerialize(TSerialize ser)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Vehicle serialization");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Vehicle serialization");
 	ser.Value("indestructible", m_indestructible);
 	bool isDestroyed = IsDestroyed();
 	ser.Value("isDestroyed", isDestroyed, 'bool');
@@ -2882,9 +2880,9 @@ bool CVehicle::IsCrewHostile(EntityId userId)
 		return false;
 
 	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(userId);
-	IAIObject* pUserAIObject = pEntity ? pEntity->GetAI() : 0;
+	const bool hasAI = pEntity ? pEntity->HasAI() : false;
 
-	if (!pUserAIObject)
+	if (!hasAI)
 		return false;
 
 	for (TVehicleSeatVector::const_iterator it = m_seats.begin(), end = m_seats.end(); it != end; ++it)
@@ -2896,10 +2894,7 @@ bool CVehicle::IsCrewHostile(EntityId userId)
 			if (pPassengerActor->IsDead())
 				continue;
 
-			IAIObject* pPassengerAIObject = pPassengerActor->GetEntity()->GetAI();
-
-			if (pPassengerAIObject)
-				return pPassengerAIObject->IsHostile(pUserAIObject, false);
+			return !pPassengerActor->IsFriendlyEntity(userId, false);
 		}
 	}
 
@@ -4143,6 +4138,11 @@ void CVehicle::BroadcastVehicleEvent(EVehicleEvent event, const SVehicleEventPar
 	{
 		m_status.beingFlipped = params.bParam;
 		return;
+	}
+
+	if (IGameRules* pGameRules = CCryAction::GetCryAction()->GetIGameRulesSystem()->GetCurrentGameRules())
+	{
+		pGameRules->OnVehicleEvent(this, event, params);
 	}
 
 	if (event == eVE_PassengerEnter)  // need to setup listener _before_ the listener event is sent (which params contain seat id).

@@ -1,9 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-#ifndef __ForsythFaceReorderer_h__
-#define __ForsythFaceReorderer_h__
-
 //
 // Note: This implementation, in contrast to many other implementations
 // of the Forsyth's algorithm, does not crash when the input faces contain
@@ -75,5 +72,3 @@ private:
 	void   removeFaceFromVertex(const uint32 vertexIndex, const uint32 faceIndex);
 	uint32 findBestFaceToAdd(uint32& faceSearchCursor) const;
 };
-
-#endif

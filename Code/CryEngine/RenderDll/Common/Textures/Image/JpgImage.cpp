@@ -60,8 +60,6 @@ static void jo_bufferByte(joBufferedIO* io, unsigned char c)
 
 static void jo_writeBits(joBufferedIO* fp, int& bitBuf, int& bitCnt, const unsigned short* bs)
 {
-	ICryPak* pCryPak = gEnv->pCryPak;
-
 	bitCnt += bs[1];
 	bitBuf |= bs[0] << (24 - bitCnt);
 	while (bitCnt >= 8)

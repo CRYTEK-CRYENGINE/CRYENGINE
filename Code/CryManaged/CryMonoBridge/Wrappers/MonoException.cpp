@@ -18,8 +18,6 @@ void CMonoException::Throw()
 
 string CMonoException::GetExceptionString()
 {
-	auto pInternalException = reinterpret_cast<InternalMonoException*>(m_pException);
-	
 	if (MonoInternals::MonoString* pString = MonoInternals::mono_object_to_string((MonoInternals::MonoObject*)m_pException, nullptr))
 	{
 		return MonoStringToUtf8String(pString);

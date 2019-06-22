@@ -454,30 +454,27 @@ def generate_solution(working_directory, cmakelists_dir, config, open_gui):
         toolchain = toolchain.replace('\\', '/')
         toolchain = os.path.join(cmake_dir, toolchain)
 
-    cmake_command = ['"{}"'.format(cmake_path)]
-    cmake_command.append('-Wno-dev')
-    cmake_command.append('-G"{}"'.format(generator))
+    cmake_command = [cmake_path,
+                     '-Wno-dev',
+                     '-G{}'.format(generator)]
     if toolchain:
-        cmake_command.append('-DCMAKE_TOOLCHAIN_FILE="{}"'.format(toolchain))
-    cmake_command.append('"{}"'.format(cmakelists_dir))
+        cmake_command.append('-DCMAKE_TOOLCHAIN_FILE={}'.format(toolchain))
+    cmake_command.append(cmakelists_dir)
 
     # Filter empty commands, and convert the list to a string.
     cmake_command = list(filter(bool, cmake_command))
-    command_str = ("".join("{} ".format(e) for e in cmake_command)).strip()
 
     try:
-        subprocess.run(command_str, cwd=solution_path, stdout=None,
-                       stderr=subprocess.PIPE, check=True,
+        subprocess.run(cmake_command, cwd=solution_path, stdout=None,
+                       stderr=None, check=True,
                        universal_newlines=True)
     except subprocess.CalledProcessError as e:
-        if not e.returncode == 0:
-            print("Encountered and error while running command '{}'!".format(
-                e.cmd))
-            print("Error: {}".format(e.stderr))
-            print("Generating solution has failed!")
-            print("Press Enter to exit")
-            input()
-            sys.exit(0)
+        print("Encountered and error while running command '{}'!".format(e.cmd))
+        print("Look for errors in the output above.")
+        print("Generating solution has failed!")
+        print("Press Enter to exit")
+        input()
+        sys.exit(1)
 
     if open_gui:
         open_cmake_gui(cmakelists_dir, solution_path)

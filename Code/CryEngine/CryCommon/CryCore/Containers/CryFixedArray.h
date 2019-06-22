@@ -162,8 +162,7 @@ public:
 	{
 		for (uint32 i = 0; i < m_curSize[0]; i++)
 		{
-			T& ele = operator[](i);
-			ele.~T();
+			operator[](i).~T();
 		}
 		m_curSize[0] = 0;
 #ifdef DEBUG_CRYFIXED_ARRAY

@@ -3,6 +3,8 @@
 #ifndef __MemReplay_h__
 #define __MemReplay_h__
 
+#include <CrySystem/Profilers/CryMemReplay.h>
+
 #define REPLAY_RECORD_FREECS        1
 #define REPLAY_RECORD_USAGE_CHANGES 0
 #define REPLAY_RECORD_THREADED      1
@@ -77,79 +79,83 @@ private:
 
 #endif
 
+namespace MemReplayEventIds
+{
+	enum Ids
+	{
+		RE_Alloc,
+		RE_Free,
+		RE_Callstack,
+		RE_FrameStart,
+		RE_Label,
+		RE_ModuleRef,
+		RE_AllocVerbose,
+		RE_FreeVerbose,
+		RE_Info,
+		RE_PushContext,
+		RE_PopContext,
+		RE_Alloc3,
+		RE_Free3,
+		RE_PushContext2,
+		RE_ModuleShortRef,
+		RE_AddressProfile,
+		RE_PushContext3,
+		RE_Free4,
+		RE_AllocUsage,
+		RE_Info2,
+		RE_Screenshot,
+		RE_SizerPush,
+		RE_SizerPop,
+		RE_SizerAddRange,
+		RE_AddressProfile2,
+		RE_Alloc64,
+		RE_Free64,
+		RE_BucketMark,
+		RE_BucketMark2,
+		RE_BucketUnMark,
+		RE_BucketUnMark2,
+		RE_PoolMark,
+		RE_PoolUnMark,
+		RE_TextureAllocContext,
+		RE_PageFault,
+		RE_AddAllocReference,
+		RE_RemoveAllocReference,
+		RE_PoolMark2,
+		RE_TextureAllocContext2,
+		RE_BucketCleanupEnabled,
+		RE_Info3,
+		RE_Alloc4,
+		RE_Realloc,
+		RE_RegisterContainer,
+		RE_UnregisterContainer,
+		RE_BindToContainer,
+		RE_UnbindFromContainer,
+		RE_RegisterFixedAddressRange,
+		RE_SwapContainers,
+		RE_MapPage,
+		RE_UnMapPage,
+		RE_ModuleUnRef,
+		RE_Alloc5,
+		RE_Free5,
+		RE_Realloc2,
+		RE_AllocUsage2,
+		RE_Alloc6,
+		RE_Free6,
+		RE_Realloc3,
+		RE_UnregisterAddressRange,
+		RE_MapPage2,
+		RE_DefineContextType,
+		RE_Assertion,
+		RE_AddFixedContext,
+		RE_PushFixedContext,
+	};
+}
+
 #if CAPTURE_REPLAY_LOG
 
 	#include <CrySystem/File/ICryPak.h>
 	#include <CryMemory/HeapAllocator.h>
 	#include  <zlib.h>
-
-namespace MemReplayEventIds
-{
-enum Ids
-{
-	RE_Alloc,
-	RE_Free,
-	RE_Callstack,
-	RE_FrameStart,
-	RE_Label,
-	RE_ModuleRef,
-	RE_AllocVerbose,
-	RE_FreeVerbose,
-	RE_Info,
-	RE_PushContext,
-	RE_PopContext,
-	RE_Alloc3,
-	RE_Free3,
-	RE_PushContext2,
-	RE_ModuleShortRef,
-	RE_AddressProfile,
-	RE_PushContext3,
-	RE_Free4,
-	RE_AllocUsage,
-	RE_Info2,
-	RE_Screenshot,
-	RE_SizerPush,
-	RE_SizerPop,
-	RE_SizerAddRange,
-	RE_AddressProfile2,
-	RE_Alloc64,
-	RE_Free64,
-	RE_BucketMark,
-	RE_BucketMark2,
-	RE_BucketUnMark,
-	RE_BucketUnMark2,
-	RE_PoolMark,
-	RE_PoolUnMark,
-	RE_TextureAllocContext,
-	RE_PageFault,
-	RE_AddAllocReference,
-	RE_RemoveAllocReference,
-	RE_PoolMark2,
-	RE_TextureAllocContext2,
-	RE_BucketCleanupEnabled,
-	RE_Info3,
-	RE_Alloc4,
-	RE_Realloc,
-	RE_RegisterContainer,
-	RE_UnregisterContainer,
-	RE_BindToContainer,
-	RE_UnbindFromContainer,
-	RE_RegisterFixedAddressRange,
-	RE_SwapContainers,
-	RE_MapPage,
-	RE_UnMapPage,
-	RE_ModuleUnRef,
-	RE_Alloc5,
-	RE_Free5,
-	RE_Realloc2,
-	RE_AllocUsage2,
-	RE_Alloc6,
-	RE_Free6,
-	RE_Realloc3,
-	RE_UnregisterAddressRange,
-	RE_MapPage2,
-};
-}
 
 namespace MemReplayPlatformIds
 {
@@ -164,9 +170,8 @@ enum Ids
 };
 };
 
-	#pragma pack(push)
-	#pragma pack(1)
-
+#pragma pack(push)
+#pragma pack(1)
 struct MemReplayLogHeader
 {
 	MemReplayLogHeader(uint32 tag, uint32 platform, uint32 pointerWidth)
@@ -194,549 +199,9 @@ struct MemReplayEventHeader
 	uint8  eventId;
 	uint16 eventLength;
 } __PACKED;
+#pragma pack(pop)
 
-struct MemReplayFrameStartEvent
-{
-	static const int EventId = MemReplayEventIds::RE_FrameStart;
-
-	uint32           frameId;
-
-	MemReplayFrameStartEvent(uint32 frameId)
-		: frameId(frameId)
-	{}
-} __PACKED;
-
-struct MemReplayLabelEvent
-{
-	static const int EventId = MemReplayEventIds::RE_Label;
-
-	char             label[1];
-
-	MemReplayLabelEvent(const char* label)
-	{
-		// Assume there is room beyond this instance.
-		strcpy(this->label, label); // we're intentionally writing beyond the end of this array, so don't use cry_strcpy()
-	}
-} __PACKED;
-
-struct MemReplayPushContextEvent
-{
-	static const int EventId = MemReplayEventIds::RE_PushContext3;
-
-	uint64           threadId;
-	uint32           contextType;
-	uint32           flags;
-
-	// This field must be the last in the structure, and enough memory should be allocated
-	// for the structure to hold the required name.
-	char name[1];
-
-	MemReplayPushContextEvent(uint64 threadId, const char* name, EMemStatContextTypes::Type type, uint32 flags)
-	{
-		// We're going to assume that there actually is enough space to store the name directly in the struct.
-
-		this->threadId = threadId;
-		this->contextType = static_cast<uint32>(type);
-		this->flags = flags;
-		strcpy(this->name, name); // we're intentionally writing beyond the end of this array, so don't use cry_strcpy()
-	}
-} __PACKED;
-
-struct MemReplayPopContextEvent
-{
-	static const int EventId = MemReplayEventIds::RE_PopContext;
-
-	uint64 threadId;
-
-	explicit MemReplayPopContextEvent(uint64 threadId)
-	{
-		this->threadId = threadId;
-	}
-} __PACKED;
-
-struct MemReplayModuleRefEvent
-{
-	static const int EventId = MemReplayEventIds::RE_ModuleRef;
-
-	char             name[256];
-	char             path[256];
-	char             sig[512];
-	UINT_PTR         address;
-	UINT_PTR         size;
-
-	MemReplayModuleRefEvent(const char* name, const char* path, const UINT_PTR address, UINT_PTR size, const char* sig)
-	{
-		cry_strcpy(this->name, name);
-		cry_strcpy(this->path, path);
-		cry_strcpy(this->sig, sig);
-		this->address = address;
-		this->size = size;
-	}
-} __PACKED;
-
-struct MemReplayModuleUnRefEvent
-{
-	static const int EventId = MemReplayEventIds::RE_ModuleUnRef;
-
-	UINT_PTR         address;
-
-	MemReplayModuleUnRefEvent(UINT_PTR address)
-		: address(address) {}
-} __PACKED;
-
-struct MemReplayModuleRefShortEvent
-{
-	static const int EventId = MemReplayEventIds::RE_ModuleShortRef;
-
-	char             name[256];
-
-	MemReplayModuleRefShortEvent(const char* name)
-	{
-		cry_strcpy(this->name, name);
-	}
-} __PACKED;
-
-struct MemReplayAllocEvent
-{
-	static const int EventId = MemReplayEventIds::RE_Alloc6;
-
-	uint64           threadId;
-	UINT_PTR         id;
-	uint32           alignment;
-	uint32           sizeRequested;
-	uint32           sizeConsumed;
-	int32            sizeGlobal; //  Inferred from changes in global memory status
-
-	uint16           moduleId;
-	uint16           allocClass;
-	uint16           allocSubClass;
-	uint16           callstackLength;
-	UINT_PTR         callstack[1]; // Must be last.
-
-	MemReplayAllocEvent(uint64 threadId, uint16 moduleId, uint16 allocClass, uint16 allocSubClass, UINT_PTR id, uint32 alignment, uint32 sizeReq, uint32 sizeCon, int32 sizeGlobal)
-		: threadId(threadId)
-		, id(id)
-		, alignment(alignment)
-		, sizeRequested(sizeReq)
-		, sizeConsumed(sizeCon)
-		, sizeGlobal(sizeGlobal)
-		, moduleId(moduleId)
-		, allocClass(allocClass)
-		, allocSubClass(allocSubClass)
-		, callstackLength(0)
-	{
-	}
-} __PACKED;
-
-struct MemReplayFreeEvent
-{
-	static const int EventId = MemReplayEventIds::RE_Free6;
-
-	uint64           threadId;
-	UINT_PTR         id;
-	int32            sizeGlobal; //  Inferred from changes in global memory status
-
-	uint16           moduleId;
-	uint16           allocClass;
-	uint16           allocSubClass;
-
-	uint16           callstackLength;
-	UINT_PTR         callstack[1]; // Must be last.
-
-	MemReplayFreeEvent(uint64 threadId, uint16 moduleId, uint16 allocClass, uint16 allocSubClass, UINT_PTR id, int32 sizeGlobal)
-		: threadId(threadId)
-		, id(id)
-		, sizeGlobal(sizeGlobal)
-		, moduleId(moduleId)
-		, allocClass(allocClass)
-		, allocSubClass(allocSubClass)
-		, callstackLength(0)
-	{
-	}
-} __PACKED;
-
-struct MemReplayInfoEvent
-{
-	static const int EventId = MemReplayEventIds::RE_Info3;
-
-	uint32           executableSize;
-	uint32           initialGlobalSize;
-	uint32           bucketsFree;
-
-	MemReplayInfoEvent(uint32 executableSize, uint32 initialGlobalSize, uint32 bucketsFree)
-		: executableSize(executableSize)
-		, initialGlobalSize(initialGlobalSize)
-		, bucketsFree(bucketsFree)
-	{
-	}
-} __PACKED;
-
-struct MemReplayAddressProfileEvent
-{
-	static const int EventId = MemReplayEventIds::RE_AddressProfile2;
-
-	UINT_PTR         rsxStart;
-	uint32           rsxLength;
-
-	MemReplayAddressProfileEvent(UINT_PTR rsxStart, uint32 rsxLength)
-		: rsxStart(rsxStart)
-		, rsxLength(rsxLength)
-	{
-	}
-} __PACKED;
-
-struct MemReplayAllocUsageEvent
-{
-	static const int EventId = MemReplayEventIds::RE_AllocUsage2;
-
-	uint32           allocClass;
-	UINT_PTR         id;
-	uint32           used;
-
-	MemReplayAllocUsageEvent(uint16 allocClass, UINT_PTR id, uint32 used)
-		: allocClass(allocClass)
-		, id(id)
-		, used(used)
-	{
-	}
-} __PACKED;
-
-struct MemReplayScreenshotEvent
-{
-	static const int EventId = MemReplayEventIds::RE_Screenshot;
-
-	uint8            bmp[1];
-
-	MemReplayScreenshotEvent()
-	{
-	}
-} __PACKED;
-
-struct MemReplaySizerPushEvent
-{
-	static const int EventId = MemReplayEventIds::RE_SizerPush;
-
-	char             name[1];
-
-	MemReplaySizerPushEvent(const char* name)
-	{
-		strcpy(this->name, name);
-	}
-} __PACKED;
-
-struct MemReplaySizerPopEvent
-{
-	static const int EventId = MemReplayEventIds::RE_SizerPop;
-} __PACKED;
-
-struct MemReplaySizerAddRangeEvent
-{
-	static const int EventId = MemReplayEventIds::RE_SizerAddRange;
-
-	UINT_PTR         address;
-	uint32           size;
-	int32            count;
-
-	MemReplaySizerAddRangeEvent(const UINT_PTR address, uint32 size, int32 count)
-		: address(address)
-		, size(size)
-		, count(count)
-	{}
-
-} __PACKED;
-
-struct MemReplayBucketMarkEvent
-{
-	static const int EventId = MemReplayEventIds::RE_BucketMark2;
-
-	UINT_PTR         address;
-	uint32           length;
-	int32            index;
-	uint32           alignment;
-
-	MemReplayBucketMarkEvent(UINT_PTR address, uint32 length, int32 index, uint32 alignment)
-		: address(address)
-		, length(length)
-		, index(index)
-		, alignment(alignment)
-	{}
-
-} __PACKED;
-
-struct MemReplayBucketUnMarkEvent
-{
-	static const int EventId = MemReplayEventIds::RE_BucketUnMark2;
-
-	UINT_PTR         address;
-	int32            index;
-
-	MemReplayBucketUnMarkEvent(UINT_PTR address, int32 index)
-		: address(address)
-		, index(index)
-	{}
-} __PACKED;
-
-struct MemReplayAddAllocReferenceEvent
-{
-	static const int EventId = MemReplayEventIds::RE_AddAllocReference;
-
-	UINT_PTR         address;
-	UINT_PTR         referenceId;
-	uint32           callstackLength;
-	UINT_PTR         callstack[1];
-
-	MemReplayAddAllocReferenceEvent(UINT_PTR address, UINT_PTR referenceId)
-		: address(address)
-		, referenceId(referenceId)
-		, callstackLength(0)
-	{
-	}
-} __PACKED;
-
-struct MemReplayRemoveAllocReferenceEvent
-{
-	static const int EventId = MemReplayEventIds::RE_RemoveAllocReference;
-
-	UINT_PTR         referenceId;
-
-	MemReplayRemoveAllocReferenceEvent(UINT_PTR referenceId)
-		: referenceId(referenceId)
-	{
-	}
-} __PACKED;
-
-struct MemReplayPoolMarkEvent
-{
-	static const int EventId = MemReplayEventIds::RE_PoolMark2;
-
-	UINT_PTR         address;
-	uint32           length;
-	int32            index;
-	uint32           alignment;
-	char             name[1];
-
-	MemReplayPoolMarkEvent(UINT_PTR address, uint32 length, int32 index, uint32 alignment, const char* name)
-		: address(address)
-		, length(length)
-		, index(index)
-		, alignment(alignment)
-	{
-		strcpy(this->name, name);
-	}
-
-} __PACKED;
-
-struct MemReplayPoolUnMarkEvent
-{
-	static const int EventId = MemReplayEventIds::RE_PoolUnMark;
-
-	UINT_PTR         address;
-	int32            index;
-
-	MemReplayPoolUnMarkEvent(UINT_PTR address, int32 index)
-		: address(address)
-		, index(index)
-	{}
-} __PACKED;
-
-struct MemReplayTextureAllocContextEvent
-{
-	static const int EventId = MemReplayEventIds::RE_TextureAllocContext2;
-
-	UINT_PTR         address;
-	uint32           mip;
-	uint32           width;
-	uint32           height;
-	uint32           flags;
-	char             name[1];
-
-	MemReplayTextureAllocContextEvent(UINT_PTR ptr, uint32 mip, uint32 width, uint32 height, uint32 flags, const char* name)
-		: address(ptr)
-		, mip(mip)
-		, width(width)
-		, height(height)
-		, flags(flags)
-	{
-		strcpy(this->name, name);
-	}
-} __PACKED;
-
-struct MemReplayBucketCleanupEnabledEvent
-{
-	static const int EventId = MemReplayEventIds::RE_BucketCleanupEnabled;
-
-	UINT_PTR         allocatorBaseAddress;
-	uint32           cleanupsEnabled;
-
-	MemReplayBucketCleanupEnabledEvent(UINT_PTR allocatorBaseAddress, bool cleanupsEnabled)
-		: allocatorBaseAddress(allocatorBaseAddress)
-		, cleanupsEnabled(cleanupsEnabled ? 1 : 0)
-	{
-	}
-} __PACKED;
-
-struct MemReplayReallocEvent
-{
-	static const int EventId = MemReplayEventIds::RE_Realloc3;
-
-	uint64           threadId;
-	UINT_PTR         oldId;
-	UINT_PTR         newId;
-	uint32           alignment;
-	uint32           newSizeRequested;
-	uint32           newSizeConsumed;
-	int32            sizeGlobal; //  Inferred from changes in global memory status
-
-	uint16           moduleId;
-	uint16           allocClass;
-	uint16           allocSubClass;
-
-	uint16           callstackLength;
-	UINT_PTR         callstack[1]; // Must be last.
-
-	MemReplayReallocEvent(uint64 threadId, uint16 moduleId, uint16 allocClass, uint16 allocSubClass, UINT_PTR oldId, UINT_PTR newId, uint32 alignment, uint32 newSizeReq, uint32 newSizeCon, int32 sizeGlobal)
-		: threadId(threadId)
-		, oldId(oldId)
-		, newId(newId)
-		, alignment(alignment)
-		, newSizeRequested(newSizeReq)
-		, newSizeConsumed(newSizeCon)
-		, sizeGlobal(sizeGlobal)
-		, moduleId(moduleId)
-		, allocClass(allocClass)
-		, allocSubClass(allocSubClass)
-		, callstackLength(0)
-	{
-	}
-} __PACKED;
-
-struct MemReplayRegisterContainerEvent
-{
-	static const int EventId = MemReplayEventIds::RE_RegisterContainer;
-
-	UINT_PTR         key;
-	uint32           type;
-
-	uint32           callstackLength;
-	UINT_PTR         callstack[1]; // Must be last
-
-	MemReplayRegisterContainerEvent(UINT_PTR key, uint32 type)
-		: key(key)
-		, type(type)
-		, callstackLength(0)
-	{
-	}
-
-} __PACKED;
-
-struct MemReplayUnregisterContainerEvent
-{
-	static const int EventId = MemReplayEventIds::RE_UnregisterContainer;
-
-	UINT_PTR         key;
-
-	explicit MemReplayUnregisterContainerEvent(UINT_PTR key)
-		: key(key)
-	{
-	}
-
-} __PACKED;
-
-struct MemReplayBindToContainerEvent
-{
-	static const int EventId = MemReplayEventIds::RE_BindToContainer;
-
-	UINT_PTR         key;
-	UINT_PTR         ptr;
-
-	MemReplayBindToContainerEvent(UINT_PTR key, UINT_PTR ptr)
-		: key(key)
-		, ptr(ptr)
-	{
-	}
-
-} __PACKED;
-
-struct MemReplayUnbindFromContainerEvent
-{
-	static const int EventId = MemReplayEventIds::RE_UnbindFromContainer;
-
-	UINT_PTR         key;
-	UINT_PTR         ptr;
-
-	MemReplayUnbindFromContainerEvent(UINT_PTR key, UINT_PTR ptr)
-		: key(key)
-		, ptr(ptr)
-	{
-	}
-
-} __PACKED;
-
-struct MemReplayRegisterFixedAddressRangeEvent
-{
-	static const int EventId = MemReplayEventIds::RE_RegisterFixedAddressRange;
-
-	UINT_PTR         address;
-	uint32           length;
-
-	char             name[1];
-
-	MemReplayRegisterFixedAddressRangeEvent(UINT_PTR address, uint32 length, const char* name)
-		: address(address)
-		, length(length)
-	{
-		strcpy(this->name, name);
-	}
-} __PACKED;
-
-struct MemReplaySwapContainersEvent
-{
-	static const int EventId = MemReplayEventIds::RE_SwapContainers;
-
-	UINT_PTR         keyA;
-	UINT_PTR         keyB;
-
-	MemReplaySwapContainersEvent(UINT_PTR keyA, UINT_PTR keyB)
-		: keyA(keyA)
-		, keyB(keyB)
-	{
-	}
-} __PACKED;
-
-struct MemReplayMapPageEvent
-{
-	static const int EventId = MemReplayEventIds::RE_MapPage2;
-
-	UINT_PTR         address;
-	uint32           length;
-	uint32           callstackLength;
-	UINT_PTR         callstack[1];
-
-	MemReplayMapPageEvent(UINT_PTR address, uint32 length)
-		: address(address)
-		, length(length)
-		, callstackLength(0)
-	{
-	}
-} __PACKED;
-
-struct MemReplayUnMapPageEvent
-{
-	static const int EventId = MemReplayEventIds::RE_UnMapPage;
-
-	UINT_PTR         address;
-	uint32           length;
-
-	MemReplayUnMapPageEvent(UINT_PTR address, uint32 length)
-		: address(address)
-		, length(length)
-	{
-	}
-} __PACKED;
-
-	#pragma pack(pop)
-
-	#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
+#if CRY_PLATFORM_WINDOWS || CRY_PLATFORM_DURANGO || CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID || CRY_PLATFORM_APPLE
 
 class ReplayAllocatorBase
 {
@@ -904,12 +369,6 @@ public:
 		return reinterpret_cast<T*>(AllocateRaw(T::EventId, sizeof(T) + evAdditionalLength));
 	}
 
-	template<typename T>
-	ILINE T* AllocateRawEvent()
-	{
-		return AllocateRaw(T::EventId, sizeof(T));
-	}
-
 	void WriteRawEvent(uint8 id, const void* event, uint eventSize)
 	{
 		void* ev = AllocateRaw(id, eventSize);
@@ -1025,9 +484,6 @@ private:
 	std::set<const void*> m_addedObjects;
 };
 
-extern int GetPageBucketAlloc_wasted_in_allocation();
-extern int GetPageBucketAlloc_get_free();
-
 class CReplayModules
 {
 public:
@@ -1104,107 +560,143 @@ private:
 };
 
 //////////////////////////////////////////////////////////////////////////
-class CMemReplay : public IMemReplay
+class CMemReplay final : public IMemReplay
 {
-public:
-	static CMemReplay* GetInstance();
+private:
+	enum class ECreationStatus
+	{
+		Uninitialized = 0,
+		Initialized = 1,
+	};
+
+	typedef CryCriticalSection TLogMutex;
+	typedef CryAutoLock<TLogMutex> TLogAutoLock;
 
 public:
 	CMemReplay();
-	~CMemReplay();
+	virtual ~CMemReplay() {};
+
+	static void Init();
+	static void Shutdown();
+
+	static CMemReplay* GetInstance();
+	static void RegisterCVars();
 
 	//////////////////////////////////////////////////////////////////////////
 	// IMemReplay interface implementation
 	//////////////////////////////////////////////////////////////////////////
-	void DumpStats();
-	void DumpSymbols();
+	void DumpStats() final;
+	void DumpSymbols() final;
 
-	void StartOnCommandLine(const char* cmdLine);
-	void Start(bool bPaused, const char* openString);
-	void Stop();
-	void Flush();
-	bool EnableAsynchMode();
+	void StartOnCommandLine(const char* cmdLine) final;
+	void Start(bool bPaused, const char* openString) final;
+	void Stop() final;
+	void Flush() final;
+	bool EnableAsynchMode() final;
 
 	void GetInfo(CryReplayInfo& infoOut);
 
 	// Call to begin a new allocation scope.
-	bool EnterScope(EMemReplayAllocClass::Class cls, uint16 subCls, int moduleId);
+	bool EnterScope(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId);
 
 	// Records an event against the currently active scope and exits it.
-	void ExitScope_Alloc(UINT_PTR id, UINT_PTR sz, UINT_PTR alignment = 0);
-	void ExitScope_Realloc(UINT_PTR originalId, UINT_PTR newId, UINT_PTR sz, UINT_PTR alignment = 0);
-	void ExitScope_Free(UINT_PTR id);
-	void ExitScope();
+	void ExitScope_Alloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR id, UINT_PTR sz, UINT_PTR alignment = 0) final;
+	void ExitScope_Realloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR originalId, UINT_PTR newId, UINT_PTR sz, UINT_PTR alignment = 0) final;
+	void ExitScope_Free(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR id) final;
+	void ExitScope() final;
 
-	bool EnterLockScope();
-	void LeaveLockScope();
+	void AllocUsage(EMemReplayAllocClass allocClass, UINT_PTR id, UINT_PTR used) final;
 
-	void AllocUsage(EMemReplayAllocClass::Class allocClass, UINT_PTR id, UINT_PTR used);
+	void AddAllocReference(void* ptr, void* ref) final;
+	void RemoveAllocReference(void* ref) final;
 
-	void AddAllocReference(void* ptr, void* ref);
-	void RemoveAllocReference(void* ref);
+	void AddLabel(const char* label) final;
+	void AddLabelFmt(const char* labelFmt, ...) final;
+	void AddFrameStart() final;
+	void AddScreenshot() final;
 
-	void AddLabel(const char* label);
-	void AddLabelFmt(const char* labelFmt, ...);
-	void AddFrameStart();
-	void AddScreenshot();
+	FixedContextID AddFixedContext(EMemStatContextType type, const char* str) final;
+	void PushFixedContext(FixedContextID id) final;
 
-	void AddContext(int type, uint32 flags, const char* str);
-	void AddContextV(int type, uint32 flags, const char* format, va_list args);
-	void RemoveContext();
+	void PushContext(EMemStatContextType type, const char* str) final;
+	void PushContextV(EMemStatContextType type, const char* format, va_list args) final;
+	void PopContext() final;
 
-	void OwnMemory(void* p, size_t size);
+	void MapPage(void* base, size_t size) final;
+	void UnMapPage(void* base, size_t size) final;
 
-	void MapPage(void* base, size_t size);
-	void UnMapPage(void* base, size_t size);
+	void RegisterFixedAddressRange(void* base, size_t size, const char* name) final;
+	void MarkBucket(int bucket, size_t alignment, void* base, size_t length) final;
+	void UnMarkBucket(int bucket, void* base) final;
+	void BucketEnableCleanups(void* allocatorBase, bool enabled) final;
 
-	void RegisterFixedAddressRange(void* base, size_t size, const char* name);
-	void MarkBucket(int bucket, size_t alignment, void* base, size_t length);
-	void UnMarkBucket(int bucket, void* base);
-	void BucketEnableCleanups(void* allocatorBase, bool enabled);
+	void MarkPool(int pool, size_t alignment, void* base, size_t length, const char* name) final;
+	void UnMarkPool(int pool, void* base) final;
+	void AddTexturePoolContext(void* ptr, int mip, int width, int height, const char* name, uint32 flags) final;
 
-	void MarkPool(int pool, size_t alignment, void* base, size_t length, const char* name);
-	void UnMarkPool(int pool, void* base);
-	void AddTexturePoolContext(void* ptr, int mip, int width, int height, const char* name, uint32 flags);
+	void AddSizerTree(const char* name) final;
 
-	void AddSizerTree(const char* name);
-
-	void RegisterContainer(const void* key, int type);
-	void UnregisterContainer(const void* key);
-	void BindToContainer(const void* key, const void* alloc);
-	void UnbindFromContainer(const void* key, const void* alloc);
-	void SwapContainers(const void* keyA, const void* keyB);
+	void RegisterContainer(const void* key, int type) final;
+	void UnregisterContainer(const void* key) final;
+	void BindToContainer(const void* key, const void* alloc) final;
+	void UnbindFromContainer(const void* key, const void* alloc) final;
+	void SwapContainers(const void* keyA, const void* keyB) final;
 	//////////////////////////////////////////////////////////////////////////
 
 private:
 	static void RecordModuleLoad(void* pSelf, const CReplayModules::ModuleLoadDesc& mld);
 	static void RecordModuleUnload(void* pSelf, const CReplayModules::ModuleUnloadDesc& mld);
-	void WriteCallstack(UINT_PTR* callstack, uint32& length);
-	void WriteCallstack(UINT_PTR* callstack, uint16& length);
+    uint16 WriteCallstack(UINT_PTR* callstack);
 
 private:
 	CMemReplay(const CMemReplay&);
 	CMemReplay& operator=(const CMemReplay&);
 
 private:
-	void RecordAlloc(EMemReplayAllocClass::Class cls, uint16 subCls, int moduleId, UINT_PTR p, UINT_PTR alignment, UINT_PTR sizeRequested, UINT_PTR sizeConsumed, INT_PTR sizeGlobal);
-	void RecordRealloc(EMemReplayAllocClass::Class cls, uint16 subCls, int moduleId, UINT_PTR op, UINT_PTR p, UINT_PTR alignment, UINT_PTR sizeRequested, UINT_PTR sizeConsumed, INT_PTR sizeGlobal);
-	void RecordFree(EMemReplayAllocClass::Class cls, uint16 subCls, int moduleId, UINT_PTR p, INT_PTR sizeGlobal);
+	void RecordAlloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR p, UINT_PTR alignment, UINT_PTR sizeRequested, UINT_PTR sizeConsumed, INT_PTR sizeGlobal);
+	void RecordRealloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR op, UINT_PTR p, UINT_PTR alignment, UINT_PTR sizeRequested, UINT_PTR sizeConsumed, INT_PTR sizeGlobal);
+	void RecordFree(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR p, INT_PTR sizeGlobal);
 	void RecordModules();
 
 	int  GetCurrentExecutableSize();
 
 private:
-	volatile uint32             m_allocReference;
+	int* GetScopeDepthPtr(threadID tid);
+
+#if MEMREPLAY_USES_DETOURS
+	// ntdll
+	typedef __success(return >= 0) LONG NTSTATUS;
+
+	static PVOID NTAPI RtlAllocateHeap_Detour(PVOID HeapHandle, ULONG Flags, SIZE_T Size);
+	static PVOID NTAPI RtlReAllocateHeap_Detour(PVOID HeapHandle, ULONG Flags, PVOID MemoryPointer, ULONG Size);
+	static BOOLEAN NTAPI RtlFreeHeap_Detour(PVOID HeapHandle, ULONG Flags, PVOID BaseAddress);
+	static NTSTATUS NTAPI NtAllocateVirtualMemory_Detour(HANDLE ProcessHandle, PVOID* BaseAddress, ULONG_PTR ZeroBits, PSIZE_T RegionSize, ULONG AllocationType, ULONG Protect);
+	static NTSTATUS NTAPI NtFreeVirtualMemory_Detour(HANDLE ProcessHandle, PVOID* BaseAddress, PSIZE_T RegionSize, ULONG FreeType);
+
+	typedef decltype(&RtlAllocateHeap_Detour) RtlAllocateHeap_Ptr;
+	typedef decltype(&RtlReAllocateHeap_Detour) RtlReAllocateHeap_Ptr;
+	typedef decltype(&RtlFreeHeap_Detour) RtlFreeHeap_Ptr;
+	typedef decltype(&NtAllocateVirtualMemory_Detour) NtAllocateVirtualMemory_Ptr;
+	typedef decltype(&NtFreeVirtualMemory_Detour) NtFreeVirtualMemory_Ptr;
+
+	static RtlAllocateHeap_Ptr         s_originalRtlAllocateHeap;
+	static RtlReAllocateHeap_Ptr       s_originalRtlReAllocateHeap;
+	static RtlFreeHeap_Ptr             s_originalRtlFreeHeap;
+	static NtAllocateVirtualMemory_Ptr s_originalNtAllocateVirtualMemory;
+	static NtFreeVirtualMemory_Ptr     s_originalNtFreeVirtualMemory;
+#endif
+
+	volatile uint32             m_allocReference = 0;
 	ReplayLogStream             m_stream;
 	CReplayModules              m_modules;
 
-	CryCriticalSection          m_scope;
-
 	int                         m_scopeDepth;
-	EMemReplayAllocClass::Class m_scopeClass;
-	uint16                      m_scopeSubClass;
-	int                         m_scopeModuleId;
+	
+	CryReadModifyLock           m_threadScopesLock;
+	int                         m_threadScopePairsInUse;
+	std::pair<threadID, int>    m_threadScopeDepthPairs[128];
+
+	ECreationStatus             m_status = ECreationStatus::Uninitialized;
 };
 //////////////////////////////////////////////////////////////////////////
 

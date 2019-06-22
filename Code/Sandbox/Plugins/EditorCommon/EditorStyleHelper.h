@@ -35,9 +35,16 @@ public:
 	// QTreeView
 	STYLE_PROP(int, treeViewItemMarginTop, treeViewItemMarginTop);
 
-	// CTimeline colors
+	// CTimeline colors	
 	STYLE_PROP(QColor, timelineTrackColor, setTimelineTrackColor);
 	STYLE_PROP(QColor, timelineDetachedColor, setTimelineDetachedColor);
+	STYLE_PROP(QColor, timelineCamTrackColor, setTimelineCamTrackColor);
+	STYLE_PROP(QColor, timelineNodeTrackColor, setTimelineNodeTrackColor);
+	STYLE_PROP(QColor, timelineSubtrackColor, setTimelineSubtrackColor);
+	STYLE_PROP(QColor, timelineXSubtrackColor, setTimelineXSubtrackColor);
+	STYLE_PROP(QColor, timelineYSubtrackColor, setTimelineYSubtrackColor);
+	STYLE_PROP(QColor, timelineZSubtrackColor, setTimelineZSubtrackColor);
+	STYLE_PROP(QColor, timelineFolderTrackColor, setTimelineFolderTrackColor);	
 	STYLE_PROP(QColor, timelineOutsideTrackColor, setTimelineOutsideTrackColor);
 	STYLE_PROP(QColor, timelineDescriptionTrackColor, setTimelineDescriptionTrackColor);
 	STYLE_PROP(QColor, timelineCompositeTrackColor, setTimelineCompositeTrackColor);
@@ -55,6 +62,12 @@ public:
 	STYLE_PROP(QColor, timelineSelectedClipFocused, setTimelineSelectedClipFocused);
 	STYLE_PROP(QColor, timelineTreeLines, setTimelineTreeLines);
 	STYLE_PROP(QColor, timelineTreeText, setTimelineTreeText);
+	STYLE_PROP(QColor, timelineTreeXSubtrackText, setTimelineTreeXSubtrackText);
+	STYLE_PROP(QColor, timelineTreeYSubtrackText, setTimelineTreeYSubtrackText);
+	STYLE_PROP(QColor, timelineTreeZSubtrackText, setTimelineTreeZSubtrackText);
+	STYLE_PROP(QColor, timelineTreeNodeTrackText, setTimelineTreeNodeTrackText);
+	STYLE_PROP(QColor, timelineTreeFolderTrackText, setTimelineTreeFolderTrackText);
+	STYLE_PROP(QColor, timelineTreeCompoundTrackText, settimelineTreeCompoundTrackText);
 	STYLE_PROP(QColor, timelineSplitterNormal, setTimelineSplitterNormal);
 	STYLE_PROP(QColor, timelineSplitterSelected, setTimelineSplitterSelected);
 	STYLE_PROP(QColor, timelineSplitterMoving, setTimelineSplitterMoving);
@@ -101,10 +114,7 @@ public:
 	STYLE_PROP(QColor, disabledToolTipBaseColor, setDisabledToolTipBaseColor);
 	STYLE_PROP(QColor, toolTipTextColor, setToolTipTextColor);
 	STYLE_PROP(QColor, disabledToolTipTextColor, setDisabledToolTipTextColor);
-	STYLE_PROP(int, toolTipMarginTop, setToolTipMarginTop);
-	STYLE_PROP(int, toolTipMarginLeft, setToolTipMarginLeft);
-	STYLE_PROP(int, toolTipMarginRight, setToolTipMarginRight);
-	STYLE_PROP(int, toolTipMarginBottom, setToolTipMarginBottom);
+	STYLE_PROP(int, toolTipIconMargin, setToolTipIconMargin);
 	STYLE_PROP(QColor, textColor, setTextColor);
 	STYLE_PROP(QColor, disabledTextColor, setDisabledTextColor);
 	STYLE_PROP(QColor, buttonColor, setButtonColor);

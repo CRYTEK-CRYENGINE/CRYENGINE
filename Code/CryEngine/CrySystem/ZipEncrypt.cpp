@@ -23,7 +23,7 @@ bool g_using_zipencrypt = false;
 
 void ZipEncrypt::Init(const uint8* pKeyData, uint32 keyLen)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	g_using_zipencrypt = true;
 
@@ -111,7 +111,7 @@ bool ZipEncrypt::DecryptBufferWithStreamCipher(unsigned char* inBuffer, unsigned
 
 bool ZipEncrypt::DecryptBufferWithStreamCipher(unsigned char* inBuffer, size_t bufferSize, unsigned char key[16], unsigned char IV[16])
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 	symmetric_CTR ctr;
 

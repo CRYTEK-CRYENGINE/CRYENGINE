@@ -7,11 +7,10 @@
 #include "Wrappers/MonoClass.h"
 #include "Wrappers/MonoString.h"
 
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 static void AddConsoleCommandFunction(ConsoleCommandFunc consoleCommandFunc, MonoInternals::MonoString* commandName, int nFlags, MonoInternals::MonoString* sHelp, bool isManaged)
 {
-	CMonoDomain* pDomain = static_cast<CMonoDomain*>(GetMonoRuntime()->GetActiveDomain());
 	std::shared_ptr<CMonoString> pCommandName = CMonoDomain::CreateString(commandName);
 	std::shared_ptr<CMonoString> pCommandHelp = CMonoDomain::CreateString(sHelp);
 

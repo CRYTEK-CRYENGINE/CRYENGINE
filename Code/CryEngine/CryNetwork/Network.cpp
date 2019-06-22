@@ -51,12 +51,12 @@
 	#include <Winxnet.h>
 #endif
 
-#if ENABLE_OBJECT_COUNTING
-	#include "PsApi.h"
-#endif
-
 #include <CryLobby/CommonICryMatchMaking.h>
 #include <CryThreading/IThreadManager.h>
+
+#if CRY_PLATFORM_DURANGO
+#include "Socket/DurangoAssociationTemplate.h"
+#endif
 
 static const int MIN_LOBBY_TICK_FREQUENCY = 4;
 
@@ -609,6 +609,10 @@ bool CNetwork::Init(int ncpu)
 	}
 #endif
 
+#if CRY_PLATFORM_DURANGO
+	m_pAssociationTemplate = stl::make_unique<CDurangoAssociationTemplate>();
+#endif
+
 	int n = 0;
 	while (m_neNetErrors[n].sErrorDescription != NULL)
 	{
@@ -1043,8 +1047,7 @@ void CNetwork::SyncWithGame(ENetworkGameSync type)
 #if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
 		char profileLabel[32];
 		cry_sprintf(profileLabel, "SyncWithGame() lock %d", type);
-		CRY_PROFILE_REGION(PROFILE_NETWORK, "SyncWithGame() lock unknown");
-		CRYPROFILE_SCOPE_PLATFORM_MARKER(profileLabel);
+		CRY_PROFILE_SECTION(PROFILE_NETWORK, "SyncWithGame() lock unknown");
 #endif
 		CTimeValue startTime = gEnv->pTimer->GetAsyncTime();
 
@@ -1151,7 +1154,7 @@ void CNetwork::DoSyncWithGame(ENetworkGameSync type)
 	case eNGS_FrameStart:
 		{
 			PerformanceGuard guard(&m_networkPerformance, 0);
-			CRY_PROFILE_REGION(PROFILE_NETWORK, "Network:FrameStart");
+			CRY_PROFILE_SECTION(PROFILE_NETWORK, "Network:FrameStart");
 			if (gEnv->IsDedicated())
 				g_pFileDownloader->Update();
 			if (!gEnv->IsEditor())
@@ -1196,7 +1199,7 @@ void CNetwork::DoSyncWithGame(ENetworkGameSync type)
 		break;
 	case eNGS_FrameEnd:
 		{
-		CRY_PROFILE_REGION(PROFILE_NETWORK, "Network:FrameEnd");
+		CRY_PROFILE_SECTION(PROFILE_NETWORK, "Network:FrameEnd");
 			PerformanceGuard guard(&m_networkPerformance, m_networkPerformance.m_nNetworkSync);
 
 			//NetQuickLog( gEnv->IsDedicated(), 0, "locks/frame: %d", g_lockCount );
@@ -1375,7 +1378,7 @@ bool CNetwork::UpdateTick(bool mt)
 
 	if (mt)
 	{
-		CRY_PROFILE_REGION_WAITING(PROFILE_NETWORK, "Wait - Network Wakeup");
+		CRY_PROFILE_SECTION_WAITING(PROFILE_NETWORK, "Wait - Network Wakeup");
 
 #if LOG_SOCKET_TIMEOUTS
 		NET_STOP_THREAD_TIMER();
@@ -1398,7 +1401,7 @@ bool CNetwork::UpdateTick(bool mt)
 
 	while (true)
 	{
-		CRY_PROFILE_REGION(PROFILE_NETWORK, "Network DoMainTick");
+		CRY_PROFILE_SECTION(PROFILE_NETWORK, "Network DoMainTick");
 
 		switch (DoMainTick(mt))
 		{
@@ -1428,7 +1431,7 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 
 	bool isLocked = false;
 	{
-		CRY_PROFILE_REGION_WAITING(PROFILE_NETWORK, "Wait - Network DoMainTick lock");
+		CRY_PROFILE_SECTION_WAITING(PROFILE_NETWORK, "Wait - Network DoMainTick lock");
 
 		if (mustLock)
 		{
@@ -1450,7 +1453,7 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 
 		if (m_bDelayedExternalWork)
 		{
-			CRY_PROFILE_REGION_WAITING(PROFILE_NETWORK, "Wait - Network Poll Wait External");
+			CRY_PROFILE_SECTION_WAITING(PROFILE_NETWORK, "Wait - Network Poll Wait External");
 
 			m_pExternalSocketIOManager->PollWork(didWorkInExternalPoll);
 			m_bDelayedExternalWork = false;
@@ -1478,7 +1481,7 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 		if (gEnv->bMultiplayer && m_bOverideChannelTickToGoNow)
 #endif
 		{
-			CRY_PROFILE_REGION(PROFILE_NETWORK, "Network Tick Channels");
+			CRY_PROFILE_SECTION(PROFILE_NETWORK, "Network Tick Channels");
 
 			// Tick the channels
 			const uint32 numMembers = m_vMembers.size();
@@ -1599,7 +1602,7 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 #endif // LOG_SOCKET_POLL_TIME
 
 		{
-			CRY_PROFILE_REGION_WAITING(PROFILE_NETWORK, "Wait - Network Poll Wait Internal");
+			CRY_PROFILE_SECTION_WAITING(PROFILE_NETWORK, "Wait - Network Poll Wait Internal");
 
 			// Is there any work to do?
 			NET_STOP_THREAD_TIMER();
@@ -1633,7 +1636,7 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 
 		if (m_pInternalSocketIOManager != m_pExternalSocketIOManager)
 		{
-			CRY_PROFILE_REGION_WAITING(PROFILE_NETWORK, "Wait - Network Poll Wait External");
+			CRY_PROFILE_SECTION_WAITING(PROFILE_NETWORK, "Wait - Network Poll Wait External");
 
 			externalWorkToDo = m_pExternalSocketIOManager->PollWait(0);
 		}
@@ -1641,14 +1644,14 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 		if (internalWorkToDo || externalWorkToDo)
 		{
 			{
-				CRY_PROFILE_REGION_WAITING(PROFILE_NETWORK, "Wait - Network DoMainTick PollWork lock");
+				CRY_PROFILE_SECTION_WAITING(PROFILE_NETWORK, "Wait - Network DoMainTick PollWork lock");
 
 				m_mutex.Lock();
 			}
 
 			if (internalWorkToDo)
 			{
-				CRY_PROFILE_REGION(PROFILE_NETWORK, "Network DoMainTick PollWork Internal");
+				CRY_PROFILE_SECTION(PROFILE_NETWORK, "Network DoMainTick PollWork Internal");
 
 				// The internal socket manager is the one that handles waits/sleeps
 				pollres = m_pInternalSocketIOManager->PollWork(didWorkInInternalPoll);
@@ -1657,7 +1660,7 @@ CNetwork::eTickReturnState CNetwork::DoMainTick(bool mt)
 			{
 				if (pollres != ISocketIOManager::eUM_SLEEP || !(gEnv->bMultiplayer && !gEnv->IsEditor()))
 				{
-					CRY_PROFILE_REGION(PROFILE_NETWORK, "Network DoMainTick PollWork External");
+					CRY_PROFILE_SECTION(PROFILE_NETWORK, "Network DoMainTick PollWork External");
 
 					m_pExternalSocketIOManager->PollWork(didWorkInExternalPoll);
 				}

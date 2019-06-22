@@ -7,6 +7,7 @@
 #include <CryCore/ToolsHelpers/ResourceCompilerHelper.h>
 
 class CAsset;
+class CAssetType;
 
 namespace AssetManagerHelpers
 {
@@ -16,12 +17,21 @@ bool IsFileOpened(const string& path);
 //! Returns list of metadata files for given assets
 std::vector<string> GetListOfMetadataFiles(const std::vector<CAsset*>& assets);
 
+//! Returns list of UI friendly names for given list of asset type names.
+QStringList GetUiNamesFromAssetTypeNames(const std::vector<string>& typeNames);
+
+//! Returns list of UI friendly names for given list of asset types.
+QStringList GetUiNamesFromAssetTypes(const std::vector<CAssetType*>& types);
+
+//! Returns a collection of CAssetType pointers for given list of asset type names.
+std::vector<CAssetType*> GetAssetTypesFromTypeNames(const std::vector<string>& typeNames);
+
 struct EDITOR_COMMON_API RCLogger : IResourceCompilerListener
 {
 	virtual void OnRCMessage(MessageSeverity severity, const char* szText) override;
 };
 
-// A FIFO data processing queue with the ability to wait for deferred processing of items without blocking the calling thread.
+//! A FIFO data processing queue with the ability to wait for deferred processing of items without blocking the calling thread.
 class CProcessingQueue
 {
 public:
@@ -30,14 +40,14 @@ public:
 public:
 	CProcessingQueue() = default;
 
-	// Inserts a new item into the processing queue.
-	// The predicate object must return true if the item should be removed from the queue,
-	// if the function object returns false, the queue will try to check the item again, somewhat later.
-	// In any case the items will be processed in order of adding to the queue (first-in, first-out).
+	//! Inserts a new item into the processing queue.
+	//! The predicate object must return true if the item should be removed from the queue,
+	//! if the function object returns false, the queue will try to check the item again, somewhat later.
+	//! In any case the items will be processed in order of adding to the queue (first-in, first-out).
 	void ProcessItemAsync(const string& key, Predicate fn);
 
-	// Inserts a new item into the processing queue, if the queue doesn't already contain an item with an equivalent key.
-	// see ProcessFileAsync
+	//! Inserts a new item into the processing queue, if the queue doesn't already contain an item with an equivalent key.
+	//! \sa ProcessItemAsync
 	void ProcessItemUniqueAsync(const string& key, Predicate fn);
 
 private:

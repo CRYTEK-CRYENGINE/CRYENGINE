@@ -153,7 +153,7 @@ void ClipVolumeObject::Display(CObjectRenderHelper& objRenderHelper)
 
 void ClipVolumeObject::UpdateGameResource()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	DynArray<Vec3> meshFaces;
 
 	if (m_pEntity)

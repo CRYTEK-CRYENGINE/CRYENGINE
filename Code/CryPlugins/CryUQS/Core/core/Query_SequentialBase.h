@@ -23,28 +23,26 @@ namespace UQS
 		{
 		protected:
 			explicit                                 CQuery_SequentialBase(const SCtorContext& ctorContext);
-			                                         ~CQuery_SequentialBase();
 			bool                                     HasMoreChildrenLeftToInstantiate() const;
 			void                                     InstantiateNextChildQueryBlueprint(const std::shared_ptr<CItemList>& pResultingItemsOfPotentialPreviousChildQuery);
 
 		private:
 			// CQueryBase
-			virtual bool                             OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error) override final;
-			virtual EUpdateState                     OnUpdate(Shared::CUqsString& error) override final;
+			virtual bool                             OnStart(const Shared::IVariantDict& runtimeParams, Shared::IUqsString& error) override final;
+			virtual EUpdateState                     OnUpdate(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error) override final;
 			virtual void                             OnCancel() override final;
 			virtual void                             OnGetStatistics(SStatistics& out) const override final;
 			// ~CQueryBase
 
-			void                                     OnChildQueryFinished(const SQueryResult& result);
-			virtual void                             HandleChildQueryFinishedWithSuccess(const CQueryID& childQueryID, QueryResultSetUniquePtr&& pResultSet) = 0;
+			virtual void                             HandleChildQueryFinishedWithSuccess(CQueryBase& childQuery) = 0;
 
 		private:
 			Shared::CVariantDict                     m_runtimeParams;
 			int                                      m_priority;
 			size_t                                   m_indexOfNextChildToInstantiate;
-			CQueryID                                 m_queryIDOfCurrentlyRunningChild;
-			bool                                     m_bExceptionOccurredInChild;
-			Shared::CUqsString                       m_exceptionMessageFromChild;
+			QueryBaseUniquePtr                       m_pCurrentlyRunningChildQuery;
+			bool                                     m_bExceptionOccurredUponChildInstantiation;
+			Shared::CUqsString                       m_exceptionMessageFromChildInstantiation;
 		};
 
 	}

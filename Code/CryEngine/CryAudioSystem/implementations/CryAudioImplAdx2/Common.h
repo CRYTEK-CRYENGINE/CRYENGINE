@@ -13,16 +13,12 @@ namespace Impl
 namespace Adx2
 {
 class CImpl;
-class CBaseObject;
-class CGlobalObject;
-class CListener;
+class CObject;
 class CCueInstance;
 
 extern CImpl* g_pImpl;
-extern CGlobalObject* g_pObject;
-extern CListener* g_pListener;
 
-using Objects = std::vector<CBaseObject*>;
+using Objects = std::vector<CObject*>;
 extern Objects g_constructedObjects;
 
 using AcbHandles = std::map<uint32, CriAtomExAcbHn>;
@@ -34,6 +30,10 @@ extern CriAtomEx3dSourceConfig g_3dSourceConfig;
 extern uint32 g_numObjectsWithDoppler;
 
 constexpr CriChar8 const* g_szAbsoluteVelocityAisacName = "absolute_velocity";
+constexpr CriChar8 const* g_szOcclusionAisacName = "occlusion";
+
+extern CriAtomExAisacControlId g_absoluteVelocityAisacId;
+extern CriAtomExAisacControlId g_occlusionAisacId;
 
 using CueInstances = std::vector<CCueInstance*>;
 
@@ -75,7 +75,7 @@ inline void Fill3DAttributeVelocity(Vec3 const& velocity, S3DAttributes& attribu
 	attributes.vel.z = static_cast<CriFloat32>(velocity.y);
 }
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 using GameVariableValues = std::map<CryFixedStringT<MaxControlNameLength>, float>;
 extern GameVariableValues g_gameVariableValues;
 
@@ -95,7 +95,7 @@ constexpr EDebugListFilter g_debugListMask =
 	EDebugListFilter::CueInstances |
 	EDebugListFilter::GameVariables |
 	EDebugListFilter::Categories;
-#endif // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 }      // namespace Adx2
 }      // namespace Impl
 }      // namespace CryAudio

@@ -72,7 +72,6 @@ public:
 
 	std::string GetName() threadsafe_const
 	{
-		UINT len = 512;
 		char str[512] = "-";
 
 		if (true)
@@ -89,6 +88,10 @@ public:
 	CImageResource*               AsImage() /* safe cast */               { return (m_flags & (kImageFlag1D | kImageFlag2D | kImageFlag3D)) ? (CImageResource*)this : nullptr; }
 	CBufferResource*              AsBuffer() /* safe cast */              { return (m_flags & (kImageFlag1D | kImageFlag2D | kImageFlag3D)) ? nullptr : (CBufferResource*)this; }
 	CDynamicOffsetBufferResource* AsDynamicOffsetBuffer() /* safe cast */ { return (m_flags & kBufferFlagDynamicOffset) ? (CDynamicOffsetBufferResource*) this : nullptr; }
+
+	const CImageResource*               AsImage() const  /* safe cast */              { return (m_flags & (kImageFlag1D | kImageFlag2D | kImageFlag3D)) ? (CImageResource*)this : nullptr; }
+	const CBufferResource*              AsBuffer() const /* safe cast */              { return (m_flags & (kImageFlag1D | kImageFlag2D | kImageFlag3D)) ? nullptr : (CBufferResource*)this; }
+	const CDynamicOffsetBufferResource* AsDynamicOffsetBuffer() const /* safe cast */ { return (m_flags & kBufferFlagDynamicOffset) ? (CDynamicOffsetBufferResource*)this : nullptr; }
 
 	void*            Map();
 	void             Unmap();

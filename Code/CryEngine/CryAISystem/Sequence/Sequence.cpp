@@ -2,7 +2,6 @@
 
 #include "StdAfx.h"
 #include "Sequence.h"
-#include "SequenceAgent.h"
 #include "SequenceFlowNodes.h"
 #include "AIBubblesSystem/AIBubblesSystem.h"
 
@@ -81,21 +80,8 @@ bool Sequence::TraverseAndValidateSequence()
 void Sequence::Start()
 {
 	assert(!m_active);
-	PrepareAgentSequenceBehavior();
 	m_active = true;
 	m_bookmarkNodeId = 0;
-}
-
-void Sequence::PrepareAgentSequenceBehavior()
-{
-	SequenceAgent agent(m_entityId);
-	agent.SetSequenceBehavior(m_sequenceProperties.interruptible);
-
-	if (agent.IsRunningSequenceBehavior(m_sequenceProperties.interruptible))
-	{
-		agent.ClearGoalPipe();
-		SequenceBehaviorReady();
-	}
 }
 
 void Sequence::SequenceBehaviorReady()
@@ -134,8 +120,6 @@ void Sequence::Cancel()
 {
 	Stop();
 	m_active = false;
-	SequenceAgent agent(m_entityId);
-	agent.ClearSequenceBehavior();
 }
 
 void Sequence::RequestActionStart(TFlowNodeId actionNodeId)
@@ -160,8 +144,6 @@ void Sequence::RequestActionStart(TFlowNodeId actionNodeId)
 
 void Sequence::ActionComplete()
 {
-	SequenceAgent agent(m_entityId);
-	agent.ClearGoalPipe();
 	m_currentActionNodeId = InvalidFlowNodeId;
 }
 

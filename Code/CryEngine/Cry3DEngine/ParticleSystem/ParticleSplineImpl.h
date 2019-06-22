@@ -1,15 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  Created:     04/03/2015 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef PARTICLESPLINEIMPL_H
-#define PARTICLESPLINEIMPL_H
-
 #pragma once
 
 namespace pfx2
@@ -129,5 +119,3 @@ ILINE Vec3v CParticleColorSpline::Interpolate(floatv time) const
 #endif
 
 }
-
-#endif

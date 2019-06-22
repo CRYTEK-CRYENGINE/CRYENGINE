@@ -1,42 +1,20 @@
-#Configures CRYENGINE CMake settings
-
-cmake_minimum_required(VERSION 3.6.2)
-
-set_property(GLOBAL PROPERTY DEBUG_CONFIGURATIONS Debug Profile)
-
-# Turn on the ability to create folders to organize projects (.vcproj)
-# It creates "CMakePredefinedTargets" folder by default and adds CMake
-# defined projects like INSTALL.vcproj and ZERO_CHECK.vcproj
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-if (NOT DEFINED CRYENGINE_DIR)
-	set (CRYENGINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+if(DURANGO OR ORBIS OR ANDROID OR LINUX)
+	unset(WIN32)
+	unset(WINDOWS)
+elseif(WIN32) # Either Win32 or Win64
+	include("${CMAKE_CURRENT_LIST_DIR}/toolchain/windows/WindowsPC-MSVC.cmake")
 endif()
 
-if (NOT DEFINED PROJECT_DIR)
-	set ( PROJECT_DIR "${CMAKE_SOURCE_DIR}" )
-endif()
-	
-set( TOOLS_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}" )
-	
-#Fix slashes on paths
-string(REPLACE "\\" "/" CRYENGINE_DIR "${CRYENGINE_DIR}")
-string(REPLACE "\\" "/" TOOLS_CMAKE_DIR "${TOOLS_CMAKE_DIR}")
-
-set(CMAKE_MODULE_PATH "${TOOLS_CMAKE_DIR}/modules")
+message(STATUS "CMAKE_SYSTEM = ${CMAKE_SYSTEM}")
+message(STATUS "CMAKE_SYSTEM_NAME = ${CMAKE_SYSTEM_NAME}")
+message(STATUS "CMAKE_SYSTEM_VERSION = ${CMAKE_SYSTEM_VERSION}")
+message(STATUS "BUILD_PLATFORM = ${BUILD_PLATFORM}")
+message(STATUS "BUILD_CPU_ARCHITECTURE = ${BUILD_CPU_ARCHITECTURE}")
+message(STATUS "OUTPUT_DIRECTORY_NAME = ${OUTPUT_DIRECTORY_NAME}")
 
 # C/C++ languages required.
 enable_language(C)
 enable_language(CXX)
-
-if (DURANGO OR ORBIS OR ANDROID OR LINUX)
-	unset(WIN32)
-	unset(WINDOWS)
-endif ()
-
-if (WIN32)  # Either Win32 or Win64
-	include("${TOOLS_CMAKE_DIR}/toolchain/windows/WindowsPC-MSVC.cmake")
-endif(WIN32)
 
 if(NOT ${CMAKE_GENERATOR} MATCHES "Visual Studio")
 	set(valid_configs Debug Profile Release)
@@ -101,13 +79,6 @@ if(OPTION_UNITY_BUILD)
 	message(STATUS "UNITY BUILD Enabled")
 endif()
 
-# SDK Directory
-if (LINUX AND LINUX_BOOTSTRAP_FOLDER)
-	set(SDK_DIR "${LINUX_BOOTSTRAP_FOLDER}")
-else()
-	set(SDK_DIR "${CRYENGINE_DIR}/Code/SDKs")
-endif()
-
 set(CRY_LIBS_DIR "${CRYENGINE_DIR}/Code/Libs")
 set(CRY_EXTENSIONS_DIR "${CRYENGINE_DIR}/Code/CryExtensions")
 
@@ -133,17 +104,6 @@ list(APPEND global_defines "CRY_ENGINE_DEFINE_OVERRIDE_FILE=\"${CMAKE_BINARY_DIR
 if (OPTION_RUNTIME_CVAR_OVERRIDES)
 	list(APPEND global_defines "USE_RUNTIME_CVAR_OVERRIDES")
 endif()
-
-# Print current project settings
-MESSAGE(STATUS "CMAKE_SYSTEM_NAME = ${CMAKE_SYSTEM_NAME}")
-MESSAGE(STATUS "CMAKE_GENERATOR = ${CMAKE_GENERATOR}")
-MESSAGE(STATUS "CMAKE_CONFIGURATION_TYPES = ${CMAKE_CONFIGURATION_TYPES}")
-MESSAGE(STATUS "BUILD_PLATFORM = ${BUILD_PLATFORM}")
-MESSAGE(STATUS "OPTION_PROFILE = ${OPTION_PROFILE}")
-MESSAGE(STATUS "OPTION_PCH = ${OPTION_PCH}")
-MESSAGE(STATUS "MSVC = ${MSVC}")
-MESSAGE(STATUS "CRYENGINE_DIR = ${CRYENGINE_DIR}")
-MESSAGE(STATUS "SDK_DIR = ${SDK_DIR}")
 
 # custom defines
 list(APPEND global_defines "CRYENGINE_DEFINE")
@@ -223,35 +183,38 @@ endif()
 if (OPTION_RELEASE_LOGGING)
 	list(APPEND global_defines  "$<$<CONFIG:Release>:RELEASE_LOGGING>")
 endif()
+if (OPTION_MEMREPLAY_USES_DETOURS)
+	list(APPEND global_defines  MEMREPLAY_USES_DETOURS=1)
+else ()
+	list(APPEND global_defines  MEMREPLAY_USES_DETOURS=0)
+endif ()
 
-
-if (WINDOWS AND OPTION_ENABLE_BROFILER AND OPTION_ENGINE)
-	list(APPEND global_defines USE_BROFILER)
-	list(APPEND global_includes "${SDK_DIR}/Brofiler" )
-	list(APPEND global_links "${SDK_DIR}/Brofiler" )
-	set(COMMON_LIBS ${COMMON_LIBS} ProfilerCore64)
+if (NOT TARGET WinPixEventRuntime)
+	include("${TOOLS_CMAKE_DIR}/modules/WinPixEventRuntime.cmake")
 endif()
 
 if (OPTION_ENGINE)
 	if(NOT TARGET SDL2)
 		include("${TOOLS_CMAKE_DIR}/modules/SDL2.cmake")
 	endif()
+
 	if(NOT TARGET ncursesw)
-	   include("${TOOLS_CMAKE_DIR}/modules/ncurses.cmake")
-   endif()
+		include("${TOOLS_CMAKE_DIR}/modules/ncurses.cmake")
+	endif()
 
 	option(OPTION_GEOM_CACHES "Enable Geom Cache" ON)
 
 	if(OPTION_GEOM_CACHES)
 		list(APPEND global_defines USE_GEOM_CACHES=1)
 	endif()
-	
+
 	option(OPTION_FPE "Enable floating point exceptions" OFF)
 
 	if(OPTION_FPE)
 		list(APPEND global_defines USE_FPE=1)
 	endif()
 endif()
+
 include("${TOOLS_CMAKE_DIR}/modules/Boost.cmake")
 
 # Apply global defines
@@ -300,3 +263,5 @@ if(WINDOWS)
 	string(REPLACE . , METADATA_VERSION_COMMA ${METADATA_VERSION})
 	set(METADATA_VERSION_COMMA ${METADATA_VERSION_COMMA} CACHE INTERNAL "" FORCE)
 endif(WINDOWS)
+
+include("${TOOLS_CMAKE_DIR}/Build.cmake")

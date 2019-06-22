@@ -42,29 +42,42 @@ QVariant CResourceSourceModel::data(QModelIndex const& index, int role) const
 		switch (role)
 		{
 		case Qt::DisplayRole:
-			variant = QtUtil::ToQStringSafe(pLibrary->GetName());
-			break;
-		case Qt::ToolTipRole:
-			if (!pLibrary->GetDescription().IsEmpty())
-			{
-				variant = QtUtil::ToQStringSafe(pLibrary->GetName() + ": " + pLibrary->GetDescription());
-			}
-			else
 			{
 				variant = QtUtil::ToQStringSafe(pLibrary->GetName());
+				break;
 			}
-			break;
+		case Qt::ToolTipRole:
+			{
+				if (!pLibrary->GetDescription().IsEmpty())
+				{
+					variant = QtUtil::ToQStringSafe(pLibrary->GetName() + ": " + pLibrary->GetDescription());
+				}
+				else
+				{
+					variant = QtUtil::ToQStringSafe(pLibrary->GetName());
+				}
+
+				break;
+			}
 		case Qt::DecorationRole:
-			variant = GetAssetIcon(EAssetType::Library);
-			break;
+			{
+				variant = GetAssetIcon(EAssetType::Library);
+				break;
+			}
 		case static_cast<int>(ModelUtils::ERoles::SortPriority):
-			variant = static_cast<int>(EAssetType::Library);
-			break;
+			{
+				variant = static_cast<int>(EAssetType::Library);
+				break;
+			}
 		case static_cast<int>(ModelUtils::ERoles::InternalPointer):
-			variant = reinterpret_cast<intptr_t>(pLibrary);
-			break;
+			{
+				variant = reinterpret_cast<intptr_t>(pLibrary);
+				break;
+			}
 		default:
-			break;
+			{
+				break;
+			}
 		}
 	}
 

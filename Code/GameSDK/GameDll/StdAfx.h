@@ -46,6 +46,7 @@ inline void GameWarning(const char *format, ...)
 #include <CrySystem/ISystem.h> // gEnv
 #include "Game.h" // g_pGame
 
+#include "GameCVars.h"
 extern struct SCVars *g_pGameCVars;
 
 #if !defined(_RELEASE)

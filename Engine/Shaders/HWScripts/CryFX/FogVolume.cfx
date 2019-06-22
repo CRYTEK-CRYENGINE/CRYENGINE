@@ -149,7 +149,7 @@ pixout FogVolumeEllipsoidPS( v2f_ellipsoid IN )
 	float tE = t.y;
 
 	float sceneDepth = linearDepthTex.Load(int3(IN.hPos.xy, 0)).x * CV_NearFarClipDist.y;
-	float tI = sceneDepth / dot( cameraLookDirInWS, -CV_CameraFrontVector );
+	float tI = sceneDepth / dot( cameraLookDirInWS, -CV_CameraFrontVector.xyz );
 	tI = max( tS, min( tI, tE ) ); // clamp to range [tS, tE]
 
 	float3 front = tS * cameraLookDirInWS + cameraPosInWS;

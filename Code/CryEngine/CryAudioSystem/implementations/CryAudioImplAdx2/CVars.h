@@ -46,9 +46,9 @@ public:
 	float m_positionUpdateThresholdMultiplier = 0.02f;
 	float m_maxVelocity = 100.0f;
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	int m_debugListFilter = 0;
-#endif  // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 };
 
 extern CCVars g_cvars;

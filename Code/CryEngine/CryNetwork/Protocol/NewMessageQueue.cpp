@@ -1657,7 +1657,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 
 		if (doWrite)
 		{
-			//CRY_PROFILE_REGION(PROFILE_NETWORK, "CMessageQueue::WriteMessages.EncodeMessage");
+			//CRY_PROFILE_SECTION(PROFILE_NETWORK, "CMessageQueue::WriteMessages.EncodeMessage");
 			debugPacketDataSizeStartData(eDPDST_MessageBody, pStm->GetBitSize());
 			writeResult = pOut->WriteMessage(pEntSend->msg, HandleFromPointer(pEntSend));
 			debugPacketDataSizeEndData(eDPDST_MessageBody, pStm->GetBitSize());

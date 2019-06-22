@@ -136,7 +136,7 @@ void SerializeParameterAudioSwitch(string& parameter, IArchive& ar)
 	string switchState;
 	SpliterParameterValue(&switchName, &switchState, parameter.c_str());
 	ar(Serialization::AudioSwitch(switchName), "switchName", "^");
-	ar(Serialization::AudioSwitchState(switchState), "switchState", "^");
+	ar(Serialization::AudioState(switchState), "switchState", "^");
 	if (ar.isInput())
 		parameter = switchName + "=" + switchState;
 }
@@ -147,7 +147,7 @@ void SerializeParameterAudioRTPC(string& parameter, IArchive& ar)
 	string valueString;
 	SpliterParameterValue(&name, &valueString, parameter.c_str());
 	float value = (float)atof(valueString.c_str());
-	ar(Serialization::AudioRTPC(name), "rtpcName", "^");
+	ar(Serialization::AudioParameter(name), "rtpcName", "^");
 	ar(value, "rtpcValue", "^");
 
 	char newValue[32];
@@ -275,7 +275,7 @@ public:
 		if (enableAudio && m_pIAudioListener == nullptr)
 		{
 			static const Matrix34 identityMatrix(IDENTITY);
-			m_pIAudioListener = gEnv->pAudioSystem->CreateListener(identityMatrix);
+			m_pIAudioListener = gEnv->pAudioSystem->CreateListener(identityMatrix, "AnimEventPlayer");
 		}
 		else if (m_pIAudioListener != nullptr)
 		{
@@ -353,13 +353,13 @@ public:
 		std::pair<CryAudio::ControlId, CryAudio::SwitchStateId> ids;
 
 		PredefinedSwitch()
-			: ids{ CryAudio::InvalidControlId, CryAudio::InvalidSwitchStateId }
+			: ids{CryAudio::InvalidControlId, CryAudio::InvalidSwitchStateId}
 		{}
 
 		void Serialize(Serialization::IArchive& ar)
 		{
 			ar(Serialization::AudioSwitch(name), "name", "^");
-			ar(Serialization::AudioSwitchState(state), "state", "^");
+			ar(Serialization::AudioState(state), "state", "^");
 			ids = std::pair<CryAudio::ControlId, CryAudio::SwitchStateId>(CryAudio::StringToId(name.c_str()), CryAudio::StringToId(state.c_str()));
 		}
 	};
@@ -765,12 +765,12 @@ public:
 	}
 
 private:
-	bool                 m_audioEnabled;
-	TAnimFxSources       m_animFxSources;
-	string               m_parameter;
-	QuatT                m_playerLocation;
-	TCustomEventTypes    m_eventTypes;
-	TSerializeParamFuncs m_eventSerializeFuncs;
+	bool                                   m_audioEnabled;
+	TAnimFxSources                         m_animFxSources;
+	string                                 m_parameter;
+	QuatT                                  m_playerLocation;
+	TCustomEventTypes                      m_eventTypes;
+	TSerializeParamFuncs                   m_eventSerializeFuncs;
 	AnimEventPlayer_AudioTranslationLayer* m_pAudioTranslationLayer;
 };
 

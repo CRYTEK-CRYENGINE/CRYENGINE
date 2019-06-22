@@ -130,6 +130,33 @@ int ChoosePrimitiveForMesh(strided_pointer<const Vec3> pVertices,strided_pointer
 	int i,j,ibest;
 	real error_max[3],error_avg[4],locerror,locarea;
 
+	if (flags & mesh_approx_sphere) {
+		Vec3r p0,p1,p2,n;
+		real r,rinv,area;
+		for(i=0,r=0;i<nTris*3;i++) r += (pVertices[pIndices[i]]-center).len();
+		r /= nTris*3;	rinv = (real)1.0/r;
+		error_max[0]=error_avg[0]=area = 0;
+		for(i=0;i<nTris;i++) {
+			p0=pVertices[pIndices[i*3]]; p1=pVertices[pIndices[i*3+1]]; p2=pVertices[pIndices[i*3+2]];
+			locerror = fabs_tpl((p0-center).len()-r)*rinv;
+			locerror = max(locerror, fabs_tpl((p1-center).len()-r)*rinv);
+			locerror = max(locerror, fabs_tpl((p2-center).len()-r)*rinv);
+			n = p1-p0^p2-p0; locarea = n.len();	
+			if (locarea>1E-5)
+				locerror = max(locerror, fabs_tpl(((p0-center)*n)/locarea-r)*rinv);
+			error_max[0] = max(error_max[0],locerror);
+			error_avg[0] += locerror*locarea;
+			area += locarea;
+		}
+		error_avg[0] /= area;
+		if (error_max[0]<tolerance*1.5f && error_avg[0]<tolerance) {
+			asphere.r = r;
+			asphere.center = center;
+			pprim = &asphere;
+			return sphere::type;
+		}
+	}
+
 	if (flags & mesh_approx_capsule) {
 		float r[3],h[3],V[3],area[2],zloc,rinv;
 		Matrix33 Basis = GetMtxFromBasis(eigen_axes);
@@ -254,33 +281,6 @@ int ChoosePrimitiveForMesh(strided_pointer<const Vec3> pVertices,strided_pointer
 			}
 			pprim = &abox;
 			return box::type;
-		}
-	}
-
-	if (flags & mesh_approx_sphere) {
-		Vec3r p0,p1,p2,n;
-		real r,rinv,area;
-		for(i=0,r=0;i<nTris*3;i++) r += (pVertices[pIndices[i]]-center).len();
-		r /= nTris*3;	rinv = (real)1.0/r;
-		error_max[0]=error_avg[0]=area = 0;
-		for(i=0;i<nTris;i++) {
-			p0=pVertices[pIndices[i*3]]; p1=pVertices[pIndices[i*3+1]]; p2=pVertices[pIndices[i*3+2]];
-			locerror = fabs_tpl((p0-center).len()-r)*rinv;
-			locerror = max(locerror, fabs_tpl((p1-center).len()-r)*rinv);
-			locerror = max(locerror, fabs_tpl((p2-center).len()-r)*rinv);
-			n = p1-p0^p2-p0; locarea = n.len();	
-			if (locarea>1E-5)
-				locerror = max(locerror, fabs_tpl(((p0-center)*n)/locarea-r)*rinv);
-			error_max[0] = max(error_max[0],locerror);
-			error_avg[0] += locerror*locarea;
-			area += locarea;
-		}
-		error_avg[0] /= area;
-		if (error_max[0]<tolerance*1.5f && error_avg[0]<tolerance) {
-			asphere.r = r;
-			asphere.center = center;
-			pprim = &asphere;
-			return sphere::type;
 		}
 	}
 

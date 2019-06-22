@@ -22,8 +22,6 @@ public:
 
 	// ~ISystemEventDispatcher
 private:
-	void OnSystemEventAnyThread(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam);
-
 	typedef CListenerSet<ISystemEventListener*> TSystemEventListeners;
 	TSystemEventListeners m_listeners;
 

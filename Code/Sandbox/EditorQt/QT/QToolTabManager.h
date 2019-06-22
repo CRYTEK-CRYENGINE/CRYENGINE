@@ -61,11 +61,11 @@ public:
 
 	void   CloseAllPanes();
 
-	IPane* FindPaneByClass(const char* paneClassName);
-	IPane* FindPaneByTitle(const char* title);
-	IPane* FindPane(const std::function<bool(IPane*, const string& /*className*/)>& predicate);
+	IPane*              FindPaneByClass(const char* paneClassName);
+	IPane*              FindPaneByTitle(const char* title);
+	IPane*              FindPane(const std::function<bool(IPane*, const string& /*className*/)>& predicate);
+	std::vector<IPane*> FindAllPanelsByClass(const char* paneClassName);
 
-	void   Close(IPane* pane);
 	void   BringToFront(IPane* pane);
 	IPane* OpenOrCreatePane(const char* paneClassName);
 

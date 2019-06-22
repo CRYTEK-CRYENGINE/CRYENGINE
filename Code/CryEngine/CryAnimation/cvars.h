@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <CrySystem/ConsoleRegistration.h>
+
 //////////////////////////////////////////////////////////////////////////
 // console variable interfaces.
 // In an instance of this class (singleton for now), there are all the interfaces
@@ -48,6 +50,9 @@ struct CRY_ALIGN(128) Console
 #ifndef _RELEASE
 	int32 ca_DebugAnimUsageOnFileAccess;
 	int32 ca_AttachmentTextureMemoryBudget;
+
+	int32 ca_debug_attachmentManager_maxUsedMemSize;
+	int32 ca_debug_attachmentManager_maxUsedOffsetSize;
 #endif
 
 	DeclareConstIntCVar(ca_SnapToVGrid, 0);
@@ -127,6 +132,11 @@ struct CRY_ALIGN(128) Console
 	DeclareConstIntCVar(ca_DisableAnimationUnloading, 0);
 	DeclareConstIntCVar(ca_PreloadAllCAFs, 0);
 	DeclareConstIntCVar(ca_SampleQuatHemisphereFromCurrentPose, 0);
+	DeclareConstIntCVar(ca_MinAttachmentMemorySize, 4096);
+	DeclareConstIntCVar(ca_MinAttachmentOffsetSize, 4096);
+	DeclareConstIntCVar(ca_CullQuasiStaticAnimationUpdates, 0);
+	DeclareConstIntCVar(ca_DebugQuasiStaticAnimationCulling, 0); 
+	DeclareConstIntCVar(ca_QuasiStaticAnimationSleepTimeoutMs, 2500);
 
 #if USE_FACIAL_ANIMATION_FRAMERATE_LIMITING
 	DeclareConstIntCVar(ca_FacialAnimationFramerate, 20);
@@ -162,6 +172,7 @@ struct CRY_ALIGN(128) Console
 
 	int32 ca_VClothMode;
 
+	f32 ca_OverrideBlendWeightSimulatedSockets;
 	f32 ca_lipsync_vertex_drag;
 	f32 ca_lipsync_phoneme_strength;
 	f32 ca_DeathBlendTime;

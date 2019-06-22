@@ -17,8 +17,10 @@
             "Tree.cpp", 
             "TreeManager.h", 
             "TreeManager.cpp", 
-            "RecursiveSyncObject.h", 
+            "RecursiveSyncObject.h",
             "RecursiveSyncObject.cpp", 
+            "TimeMetadata.h",
+		    "TimeMetadata.cpp",
             "CryUDR.cpp"
         ]
     }, 

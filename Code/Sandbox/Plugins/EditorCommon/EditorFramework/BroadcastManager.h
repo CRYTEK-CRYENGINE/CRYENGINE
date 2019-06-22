@@ -84,7 +84,7 @@ public:
 		m_listeners[type].Connect(func, id);
 	}
 
-	template<typename Object, typename MemberFunction, typename std::enable_if<CryMemFunTraits<MemberFunction>::isMemberFunction, int>::type* = 0>
+	template<typename Object, typename MemberFunction, typename std::enable_if<SFuncInfo<MemberFunction>::isMemberFunction, int>::type* = 0>
 	void Connect(BroadcastEvent::EventType type, Object* pObject, MemberFunction function, uintptr_t forceId = 0)
 	{
 		m_listeners[type].Connect(pObject, function, forceId);

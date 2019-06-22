@@ -8,6 +8,7 @@
 
 #include <CryGame/IGameFramework.h>
 #include "IPlayerProfiles.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace
 {

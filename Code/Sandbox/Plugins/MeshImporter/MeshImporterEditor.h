@@ -39,12 +39,12 @@ protected:
 	virtual bool OnSaveAsset(CEditableAsset& editAsset) override;
 	virtual bool OnAboutToCloseAsset(string& reason) const override;
 	virtual void OnCloseAsset() override;
+	virtual bool IsDockingSystemEnabled() const override { return false; }
 
 	// CEditor implementation.
 	virtual bool OnSave() override;
 	virtual bool OnSaveAs() override;
 
-	virtual void customEvent(QEvent* pEvent) override;
 private:
 	std::unique_ptr<MeshImporter::CBaseDialog> m_pDialog;
 };

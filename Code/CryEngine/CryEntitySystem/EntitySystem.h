@@ -60,8 +60,8 @@ struct SEntityTimerEvent
 {
 	ISimpleEntityEventListener* pListener;
 	EntityId entityId;
-	CryGUID componentInstanceGUID;
-	uint8    nTimerId;
+	CryGUID  componentInstanceGUID;
+	uint32   nTimerId;
 	int      nMilliSeconds;
 };
 

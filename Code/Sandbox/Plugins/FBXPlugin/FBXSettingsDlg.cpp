@@ -5,7 +5,7 @@
 #include "FBXExporter.h"
 
 #include "Controls/EditorDialog.h"
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <CrySerialization/yasli/Archive.h>
 #include <CrySerialization/yasli/Enum.h>
 
@@ -58,9 +58,9 @@ public:
 	{
 		setWindowTitle(tr("FBX Export Settings"));
 
-		QPropertyTree* pPropertyTree = new QPropertyTree(this);
+		QPropertyTreeLegacy* pPropertyTree = new QPropertyTreeLegacy(this);
 
-		PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+		PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 		treeStyle.propertySplitter = true;
 		treeStyle.groupRectangle = false;
 		pPropertyTree->setTreeStyle(treeStyle);

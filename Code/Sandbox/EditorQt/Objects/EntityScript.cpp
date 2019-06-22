@@ -74,9 +74,13 @@ static struct
 	{ "file",                IVariable::STRING, IVariable::DT_FILE,                  0,                    false },
 	{ "aibehavior",          IVariable::STRING, IVariable::DT_AI_BEHAVIOR,           0,                    false },
 #ifdef USE_DEPRECATED_AI_CHARACTER_SYSTEM
-	{ "aicharacter",         IVariable::STRING, IVariable::DT_AI_CHARACTER,          0,                    false },
+	{
+		"aicharacter", IVariable::STRING, IVariable::DT_AI_CHARACTER, 0, false
+	},
 #endif
-	{ "aipfpropertieslist",  IVariable::STRING, IVariable::DT_AI_PFPROPERTIESLIST,   0,                    false },
+	{
+		"aipfpropertieslist", IVariable::STRING, IVariable::DT_AI_PFPROPERTIESLIST, 0, false
+	},
 	{ "aientityclasses",     IVariable::STRING, IVariable::DT_AIENTITYCLASSES,       0,                    false },
 	{ "aiterritory",         IVariable::STRING, IVariable::DT_AITERRITORY,           0,                    false },
 	{ "aiwave",              IVariable::STRING, IVariable::DT_AIWAVE,                0,                    false },
@@ -110,11 +114,10 @@ static struct
 	{ "material",            IVariable::STRING, IVariable::DT_MATERIAL,              0 },
 	{ "audioTrigger",        IVariable::STRING, IVariable::DT_AUDIO_TRIGGER,         0 },
 	{ "audioSwitch",         IVariable::STRING, IVariable::DT_AUDIO_SWITCH,          0 },
-	{ "audioSwitchState",    IVariable::STRING, IVariable::DT_AUDIO_SWITCH_STATE,    0 },
-	{ "audioRTPC",           IVariable::STRING, IVariable::DT_AUDIO_RTPC,            0 },
+	{ "audioSwitchState",    IVariable::STRING, IVariable::DT_AUDIO_STATE,           0 },
+	{ "audioRTPC",           IVariable::STRING, IVariable::DT_AUDIO_PARAMETER,       0 },
 	{ "audioEnvironment",    IVariable::STRING, IVariable::DT_AUDIO_ENVIRONMENT,     0 },
-	{ "audioPreloadRequest", IVariable::STRING, IVariable::DT_AUDIO_PRELOAD_REQUEST, 0 },
-};
+	{ "audioPreloadRequest", IVariable::STRING, IVariable::DT_AUDIO_PRELOAD_REQUEST, 0 },                  };
 
 //////////////////////////////////////////////////////////////////////////
 struct CScriptPropertiesDump : public IScriptTableDumpSink
@@ -1274,7 +1277,7 @@ void CEntityScriptRegistry::OnEntityClassRegistryEvent(EEntityClassRegistryEvent
 					m_scriptChanged(pEntityScript.get());
 				}
 			}
-			
+
 			// We only need to reload entities in case a script class was changed, since schematyc handles reloading themself.
 			if (pEntityClass->GetScriptFile() != nullptr && pEntityClass->GetScriptFile()[0] != '\0')
 			{

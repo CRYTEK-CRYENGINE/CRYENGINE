@@ -20,7 +20,7 @@ public:
 		return filterVal == 0 || value.toInt() & filterVal || (value.toInt() == 0 && filterVal & UP_TO_DATE_VAL);
 	}
 
-	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter) override
+	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter, const QStringList* pAttributeValues) override
 	{
 		QMenuComboBox* pComboBox = new QMenuComboBox();
 		pComboBox->SetMultiSelect(true);

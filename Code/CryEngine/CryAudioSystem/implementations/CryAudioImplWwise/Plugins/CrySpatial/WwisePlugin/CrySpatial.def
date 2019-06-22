@@ -1,0 +1,4 @@
+LIBRARY "CrySpatial"
+
+EXPORTS
+  AkCreatePlugin

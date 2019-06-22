@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Serialization/PropertyTree/IDrawContext.h"
-#include "Serialization/PropertyTree/PropertyRowField.h"
-#include "Serialization/QPropertyTree/QPropertyTree.h"
-#include "Serialization/PropertyTree/PropertyTreeModel.h"
-#include "Serialization/PropertyTree/Imenu.h"
+#include "Serialization/PropertyTreeLegacy/IDrawContext.h"
+#include "Serialization/PropertyTreeLegacy/PropertyRowField.h"
+#include "Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h"
+#include "Serialization/PropertyTreeLegacy/PropertyTreeModel.h"
+#include "Serialization/PropertyTreeLegacy/Imenu.h"
 #include "Serialization.h"
 
 //TODO : this file is in editor package, breaking intended package dependencies
@@ -21,7 +21,7 @@ class PropertyRowPrefabLink : public PropertyRowField
 public:
 	~PropertyRowPrefabLink();
 
-	void                        pick(PropertyTree* tree);
+	void                        pick(PropertyTreeLegacy* tree);
 	void                        select();
 	void                        clear();
 
@@ -40,7 +40,7 @@ public:
 	const CryGUID& GetGUID()                     { return guid_; }
 	CPrefabObject* GetOwner()                    { return owner_; }
 
-	bool           onContextMenu(IMenu& menu, PropertyTree* tree) override;
+	bool           onContextMenu(IMenu& menu, PropertyTreeLegacy* tree) override;
 
 private:
 	struct Picker;
@@ -58,10 +58,10 @@ private:
 struct PrefabLinkMenuHandler : PropertyRowMenuHandler
 {
 public:
-	PropertyTree*          tree;
+	PropertyTreeLegacy*          tree;
 	PropertyRowPrefabLink* self;
 
-	PrefabLinkMenuHandler(PropertyTree* tree, PropertyRowPrefabLink* container);
+	PrefabLinkMenuHandler(PropertyTreeLegacy* tree, PropertyRowPrefabLink* container);
 
 	void onMenuPick();
 	void onMenuSelect();

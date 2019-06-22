@@ -22,7 +22,7 @@ public:
 	CEventInstance& operator=(CEventInstance const&) = delete;
 	CEventInstance& operator=(CEventInstance&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	explicit CEventInstance(TriggerInstanceId const triggerInstanceId, CEvent& event, CObject const& object)
 		: m_triggerInstanceId(triggerInstanceId)
 		, m_event(event)
@@ -37,7 +37,7 @@ public:
 		, m_event(event)
 		, m_toBeRemoved(false)
 	{}
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 	~CEventInstance() = default;
 
@@ -51,11 +51,11 @@ public:
 	bool              IsToBeRemoved() const { return m_toBeRemoved; }
 	void              SetToBeRemoved()      { m_toBeRemoved = true; }
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	bool           IsFadingOut() const           { return m_isFadingOut; }
 	float          GetTimeFadeOutStarted() const { return m_timeFadeOutStarted; }
 	CObject const& GetObject() const             { return m_object; }
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 	ChannelList m_channels;
 
@@ -65,11 +65,11 @@ private:
 	CEvent&                 m_event;
 	bool                    m_toBeRemoved;
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	bool           m_isFadingOut;
 	float          m_timeFadeOutStarted;
 	CObject const& m_object;
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 };
 } // namespace SDL_mixer
 } // namespace Impl

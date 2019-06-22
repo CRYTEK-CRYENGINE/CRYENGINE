@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __CGFSaver_h__
-#define __CGFSaver_h__
+#pragma once
 
 #if defined(RESOURCE_COMPILER) || defined(INCLUDE_SAVECGF)
 
@@ -32,7 +31,7 @@ public:
 	// Enable/disable saving of physics meshes.
 	void SetSavePhysicsMeshes(bool bEnable);
 
-	// Enable compaction of vertex streams (for optimised streaming)
+	// Enable compaction of vertex streams (for optimized streaming)
 	void SetVertexStreamCompacting(bool bEnable);
 
 	// Enable computation of subset texel density
@@ -113,5 +112,4 @@ private:
 	bool                    m_bComputeSubsetTexelDensity;
 };
 
-#endif
 #endif

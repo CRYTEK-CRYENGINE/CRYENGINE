@@ -6,7 +6,7 @@
 #include "CryExtension/CryTypeID.h"
 #include <CrySerialization/CryStringsImpl.h>
 
-class ITexture;
+struct ITexture;
 
 namespace Cry
 {
@@ -132,6 +132,9 @@ namespace Cry
 		//! to store combinations of EUserInformationFlags bits.
 		using UserInformationMask = std::underlying_type<EUserInformationFlags>::type;
 
+		using TextureId = int;
+		constexpr TextureId NullTextureID = 0;
+
 		//! Unique identifier for a service
 		using ServiceIdentifier = CryGUID;
 
@@ -156,7 +159,7 @@ namespace Cry
 		namespace Detail
 		{
 			using NumericIdentifierValue = uint64;
-			using StringIdentifierValue = CryFixedStringT<32>;
+			using StringIdentifierValue = CryFixedStringT<48>;
 
 			struct STraitsBase
 			{
@@ -164,6 +167,11 @@ namespace Cry
 				// Note: When adding types here make sure you update the code using stl::holds_alternative
 				// and stl::get
 				using ValueType = CryVariant<StringIdentifierValue, NumericIdentifierValue>;
+
+				static ValueType Null()
+				{
+					return NumericIdentifierValue(0);
+				}
 
 				static const char* ToDebugString(const ServiceIdentifier& svcId, const char* szIdKind, const ValueType& value)
 				{
@@ -189,8 +197,9 @@ namespace Cry
 				{
 					if (stl::holds_alternative<StringIdentifierValue>(value))
 					{
+						char trailing; // attempt to parse trailing characters as we don't want them.
 						const StringIdentifierValue& str = stl::get<StringIdentifierValue>(value);
-						const int ok = sscanf_s(str.c_str(), "%" PRIu64, &out);
+						const int ok = sscanf_s(str.c_str(), "%" PRIu64 "%c", &out, &trailing);
 						return ok == 1;
 					}
 					else if (stl::holds_alternative<NumericIdentifierValue>(value))
@@ -201,6 +210,7 @@ namespace Cry
 
 					return false;
 				}
+
 				template<class StrType>
 				static bool AsString(const ValueType& value, StrType& out)
 				{
@@ -215,6 +225,66 @@ namespace Cry
 						return true;
 					}
 					return false;
+				}
+
+				static void Serialize(ValueType& value, Serialization::IArchive& ar)
+				{
+					constexpr size_t strIdx = cry_variant::get_index<StringIdentifierValue, ValueType>::value;
+					constexpr size_t numIdx = cry_variant::get_index<NumericIdentifierValue, ValueType>::value;
+
+					if (ar.isOutput())
+					{
+						const size_t idx = value.index();
+						switch (idx)
+						{
+						case strIdx:
+							ar(idx, "type");
+							ar(stl::get<StringIdentifierValue>(value), "value");
+							break;
+						case numIdx:
+							ar(idx, "type");
+							ar(stl::get<NumericIdentifierValue>(value), "value");
+							break;
+						default:
+							ar(stl::variant_npos, "type");
+						}
+
+						return;
+					}
+
+					if (ar.isInput())
+					{
+						ValueType tmpVal;
+
+						size_t idx = stl::variant_npos;
+						ar(idx, "type");
+
+						switch (idx)
+						{
+						case strIdx:
+							{
+								StringIdentifierValue str;
+								ar(str, "value");
+								tmpVal = str;
+							}
+							break;
+						case numIdx:
+							{
+								NumericIdentifierValue num;
+								ar(num, "value");
+								tmpVal = num;
+							}
+							break;
+						}
+
+						if (tmpVal.index() != idx)
+						{
+							CRY_ASSERT_MESSAGE(tmpVal.index() == idx, "Variant deserialization failed!");
+							return;
+						}
+
+						value.swap(tmpVal);
+					}
 				}
 			};
 			struct SAccountTraits : public STraitsBase
@@ -252,4 +322,3 @@ namespace Cry
 		using ApplicationIdentifier = Identifier<Detail::SApplicationTraits>;
 	}
 }
-

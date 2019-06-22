@@ -5,7 +5,7 @@
 #include <DockedWidget.h>
 #include <CrySerialization/IArchive.h>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class QPushButton;
 class QVBoxLayout;
 class QHBoxLayout;
@@ -23,7 +23,7 @@ public:
 protected:
 	void TriggerUpdate();
 
-	QPropertyTree* m_pPropertyTree;
+	QPropertyTreeLegacy* m_pPropertyTree;
 	QTimer*        m_pAutoUpdateTimer;
 
 	QVBoxLayout*   m_pVLayout;

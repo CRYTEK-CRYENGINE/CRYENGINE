@@ -129,26 +129,27 @@ public:
 
 	CCrySignal<void()> signalResolutionChanged;
 
-	virtual bool        IsSequenceCamera() const { return m_pCameraDelegate != nullptr; }
+	virtual bool         IsSequenceCamera() const { return m_pCameraDelegate != nullptr; }
 
-	void                SetDefaultCamera();
-	bool                IsDefaultCamera() const;
+	void                 SetDefaultCamera();
+	bool                 IsDefaultCamera() const;
 
-	void                SetCameraObject(CBaseObject* cameraObject);
-	void                SetCameraDelegate(const ICameraDelegate* pDelegate);
+	void                 SetCameraObject(CBaseObject* cameraObject);
+	void                 SetCameraDelegate(const ICameraDelegate* pDelegate);
 
-	virtual float       GetCameraMoveSpeed() const           { return m_moveSpeed; }
-	virtual float       GetCameraMoveSpeedIncrements() const { return m_moveSpeedIncrements; }
-	virtual void        SetCameraMoveSpeedIncrements(int sp, bool bnotify = false);
-	virtual void        OnCameraSpeedChanged()               {}
+	virtual float        GetCameraMoveSpeed() const           { return m_moveSpeed; }
+	virtual float        GetCameraMoveSpeedIncrements() const { return m_moveSpeedIncrements; }
+	virtual void         SetCameraMoveSpeedIncrements(int sp, bool bnotify = false);
+	virtual void         OnCameraSpeedChanged()               {}
 
-	virtual const char* GetCameraMenuName() const override;
+	virtual const char*  GetCameraMenuName() const override;
 
-	void                LockCameraMovement(bool bLock) { m_bLockCameraMovement = bLock; }
-	bool                IsCameraMovementLocked() const { return m_bLockCameraMovement; }
+	void                 LockCameraMovement(bool bLock) { m_bLockCameraMovement = bLock; }
+	bool                 IsCameraMovementLocked() const { return m_bLockCameraMovement; }
 
-	SDisplayContextKey  GetDisplayContextKey() const   { return m_displayContextKey; }
-	CBaseObject*        GetCameraObject() const;
+	SDisplayContextKey   GetDisplayContextKey() const   { return m_displayContextKey; }
+	SGraphicsPipelineKey GetGraphicsPipelineKey() const { return m_graphicsPipelineKey; }
+	CBaseObject*         GetCameraObject() const;
 
 	static SCameraPreferences s_cameraPreferences;
 	CCamera                   m_Camera;
@@ -173,9 +174,9 @@ protected:
 	virtual float GetCameraRotateSpeed() const;
 
 	// Called to render stuff.
-	virtual void OnRender(SDisplayContext& context) = 0;
+	virtual void     OnRender(SDisplayContext& context) = 0;
 
-	virtual void OnEditorNotifyEvent(EEditorNotifyEvent event) override;
+	virtual void     OnEditorNotifyEvent(EEditorNotifyEvent event) override;
 
 	void             RenderSnapMarker(SDisplayContext& context);
 	void             RenderCursorString();
@@ -301,12 +302,14 @@ protected:
 	EResolutionMode m_eLastCustomResolutionMode;
 
 	// pending resize to gracefully handle viewport resize
-	bool               m_bSuspendResizeNotifications;
-	bool               m_bPendingResizeNotification;
-	int                m_pendingResizeWidth;
-	int                m_pendingResizeHeight;
+	bool                                    m_bSuspendResizeNotifications;
+	bool                                    m_bPendingResizeNotification;
+	int                                     m_pendingResizeWidth;
+	int                                     m_pendingResizeHeight;
 
-	SDisplayContextKey m_displayContextKey;
+	SDisplayContextKey                      m_displayContextKey;
+	SGraphicsPipelineKey                    m_graphicsPipelineKey;
+	IRenderer::SGraphicsPipelineDescription m_graphicsPipelineDesc;
 };
 
 //////////////////////////////////////////////////////////////////////////

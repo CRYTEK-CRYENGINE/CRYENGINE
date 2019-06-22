@@ -146,6 +146,10 @@ extern "C" DLL_EXPORT SRegFactoryNode* GetHeadToRegFactories()
 	#include <CryMath/ISplineSerialization_impl.h>
 
 	#include <CryCore/TypeInfo_impl.h>
+	#include <CryMemory/VirtualMemory_impl.h>
+	#if CRY_PLATFORM_ORBIS
+		#include <CryMemory/VirtualMemory_impl_sce.h>
+	#endif
 
 	#define CRY_PLATFORM_IMPL_H_FILE 1
 	#include <CryCore/CryTypeInfo.inl>
@@ -167,15 +171,14 @@ void CryInvalidParameterHandler(
   unsigned int line,
   uintptr_t pReserved)
 {
-	//size_t i;
-	//char sFunc[128];
-	//char sExpression[128];
-	//char sFile[128];
-	//wcstombs_s( &i,sFunc,sizeof(sFunc),function,_TRUNCATE );
-	//wcstombs_s( &i,sExpression,sizeof(sExpression),expression,_TRUNCATE );
-	//wcstombs_s( &i,sFile,sizeof(sFile),file,_TRUNCATE );
-	//CryFatalError( "Invalid parameter detected in function %s. File: %s Line: %d, Expression: %s",sFunc,sFile,line,sExpression );
-	CryFatalError("Invalid parameter detected in CRT function");
+	size_t i;
+	char sFunc[128];
+	char sExpression[128];
+	char sFile[128];
+	wcstombs_s(&i, sFunc, sizeof(sFunc), function, _TRUNCATE);
+	wcstombs_s(&i, sExpression, sizeof(sExpression), expression, _TRUNCATE);
+	wcstombs_s(&i, sFile, sizeof(sFile), file, _TRUNCATE);
+	CryFatalError("Invalid parameter detected in function %s. File: %s Line: %d, Expression: %s", sFunc, sFile, line, sExpression);
 }
 
 void InitCRTHandlers()
@@ -485,9 +488,6 @@ EQuestionResult CryMessageBox(const wchar_t* szText, const wchar_t* szCaption, E
 CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::s_pFirst = nullptr;
 CAutoRegFlowNodeBase* CAutoRegFlowNodeBase::s_pLast = nullptr;
 bool                  CAutoRegFlowNodeBase::s_bNodesRegistered = false;
-
-// load implementation of platform profile marker
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler_impl.h>
 
 CRY_ALIGN(64) uint32 BoxSides[0x40 * 8] = {
 	0, 0, 0, 0, 0, 0, 0, 0, //00

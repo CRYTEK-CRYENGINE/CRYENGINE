@@ -11,8 +11,9 @@ class CSubIconContainer
 public:
 	CSubIconContainer();
 
-	const QVariantList& GetLanguageIcon(const string& language) const;
+	QVariantList GetIcons(const string& language, bool isStartupProject) const;
 
 private:
-	std::array<QVariantList, 4> m_icons;
+	std::array<QVariant, 4> m_languageIcons;
+	QVariant                m_startupIcon;
 };

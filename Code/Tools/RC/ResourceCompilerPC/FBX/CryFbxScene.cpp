@@ -627,8 +627,6 @@ public:
 
 } // namespace
 
-//////////////////////////////////////////////////////////////////////////
-
 namespace
 {
 
@@ -784,8 +782,6 @@ public:
 
 } // namespace
 
-//////////////////////////////////////////////////////////////////////////
-
 struct CryFbxSceneImpl
 {
 	CryFbxManager m_fbxMan;
@@ -922,9 +918,86 @@ struct CryFbxSceneImpl
 			m_animations[i].endFrame = (int)stop.GetFrameCount();
 		}
 	}
-};
 
-//////////////////////////////////////////////////////////////////////////
+	float EvaluateMorphTargetWeight(int meshIdx, const char* szMorphTarget, int animationFrameIndex)
+	{
+		const float defaultWeight = 0;
+
+		FbxAnimStack* pAnimStack = m_fbxMan.m_pFbxScene->GetCurrentAnimationStack();
+		int animLayersCount = pAnimStack->GetMemberCount<FbxAnimLayer>();
+		if (!animLayersCount)
+		{
+			return defaultWeight;
+		}
+
+		FbxMesh* pFbxMesh = m_meshes[meshIdx].m_pFbxMesh;
+		const int blendShapeCount = pFbxMesh->GetDeformerCount(FbxDeformer::eBlendShape);
+		if (!blendShapeCount)
+		{
+			return defaultWeight;
+		}
+
+		FbxTime fbxTime;
+		fbxTime.SetFrame(animationFrameIndex);
+
+		for (int blendShapeIndex = 0; blendShapeIndex < blendShapeCount; ++blendShapeIndex)
+		{
+			FbxBlendShape* pBlendShape = (FbxBlendShape*)pFbxMesh->GetDeformer(blendShapeIndex, FbxDeformer::eBlendShape);
+			const int channelCount = pBlendShape->GetBlendShapeChannelCount();
+
+			for (int channelIndex = 0; channelIndex < channelCount; ++channelIndex)
+			{
+				FbxBlendShapeChannel* pChannel = pBlendShape->GetBlendShapeChannel(channelIndex);
+				const char* szChannelName = pChannel->GetName();
+				if (strcmp(szChannelName, szMorphTarget) != 0)
+				{
+					continue;
+				}
+
+				float weight = 0;
+				for (int anumLayerIndex = 0; anumLayerIndex < animLayersCount; ++anumLayerIndex)
+				{
+					FbxAnimLayer* const pAnimLayer = pAnimStack->GetMember<FbxAnimLayer>(anumLayerIndex);
+					if (!pAnimLayer || pAnimLayer->Mute.EvaluateValue(fbxTime))
+					{
+						continue;
+					}
+
+					FbxAnimCurve* const pAnimCurve = pFbxMesh->GetShapeChannel(blendShapeIndex, channelIndex, pAnimLayer);
+					if (!pAnimCurve)
+					{
+						continue;
+					}
+
+					const float value = pAnimCurve->Evaluate(fbxTime);
+
+					if (pAnimLayer->Solo.EvaluateValue(fbxTime))
+					{
+						weight = value;
+						break;
+					}
+
+					switch (pAnimLayer->BlendMode.EvaluateValue(fbxTime))
+					{
+					case FbxAnimLayer::eBlendAdditive:
+						weight += value * float(pAnimLayer->Weight.EvaluateValue(fbxTime) * 0.01);
+						break;
+					case FbxAnimLayer::eBlendOverride:
+						weight = value;
+						break;
+					case FbxAnimLayer::eBlendOverridePassthrough:
+						weight = Lerp(weight, value, float(pAnimLayer->Weight.EvaluateValue(fbxTime) * 0.01));
+						break;
+					default:
+						weight = value;
+					}
+				}
+				return weight;
+			}
+		}
+		return defaultWeight;
+	}
+};
 
 CryFbxScene::CryFbxScene()
 	: m_pImpl(new CryFbxSceneImpl())
@@ -953,7 +1026,10 @@ bool CryFbxScene::LoadScene(const char * fbxFilename, bool bVerboseLog, bool bCo
 	return true;
 }
 
-//////////////////////////////////////////////////////////////////////////
+float CryFbxScene::EvaluateMorphTargetWeight(int meshIdx, const char* szMorphTarget, int animationFrameIndex)
+{
+	return m_pImpl->EvaluateMorphTargetWeight(meshIdx, szMorphTarget, animationFrameIndex);
+}
 
 
 static FbxAMatrix GetFbxNodeWorldTransform(FbxNode* pFbxNode, const FbxTime time = FbxTime(FBXSDK_TC_INFINITY))

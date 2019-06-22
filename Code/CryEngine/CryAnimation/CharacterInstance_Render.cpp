@@ -188,8 +188,10 @@ void CCharInstance::RenderCGA(const struct SRendParams& RendParams, const Matrix
 	}
 }
 
-void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRenderMat34, const SRenderingPassInfo& passInfo)
+void CCharInstance::RenderCHR(const SRendParams& inputRendParams, const Matrix34& rRenderMat34, const SRenderingPassInfo& passInfo)
 {
+	SRendParams RendParams = inputRendParams;
+
 	CRenderObject* pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObj)
 		return;
@@ -239,7 +241,7 @@ void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRe
 	pObj->m_fAlpha = RendParams.fAlpha;
 	pObj->m_fDistance = RendParams.fDistance;
 
-	pObj->SetAmbientColor(RendParams.AmbientColor, passInfo);
+	pObj->SetAmbientColor(RendParams.AmbientColor);
 
 	pObj->m_ObjFlags |= RendParams.dwFObjFlags;
 	SRenderObjData* pD = pObj->GetObjData();
@@ -250,10 +252,12 @@ void CCharInstance::RenderCHR(const SRendParams& RendParams, const Matrix34& rRe
 		pD->SetShaderParams(RendParams.pShaderParams);
 	}
 
-	pObj->SetMatrix(rRenderMat34, passInfo);
+	pObj->SetMatrix(rRenderMat34);
 
 	pObj->m_nClipVolumeStencilRef = RendParams.nClipVolumeStencilRef;
 	pObj->m_nTextureID = RendParams.nTextureID;
+
+	RendParams.pInstance = this;
 
 	bool bCheckMotion = MotionBlurMotionCheck(pObj->m_ObjFlags);
 	pD->m_uniqueObjectId = reinterpret_cast<uintptr_t>(RendParams.pInstance);

@@ -13,6 +13,7 @@
 #include "DialogLineDatabase.h"
 #include <CryAudio/IAudioInterfacesCommonData.h>
 #include <CryRenderer/IRenderAuxGeom.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace
 {
@@ -347,7 +348,7 @@ DRS::ISpeakerManager::IListener::eLineEvent CSpeakerManager::StartSpeaking(DRS::
 					//soft interruption: we execute the stop trigger on the old line. That trigger should cause the old line to end after a while. And only then, do we start the playback of the next line
 					pLine = (pLineSet) ? pLineSet->PickLine() : nullptr;
 					CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::DoneCallbackOnExternalThread | CryAudio::ERequestFlags::CallbackOnExternalOrCallingThread, this, (void* const)(pLine), (void* const)(activateSpeaker.pActor));
-					if (!pEntityAudioProxy->ExecuteTrigger(activateSpeaker.stopTriggerID, activateSpeaker.speechAuxObjectId, userData))
+					if (!pEntityAudioProxy->ExecuteTrigger(activateSpeaker.stopTriggerID, activateSpeaker.speechAuxObjectId, INVALID_ENTITYID, userData))
 					{
 						//failed to start the stop trigger, therefore we fallback to hard-interruption by stopping the start trigger
 						pEntityAudioProxy->StopTrigger(activateSpeaker.startTriggerID, activateSpeaker.speechAuxObjectId);
@@ -757,7 +758,7 @@ void CSpeakerManager::ExecuteStartSpeaking(SSpeakInfo* pSpeakerInfoToUse)
 
 		if (pSpeakerInfoToUse->startTriggerID)
 		{
-			bAudioPlaybackStarted = pEntityAudioProxy->ExecuteTrigger(pSpeakerInfoToUse->startTriggerID, pSpeakerInfoToUse->speechAuxObjectId, userData);
+			bAudioPlaybackStarted = pEntityAudioProxy->ExecuteTrigger(pSpeakerInfoToUse->startTriggerID, pSpeakerInfoToUse->speechAuxObjectId,INVALID_ENTITYID, userData);
 		}
 
 		if (bAudioPlaybackStarted)

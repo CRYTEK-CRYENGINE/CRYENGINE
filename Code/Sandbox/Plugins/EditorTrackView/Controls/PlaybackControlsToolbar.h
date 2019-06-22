@@ -17,6 +17,10 @@ class CTrackViewPlaybackControlsToolbar : public QToolBar, public CTrackViewCore
 {
 	Q_OBJECT
 
+	//TODO: avoid friend class
+	friend class CTrackViewWindow;
+	//~TODO:
+
 public:
 	CTrackViewPlaybackControlsToolbar(CTrackViewCore* pTrackViewCore);
 	~CTrackViewPlaybackControlsToolbar() {}

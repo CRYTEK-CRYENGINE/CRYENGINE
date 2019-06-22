@@ -16,6 +16,7 @@
 #include "ItemSystem.h"
 #include "IActorSystem.h"
 #include "Inventory.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace
 {
@@ -76,7 +77,7 @@ void CEquipmentManager::DeleteAllEquipmentPacks()
 // Loads equipment packs from rootNode
 void CEquipmentManager::LoadEquipmentPacks(const XmlNodeRef& rootNode)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Equipment Packs");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Equipment Packs");
 
 	if (rootNode->isTag("EquipPacks") == false)
 		return;
@@ -91,7 +92,7 @@ void CEquipmentManager::LoadEquipmentPacks(const XmlNodeRef& rootNode)
 // Load all equipment packs from a certain folder
 void CEquipmentManager::LoadEquipmentPacksFromPath(const char* path)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Equipment Packs");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Equipment Packs");
 
 	ICryPak* pCryPak = gEnv->pCryPak;
 	_finddata_t fd;
@@ -110,7 +111,7 @@ void CEquipmentManager::LoadEquipmentPacksFromPath(const char* path)
 			filename += "/";
 			filename += fd.name;
 
-			MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "EquipmentPack XML (%s)", filename.c_str());
+			MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "EquipmentPack XML (%s)", filename.c_str());
 
 			XmlNodeRef rootNode = gEnv->pSystem->LoadXmlFromFile(filename.c_str());
 

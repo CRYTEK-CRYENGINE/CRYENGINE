@@ -4277,7 +4277,7 @@ int CScriptBind_Entity::ExecuteAudioTrigger(IFunctionHandler* pH, ScriptHandle c
 	if (pIEntityAudioComponent != nullptr)
 	{
 		CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::DoneCallbackOnExternalThread, this);
-		pIEntityAudioComponent->ExecuteTrigger(HandleToInt<CryAudio::ControlId>(hTriggerID), HandleToInt<CryAudio::AuxObjectId>(hAudioProxyLocalID), userData);
+		pIEntityAudioComponent->ExecuteTrigger(HandleToInt<CryAudio::ControlId>(hTriggerID), HandleToInt<CryAudio::AuxObjectId>(hAudioProxyLocalID), INVALID_ENTITYID, userData);
 	}
 
 	return pH->EndFunction();
@@ -7273,7 +7273,7 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, SRenderLigh
 	if (chain.GetValue("link_to_sky_color", flag) && flag)
 		light.m_Flags |= DLF_LINK_TO_SKY_COLOR;
 	if (chain.GetValue("area_light", flag) && flag)
-		light.m_Flags |= DLF_AREA_LIGHT;
+		light.m_Flags |= DLF_AREA;
 	if (chain.GetValue("deferred_light", flag) && flag)
 		light.m_Flags |= DLF_DEFERRED_LIGHT;
 	if (chain.GetValue("volumetric_fog", flag) && flag)
@@ -7318,21 +7318,23 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, SRenderLigh
 		if (specularCubemap && strlen(specularCubemap) > 0)
 		{
 			bool bFailed = false;
-			string sSpecularName(specularCubemap);
-			int strIndex = sSpecularName.find("_diff");
-			if (strIndex >= 0)
 			{
-				sSpecularName = sSpecularName.substr(0, strIndex) + sSpecularName.substr(strIndex + 5, sSpecularName.length());
-				specularCubemap = sSpecularName.c_str();
+				CryPathString sSpecularName(specularCubemap);
+				const size_t strIndex = sSpecularName.find("_diff");
+				if (strIndex != CryPathString::npos)
+				{
+					sSpecularName.erase(strIndex, 5); // erase "_diff"
+					specularCubemap = sSpecularName.c_str();
+				}
 			}
 
-			char diffuseCubemap[ICryPak::g_nMaxPath];
-			cry_sprintf(diffuseCubemap, "%s%s%s.%s", PathUtil::AddSlash(PathUtil::GetPathWithoutFilename(specularCubemap)).c_str(),
-			            PathUtil::GetFileName(specularCubemap).c_str(), "_diff", PathUtil::GetExt(specularCubemap));
-
+			CryPathString diffuseCubemap;
+			diffuseCubemap.Format("%s%s%s.%s", PathUtil::AddSlash(PathUtil::GetPathWithoutFilename(specularCubemap)).c_str(),
+				PathUtil::GetFileName(specularCubemap).c_str(), "_diff", PathUtil::GetExt(specularCubemap));
+			
 			// '\\' in filename causing texture duplication
-			string specularCubemapUnix = PathUtil::ToUnixPath(specularCubemap);
-			string diffuseCubemapUnix = PathUtil::ToUnixPath(diffuseCubemap);
+			CryPathString specularCubemapUnix = PathUtil::ToUnixPath(specularCubemap);
+			CryPathString diffuseCubemapUnix = PathUtil::ToUnixPath(diffuseCubemap);
 
 			light.SetSpecularCubemap(gEnv->pRenderer->EF_LoadTexture(specularCubemapUnix.c_str(), 0));
 			light.SetDiffuseCubemap(gEnv->pRenderer->EF_LoadTexture(diffuseCubemapUnix.c_str(), 0));
@@ -7346,8 +7348,8 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, SRenderLigh
 			}
 			if (!light.GetDiffuseCubemap() || !light.GetDiffuseCubemap()->IsTextureLoaded())
 			{
-				GetISystem()->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, 0, diffuseCubemap,
-				                      "Deferred diffuse cubemap texture not found: %s", diffuseCubemap);
+				GetISystem()->Warning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_WARNING, 0, diffuseCubemap.c_str(),
+				                      "Deferred diffuse cubemap texture not found: %s", diffuseCubemap.c_str());
 
 				bFailed = true;
 			}
@@ -7560,7 +7562,7 @@ bool CScriptBind_Entity::ParseLightParams(IScriptTable* pLightTable, SRenderLigh
 	if (bTimeScrubbingInTrackView)
 		light.m_Flags |= DLF_TRACKVIEW_TIMESCRUBBING;
 
-	if (!(light.m_Flags & DLF_AREA_LIGHT) && light.m_fLightFrustumAngle && (light.m_pLightImage != nullptr) && light.m_pLightImage->IsTextureLoaded() || light.m_pLightDynTexSource)
+	if (light.m_fLightFrustumAngle && (light.m_pLightImage != nullptr) && light.m_pLightImage->IsTextureLoaded() || light.m_pLightDynTexSource)
 		light.m_Flags |= DLF_PROJECT;
 	else
 	{

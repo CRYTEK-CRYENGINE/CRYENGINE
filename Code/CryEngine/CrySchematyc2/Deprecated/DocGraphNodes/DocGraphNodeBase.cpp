@@ -183,7 +183,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocGraphNodeBase::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		if(archive.isEdit())
 		{
 			archive(m_name, "name", "!Name");
@@ -283,7 +283,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	size_t CDocGraphNodeBase::AddOutput(const char* szName, EScriptGraphPortFlags flags, const CAggregateTypeId& typeId)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		CRY_ASSERT(szName);
 		if(szName)
 		{

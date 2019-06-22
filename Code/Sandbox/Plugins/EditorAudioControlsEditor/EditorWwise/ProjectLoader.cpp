@@ -220,18 +220,18 @@ void CProjectLoader::LoadFolder(string const& folderPath, string const& folderNa
 //////////////////////////////////////////////////////////////////////////
 void CProjectLoader::LoadWorkUnitFile(const string& filePath, CItem& parent, EPakStatus const pakStatus)
 {
-	XmlNodeRef const pRoot = GetISystem()->LoadXmlFromFile(m_projectPath + "/" + filePath);
+	XmlNodeRef const rootNode = GetISystem()->LoadXmlFromFile(m_projectPath + "/" + filePath);
 
-	if (pRoot != nullptr)
+	if (rootNode.isValid())
 	{
-		uint32 const fileId = CryAudio::StringToId(pRoot->getAttr("ID"));
+		uint32 const fileId = CryAudio::StringToId(rootNode->getAttr("ID"));
 
 		if (m_filesLoaded.count(fileId) == 0)
 		{
 			// Make sure we've loaded any work units we depend on before loading
-			if (pRoot->haveAttr("RootDocumentID"))
+			if (rootNode->haveAttr("RootDocumentID"))
 			{
-				uint32 const parentDocumentId = CryAudio::StringToId(pRoot->getAttr("RootDocumentID"));
+				uint32 const parentDocumentId = CryAudio::StringToId(rootNode->getAttr("RootDocumentID"));
 
 				if (m_items.count(parentDocumentId) == 0)
 				{
@@ -250,11 +250,11 @@ void CProjectLoader::LoadWorkUnitFile(const string& filePath, CItem& parent, EPa
 			}
 
 			// Each files starts with the type of item and then the WorkUnit
-			int const childCount = pRoot->getChildCount();
+			int const childCount = rootNode->getChildCount();
 
 			for (int i = 0; i < childCount; ++i)
 			{
-				LoadXml(pRoot->getChild(i)->findChild("WorkUnit"), parent, pakStatus);
+				LoadXml(rootNode->getChild(i)->findChild("WorkUnit"), parent, pakStatus);
 			}
 
 			m_filesLoaded.insert(fileId);
@@ -263,17 +263,17 @@ void CProjectLoader::LoadWorkUnitFile(const string& filePath, CItem& parent, EPa
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CProjectLoader::LoadXml(XmlNodeRef const pRoot, CItem& parent, EPakStatus const pakStatus)
+void CProjectLoader::LoadXml(XmlNodeRef const& rootNode, CItem& parent, EPakStatus const pakStatus)
 {
-	if (pRoot != nullptr)
+	if (rootNode.isValid())
 	{
 		CItem* pItem = &parent;
-		EItemType const type = TagToItemType(pRoot->getTag());
+		EItemType const type = TagToItemType(rootNode->getTag());
 
 		if (type != EItemType::None)
 		{
-			string const name = pRoot->getAttr("Name");
-			uint32 const itemId = CryAudio::StringToId(pRoot->getAttr("ID"));
+			string const name = rootNode->getAttr("Name");
+			uint32 const itemId = CryAudio::StringToId(rootNode->getAttr("ID"));
 
 			// Check if this item has not been created before. It could have been created in
 			// a different Work Unit as a reference
@@ -290,14 +290,14 @@ void CProjectLoader::LoadXml(XmlNodeRef const pRoot, CItem& parent, EPakStatus c
 			}
 		}
 
-		XmlNodeRef const pChildren = pRoot->findChild("ChildrenList");
+		XmlNodeRef const childNode = rootNode->findChild("ChildrenList");
 
-		if (pChildren != nullptr)
+		if (childNode.isValid())
 		{
-			int const childCount = pChildren->getChildCount();
+			int const childCount = childNode->getChildCount();
 			for (int i = 0; i < childCount; ++i)
 			{
-				LoadXml(pChildren->getChild(i), *pItem, pakStatus);
+				LoadXml(childNode->getChild(i), *pItem, pakStatus);
 			}
 		}
 	}
@@ -321,8 +321,8 @@ CItem* CProjectLoader::CreateItem(const string& name, EItemType const type, CIte
 		case EItemType::WorkUnit:
 			{
 				pItem = new CItem(name, id, type, EItemFlags::IsContainer, pakStatus, m_projectPath + fullPathName + ".wwu");
+				break;
 			}
-			break;
 		case EItemType::PhysicalFolder:
 			{
 				if (id != g_soundBanksFolderId)
@@ -333,20 +333,21 @@ CItem* CProjectLoader::CreateItem(const string& name, EItemType const type, CIte
 				{
 					pItem = new CItem(name, id, type, EItemFlags::IsContainer);
 				}
+
+				break;
 			}
-			break;
-		case EItemType::VirtualFolder:
-		case EItemType::SwitchGroup:
+		case EItemType::VirtualFolder: // Intentional fall-through.
+		case EItemType::SwitchGroup:   // Intentional fall-through.
 		case EItemType::StateGroup:
 			{
 				pItem = new CItem(name, id, type, EItemFlags::IsContainer, pakStatus);
+				break;
 			}
-			break;
 		default:
 			{
 				pItem = new CItem(name, id, type, EItemFlags::None, pakStatus);
+				break;
 			}
-			break;
 		}
 
 		parent.AddChild(pItem);
@@ -378,11 +379,11 @@ void CProjectLoader::BuildFileCache(string const& folderPath)
 				else
 				{
 					string const path = folderPath + "/" + name;
-					XmlNodeRef const pRoot = GetISystem()->LoadXmlFromFile(m_projectPath + "/" + path);
+					XmlNodeRef const rootNode = GetISystem()->LoadXmlFromFile(m_projectPath + "/" + path);
 
-					if (pRoot != nullptr)
+					if (rootNode.isValid())
 					{
-						m_filesCache[CryAudio::StringToId(pRoot->getAttr("ID"))] = path;
+						m_filesCache[CryAudio::StringToId(rootNode->getAttr("ID"))] = path;
 					}
 				}
 			}

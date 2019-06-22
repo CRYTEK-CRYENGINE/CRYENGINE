@@ -132,7 +132,7 @@ void CREWaterVolume::mfCenter(Vec3& vCenter, CRenderObject* pObj, const SRenderi
 {
 	vCenter = m_pParams->m_center;
 	if (pObj)
-		vCenter += pObj->GetMatrix(passInfo).GetTranslation();
+		vCenter += pObj->GetMatrix().GetTranslation();
 }
 
 void CREWaterVolume::mfGetBBox(AABB& bb) const
@@ -140,7 +140,7 @@ void CREWaterVolume::mfGetBBox(AABB& bb) const
 	bb = m_pParams->m_WSBBox;
 }
 
-bool CREWaterVolume::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElementFlags elmFlags, const AABB &localAABB, CRenderView *pRenderView, bool updateInstanceDataOnly)
+bool CREWaterVolume::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElementFlags elmFlags, const AABB& localAABB, CRenderView* pRenderView, bool updateInstanceDataOnly)
 {
 	if (!m_pCompiledObject)
 	{
@@ -153,7 +153,7 @@ bool CREWaterVolume::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElemen
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
 	CRY_ASSERT(rd->m_pRT->IsRenderThread());
-	auto* pWaterStage = rd->GetGraphicsPipeline().GetWaterStage();
+	auto* pWaterStage = pRenderView->GetGraphicsPipeline()->GetStage<CWaterStage>();
 
 	if (!pWaterStage
 	    || !pObj
@@ -181,15 +181,15 @@ bool CREWaterVolume::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElemen
 	// create PSOs which match to specific material.
 	const InputLayoutHandle vertexFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 	SGraphicsPipelineStateDescription psoDescription(
-	  pObj,
-	  objFlags,
-	  elmFlags,
-	  shaderItem,
-	  TTYPE_GENERAL, // set as default, this may be overwritten in CreatePipelineStates().
-	  vertexFormat,
-	  VSM_NONE /*geomInfo.CalcStreamMask()*/,
-	  eptTriangleList // tessellation is handled in CreatePipelineStates(). ept3ControlPointPatchList is used in that case.
-	  );
+		pObj,
+		objFlags,
+		elmFlags,
+		shaderItem,
+		TTYPE_GENERAL, // set as default, this may be overwritten in CreatePipelineStates().
+		vertexFormat,
+		VSM_NONE /*geomInfo.CalcStreamMask()*/,
+		eptTriangleList // tessellation is handled in CreatePipelineStates(). ept3ControlPointPatchList is used in that case.
+		);
 
 	// apply shader quality
 	{
@@ -348,7 +348,6 @@ void CREWaterVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphi
 	CRY_ASSERT(compiledObj.m_pPerDrawCB);
 	CRY_ASSERT(compiledObj.m_pPerDrawRS && compiledObj.m_pPerDrawRS->IsValid());
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	CDeviceGraphicsCommandInterface& RESTRICT_REFERENCE commandInterface = *(commandList->GetGraphicsInterface());
 
 	// Set states
@@ -357,8 +356,8 @@ void CREWaterVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphi
 	commandInterface.SetResources(EResourceLayoutSlot_PerDrawExtraRS, compiledObj.m_pPerDrawRS.get());
 
 	EShaderStage perDrawInlineShaderStages = compiledObj.m_bHasTessellation
-		? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
-		: (EShaderStage_Vertex | EShaderStage_Pixel);
+	                                         ? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
+	                                         : (EShaderStage_Vertex | EShaderStage_Pixel);
 
 	commandInterface.SetInlineConstantBuffer(EResourceLayoutSlot_PerDrawCB, compiledObj.m_pPerDrawCB, eConstantBufferShaderSlot_PerDraw, perDrawInlineShaderStages);
 
@@ -381,7 +380,6 @@ void CREWaterVolume::DrawToCommandList(CRenderObject* pObj, const struct SGraphi
 
 void CREWaterVolume::PrepareForUse(watervolume::SCompiledWaterVolume& compiledObj, bool bInstanceOnly, CDeviceCommandList& RESTRICT_REFERENCE commandList) const
 {
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	CDeviceGraphicsCommandInterface* RESTRICT_POINTER pCommandInterface = commandList.GetGraphicsInterface();
 
 	if (!bInstanceOnly)
@@ -392,8 +390,8 @@ void CREWaterVolume::PrepareForUse(watervolume::SCompiledWaterVolume& compiledOb
 	pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerDrawExtraRS, compiledObj.m_pPerDrawRS.get());
 
 	EShaderStage perDrawInlineShaderStages = compiledObj.m_bHasTessellation
-		? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
-		: (EShaderStage_Vertex | EShaderStage_Pixel);
+	                                         ? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
+	                                         : (EShaderStage_Vertex | EShaderStage_Pixel);
 
 	pCommandInterface->PrepareInlineConstantBufferForUse(EResourceLayoutSlot_PerDrawCB, compiledObj.m_pPerDrawCB, eConstantBufferShaderSlot_PerDraw, perDrawInlineShaderStages);
 
@@ -413,11 +411,11 @@ void CREWaterVolume::PrepareForUse(watervolume::SCompiledWaterVolume& compiledOb
 }
 
 void CREWaterVolume::UpdatePerDrawCB(
-  watervolume::SCompiledWaterVolume& RESTRICT_REFERENCE compiledObj,
-  const CRenderObject& renderObj,
-  bool bRenderFogShadowWater,
-  bool bCaustics,
-  CRenderView *pRenderView) const
+	watervolume::SCompiledWaterVolume& RESTRICT_REFERENCE compiledObj,
+	const CRenderObject& renderObj,
+	bool bRenderFogShadowWater,
+	bool bCaustics,
+	CRenderView* pRenderView) const
 {
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
@@ -444,7 +442,7 @@ void CREWaterVolume::UpdatePerDrawCB(
 	}
 	else
 	{
-		cb->WorldMatrix = renderObj.GetMatrix(gcpRendD3D->GetObjectAccessorThreadConfig());
+		cb->WorldMatrix = renderObj.GetMatrix();
 	}
 
 	if (m_CustomData)
@@ -549,9 +547,10 @@ void CREWaterVolume::UpdateVertex(watervolume::SCompiledWaterVolume& compiledObj
 {
 	CRenderElement::SGeometryInfo geomInfo;
 	ZeroStruct(geomInfo);
-
+#if defined(USE_CRY_ASSERT)
 	const bool bDrawSurface = (m_drawWaterSurface || !m_pParams->m_viewerInsideVolume);
 	CRY_ASSERT((bFullscreen && !bDrawSurface) || (!bFullscreen && bDrawSurface));
+#endif
 
 	if (!bFullscreen)
 	{
@@ -585,8 +584,8 @@ void CREWaterVolume::UpdateVertex(watervolume::SCompiledWaterVolume& compiledObj
 		// TODO: update only when water volume surface changes.
 		CRY_ASSERT(m_vertexBuffer.handle != watervolume::invalidBufferHandle);
 		CRY_ASSERT(gRenDev->m_DevBufMan.Size(m_vertexBuffer.handle) >= vertexBufferSize);
-		CRY_ASSERT(m_pParams->m_pVertices!=nullptr);
-		if ((m_vertexBuffer.handle != watervolume::invalidBufferHandle)  && (m_pParams->m_pVertices != nullptr))
+		CRY_ASSERT(m_pParams->m_pVertices != nullptr);
+		if ((m_vertexBuffer.handle != watervolume::invalidBufferHandle) && (m_pParams->m_pVertices != nullptr))
 		{
 			gRenDev->m_DevBufMan.UpdateBuffer(m_vertexBuffer.handle, m_pParams->m_pVertices, vertexBufferSize);
 		}

@@ -53,7 +53,6 @@ int PhysXVehicle::AddGeometry(phys_geometry* pgeom, pe_geomparams* _params, int 
 int PhysXVehicle::SetParams(pe_params* _params, int bThreadSafe)
 {
 	if (_params->type==pe_params_wheel::type_id) {
-		pe_params_wheel *params = (pe_params_wheel*)_params;
 		return 1;
 	}	else
 		SetupPxVehicle();

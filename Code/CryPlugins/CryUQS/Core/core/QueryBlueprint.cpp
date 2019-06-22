@@ -517,7 +517,7 @@ namespace UQS
 			return m_deferredEvaluators;
 		}
 
-		bool CQueryBlueprint::CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const Shared::IVariantDict& runtimeParamsToValidate, Shared::CUqsString& error) const
+		bool CQueryBlueprint::CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const Shared::IVariantDict& runtimeParamsToValidate, Shared::IUqsString& error) const
 		{
 			//
 			// ensure that all required runtime-params have been passed in and that their data types match those in this query-blueprint

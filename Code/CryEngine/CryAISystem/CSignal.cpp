@@ -183,7 +183,7 @@ namespace AISignals
 		return *m_pSignalDescription;
 	}
 
-	const tAIObjectID CSignal::GetSenderID() const
+	const EntityId CSignal::GetSenderID() const
 	{
 		return m_senderID;
 	}
@@ -208,7 +208,7 @@ namespace AISignals
 
 		int nSignal = GetNSignal();
 		string name = GetSignalDescription().GetName();
-		tAIObjectID senderId = GetSenderID();
+		EntityId senderId = GetSenderID();
 
 		ser.Value("nSignal", nSignal);
 		ser.Value("strText", name);
@@ -302,20 +302,20 @@ namespace AISignals
 	}
 
 #ifdef SIGNAL_MANAGER_DEBUG
-	SignalSharedPtr CSignalManager::CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const tAIObjectID senderID, IAISignalExtraData* pEData)
+	SignalSharedPtr CSignalManager::CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const EntityId senderID, IAISignalExtraData* pEData)
 	{
 		std::shared_ptr<CSignal> pSignal = std::shared_ptr<CSignal>(new CSignal(nSignal, signalDescription, senderID, pEData));
 		AddSignalToDebugHistory(*pSignal);
 		return pSignal;
 	}
 #else
-	SignalSharedPtr CSignalManager::CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const tAIObjectID senderID, IAISignalExtraData* pEData) const
+	SignalSharedPtr CSignalManager::CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const EntityId senderID, IAISignalExtraData* pEData) const
 	{
 		return std::shared_ptr<CSignal>(new CSignal(nSignal, signalDescription, senderID, pEData));
 	}
 #endif //SIGNAL_MANAGER_DEBUG
 
-	SignalSharedPtr CSignalManager::CreateSignal_DEPRECATED(const int nSignal, const char* szCustomSignalTypeName, const tAIObjectID senderID, IAISignalExtraData* pEData)
+	SignalSharedPtr CSignalManager::CreateSignal_DEPRECATED(const int nSignal, const char* szCustomSignalTypeName, const EntityId senderID, IAISignalExtraData* pEData)
 	{
 		const ISignalDescription& signalDesc = GetSignalDescription(szCustomSignalTypeName);
 

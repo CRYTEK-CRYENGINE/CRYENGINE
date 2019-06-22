@@ -458,11 +458,12 @@ struct SDeviceObjectHelpers
 		static const int                       MaxReflectedBuffers       = 2;                                  // Currently at most vertex and pixel stages required
 
 	public:
-		CShaderConstantManager();
+		CShaderConstantManager() = default;
 		CShaderConstantManager(CShaderConstantManager&& other);
-		~CShaderConstantManager() {};
 
 		void Reset();
+		void EnableConstantUpdate(bool enable) { m_isConstantUpdateEnabled = enable; }
+		bool IsConstantUpdateEnabled() const   { return m_isConstantUpdateEnabled;}
 
 		////////// Constant update via shader reflection //////////
 		bool AllocateShaderReflection(::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, EShaderStage shaderStages);
@@ -472,7 +473,7 @@ struct SDeviceObjectHelpers
 		void ReleaseShaderReflection();
 
 		void BeginNamedConstantUpdate();
-		void EndNamedConstantUpdate(const D3DViewPort* pVP);
+		void EndNamedConstantUpdate(const D3DViewPort* pVP, CRenderView* pRenderView);
 
 		bool SetNamedConstant(const CCryNameR& paramName, const Vec4 param, EHWShaderClass shaderClass = eHWSC_Pixel);
 		bool SetNamedConstantArray(const CCryNameR& paramName, const Vec4 params[], uint32 numParams, EHWShaderClass shaderClass = eHWSC_Pixel);
@@ -513,6 +514,8 @@ struct SDeviceObjectHelpers
 
 		std::vector<SConstantBufferBindInfo> m_constantBuffers;
 		std::unique_ptr<SShaderReflection>   m_pShaderReflection;
+
+		bool m_isConstantUpdateEnabled = false;
 	};
 
 	// Get shader instances for each shader stage

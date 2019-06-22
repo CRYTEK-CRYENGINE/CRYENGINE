@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "MNM.h"
+#include "AgentSettings.h"
 #include "MNMProfiler.h"
 #include "CompactSpanGrid.h"
 #include "Tile.h"
@@ -13,6 +13,7 @@
 #include "BoundingVolume.h"
 #include "MarkupVolume.h"
 #include "HashComputer.h"
+#include "MNMDebugDefines.h"
 
 #include <CryAISystem/NavigationSystem/MNMTileGenerator.h>
 
@@ -138,12 +139,12 @@ public:
 		{
 			SMarkupTriangles(uint16 markupIdx) : markupIdx(markupIdx) {}
 
-			uint16 markupIdx;                 //Index of markup volume in markups array
+			uint16              markupIdx;    //Index of markup volume in markups array
 			std::vector<uint16> trianglesIdx; //Indices of triangles in generated tile
 		};
 
 		std::vector<SMarkupTriangles> markupTriangles;
-		CTileConnectivityData connectivityData;
+		CTileConnectivityData         connectivityData;
 	};
 
 	enum ProfilerTimers
@@ -151,7 +152,6 @@ public:
 		Voxelization = 0,
 		Filter,
 		DistanceTransform,
-		Blur,
 		ContourExtraction,
 		Simplification,
 		Triangulation,
@@ -202,15 +202,16 @@ public:
 	};
 
 	bool Generate(const Params& params, STile& tile, SMetaData& tileMetaData, uint32* hashValue);
-	void Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) const;
+	void Draw(const EDrawMode mode, const bool bDrawAdditionalInfo, const bool checkerboardizeColor = true) const;
 
 	typedef MNMProfiler<ProfilerMemoryUsers, ProfilerTimers, ProfilerStats> ProfilerType;
 	const ProfilerType& GetProfiler() const;
 
 	enum SpanFlags
 	{
-		NotWalkable  = BIT(0),
-		TileBoundary = BIT(1),
+		NotWalkable         = BIT(0),
+		TileBoundary        = BIT(1),
+		LessThanAgentHeight = BIT(2),
 	};
 
 	enum Labels
@@ -228,6 +229,8 @@ public:
 		NoPaint = 0,
 		BadPaint,
 		OkPaintStart,
+
+		PaintBorderFlag = BIT(15),
 	};
 
 	typedef std::vector<uint16> SpanExtraInfo;
@@ -374,15 +377,29 @@ protected:
 
 	struct PaintData
 	{
+		enum class Type
+		{
+			Default,
+			Markup,
+			LowHeightArea,
+		};
+
 		AreaAnnotation areaAnotation;
-		int markupIdx;
+		int            dataIdx;
+		Type           type;
 	};
 
 	struct MarkupData
 	{
 		const SMarkupVolume* pVolume;
-		int markupIdx; // Index of the markup volume in the generator params markups
-		int paintIdx; // Index of the paint in the palette
+		int                  markupIdx; // Index of the markup volume in the generator params markups
+		uint16               paintIdx;  // Index of the paint in the palette
+	};
+
+	struct SLowAreaData
+	{
+		int    lowAreaIdx; // Index the lower height area params in m_params.agent.lowerHeightAreas
+		uint16 paintIdx;   // Index of the paint in the palette
 	};
 
 	class CGeneratedMesh : public TileGenerator::IMesh
@@ -425,21 +442,26 @@ protected:
 		void                 CreateConnectivityData();
 
 	private:
-		Triangles                  m_triangles;
-		Vertices                   m_vertices;
-		Links                      m_links;
-		TileVertexIndexLookUp      m_vertexIndexLookUp;
-		AABB                       m_tileAabb;
-		HashComputer               m_hashComputer;
-		SMetaData                  m_metaData;
+		Triangles             m_triangles;
+		Vertices              m_vertices;
+		Links                 m_links;
+		TileVertexIndexLookUp m_vertexIndexLookUp;
+		AABB                  m_tileAabb;
+		HashComputer          m_hashComputer;
+		SMetaData             m_metaData;
 	};
 
 	// Call this when reusing an existing TileGenerator for a second job.
 	// Clears all the data but leaves the allocated memory.
-	void                 Clear();
+	void                Clear();
 
-	static size_t        BorderSizeH(const Params& params);
-	static size_t        BorderSizeV(const Params& params);
+	static size_t       BorderSizeH(const Params& params);
+	static size_t       BorderSizeV(const Params& params);
+
+	inline static Vec2i SpanToContourVertexOffset(const Vec2i& walkDirection)
+	{
+		return Vec2i((walkDirection.x == 1) | (walkDirection.y == -1), (walkDirection.y == 1) | (walkDirection.x == 1));
+	}
 
 	inline static size_t Top(const Params& params)
 	{
@@ -494,7 +516,6 @@ protected:
 	inline bool IsBoundaryVertexV(size_t z) const
 	{
 		const size_t borderV = BorderSizeV(m_params);
-
 		return (z == borderV) || (z == Top(m_params) + borderV);
 	}
 
@@ -504,19 +525,28 @@ protected:
 	struct SFilterWalkableParams;
 	struct SSpanClearance;
 	struct SNonWalkableNeighbourReason;
+	struct SWalkableProbeCheckParams;
 
 	bool        GenerateFromVoxelizedVolume(const AABB& aabb, const bool fullyContained);
 
 	void        FilterWalkable(const AABB& aabb, bool fullyContained = true);
-	static bool FilterWalkable_CheckSpanBackface(const CompactSpanGrid::Span& span);
-	static bool FilterWalkable_CheckSpanWaterDepth(const CompactSpanGrid::Span& span, const Params& params);
-	static bool FilterWalkable_CheckNeighbours(const SSpanCoord& spanCoord, const SSpanClearance& spanClearance, const SFilterWalkableParams& filterParams, SNonWalkableNeighbourReason* pOutReason);
-	void        FilterWalkable_CheckBoundaries(const AABB& aabb, const size_t gridWidth, const size_t gridHeight);
+	size_t      FilterWalkable_CheckBackfaceDepthAndClearance(const SFilterWalkableParams& filterParams);
+	size_t      FilterWalkable_CheckNeighboursAndInclination(const SFilterWalkableParams& filterParams);
+	bool        FilterWalkableSpanAndSetClearance(CompactSpanGrid::Span& span, const SSpanCoord& spanCoord, const CompactSpanGrid::Cell& cell, const SFilterWalkableParams& filterParams);
+	static bool FilterWalkableSpan_CheckBackface(const CompactSpanGrid::Span& span);
+	static bool FilterWalkableSpan_CheckWaterDepth(const CompactSpanGrid::Span& span, const Params& params);
+	static bool FilterWalkableSpan_CheckNeighbours(const SSpanCoord& spanCoord, const size_t originTop, const size_t originNextBottom, const SFilterWalkableParams& filterParams, SNonWalkableNeighbourReason* pOutReason);
+	
+	static bool CheckWalkableProbeStep(const SWalkableProbeCheckParams& params);
+	static bool CheckWalkableProbeIncline(const SWalkableProbeCheckParams& params, float* probeInclinationVars);
+
+	
+	size_t      FilterWalkable_CheckBoundaries(const AABB& aabb, const size_t gridWidth, const size_t gridHeight);
 
 	void        ComputeDistanceTransform();
-	void        BlurDistanceTransform();
+	void        ExpandAreaForPaint(const uint16 paint);
 
-	void        PaintBorder(uint16* data, size_t borderH, size_t borderV);
+	void        LabelBorders();
 
 	struct NeighbourInfoRequirements
 	{
@@ -559,8 +589,7 @@ protected:
 		}
 	};
 
-	uint16 GetPaintVal(const AABB& aabb, size_t x, size_t y, size_t z, size_t index, size_t borderH, size_t borderV, size_t erosion);
-	void   AssessNeighbour(NeighbourInfo& info, size_t erosion, size_t climbableVoxelCount);
+	void AssessNeighbour(NeighbourInfo& info, const size_t climbableVoxelCount);
 
 	enum TracerDir
 	{
@@ -598,7 +627,7 @@ protected:
 		int     turns;
 	};
 
-	void   TraceContour(CTileGenerator::TracerPath& path, const Tracer& start, size_t erosion, size_t climbableVoxelCount, const NeighbourInfoRequirements& contourReq);
+	void   TraceContour(CTileGenerator::TracerPath& path, const Tracer& start, const size_t climbableVoxelCount, const NeighbourInfoRequirements& contourReq);
 	int    LabelTracerPath(const CTileGenerator::TracerPath& path, size_t climbableVoxelCount, Region& region, Contour& contour, const uint16 internalLabel, const uint16 internalLabelFlags, const uint16 externalLabel, const bool bIsHole);
 
 	void   TidyUpContourEnd(Contour& contour);
@@ -606,10 +635,12 @@ protected:
 	void   CalcPaintValues(const AABB& aabb);
 	void   CreatePaintPalette();
 	void   PaintMarkups(const AABB& tileAabb);
+	void   PaintLowerHeightAreas();
 	void   PaintMarkupDirect(const MarkupData& markupData, const AABB& tileAabb, const Vec2i& canvasSize, const Vec2i& borderSize, const Vec3& voxelSize, const Vec3& voxelSizeInv);
 	void   PaintMarkupExpanded(const MarkupData& markupData, const AABB& tileAabb, const Vec2i& canvasSize, const Vec2i& borderSize, const Vec3& voxelSize, const Vec3& voxelSizeInv);
 
 	void   FilterBadRegions(size_t minSpanCount);
+	void   RemoveSmallRegionByPaint(size_t minRegionSize, uint16 paint);
 
 	bool   SimplifyContour(const Contour& contour, const real_t& tolerance2DSq, const real_t& tolerance3DSq,
 	                       PolygonContour& poly);
@@ -673,14 +704,17 @@ protected:
 		       && ((contourVertex.flags & ContourVertex::Unremovable) == 0);
 	}
 
-	void   AddContourVertex(const ContourVertex& vertex, Region& region, Contour& contour) const;
+	void   UpdateContourUnremovableVertices(Contour& contour, const bool isHole) const;
 
+	void   AddContourVertex(const ContourVertex& vertex, Region& region, Contour& contour) const;
 	size_t InsertUniqueVertex(VertexIndexLookUp& lookUp, size_t x, size_t y, size_t z);
+
+	void   ReleaseSpanExtraInfo();
 
 	void   DrawNavTriangulation() const;
 	void   DrawTracers(const Vec3& origin) const;
 	void   DrawSimplifiedContours(const Vec3& origin) const;
-	void   DrawSegmentation(const Vec3& origin, const bool bDrawAdditionalInfo) const;
+	void   DrawSegmentation(const Vec3& origin, const bool bDrawAdditionalInfo, const bool checkerboardizeColor) const;
 
 	Params         m_params;
 	ProfilerType   m_profiler;
@@ -702,6 +736,9 @@ protected:
 	typedef std::vector<MarkupData> MarkupsData;
 	MarkupsData m_markups;
 
+	typedef CryFixedArray<SLowAreaData, SAgentSettings::kMaxLowerHeightAreas> LowAreasData;
+	LowAreasData m_lowerHeightAreas;
+
 	typedef std::vector<Region> Regions;
 	Regions m_regions;
 
@@ -713,7 +750,6 @@ protected:
 
 	CompactSpanGrid m_spanGridRaw;
 	CompactSpanGrid m_spanGridFlagged;
-
 
 #if DEBUG_MNM_ENABLED
 	std::vector<Triangle> m_debugRawGeometry;
@@ -758,15 +794,17 @@ protected:
 
 #endif // DEBUG_MNM_GATHER_NONWALKABLE_REASONS
 
-	inline void DebugAddNonWalkableReason(const SSpanCoord& spanCoord, const char* szReason)
-	{
 #if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
+	inline void DebugAddNonWalkableReason(const SSpanCoord& spanCoord, SNonWalkableReason&& reason)
+	{
 		IF_UNLIKELY (m_params.flags & Params::DebugInfo)
 		{
-			m_debugNonWalkableReasonMap[spanCoord] = SNonWalkableReason(szReason);
+			m_debugNonWalkableReasonMap[spanCoord] = reason;
 		}
-#endif // DEBUG_MNM_GATHER_NONWALKABLE_REASONS
 	}
+#else 
+	#define DebugAddNonWalkableReason(spanCoord, reason) {}
+#endif // DEBUG_MNM_GATHER_NONWALKABLE_REASONS
 
 	friend class CContourRenderer;
 #if DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO

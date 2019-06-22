@@ -1,8 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef PARTICLEATTRIBUTES_H
-#define PARTICLEATTRIBUTES_H
-
 #pragma once
 
 #include "Features/ParamTraits.h"
@@ -129,5 +126,3 @@ inline bool Serialize(Serialization::IArchive& ar, CAttributeReference& attr, cs
 
 
 }
-
-#endif

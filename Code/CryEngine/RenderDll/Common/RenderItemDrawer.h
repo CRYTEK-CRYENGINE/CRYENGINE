@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <CryThreading/CryThreadSafeRendererContainer.h>
-#include <CryThreading/CryThreadSafeWorkerContainer.h>
 #include <CryMath/Range.h>
 
 #include "RenderPipeline.h"

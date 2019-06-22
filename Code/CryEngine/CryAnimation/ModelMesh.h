@@ -121,4 +121,20 @@ public:
 	int           m_faceCount;
 
 	CSoftwareMesh m_softwareMesh;
+
+	struct sModelCache
+	{
+		std::vector<Vec3> vertices;
+		std::vector<Vec2> UVs;
+		std::vector<vtx_idx> indices;
+ 	};
+
+	sModelCache& CreateModelCache();
+	sModelCache const& GetModelCache() const;
+	bool HasModelCache() const;
+
+private:
+
+	std::shared_ptr<sModelCache> m_modelCache; //!< Mesh data storage - shared ownership, since CModelMesh is copied on different occasions
+
 };

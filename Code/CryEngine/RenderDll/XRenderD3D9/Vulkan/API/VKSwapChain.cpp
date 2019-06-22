@@ -52,9 +52,9 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 	VkBool32 bSupported = false;
 
 	{
-		const auto a = GetSupportedSurfaceFormats(physicalDevice, surface, supportedFormats); VK_ASSERT(a);
-		const auto b = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilites); VK_ASSERT(b == VK_SUCCESS);
-		const auto c = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, commandQueue.GetVkQueueFamily(), surface, &bSupported); VK_ASSERT(c == VK_SUCCESS);
+		const auto a = GetSupportedSurfaceFormats(physicalDevice, surface, supportedFormats); CRY_VULKAN_VERIFY(a, "");
+		const auto b = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilites); CRY_VULKAN_VERIFY(b == VK_SUCCESS, "");
+		const auto c = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, commandQueue.GetVkQueueFamily(), surface, &bSupported); CRY_VULKAN_VERIFY(c == VK_SUCCESS, "");
 	}
 
 	// validate surface dimensions
@@ -164,7 +164,6 @@ _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwap
 _smart_ptr<CSwapChain> CSwapChain::Create(CCommandListPool& commandQueue, VkSwapchainCreateInfoKHR* pInfo)
 {
 	VkSwapchainKHR KHRSwapChain = VK_NULL_HANDLE;
-	VkQueue QueueVk = commandQueue.GetVkCommandQueue();
 	VkDevice DeviceVk = commandQueue.GetDevice()->GetVkDevice();
 
 	VkResult result = vkCreateSwapchainKHR(DeviceVk, pInfo, nullptr, &KHRSwapChain);
@@ -200,7 +199,7 @@ CSwapChain::CSwapChain(CCommandListPool& commandQueue, VkSurfaceKHR KHRSurface, 
 	, m_bChangedBackBufferIndex(true)
 	, m_nCurrentBackBufferIndex(0)
 {
-	VK_ASSERT(pInfo);
+	VK_ASSERT(pInfo != nullptr, "");
 	{
 		m_Info = *pInfo;
 	}
@@ -247,13 +246,13 @@ void CSwapChain::AcquireBuffers()
 {
 	VkDevice DeviceVk = m_pDevice->GetVkDevice();
 	VkResult result = vkGetSwapchainImagesKHR(DeviceVk, m_KHRSwapChain, &m_NumBackbuffers, NULL);
-	VK_ASSERT(result == VK_SUCCESS);
+	VK_ASSERT(result == VK_SUCCESS, "");
 
 	m_BackBuffers.reserve(m_NumBackbuffers);
 
 	std::vector<VkImage> images(m_NumBackbuffers);
 	result = vkGetSwapchainImagesKHR(DeviceVk, m_KHRSwapChain, &m_NumBackbuffers, images.data());
-	VK_ASSERT(result == VK_SUCCESS);
+	VK_ASSERT(result == VK_SUCCESS, "");
 
 	for (int i = 0; i < m_NumBackbuffers; ++i)
 	{
@@ -285,6 +284,17 @@ void CSwapChain::ForfeitBuffers()
 	VerifyBufferCounters();
 
 	m_BackBuffers.clear();
+}
+
+void CSwapChain::FlushAndWaitForBuffers()
+{
+	// Wait that that front has passed before continuing
+	// TODO: could be a lot more tight (see NCryDX12.CSwapChain::FlushAndWaitForBuffers)
+	if (m_NumBackbuffers)
+	{
+		auto* pDevice = m_BackBuffers[0].GetDevice();
+		pDevice->FlushAndWaitForGPU();
+	}
 }
 
 }

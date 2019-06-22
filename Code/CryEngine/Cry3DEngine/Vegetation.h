@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _CVegetation_H_
-#define _CVegetation_H_
+#pragma once
 
 class CDeformableNode;
 
@@ -47,6 +46,7 @@ public:
 	virtual ~CVegetation();
 	void                 SetStatObjGroupIndex(int nVegetationGroupIndex) override;
 
+	virtual void         Instance(bool bInstance) override;
 	void                 CheckCreateDeformable();
 	virtual bool         CanExecuteRenderAsJob() const override;
 	int                  GetStatObjGroupId() const override      { return m_nObjectTypeIndex; }
@@ -110,7 +110,6 @@ public:
 	void         ShutDown();
 	void         OnRenderNodeBecomeVisibleAsync(SRenderNodeTempData* pTempData, const SRenderingPassInfo& passInfo) override;
 	void         UpdateSpriteInfo(SVegetationSpriteInfo& properties, float fSpriteAmount, SSectorTextureSet* pTerrainTexInfo, const SRenderingPassInfo& passInfo) const;
-	void         UpdateBending();
 	static void  InitVegDecomprTable();
 	virtual bool GetLodDistances(const SFrameLodInfo& frameLodInfo, float* distances) const override;
 
@@ -157,7 +156,7 @@ public:
 	}
 
 	// Apply bending parameters to the CRenderObject
-	void FillBendingData(CRenderObject* pObj, const SRenderingPassInfo& passInfo) const;
+	void FillBendingData(CRenderObject* pObj) const;
 
 	// Custom pool allocator for vegetation
 	static void* operator new(size_t size, EAllocatorId allocatorId = eAllocator_Default);
@@ -166,5 +165,3 @@ public:
 	static void  operator delete(void* pToFree);
 	static void  GetStaticMemoryUsage(ICrySizer* pSizer);
 };
-
-#endif // _CVegetation_H_

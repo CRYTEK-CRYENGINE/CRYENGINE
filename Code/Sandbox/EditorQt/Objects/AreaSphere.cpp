@@ -292,6 +292,15 @@ void CAreaSphere::OnEntityRemoved(IEntity const* const pIEntity)
 	}
 }
 
+void CAreaSphere::ClearArea()
+{
+	IEntityAreaComponent* const pArea = m_pEntity->GetComponent<IEntityAreaComponent>();
+	if (pArea)
+	{
+		pArea->RemoveEntities();
+	}
+}
+
 void CAreaSphere::PostLoad(CObjectArchive& ar)
 {
 	// After loading Update game structure.

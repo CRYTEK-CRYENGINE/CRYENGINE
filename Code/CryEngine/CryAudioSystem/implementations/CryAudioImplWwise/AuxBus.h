@@ -23,7 +23,7 @@ public:
 	CAuxBus& operator=(CAuxBus const&) = delete;
 	CAuxBus& operator=(CAuxBus&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	explicit CAuxBus(AkAuxBusID const busId, char const* const szName)
 		: m_busId(busId)
 		, m_name(szName)
@@ -32,7 +32,7 @@ public:
 	explicit CAuxBus(AkAuxBusID const busId)
 		: m_busId(busId)
 	{}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 	virtual ~CAuxBus() override = default;
 
@@ -44,9 +44,9 @@ private:
 
 	AkAuxBusID const m_busId;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> m_name;
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 };
 } // namespace Wwise
 } // namespace Impl

@@ -53,7 +53,7 @@
 #include <IEditor.h>
 #include <Controls/QuestionDialog.h>
 #include <QtViewPane.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <ProxyModels/AttributeFilterProxyModel.h>
 #include <../../CryEngine/Cry3DEngine/CGF/ChunkFile.h>
 #include <../../CryEngine/Cry3DEngine/MeshCompiler/MeshCompiler.h>
@@ -1263,6 +1263,11 @@ void CMainDialog::CreateSkinFromFile(const string& filePath)
 		QtUtil::ToQString(filePath),
 		QtUtil::ToQString(filePath),
 		QtUtil::ToQString(materialFilename));
+
+	if (m_pCharacterInstance)
+	{
+		m_pCharacterInstance->SetCharEditMode(m_pCharacterInstance->GetCharEditMode() | CA_CharacterAuxEditor);
+	}
 }
 
 void CMainDialog::UpdateResources()
@@ -1453,16 +1458,16 @@ void CMainDialog::setupUi(CMainDialog* MainDialog)
 
 	// Create property tree widget.
 
-	m_pGlobalImportSettingsTree = new QPropertyTree();
+	m_pGlobalImportSettingsTree = new QPropertyTreeLegacy();
 	m_pGlobalImportSettingsTree->setSizeToContent(false);
 	m_pGlobalImportSettingsTree->setEnabled(false);
-	connect(m_pGlobalImportSettingsTree, &QPropertyTree::signalChanged, this, &CMainDialog::OnGlobalImportsTreeChanged);
+	connect(m_pGlobalImportSettingsTree, &QPropertyTreeLegacy::signalChanged, this, &CMainDialog::OnGlobalImportsTreeChanged);
 
 	m_pGlobalImportSettings.reset(new CGlobalImportSettings());
 	m_pGlobalImportSettingsTree->attach(Serialization::SStruct(*m_pGlobalImportSettings));
 	m_pGlobalImportSettingsTree->expandAll();
 
-	m_pPropertyTree = new QPropertyTree();
+	m_pPropertyTree = new QPropertyTreeLegacy();
 	m_pPropertyTree->setSliderUpdateDelay(5);
 	m_pPropertyTree->setToolTip(tr("Properties of selected scene object or material"));
 	m_pPropertyTree->setStatusTip(tr("Properties of selected scene object or material"));
@@ -1732,7 +1737,7 @@ std::unique_ptr<CModelProperties::SSerializer> CreateSerializer(QAbstractItemMod
 
 void CMainDialog::Init()
 {
-	m_connections.emplace_back(connect(m_pGlobalImportSettingsTree, &QPropertyTree::signalChanged, [this]()
+	m_connections.emplace_back(connect(m_pGlobalImportSettingsTree, &QPropertyTreeLegacy::signalChanged, [this]()
 	{
 		m_pMaterialPanel->ApplyMaterial();
 	}));
@@ -2062,11 +2067,11 @@ void CMainDialog::AssignScene(const MeshImporter::SImportScenePayload* pPayload)
 	pActiveScene->AddObserver(this);
 
 	*m_pAutoLodSettings = CAutoLodSettings();
-	m_pAutoLodSettings->getGlobalParams().m_fViewreSolution = 26.6932144;
+	m_pAutoLodSettings->getGlobalParams().m_fViewreSolution = 26.6932144f;
 	m_pAutoLodSettings->getGlobalParams().m_iViewsAround = 12;
 	m_pAutoLodSettings->getGlobalParams().m_iViewElevations = 3;
-	m_pAutoLodSettings->getGlobalParams().m_fSilhouetteWeight = 5.0;
-	m_pAutoLodSettings->getGlobalParams().m_fVertexWelding = 0.001;
+	m_pAutoLodSettings->getGlobalParams().m_fSilhouetteWeight = 5.0f;
+	m_pAutoLodSettings->getGlobalParams().m_fVertexWelding = 0.001f;
 	m_pAutoLodSettings->getGlobalParams().m_bCheckTopology = true;
 	m_pAutoLodSettings->getGlobalParams().m_bObjectHasBase = false;
 

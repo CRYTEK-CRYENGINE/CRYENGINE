@@ -5,7 +5,7 @@
 
 #include "stdafx.h"
 
-#include <CryCore/Assert/CryAssert_impl.h>
+//#include <CryCore/Assert/CryAssert_impl.h>
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "comdlg32.lib")
 

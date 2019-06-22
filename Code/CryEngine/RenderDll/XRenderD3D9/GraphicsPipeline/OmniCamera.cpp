@@ -4,21 +4,20 @@
 #include "OmniCamera.h"
 
 #include "SunShafts.h"
-#include "ColorGrading.h"
 #include "D3DPostProcess.h"
 
 void COmniCameraStage::Execute()
 {
 	PROFILE_LABEL_SCOPE("OMNICAMERA");
 
-	CRY_ASSERT(0 && "I doubt this function actually works");
+	CRY_ASSERT_MESSAGE(false, "I doubt this function actually works");
 
 	CTexture* pTargetTexture = RenderView()->GetColorTarget();
 	uint32 totalPixel = CRendererResources::s_renderArea;
 	int cubeSize = 1;
 	while (cubeSize * cubeSize * 6 < totalPixel)
 		cubeSize *= 2;
-		
+
 	if (m_pOmniCameraTexture == nullptr || m_pOmniCameraTexture->GetWidth() != cubeSize)
 	{
 		const uint32 nFlags = FT_DONT_STREAM | FT_USAGE_RENDERTARGET;

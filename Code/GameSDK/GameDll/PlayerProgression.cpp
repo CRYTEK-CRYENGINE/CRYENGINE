@@ -21,6 +21,7 @@ History:
 
 #include <IPlayerProfiles.h>
 #include <CrySystem/Scaleform/IFlashPlayer.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "UI/ProfileOptions.h"
 

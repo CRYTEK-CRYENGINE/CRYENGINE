@@ -49,11 +49,11 @@ signals:
 	void shown();
 
 protected:
-	virtual void paintEvent(QPaintEvent* e) override;
-	virtual void wheelEvent(QWheelEvent* e) override;
-	virtual void showEvent(QShowEvent* event) override;
-	virtual void resizeEvent(QResizeEvent* event) override;
-	virtual void focusInEvent(QFocusEvent* e) override;
+	virtual void paintEvent(QPaintEvent* pEvent) override;
+	virtual void wheelEvent(QWheelEvent* pEvent) override;
+	virtual void showEvent(QShowEvent* pEvent) override;
+	virtual void resizeEvent(QResizeEvent* pEvent) override;
+	virtual void focusInEvent(QFocusEvent* pEvent) override;
 
 	void setText(const QString& text);
 	QString text() const;
@@ -86,12 +86,12 @@ signals:
 	void clicked();
 
 protected:
-	virtual void paintEvent(QPaintEvent* e) override;
-	virtual void mousePressEvent(QMouseEvent* e) override;
-	virtual void mouseReleaseEvent(QMouseEvent* e) override;
-	virtual void focusOutEvent(QFocusEvent* e) override;
-	virtual void timerEvent(QTimerEvent* e) override;
-	virtual void changeEvent(QEvent* e) override;
+	virtual void paintEvent(QPaintEvent* pEvent) override;
+	virtual void mousePressEvent(QMouseEvent* pEvent) override;
+	virtual void mouseReleaseEvent(QMouseEvent* pEvent) override;
+	virtual void focusOutEvent(QFocusEvent* pEvent) override;
+	virtual void timerEvent(QTimerEvent* pEvent) override;
+	virtual void changeEvent(QEvent* pEvent) override;
 
 private:
 	void reset();

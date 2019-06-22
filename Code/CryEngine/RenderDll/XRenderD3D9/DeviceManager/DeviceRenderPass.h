@@ -62,7 +62,7 @@ class CDeviceRenderPass_Base : public NoCopy
 
 public:
 	CDeviceRenderPass_Base();
-	virtual ~CDeviceRenderPass_Base() {};
+	virtual ~CDeviceRenderPass_Base() {}
 
 	bool         IsValid() const { return m_bValid; }
 	void         Invalidate() { m_bValid = false; }

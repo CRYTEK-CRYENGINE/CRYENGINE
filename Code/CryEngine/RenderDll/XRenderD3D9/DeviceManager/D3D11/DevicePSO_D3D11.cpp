@@ -22,8 +22,6 @@ CDeviceGraphicsPSO_DX11::CDeviceGraphicsPSO_DX11()
 
 CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_DX11::Init(const CDeviceGraphicsPSODesc& psoDesc)
 {
-	CD3D9Renderer* rd = gcpRendD3D;
-	EInitResult result = EInitResult::Success;
 	m_isValid = false;
 	m_updateCount++;
 
@@ -122,7 +120,6 @@ CDeviceComputePSO_DX11::CDeviceComputePSO_DX11()
 
 bool CDeviceComputePSO_DX11::Init(const CDeviceComputePSODesc& psoDesc)
 {
-	CD3D9Renderer* rd = gcpRendD3D;
 	m_isValid = false;
 	m_updateCount++;
 

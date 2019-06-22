@@ -309,7 +309,7 @@ void CViewManager::UpdateViews(int flags)
 
 void CViewManager::ResetViews()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	// Reset each attached view,
 	for (int i = 0; i < m_viewports.size(); i++)
 	{
@@ -319,7 +319,7 @@ void CViewManager::ResetViews()
 
 void CViewManager::IdleUpdate()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	// Depending on user preferences, update active viewport solely
 	if (gViewportPreferences.toolsRenderUpdateMutualExclusive)

@@ -55,6 +55,9 @@ class CTrackViewTrack : public CTrackViewNode, public ITrackViewKeyBundle
 	friend class CAbstractUndoTrackTransaction;
 
 public:
+	using SAnimKeysIndicesByIndex = std::vector<size_t>;
+
+public:
 	CTrackViewTrack(IAnimTrack* pTrack, CTrackViewAnimNode* pTrackAnimNode, CTrackViewNode* pParentNode,
 	                bool bIsSubTrack = false, uint subTrackIndex = 0);
 
@@ -164,9 +167,6 @@ protected:
 	virtual void GetKey(uint keyIndex, STrackKey* pKey) const;
 
 private:
-	using SAnimTimeVector       = std::vector<SAnimTime>;
-	using SerializationCallback = std::function<void(SAnimTimeVector&)>;
-
 	CTrackViewTrack*    GetSubTrack(uint index);
 
 	CTrackViewKeyHandle GetPrevKey(const SAnimTime time);
@@ -186,9 +186,8 @@ private:
 	virtual bool        IsKeyAnimLoopable(const uint index) const            { return false; }
 
 	void                RemoveKey(const int index);
-	void                GetSelectedKeysTimes(std::vector<SAnimTime>& selectedKeysTimes);
-	void                SelectKeysByAnimTimes(const std::vector<SAnimTime>& selectedKeys);
-	void                SerializeSelectedKeys(XmlNodeRef& xmlNode, bool bLoading, SerializationCallback callback = [](SAnimTimeVector&) {}, const SAnimTime time = SAnimTime(0), size_t index = 0,	SAnimTimeVector keysTimes = SAnimTimeVector());
+	void                GetSelectedKeysIndices(SAnimKeysIndicesByIndex& selectedKeysIndices);
+	void                SerializeSelectedKeys(XmlNodeRef& xmlNode, bool bLoading, const SAnimTime time = SAnimTime(0), size_t index = 0);
 	
 	CTrackViewKeyBundle GetKeys(bool bOnlySelected, SAnimTime t0, SAnimTime t1);
 	CTrackViewKeyHandle GetSubTrackKeyHandle(uint index) const;

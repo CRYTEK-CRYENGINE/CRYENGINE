@@ -1232,7 +1232,7 @@ void CPerceptionManager::HandleGrenade(const SStimulusRecord& stim)
 						pEData->iValue = 1;
 
 						SetLastExplosionPosition(stim.pos, pAIObject);
-						const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrenadeDanger(), pAIObject->GetAIObjectID(), pEData);
+						const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrenadeDanger(), pAIObject->GetEntityID(), pEData);
 						gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 
 						RecordStimulusEvent(stim, 0.0f, *pAIObject);
@@ -1261,7 +1261,7 @@ void CPerceptionManager::HandleGrenade(const SStimulusRecord& stim)
 				pEData->iValue = 2;
 
 				SetLastExplosionPosition(stim.pos, pAIObject);
-				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrenadeDanger(), pAIObject->GetAIObjectID(), pEData);
+				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrenadeDanger(), pAIObject->GetEntityID(), pEData);
 				gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 
 				RecordStimulusEvent(stim, 0.0f, *pAIObject);
@@ -1302,7 +1302,7 @@ void CPerceptionManager::HandleGrenade(const SStimulusRecord& stim)
 						AISignals::IAISignalExtraData* pExtraData = gEnv->pAISystem->CreateSignalExtraData();
 						pExtraData->iValue = 0;
 
-						AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnExposedToFlashBang(), pAIObject->GetAIObjectID(), pExtraData);
+						AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnExposedToFlashBang(), pAIObject->GetEntityID(), pExtraData);
 						gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 
 						RecordStimulusEvent(stim, 0.0f, *pAIObject);
@@ -1324,7 +1324,7 @@ void CPerceptionManager::HandleGrenade(const SStimulusRecord& stim)
 				if (Distance::Point_PointSq(stim.pos, lookUp.GetPosition(actorIndex)) > radSq)
 					continue;
 
-				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnExposedToSmoke(), pAIObject->GetAIObjectID());
+				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnExposedToSmoke(), pAIObject->GetEntityID());
 				gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 
 				RecordStimulusEvent(stim, 0.0f, *pAIObject);

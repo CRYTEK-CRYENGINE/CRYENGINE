@@ -4,6 +4,7 @@
 #include "ParticleEffect.h"
 #include "ParticleEmitter.h"
 #include "ParticleSystem.h"
+#include "Material.h"
 #include <CrySerialization/STL.h>
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/SmartPtr.h>
@@ -27,7 +28,6 @@ CParticleEffect::CParticleEffect()
 	: m_editVersion(0)
 	, m_dirty(true)
 	, m_substitutedPfx1(false)
-	, m_numRenderObjects(0)
 {
 	m_pAttributes = TAttributeTablePtr(new CAttributeTable);
 }
@@ -44,8 +44,6 @@ void CParticleEffect::Compile()
 	if (!m_dirty)
 		return;
 
-	m_numRenderObjects = 0;
-	m_environFlags = 0;
 	for (auto& component : m_components)
 	{
 		component->m_pEffect = this;
@@ -57,37 +55,20 @@ void CParticleEffect::Compile()
 	Sort();
 
 	uint id = 0;
-	MainPreUpdate.clear();
-	RenderDeferred.clear();
 	for (auto& component : m_components)
 	{
 		component->m_componentId = id++;
-		if (!component->IsEnabled())
+		if (!component->IsActive())
 			continue;
 		component->Compile();
-		if (component->MainPreUpdate.size())
-			MainPreUpdate.push_back(component);
-		if (component->RenderDeferred.size())
-			RenderDeferred.push_back(component);
 	}
 
 	m_topComponents.clear();
-	m_timings = {};
 	for (auto& component : m_components)
 	{
 		component->FinalizeCompile();
 		if (!component->GetParentComponent())
-		{
 			m_topComponents.push_back(component);
-			if (!component->IsEnabled())
-				continue;
-			component->UpdateTimings();
-			const STimingParams& timings = component->ComponentParams();
-			SetMax(m_timings.m_maxParticleLife, timings.m_maxParticleLife);
-			SetMax(m_timings.m_stableTime, timings.m_stableTime);
-			SetMax(m_timings.m_equilibriumTime, timings.m_equilibriumTime);
-			SetMax(m_timings.m_maxTotalLIfe, timings.m_maxTotalLIfe);
-		}
 	}
 
 	m_dirty = false;
@@ -160,16 +141,6 @@ string CParticleEffect::MakeUniqueName(const CParticleComponent* forComponent, c
 	while (FindComponentByName(newName));
 
 	return newName;
-}
-
-uint CParticleEffect::AddRenderObjectId()
-{
-	return m_numRenderObjects++;
-}
-
-uint CParticleEffect::GetNumRenderObjectIds() const
-{
-	return m_numRenderObjects;
 }
 
 string CParticleEffect::GetShortName() const
@@ -287,6 +258,28 @@ void CParticleEffect::SetChanged()
 	if (!m_dirty)
 		++m_editVersion;
 	m_dirty = true;
+}
+
+bool CParticleEffect::LoadResources()
+{
+	for (auto& comp : m_components)
+	{
+		if (!comp->IsActive())
+			continue;
+		comp->LoadResources(*comp);
+		comp->FinalizeCompile();
+	}
+	return true;
+}
+
+void CParticleEffect::UnloadResources()
+{
+	for (auto& comp : m_components)
+	{
+		auto& params = comp->ComponentParams();
+		params.m_pMaterial = nullptr;
+		params.m_pMesh = nullptr;
+	}
 }
 
 Serialization::SStruct CParticleEffect::GetEffectOptionsSerializer() const

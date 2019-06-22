@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "UICVars.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 CUICVars::CUICVars()
 	: hud_hide(0)

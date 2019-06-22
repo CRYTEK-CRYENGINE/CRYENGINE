@@ -73,7 +73,7 @@ bool CCommandScheduler::RecreateCommandListPool(int queueIndex)
 
 void CCommandScheduler::CeaseCommandQueue(int queueIndex, bool bWait)
 {
-	VK_ASSERT(m_pCmdLists[queueIndex] != nullptr && "CommandList hasn't been allocated!");
+	VK_ASSERT(m_pCmdLists[queueIndex] != nullptr, "CommandList hasn't been allocated!");
 
 	for (const auto& cb : m_ceaseCallbacks)
 		cb.second(cb.first, queueIndex);
@@ -84,7 +84,7 @@ void CCommandScheduler::CeaseCommandQueue(int queueIndex, bool bWait)
 
 void CCommandScheduler::ResumeCommandQueue(int queueIndex)
 {
-	VK_ASSERT(m_pCmdLists[queueIndex] == nullptr && "CommandList hasn't been submitted!");
+	VK_ASSERT(m_pCmdLists[queueIndex] == nullptr, "CommandList hasn't been submitted!");
 	m_CmdListPools[queueIndex].AcquireCommandList(m_pCmdLists[queueIndex]);
 	m_pCmdLists[queueIndex]->Begin();
 
@@ -140,7 +140,7 @@ void CCommandScheduler::SubmitAllCommands(bool bWait, const FVAL64(&fenceValues)
 
 void CCommandScheduler::GarbageCollect()
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "FLUSH GPU HEAPS");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "FLUSH GPU HEAPS");
 
 	// Ring buffer for the _completed_ fences of past number of frames
 	m_CmdFenceSet.AdvanceCompletion();
@@ -154,7 +154,7 @@ void CCommandScheduler::GarbageCollect()
 void CCommandScheduler::SyncFrame()
 {
 	// Stall render thread until GPU has finished processing previous frame (in case max frame latency is 1)
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "SYNC TO FRAME FENCE");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "SYNC TO FRAME FENCE");
 
 	// Block when more than N frames have not been rendered yet
 	m_CmdFenceSet.GetSubmittedValues(

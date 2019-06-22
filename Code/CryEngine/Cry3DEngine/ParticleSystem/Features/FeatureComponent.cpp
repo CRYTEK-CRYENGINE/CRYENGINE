@@ -35,7 +35,7 @@ public:
 public:
 	virtual bool CanMakeRuntime(CParticleEmitter* pEmitter) const override
 	{
-		return m_attribute.GetValueAs(pEmitter->GetAttributeInstance(), true);
+		return !pEmitter || m_attribute.GetValueAs(pEmitter->GetAttributeInstance(), true);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -61,7 +61,7 @@ public:
 public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->CullSubInstances.add(this);
+		pComponent->CullSpawners.add(this);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -70,10 +70,10 @@ public:
 		ar(m_attribute, "Attribute", "Attribute");
 	}
 
-	virtual void CullSubInstances(CParticleComponentRuntime& runtime, TVarArray<SInstance>& instances) override
+	virtual void CullSpawners(CParticleComponentRuntime& runtime, TVarArray<SSpawnerDesc>& spawners) override
 	{
 		if (!m_attribute.GetValueAs(runtime.GetEmitter()->GetAttributeInstance(), true))
-			instances.resize(0);
+			spawners.resize(0);
 	}
 
 private:
@@ -94,7 +94,7 @@ public:
 public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
-		pComponent->CullSubInstances.add(this);
+		pComponent->CullSpawners.add(this);
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar) override
@@ -106,31 +106,31 @@ public:
 			SERIALIZE_VAR(ar, m_selectionStart);
 	}
 
-	virtual void CullSubInstances(CParticleComponentRuntime& runtime, TVarArray<SInstance>& instances) override
+	virtual void CullSpawners(CParticleComponentRuntime& runtime, TVarArray<SSpawnerDesc>& spawners) override
 	{
 		if (m_probability == 1.0f)
 			return;
 		uint32 groupKey = runtime.GetEmitter()->GetCurrentSeed() ^ m_group;
 		uint newCount = 0;
-		for (const auto& instance : instances)
+		for (const auto& spawner : spawners)
 		{
 			if (m_group > 0)
 			{
 				// Same random number for all components in group
-				SChaosKey instanceKey(groupKey ^ instance.m_parentId);
-				float select = instanceKey.RandUNorm();
+				SChaosKey spawnerKey(groupKey ^ spawner.m_parentId);
+				float select = spawnerKey.RandUNorm();
 				if (select < m_selectionStart || select > m_selectionStart + m_probability)
 					continue;
 			}
 			else
 			{
-				// New random number for each component and instance
+				// New random number for each component and spawner
 				if (runtime.Chaos().RandUNorm() > m_probability)
 					continue;
 			}
-			instances[newCount++] = instance;
+			spawners[newCount++] = spawner;
 		}
-		instances.resize(newCount);
+		spawners.resize(newCount);
 	}
 
 private:
@@ -167,7 +167,7 @@ public:
 	{
 		CRY_PFX2_PROFILE_DETAIL;
 
-		const uint particleSpec = pEmitter->GetParticleSpec();
+		const uint particleSpec = pEmitter ? pEmitter->GetParticleSpec() : GetPSystem()->GetParticleSpec();
 		const bool isPc = particleSpec <= CONFIG_VERYHIGH_SPEC;
 
 		if (isPc)

@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "DisplayOptions.h"
 #include "SandboxPlugin.h"
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <QVBoxLayout>
 #include <QVariant>
 #include <QJsonDocument>
@@ -68,8 +68,8 @@ CDisplayOptionsWidget::CDisplayOptionsWidget(QWidget* pParent)
 		ar(*m_pOptions, s_settingsPropertyName);
 	}
 
-	m_pPropertyTree = new QPropertyTree(this);
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	m_pPropertyTree = new QPropertyTreeLegacy(this);
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	treeStyle.groupRectangle = false;
 	m_pPropertyTree->setTreeStyle(treeStyle);
@@ -79,8 +79,8 @@ CDisplayOptionsWidget::CDisplayOptionsWidget(QWidget* pParent)
 	m_pPropertyTree->setValueColumnWidth(0.6f);
 	m_pPropertyTree->attach(Serialization::SStruct(*m_pOptions));
 
-	connect(m_pPropertyTree, &QPropertyTree::signalChanged, this, &CDisplayOptionsWidget::OnPropertyTreeChanged);
-	connect(m_pPropertyTree, &QPropertyTree::signalContinuousChange, this, &CDisplayOptionsWidget::OnPropertyTreeChanged);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalChanged, this, &CDisplayOptionsWidget::OnPropertyTreeChanged);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalContinuousChange, this, &CDisplayOptionsWidget::OnPropertyTreeChanged);
 
 	QVBoxLayout* pLayout = new QVBoxLayout();
 	pLayout->setContentsMargins(0, 0, 0, 0);

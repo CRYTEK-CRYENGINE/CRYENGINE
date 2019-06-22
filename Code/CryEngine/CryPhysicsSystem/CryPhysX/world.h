@@ -55,6 +55,7 @@ public:
 	virtual IPhysicalEntity* CreatePhysicalEntity(pe_type type, float lifeTime, pe_params* params = 0, void* pForeignData = 0, int iForeignData = 0, int id = -1, IPhysicalEntity* pHostPlaceholder = 0, IGeneralMemoryHeap* pHeap = NULL);
 	virtual IPhysicalEntity* CreatePhysicalPlaceholder(pe_type type, pe_params* params = 0, void* pForeignData = 0, int iForeignData = 0, int id = -1);
 	virtual int              DestroyPhysicalEntity(IPhysicalEntity* pent, int mode = 0, int bThreadSafe = 0);
+	virtual IPhysicalEntity* ClonePhysicalEntity(IPhysicalEntity *pentSrc, bool regInWorld = true, int newId = -1) { return nullptr; }
 
 	virtual int              SetPhysicalEntityId(IPhysicalEntity* pent, int id, int bReplace = 1, int bThreadSafe = 0) { return 0; }
 	virtual int              GetPhysicalEntityId(IPhysicalEntity* pent);

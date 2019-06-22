@@ -13,21 +13,8 @@ class QCommandAction;
 
 Q_DECLARE_METATYPE(CCommand*);
 
-class CommandModelFactory
+class EDITOR_COMMON_API CCommandModel : public QAbstractItemModel
 {
-public:
-	template<typename T>
-	static T* Create()
-	{
-		T* pModel = new T();
-		pModel->Initialize();
-		return pModel;
-	}
-};
-
-class EDITOR_COMMON_API CommandModel : public QAbstractItemModel
-{
-	friend CommandModelFactory;
 protected:
 	struct CommandModule
 	{
@@ -37,6 +24,8 @@ protected:
 	};
 
 public:
+	CCommandModel();
+	CCommandModel(const std::vector<CCommand*>& commands);
 
 	enum class Roles : int
 	{
@@ -46,11 +35,14 @@ public:
 		Max,
 	};
 
-	virtual ~CommandModel();
+	virtual ~CCommandModel();
 
-	virtual void Initialize();
+	void EnableDragAndDropSupport(bool enableSupport) { m_supportsDragAndDrop = enableSupport; }
 
 	//QAbstractItemModel implementation begin
+	virtual Qt::DropActions supportedDropActions() const override;
+	virtual QMimeData* mimeData(const QModelIndexList& indexes) const override;
+
 	virtual int           columnCount(const QModelIndex& parent /* = QModelIndex() */) const override { return s_ColumnCount; }
 	virtual QVariant      data(const QModelIndex& index, int role /* = Qt::DisplayRole */) const override;
 	virtual bool          hasChildren(const QModelIndex& parent /* = QModelIndex() */) const override;
@@ -62,10 +54,13 @@ public:
 	virtual int           rowCount(const QModelIndex& parent /* = QModelIndex() */) const override;
 	//QAbstractItemModel implementation end
 
-protected:
-	CommandModel();
+	static const char* GetCommandMimeType() { return s_commandMimeType; }
 
-	virtual void    Rebuild();
+protected:
+	void    Initialize();
+	void    Initialize(const std::vector<CCommand*>& commands);
+
+	void    Rebuild();
 
 	QModelIndex     GetIndex(CCommand* command, uint column = 0) const;
 	CCommand*       GetCommand(const QModelIndex& index) const;
@@ -75,6 +70,8 @@ protected:
 protected:
 	static const int           s_ColumnCount = 3;
 	static const char*         s_ColumnNames[3];
+	static const char*         s_commandMimeType;
+	bool                       m_supportsDragAndDrop;
 
 	std::vector<CommandModule> m_modules;
 };

@@ -233,7 +233,7 @@ void CGameVolume_Water::ProcessEvent(const SEntityEvent& event)
 			{
 				if (iter->m_pWaterRenderNode)
 				{
-					iter->m_pWaterRenderNode->Hide(true);
+					iter->m_pWaterRenderNode->SetRndFlags(ERF_HIDDEN, true);
 				}
 
 				++iter;
@@ -252,7 +252,7 @@ void CGameVolume_Water::ProcessEvent(const SEntityEvent& event)
 					SWaterSegment& segment = m_segments[i];
 					if (segment.m_pWaterRenderNode)
 					{
-						segment.m_pWaterRenderNode->Hide(false);
+						segment.m_pWaterRenderNode->SetRndFlags(ERF_HIDDEN, false);
 
 						if (!m_isRiver)
 						{

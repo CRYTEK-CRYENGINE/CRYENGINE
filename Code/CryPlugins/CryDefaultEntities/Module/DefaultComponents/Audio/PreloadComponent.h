@@ -16,10 +16,10 @@ namespace Audio
 {
 namespace DefaultComponents
 {
-struct SPreloadSerializeHelper
+struct SPreloadSerializeHelper final
 {
 	void Serialize(Serialization::IArchive& archive);
-	bool operator==(SPreloadSerializeHelper const& other) const { return m_name == other.m_name; }
+	bool operator==(SPreloadSerializeHelper const& other) const { return m_id == other.m_id; }
 
 	CryAudio::PreloadRequestId m_id = CryAudio::InvalidPreloadRequestId;
 	string                     m_name;

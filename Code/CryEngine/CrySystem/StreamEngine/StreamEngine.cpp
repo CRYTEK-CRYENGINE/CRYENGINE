@@ -170,7 +170,7 @@ size_t CStreamEngine::StartBatchRead(IReadStreamPtr* pStreamsOut, const StreamRe
 				CReadStream* pStream;
 
 				{
-					CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_AllocReadStream");
+					CRY_PROFILE_SECTION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_AllocReadStream");
 					pStream = CReadStream::Allocate(this, args.tSource, args.szFile, args.pCallback, &args.params);
 				}
 
@@ -198,7 +198,7 @@ size_t CStreamEngine::StartBatchRead(IReadStreamPtr* pStreamsOut, const StreamRe
 			}
 
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_PushStreams");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_PushStreams");
 				CryMT::set<CReadStream_AutoPtr>::AutoLock lock(m_streams.get_lock());
 				for (size_t i = 0; i < nStreamsInBatch; ++i)
 					m_streams.insert(pStreams[i]);
@@ -207,13 +207,13 @@ size_t CStreamEngine::StartBatchRead(IReadStreamPtr* pStreamsOut, const StreamRe
 			CAsyncIOFileRequest* pFileReqs[MaxStreamsPerBatch];
 
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_CreateRequests");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_CreateRequests");
 				for (size_t i = 0; i < nStreamsInBatch; ++i)
 					pFileReqs[i] = pStreams[i]->CreateFileRequest();
 			}
 
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_PushRequests");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "CStreamEngine::StartBatchRead_PushRequests");
 				for (size_t i = 0; i < nStreamsInBatch; ++i)
 				{
 					CAsyncIOFileRequest* pFileRequest = pFileReqs[i];
@@ -391,7 +391,7 @@ void UpdateIOThreadStats(
 void CStreamEngine::Update(uint32 nUpdateTypesBitmask)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CStreamEngine::Update");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CStreamEngine::Update");
 
 	// Dispatch completed callbacks.
 	MainThread_FinalizeIOJobs(nUpdateTypesBitmask);
@@ -536,7 +536,7 @@ void CStreamEngine::Update()
 void CStreamEngine::UpdateAndWait(bool bAbortAll)
 {
 	// for stream->Wait sync
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	if (bAbortAll)
 	{
@@ -1094,16 +1094,13 @@ void WriteToStreamingLog(const char* str)
 		// ignore invalid file access when logging streaming data
 		SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
-		static string sFileName;
+		static CryPathString s_fileName;
 		static bool bFirstTime = true;
 		if (bFirstTime)
 		{
-			char path[ICryPak::g_nMaxPath];
-			path[sizeof(path) - 1] = 0;
-			gEnv->pCryPak->AdjustFileName("%USER%/TestResults/StreamingLog.txt", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
-			sFileName = path;
+			gEnv->pCryPak->AdjustFileName("%USER%/TestResults/StreamingLog.txt", s_fileName, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
 		}
-		FILE* file = fxopen(sFileName, (bFirstTime) ? "wt" : "at");
+		FILE* file = fxopen(s_fileName, (bFirstTime) ? "wt" : "at");
 		bFirstTime = false;
 		if (file)
 		{

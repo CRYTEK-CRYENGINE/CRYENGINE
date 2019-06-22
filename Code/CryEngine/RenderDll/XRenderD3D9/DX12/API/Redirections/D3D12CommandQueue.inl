@@ -36,10 +36,8 @@ public:
 				if (CRenderer::CV_r_StereoEnableMgpu < 0)
 					Desc.NodeMask = 1;
 #endif
-
-				HRESULT ret = pDevice->CreateCommandQueue(
-				  &Desc, riid, (void**)&m_Targets[i]);
-				DX12_ASSERT(ret == S_OK, "Failed to create command queue!");
+				if (pDevice->CreateCommandQueue(&Desc, riid, (void**)&m_Targets[i]) != S_OK)
+					DX12_ERROR("Failed to create command queue!");
 			}
 		}
 	}

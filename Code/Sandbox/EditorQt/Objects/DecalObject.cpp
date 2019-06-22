@@ -218,7 +218,7 @@ bool CDecalObject::CreateGameObject()
 
 void CDecalObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 	if (m_pRenderNode)
 	{
 		GetIEditorImpl()->Get3DEngine()->DeleteRenderNode(m_pRenderNode);

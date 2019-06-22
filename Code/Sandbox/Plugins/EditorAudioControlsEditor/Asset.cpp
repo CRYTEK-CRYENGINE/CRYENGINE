@@ -3,8 +3,9 @@
 #include "StdAfx.h"
 #include "Asset.h"
 
-#include "AudioControlsEditorPlugin.h"
+#include "AssetsManager.h"
 #include "AssetUtils.h"
+#include "NameValidator.h"
 
 namespace ACE
 {
@@ -47,17 +48,22 @@ void CAsset::RemoveChild(CAsset const* const pChildControl)
 //////////////////////////////////////////////////////////////////////////
 void CAsset::SetName(string const& name)
 {
-	if ((!name.IsEmpty()) && (name != m_name) && ((m_flags& EAssetFlags::IsDefaultControl) == 0))
+	string fixedName = name;
+	g_nameValidator.FixupString(fixedName);
+
+	if ((!fixedName.IsEmpty()) && (fixedName != m_name) && ((m_flags& EAssetFlags::IsDefaultControl) == 0) && g_nameValidator.IsValid(fixedName))
 	{
 		if (m_type == EAssetType::Library)
 		{
-			m_name = AssetUtils::GenerateUniqueLibraryName(name);
+			m_name = AssetUtils::GenerateUniqueLibraryName(fixedName);
+			m_id = AssetUtils::GenerateUniqueAssetId(m_name, m_type);
 			SetModified(true);
 			g_assetsManager.OnAssetRenamed(this);
 		}
 		else if (m_type == EAssetType::Folder)
 		{
-			m_name = AssetUtils::GenerateUniqueName(name, m_type, m_pParent);
+			m_name = AssetUtils::GenerateUniqueName(fixedName, m_type, m_pParent);
+			m_id = AssetUtils::GenerateUniqueFolderId(m_name, m_pParent);
 			SetModified(true);
 			g_assetsManager.OnAssetRenamed(this);
 		}
@@ -68,6 +74,24 @@ void CAsset::SetName(string const& name)
 void CAsset::UpdateNameOnMove(CAsset* const pParent)
 {
 	m_name = AssetUtils::GenerateUniqueName(m_name, m_type, pParent);
+
+	switch (m_type)
+	{
+	case EAssetType::State:
+		{
+			m_id = AssetUtils::GenerateUniqueStateId(pParent->GetName(), m_name);
+			break;
+		}
+	case EAssetType::Folder:
+		{
+			m_id = AssetUtils::GenerateUniqueFolderId(m_name, pParent);
+			break;
+		}
+	default:
+		{
+			break;
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

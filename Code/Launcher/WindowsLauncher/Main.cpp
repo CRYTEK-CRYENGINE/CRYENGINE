@@ -17,7 +17,6 @@
 #include <CrySystem/File/ICryPak.h>
 
 #include <CryCore/Platform/platform_impl.inl>
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler_impl.h>
 #include <CryString/CryWinStringUtils.h>
 #include <CryString/StringUtils.h>
 

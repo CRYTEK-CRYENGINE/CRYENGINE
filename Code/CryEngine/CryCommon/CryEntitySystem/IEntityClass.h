@@ -10,8 +10,7 @@ struct IEntityComponent;
 struct SEntitySpawnParams;
 struct IEntityScript;
 struct IScriptTable;
-
-class ITexture;
+struct ITexture;
 
 struct SEditorClassInfo
 {

@@ -915,7 +915,7 @@ void CFacialAnimSequence::MergeSequence(IFacialAnimSequence* pMergeSequence, con
 
 void CFacialAnimSequence::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 {
-	//	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_FSQ, 0, GetName());
+	//	MEMSTAT_CONTEXT(EMemStatContextType::FSQ, GetName());
 	//	CRY_PROFILE_FUNCTION(PROFILE_ANIMATION);
 
 	if (pStream->IsError())

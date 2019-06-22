@@ -42,7 +42,7 @@ protected:
 	bool                                m_measured   : 1;
 
 protected:
-	static bool                         s_reservedGroups[4];
+	static bool                         s_reservedGroups[MAX_TIMESTAMP_GROUPS];
 };
 
 ////////////////////////////////////////////////////////////////////////////

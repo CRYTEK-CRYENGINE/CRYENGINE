@@ -144,44 +144,13 @@ void CIntroMovieRenderer::UpdateViewport()
 	const int screenWidth (gEnv->pRenderer->GetOverlayWidth ());
 	const int screenHeight(gEnv->pRenderer->GetOverlayHeight());
 
-	const float pixelAR = gEnv->pRenderer->GetPixelAspectRatio();
+	videoWidth = screenWidth;
+	videoHeight = screenHeight;
 
-	const float scaleX((float)screenWidth  / (float)videoWidth);
-	const float scaleY((float)screenHeight / (float)videoHeight);
+	int x(screenWidth / 2);
+	int y(screenHeight / 2);
 
-	float scale(scaleY);
-
-	/*
-	   if(flags&eVideoFlag_KeepAspectRatio)
-	   {
-	   if (flags&eVideoFlag_CoverFullScreen)
-	   {
-	    float videoRatio((float)videoWidth / (float)videoHeight);
-	    float screenRatio((float)screenWidth / (float)screenHeight);
-
-	    if (videoRatio < screenRatio)
-	      scale = scaleX;
-	   }
-	   else
-	   {
-	    if (scaleY * videoWidth > screenWidth)
-	      scale = scaleX;
-	   }
-	   }
-	   else
-	 */
-	{
-		scale = 1.0f;
-		videoWidth = screenWidth;
-		videoHeight = screenHeight;
-	}
-
-	int w(int_round(videoWidth * scale));
-	int h(int_round(videoHeight * scale));
-	int x((screenWidth - w) / 2);
-	int y((screenHeight - h) / 2);
-
-	SetViewportIfChanged(x, y, w, h, 1.0f);
+	SetViewportIfChanged(x, y, videoWidth, videoHeight, 1.0f);
 }
 
 void CIntroMovieRenderer::SetViewportIfChanged(const int x, const int y, const int width, const int height, const float pixelAR)

@@ -39,7 +39,7 @@ public:
 public:
 	CParticleJobManager();
 	void AddUpdateEmitter(CParticleEmitter* pEmitter);
-	void ScheduleUpdateEmitter(CParticleEmitter* pEmitter);
+	void ScheduleUpdateEmitter(CParticleEmitter* pEmitter, JobManager::TPriorityLevel priority);
 	void AddDeferredRender(CParticleEmitter* pEmitter, const SRenderContext& renderContext);
 	void ScheduleComputeVertices(CParticleComponentRuntime& runtime, CRenderObject* pRenderObject, const SRenderContext& renderContext);
 	void ScheduleUpdates();
@@ -47,8 +47,13 @@ public:
 	void DeferredRender();
 
 private:
+	enum Update_Type
+	{
+		Update_Deferred,
+		Update_Visible,
+		Update_Invisible
+	};
 
-	void Job_ScheduleUpdates();
 	void ScheduleUpdateEmitters(TDynArray<CParticleEmitter*>& emitters, JobManager::TPriorityLevel priority);
 
 	TDynArray<CParticleEmitter*> m_emittersDeferred;

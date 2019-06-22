@@ -26,6 +26,7 @@ CEntitySlot::CEntitySlot(CEntity* pEntity)
 	m_worldTM.SetIdentity();
 	m_nSubObjHideMask = 0;
 	m_cameraSpacePos.Set(0, 0, 0);
+	m_bCameraSpacePos = false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -200,7 +201,10 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 			SetRenderNodeFlags(renderNodeFlags, ERF_MOVES_EVERY_FRAME, !bPhysicsIsStatic);
 		}
 		renderNodeFlags |= renderNodeParams.additionalRenderNodeFlags;
+
 		m_pRenderNode->SetRndFlags(renderNodeFlags);
+
+		m_pRenderNode->SetRndFlags(ERF_HIDDEN, !bSlotShouldRender);
 
 		// Update render node location
 		m_pRenderNode->SetMatrix(m_worldTM);
@@ -232,26 +236,34 @@ void CEntitySlot::UpdateRenderNode(bool bForceRecreateNode)
 
 		if (m_bCameraSpacePos)
 		{
-			m_pRenderNode->SetCameraSpacePos(&m_cameraSpacePos);
+			m_pRenderNode->SetCameraSpaceParams(SCameraSpaceParams{ m_cameraSpacePos, Vec3{ZERO} });
 		}
 		else
 		{
-			m_pRenderNode->SetCameraSpacePos(nullptr);
+			m_pRenderNode->SetCameraSpaceParams(stl::nullopt);
 		}
 
-		m_pRenderNode->Hide(!bSlotShouldRender);
-
-		if ((m_pEntity->GetFlags() & ENTITY_FLAG_CUSTOM_VIEWDIST_RATIO) == 0)
-		{
-			if (GetFlags() & ENTITY_SLOT_RENDER_NEAREST)
-				m_pRenderNode->SetLodRatio(0); // Use LOD 0 on nearest objects
-			else
-				m_pRenderNode->SetLodRatio(renderNodeParams.lodRatio);
-
-			m_pRenderNode->SetViewDistRatio(renderNodeParams.viewDistRatio);
-		}
+		UpdateViewDistRatio(renderNodeParams);
 
 		m_pRenderNode->SetMinSpec(renderNodeParams.minSpec);
+	}
+}
+
+void CEntitySlot::UpdateViewDistRatio(const IEntity::SRenderNodeParams& renderNodeParams)
+{
+	if ((m_pEntity->GetFlags() & ENTITY_FLAG_CUSTOM_VIEWDIST_RATIO) == 0)
+	{
+		const uint32 slotFlags = GetFlags();
+
+		if (slotFlags & ENTITY_SLOT_RENDER_NEAREST)
+			m_pRenderNode->SetLodRatio(0); // Use LOD 0 on nearest objects.
+		else
+			m_pRenderNode->SetLodRatio(renderNodeParams.lodRatio);
+
+		if ((slotFlags & ENTITY_SLOT_CUSTOM_VIEWDIST_RATIO) == 0)
+		{
+			m_pRenderNode->SetViewDistRatio(renderNodeParams.viewDistRatio);
+		}
 	}
 }
 
@@ -387,6 +399,11 @@ void CEntitySlot::SetLocalTM(const Matrix34& localTM)
 	ComputeWorldTransform();
 
 	OnXForm(EntityTransformationFlagsMask());
+
+	if (m_pCharacter)
+	{
+		m_pCharacter->SetCharacterOffset(QuatTS(Quat(IDENTITY), Vec3(ZERO), m_pEntity->GetScale().x) * QuatTS(m_localTM));
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

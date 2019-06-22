@@ -1,16 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   CryNameR.h
-//  Version:     v1.00
-//  Created:     12/04/2010 by Andrey.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __CryNameR_h__
-#define __CryNameR_h__
 #pragma once
 
 #include <CryCore/CryCrc32.h>
@@ -34,8 +23,8 @@ public:
 		//char data[nAllocSize]
 
 		const char* GetStr()         { return (char*)(this + 1); }
-		void        AddRef()         { CryInterlockedIncrement(&nRefCount); };
-		int         Release()        { return CryInterlockedDecrement(&nRefCount); };
+		void        AddRef()         { CryInterlockedIncrement(&nRefCount); }
+		int         Release()        { return CryInterlockedDecrement(&nRefCount); }
 		int         GetMemoryUsage() { return sizeof(SNameEntryR) + strlen(GetStr()); }
 		int         GetLength()      { return nLength; }
 	};
@@ -138,12 +127,14 @@ public:
 	// Log all names inside CryNameTS table.
 	void LogNames()
 	{
+#if !defined(EXCLUDE_NORMAL_LOG)
 		NameMap::iterator it;
 		for (it = m_nameMap.begin(); it != m_nameMap.end(); ++it)
 		{
 			SNameEntryR* pNameEntry = it->second;
 			CryLog("[%4d] %s", pNameEntry->nLength, pNameEntry->GetStr());
 		}
+#endif
 	}
 
 };
@@ -449,5 +440,3 @@ inline bool operator!=(const char* s, const CCryNameTSCRC& n)
 {
 	return n != s;
 }
-
-#endif //__CryNameTS_h__

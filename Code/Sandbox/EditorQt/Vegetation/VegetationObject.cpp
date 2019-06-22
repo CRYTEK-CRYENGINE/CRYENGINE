@@ -30,7 +30,7 @@ CVegetationObject::CVegetationObject(int id)
 
 	// Limit the slope values from 0.0 to slightly less than 90. We later calculate the slope as
 	// tan(angle) and tan(90) will result in disaster
-	const float slopeLimitDeg = 90.f - 0.01;
+	const float slopeLimitDeg = 90.0f - 0.01f;
 	mv_slope_min = 0.0f;
 	mv_slope_min->SetLimits(0.0f, slopeLimitDeg, 0.0f, true, true);
 	mv_slope_max = slopeLimitDeg;

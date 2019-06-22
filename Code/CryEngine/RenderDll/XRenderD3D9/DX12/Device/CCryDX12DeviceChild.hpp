@@ -129,7 +129,7 @@ public:
 				if (guid == WKPDID_D3DDebugObjectName)
 				{
 					wchar_t objectname[4096] = { 0 };
-					size_t len = strlen((char*)pData);
+					const int len = static_cast<int>(strlen((char*)pData));
 					MultiByteToWideChar(0, 0, (char*)pData, len, objectname, len);
 					m_pChild->SetName(objectname);
 				}

@@ -1,40 +1,84 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  File name:   CryMemReplay.h
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __CryMemReplay_h__
-#define __CryMemReplay_h__
 #pragma once
 
-namespace EMemReplayAllocClass
-{
-enum Class
-{
-	C_UserPointer = 0,
-	C_D3DDefault,
-	C_D3DManaged,
-};
-}
+#include <CryCore/AlignmentTools.h>
 
-namespace EMemReplayUserPointerClass
+enum class EMemReplayAllocClass : uint16
 {
-enum Class
-{
-	C_Unknown = 0,
-	C_CrtNew,
-	C_CrtNewArray,
-	C_CryNew,
-	C_CryNewArray,
-	C_CrtMalloc,
-	C_CryMalloc,
-	C_STL,
+	UserPointer = 0,
+	D3DDefault,
+	D3DManaged,
 };
-}
+
+enum class EMemReplayUserPointerClass : uint16
+{
+	Unknown = 0,
+	CrtNew,
+	CrtNewArray,
+	CryNew,
+	CryNewArray,
+	CrtMalloc,
+	CryMalloc,
+	STL,
+	VirtualAlloc,
+	HeapAlloc,
+};
+
+// Add new types at the end, do not modify existing values.
+enum class EMemStatContextType : uint32
+{
+	MAX = 0,
+	CGF = 1,
+	MTL = 2,
+	DBA = 3,
+	CHR = 4,
+	LMG = 5,
+	AG = 6,
+	Texture = 7,
+	ParticleLibrary = 8,
+
+	Physics = 9,
+	Terrain = 10,
+	Shader = 11,
+	Other = 12,
+	RenderMesh = 13,
+	Entity = 14,
+	Navigation = 15,
+	ScriptCall = 16,
+
+	CDF = 17,
+
+	RenderMeshType = 18,
+
+	ANM = 19,
+	CGA = 20,
+	CAF = 21,
+	ArchetypeLib = 22,
+
+	AudioSystem = 23,
+	EntityArchetype = 24,
+
+	LUA = 25,
+	D3D = 26,
+	ParticleEffect = 27,
+	SoundBuffer = 28,
+	AudioImpl = 29,
+
+	AIObjects = 30,
+	Animation = 31,
+	Debug = 32,
+
+	FSQ = 33,
+	Mannequin = 34,
+
+	GeomCache = 35
+};
+
+enum class EMemStatContainerType
+{
+	Vector,
+	Tree,
+};
 
 #if CAPTURE_REPLAY_LOG
 //! Memory replay interface, access it with CryGetMemReplay call.
@@ -52,18 +96,15 @@ struct IMemReplay
 	virtual void GetInfo(CryReplayInfo& infoOut) = 0;
 
 	//! Call to begin a new allocation scope.
-	virtual bool EnterScope(EMemReplayAllocClass::Class cls, uint16 subCls, int moduleId) = 0;
+	virtual bool EnterScope(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId) = 0;
 
 	//! Records an event against the currently active scope and exits it.
-	virtual void ExitScope_Alloc(UINT_PTR id, UINT_PTR sz, UINT_PTR alignment = 0) = 0;
-	virtual void ExitScope_Realloc(UINT_PTR originalId, UINT_PTR newId, UINT_PTR sz, UINT_PTR alignment = 0) = 0;
-	virtual void ExitScope_Free(UINT_PTR id) = 0;
+	virtual void ExitScope_Alloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR id, UINT_PTR sz, UINT_PTR alignment = 0) = 0;
+	virtual void ExitScope_Realloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR originalId, UINT_PTR newId, UINT_PTR sz, UINT_PTR alignment = 0) = 0;
+	virtual void ExitScope_Free(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR id) = 0;
 	virtual void ExitScope() = 0;
 
-	virtual bool EnterLockScope() = 0;
-	virtual void LeaveLockScope() = 0;
-
-	virtual void AllocUsage(EMemReplayAllocClass::Class allocClass, UINT_PTR id, UINT_PTR used) = 0;
+	virtual void AllocUsage(EMemReplayAllocClass allocClass, UINT_PTR id, UINT_PTR used) = 0;
 
 	virtual void AddAllocReference(void* ptr, void* ref) = 0;
 	virtual void RemoveAllocReference(void* ref) = 0;
@@ -73,9 +114,13 @@ struct IMemReplay
 	virtual void AddFrameStart() = 0;
 	virtual void AddScreenshot() = 0;
 
-	virtual void AddContext(int type, uint32 flags, const char* str) = 0;
-	virtual void AddContextV(int type, uint32 flags, const char* format, va_list args) = 0;
-	virtual void RemoveContext() = 0;
+	typedef uint32 FixedContextID;
+	virtual FixedContextID AddFixedContext(EMemStatContextType type, const char* str) = 0;
+	virtual void PushFixedContext(FixedContextID id) = 0;
+
+	virtual void PushContext(EMemStatContextType type, const char* str) = 0;
+	virtual void PushContextV(EMemStatContextType type, const char* format, va_list args) = 0;
+	virtual void PopContext() = 0;
 
 	virtual void MapPage(void* base, size_t size) = 0;
 	virtual void UnMapPage(void* base, size_t size) = 0;
@@ -102,7 +147,7 @@ struct IMemReplay
 #endif
 
 #if CAPTURE_REPLAY_LOG
-struct CDummyMemReplay : IMemReplay
+struct CDummyMemReplay final : IMemReplay
 #else //CAPTURE_REPLAY_LOG
 struct IMemReplay
 #endif
@@ -118,18 +163,15 @@ struct IMemReplay
 	void GetInfo(CryReplayInfo& infoOut)                            {}
 
 	//! Call to begin a new allocation scope.
-	bool EnterScope(EMemReplayAllocClass::Class cls, uint16 subCls, int moduleId) { return false; }
+	bool EnterScope(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId) { return false; }
 
 	//! Records an event against the currently active scope and exits it.
-	void ExitScope_Alloc(UINT_PTR id, UINT_PTR sz, UINT_PTR alignment = 0)                                {}
-	void ExitScope_Realloc(UINT_PTR originalId, UINT_PTR newId, UINT_PTR sz, UINT_PTR alignment = 0)      {}
-	void ExitScope_Free(UINT_PTR id)                                                                      {}
+	void ExitScope_Alloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR id, UINT_PTR sz, UINT_PTR alignment = 0)                                {}
+	void ExitScope_Realloc(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR originalId, UINT_PTR newId, UINT_PTR sz, UINT_PTR alignment = 0)      {}
+	void ExitScope_Free(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId, UINT_PTR id)                                                                      {}
 	void ExitScope()                                                                                      {}
 
-	bool EnterLockScope()                                                                                 { return false; }
-	void LeaveLockScope()                                                                                 {}
-
-	void AllocUsage(EMemReplayAllocClass::Class allocClass, UINT_PTR id, UINT_PTR used)                   {}
+	void AllocUsage(EMemReplayAllocClass allocClass, UINT_PTR id, UINT_PTR used)                          {}
 
 	void AddAllocReference(void* ptr, void* ref)                                                          {}
 	void RemoveAllocReference(void* ref)                                                                  {}
@@ -139,9 +181,13 @@ struct IMemReplay
 	void AddFrameStart()                                                                                  {}
 	void AddScreenshot()                                                                                  {}
 
-	void AddContext(int type, uint32 flags, const char* str)                                              {}
-	void AddContextV(int type, uint32 flags, const char* format, va_list args)                            {}
-	void RemoveContext()                                                                                  {}
+	typedef uint32 FixedContextID;
+	FixedContextID AddFixedContext(EMemStatContextType type, const char* str)                            { return 0; }
+	void PushFixedContext(FixedContextID id)                                                              {}
+
+	void PushContext(EMemStatContextType type, const char* str)                                          {}
+	void PushContextV(EMemStatContextType type, const char* format, va_list args)                        {}
+	void PopContext()                                                                                     {}
 
 	void MapPage(void* base, size_t size)                                                                 {}
 	void UnMapPage(void* base, size_t size)                                                               {}
@@ -167,180 +213,120 @@ struct IMemReplay
 };
 
 #if CAPTURE_REPLAY_LOG
+static IMemReplay* s_pMemReplay = nullptr;
+static SUninitialized<CDummyMemReplay> s_dummyMemReplay;
 inline IMemReplay* CryGetIMemReplay()
 {
-	static CDummyMemReplay s_dummyMemReplay;
-	static IMemReplay* s_pMemReplay = 0;
-	if (!s_pMemReplay)
+	if(!s_pMemReplay)
 	{
-		// get it from System
 		IMemoryManager* pMemMan = CryGetIMemoryManager();
 		if (pMemMan)
 			s_pMemReplay = pMemMan->GetIMemReplay();
 		if (!s_pMemReplay)
-			return &s_dummyMemReplay;
+		{
+			s_dummyMemReplay.DefaultConstruct();
+			return & s_dummyMemReplay.operator CDummyMemReplay&();
+		}
 	}
 	return s_pMemReplay;
 }
 #else
 inline IMemReplay* CryGetIMemReplay()
 {
-	return NULL;
+	return nullptr;
 }
 #endif
 
 #if defined(__cplusplus) && CAPTURE_REPLAY_LOG
-namespace EMemStatContextTypes
+class CMemStatStaticContext
 {
-// Add new types at the end, do not modify existing values.
-enum Type
-{
-	MSC_MAX             = 0,
-	MSC_CGF             = 1,
-	MSC_MTL             = 2,
-	MSC_DBA             = 3,
-	MSC_CHR             = 4,
-	MSC_LMG             = 5,
-	MSC_AG              = 6,
-	MSC_Texture         = 7,
-	MSC_ParticleLibrary = 8,
+public:
+	CMemStatStaticContext(EMemStatContextType type, const char* str)
+	{
+		m_contextId = CryGetIMemReplay()->AddFixedContext(type, str);
+	}
 
-	MSC_Physics         = 9,
-	MSC_Terrain         = 10,
-	MSC_Shader          = 11,
-	MSC_Other           = 12,
-	MSC_RenderMesh      = 13,
-	MSC_Entity          = 14,
-	MSC_Navigation      = 15,
-	MSC_ScriptCall      = 16,
+	IMemReplay::FixedContextID GetId(EMemStatContextType type, const char* name)
+	{
+		if (m_contextId == s_invalidContextId)
+			m_contextId = CryGetIMemReplay()->AddFixedContext(type, name);
+		return m_contextId;
+	}
 
-	MSC_CDF             = 17,
+	static constexpr IMemReplay::FixedContextID s_invalidContextId = ~0;
 
-	MSC_RenderMeshType  = 18,
+private:
+	CMemStatStaticContext(const CMemStatStaticContext&);
+	CMemStatStaticContext& operator=(const CMemStatStaticContext&);
 
-	MSC_ANM             = 19,
-	MSC_CGA             = 20,
-	MSC_CAF             = 21,
-	MSC_ArchetypeLib    = 22,
-
-	MSC_AudioSystem     = 23,
-	MSC_EntityArchetype = 24,
-
-	MSC_LUA             = 25,
-	MSC_D3D             = 26,
-	MSC_ParticleEffect  = 27,
-	MSC_SoundBuffer     = 28,
-	MSC_AudioImpl       = 29,
-
-	MSC_AIObjects       = 30,
-	MSC_Animation       = 31,
-	MSC_Debug           = 32,
-
-	MSC_FSQ             = 33,
-	MSC_Mannequin       = 34,
-
-	MSC_GeomCache       = 35
+	IMemReplay::FixedContextID m_contextId;
 };
-}
 
-namespace EMemStatContextFlags
+class CMemStatStaticContextInstance
 {
-enum Flags
-{
-	MSF_None     = 0,
-	MSF_Instance = 1,
+public:
+	CMemStatStaticContextInstance(CMemStatStaticContext& context, EMemStatContextType type, const char* name) //extra params just for interface compatibility
+	{
+		const IMemReplay::FixedContextID fixedId = context.GetId(type, name);
+		if (fixedId != CMemStatStaticContext::s_invalidContextId)
+			CryGetIMemReplay()->PushFixedContext(fixedId);
+		wasPushed = (fixedId != CMemStatStaticContext::s_invalidContextId);
+	}
+	~CMemStatStaticContextInstance()
+	{
+		if (wasPushed)
+			CryGetIMemReplay()->PopContext();
+	}
+private:
+	CMemStatStaticContextInstance(const CMemStatStaticContextInstance&);
+	CMemStatStaticContextInstance& operator=(const CMemStatStaticContextInstance&);
+
+	bool wasPushed;
 };
-}
 
-namespace EMemStatContainerType
-{
-enum Type
-{
-	MSC_Vector,
-	MSC_Tree,
-};
-}
-
+// no-op for compatibility with static context
 class CMemStatContext
 {
 public:
-	CMemStatContext(EMemStatContextTypes::Type type, uint32 flags, const char* str)
-	{
-		CryGetIMemReplay()->AddContext(type, flags, str);
-	}
-	~CMemStatContext()
-	{
-		CryGetIMemReplay()->RemoveContext();
-	}
+	CMemStatContext(EMemStatContextType type, const char* str) {}
 private:
 	CMemStatContext(const CMemStatContext&);
 	CMemStatContext& operator=(const CMemStatContext&);
 };
 
+class CMemStatContextInstance
+{
+public:
+	CMemStatContextInstance(CMemStatContext&, EMemStatContextType type, const char* str) //first param just for interface compatibility
+	{
+		CryGetIMemReplay()->PushContext(type, str);
+	}
+	~CMemStatContextInstance()
+	{
+		CryGetIMemReplay()->PopContext();
+	}
+private:
+	CMemStatContextInstance(const CMemStatContextInstance&);
+	CMemStatContextInstance& operator=(const CMemStatContextInstance&);
+};
+
 class CMemStatContextFormat
 {
 public:
-	CMemStatContextFormat(EMemStatContextTypes::Type type, uint32 flags, const char* format, ...)
+	CMemStatContextFormat(EMemStatContextType type, const char* format, ...)
 	{
 		va_list args;
 		va_start(args, format);
-		CryGetIMemReplay()->AddContextV(type, flags, format, args);
+		CryGetIMemReplay()->PushContextV(type, format, args);
 		va_end(args);
 	}
 	~CMemStatContextFormat()
 	{
-		CryGetIMemReplay()->RemoveContext();
+		CryGetIMemReplay()->PopContext();
 	}
 private:
 	CMemStatContextFormat(const CMemStatContextFormat&);
 	CMemStatContextFormat& operator=(const CMemStatContextFormat&);
-};
-
-class CCondMemStatContext
-{
-public:
-	CCondMemStatContext(bool cond, EMemStatContextTypes::Type type, uint32 flags, const char* str)
-		: m_cond(cond)
-	{
-		if (cond)
-			CryGetIMemReplay()->AddContext(type, flags, str);
-	}
-	~CCondMemStatContext()
-	{
-		if (m_cond)
-			CryGetIMemReplay()->RemoveContext();
-	}
-private:
-	CCondMemStatContext(const CCondMemStatContext&);
-	CCondMemStatContext& operator=(const CCondMemStatContext&);
-private:
-	const bool m_cond;
-};
-
-class CCondMemStatContextFormat
-{
-public:
-	CCondMemStatContextFormat(bool cond, EMemStatContextTypes::Type type, uint32 flags, const char* format, ...)
-		: m_cond(cond)
-	{
-		if (cond)
-		{
-			va_list args;
-			va_start(args, format);
-			CryGetIMemReplay()->AddContextV(type, flags, format, args);
-			va_end(args);
-		}
-	}
-	~CCondMemStatContextFormat()
-	{
-		if (m_cond)
-			CryGetIMemReplay()->RemoveContext();
-	}
-private:
-	CCondMemStatContextFormat(const CCondMemStatContextFormat&);
-	CCondMemStatContextFormat& operator=(const CCondMemStatContextFormat&);
-private:
-	const bool m_cond;
 };
 #endif // CAPTURE_REPLAY_LOG
 
@@ -360,24 +346,29 @@ private:
 #endif
 
 #if INCLUDE_MEMSTAT_CONTEXTS
-	#define MEMSTAT_CONTEXT(type, id, str)                        CMemStatContext MEMSTAT_CONCAT(_memctx, __LINE__) (type, id, str);
-	#define MEMSTAT_CONTEXT_FMT(type, id, format, ...)            CMemStatContextFormat MEMSTAT_CONCAT(_memctx, __LINE__) (type, id, format, __VA_ARGS__);
-	#define MEMSTAT_FUNCTION_CONTEXT(type)                        CMemStatContext MEMSTAT_CONCAT(_memctx, __LINE__) (type, 0, __FUNC__);
-	#define MEMSTAT_COND_CONTEXT(cond, type, id, str)             CCondMemStatContext MEMSTAT_CONCAT(_memctx, __LINE__) (cond, type, id, str);
-	#define MEMSTAT_COND_CONTEXT_FMT(cond, type, id, format, ...) CCondMemStatContextFormat MEMSTAT_CONCAT(_memctx, __LINE__) (cond, type, id, format, __VA_ARGS__);
+	//! name can be a string literal or some const char* variable
+	#define MEMSTAT_CONTEXT(ctxType, ctxName) \
+		static std::conditional<CRY_IS_STRING_LITERAL(ctxName), CMemStatStaticContext, CMemStatContext>::type \
+				MEMSTAT_CONCAT(_memctx, __LINE__) (ctxType, ctxName); \
+		std::conditional<CRY_IS_STRING_LITERAL(ctxName), CMemStatStaticContextInstance, CMemStatContextInstance>::type \
+				MEMSTAT_CONCAT(_memctxInst, __LINE__) (MEMSTAT_CONCAT(_memctx, __LINE__), ctxType, ctxName);
+
+	//! context with the name of the current function
+	#define MEMSTAT_FUNCTION_CONTEXT(ctxType) MEMSTAT_CONTEXT(ctxType, __FUNC__);
+
+	//! context with a formatted name
+	#define MEMSTAT_CONTEXT_FMT(ctxType, ctxFormat, ...) CMemStatContextFormat MEMSTAT_CONCAT(_memctx, __LINE__) (ctxType, ctxFormat, __VA_ARGS__);
 #else
 	#define MEMSTAT_CONTEXT(...)
-	#define MEMSTAT_CONTEXT_FMT(...)
 	#define MEMSTAT_FUNCTION_CONTEXT(...)
-	#define MEMSTAT_COND_CONTEXT(...)
-	#define MEMSTAT_COND_CONTEXT_FMT(...)
+	#define MEMSTAT_CONTEXT_FMT(...)
 #endif
 
 #if INCLUDE_MEMSTAT_CONTAINERS
 template<typename T>
-static void MemReplayRegisterContainerStub(const void* key, int type)
+static void MemReplayRegisterContainerStub(const void* key, EMemStatContainerType type)
 {
-	CryGetIMemReplay()->RegisterContainer(key, type);
+	CryGetIMemReplay()->RegisterContainer(key, int(type));
 }
 	#define MEMSTAT_REGISTER_CONTAINER(key, type, T)         MemReplayRegisterContainerStub<T>(key, type)
 	#define MEMSTAT_UNREGISTER_CONTAINER(key)                CryGetIMemReplay()->UnregisterContainer(key)
@@ -395,7 +386,7 @@ static void MemReplayRegisterContainerStub(const void* key, int type)
 #endif
 
 #if INCLUDE_MEMSTAT_ALLOC_USAGES
-	#define MEMSTAT_USAGE(ptr, size) CryGetIMemReplay()->AllocUsage(EMemReplayAllocClass::C_UserPointer, (UINT_PTR)ptr, size)
+	#define MEMSTAT_USAGE(ptr, size) CryGetIMemReplay()->AllocUsage(EMemReplayAllocClass::UserPointer, (UINT_PTR)ptr, size)
 #else
 	#define MEMSTAT_USAGE(ptr, size)
 #endif
@@ -441,8 +432,8 @@ private:
 class CMemReplayScope
 {
 public:
-	CMemReplayScope(EMemReplayAllocClass::Class cls, uint16 subCls, int moduleId)
-		: m_needsExit(CryGetIMemReplay()->EnterScope(cls, subCls, moduleId))
+	CMemReplayScope(EMemReplayAllocClass cls, EMemReplayUserPointerClass subCls, int moduleId)
+		: m_needsExit(CryGetIMemReplay()->EnterScope(cls, subCls, moduleId)), cls(cls), subCls(subCls), moduleId(moduleId)
 	{
 	}
 
@@ -457,7 +448,7 @@ public:
 		if (m_needsExit)
 		{
 			m_needsExit = false;
-			CryGetIMemReplay()->ExitScope_Alloc(id, sz, alignment);
+			CryGetIMemReplay()->ExitScope_Alloc(cls, subCls, moduleId, id, sz, alignment);
 		}
 	}
 
@@ -466,7 +457,7 @@ public:
 		if (m_needsExit)
 		{
 			m_needsExit = false;
-			CryGetIMemReplay()->ExitScope_Realloc(origId, newId, newSz, newAlign);
+			CryGetIMemReplay()->ExitScope_Realloc(cls, subCls, moduleId, origId, newId, newSz, newAlign);
 		}
 	}
 
@@ -475,7 +466,7 @@ public:
 		if (m_needsExit)
 		{
 			m_needsExit = false;
-			CryGetIMemReplay()->ExitScope_Free(id);
+			CryGetIMemReplay()->ExitScope_Free(cls, subCls, moduleId, id);
 		}
 	}
 private:
@@ -484,50 +475,24 @@ private:
 
 private:
 	bool m_needsExit;
+	EMemReplayAllocClass cls;
+	EMemReplayUserPointerClass subCls;
+	int moduleId;
 };
+#endif
 
-class CMemReplayLockScope
-{
-public:
-	CMemReplayLockScope()
-	{
-		m_bNeedsExit = CryGetIMemReplay()->EnterLockScope();
-	}
-
-	~CMemReplayLockScope()
-	{
-		if (m_bNeedsExit)
-			CryGetIMemReplay()->LeaveLockScope();
-	}
-
-private:
-	CMemReplayLockScope(const CMemReplayLockScope&);
-	CMemReplayLockScope& operator=(const CMemReplayLockScope&);
-
-private:
-	bool m_bNeedsExit;
-};
-
+#if CAPTURE_REPLAY_LOG
 	#ifdef eCryModule
-		#define MEMREPLAY_SCOPE(cls, subCls)               CMemReplayScope _mrCls((cls), (subCls), eCryModule)
+		#define MEMREPLAY_SCOPE(cls, subCls)             CMemReplayScope _mrCls((cls), (subCls), eCryModule)
 	#else
-		#define MEMREPLAY_SCOPE(cls, subCls)               CMemReplayScope _mrCls((cls), (subCls), eCryM_Launcher)
+		#define MEMREPLAY_SCOPE(cls, subCls)             CMemReplayScope _mrCls((cls), (subCls), eCryM_Launcher)
 	#endif
 	#define MEMREPLAY_SCOPE_ALLOC(id, sz, align)         _mrCls.Alloc((UINT_PTR)(id), (sz), (align))
-	#define MEMREPLAY_SCOPE_REALLOC(oid, nid, sz, align) _mrCls.Realloc((UINT_PTR)(oid), (UINT_PTR)nid, (sz), (align))
+	#define MEMREPLAY_SCOPE_REALLOC(oid, nid, sz, align) _mrCls.Realloc((UINT_PTR)(oid), (UINT_PTR)(nid), (sz), (align))
 	#define MEMREPLAY_SCOPE_FREE(id)                     _mrCls.Free((UINT_PTR)(id))
-
-	#define MEMREPLAY_LOCK_SCOPE()                       CMemReplayLockScope _mrCls
-
 #else
-
 	#define MEMREPLAY_SCOPE(cls, subCls)
 	#define MEMREPLAY_SCOPE_ALLOC(id, sz, align)
 	#define MEMREPLAY_SCOPE_REALLOC(oid, nid, sz, align)
 	#define MEMREPLAY_SCOPE_FREE(id)
-
-	#define MEMREPLAY_LOCK_SCOPE()
-
 #endif
-
-#endif  //__CryMemReplay_h__

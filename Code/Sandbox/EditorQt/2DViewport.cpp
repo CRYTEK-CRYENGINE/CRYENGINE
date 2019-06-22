@@ -81,6 +81,8 @@ C2DViewport::~C2DViewport()
 		// Do not delete primary context.
 		if (m_displayContextKey != reinterpret_cast<HWND>(gEnv->pRenderer->GetHWND()))
 			gEnv->pRenderer->DeleteContext(m_displayContextKey);
+
+		gEnv->pRenderer->DeleteGraphicsPipeline(m_graphicsPipelineKey);
 		m_bRenderContextCreated = false;
 	}
 }
@@ -278,6 +280,11 @@ bool C2DViewport::CreateRenderContext(CRY_HWND hWnd)
 
 	m_displayContextKey = gEnv->pRenderer->CreateSwapChainBackedContext(desc);
 
+	m_graphicsPipelineDesc.type = EGraphicsPipelineType::Minimum;
+	m_graphicsPipelineDesc.shaderFlags = SHDF_SECONDARY_VIEWPORT | SHDF_ALLOWHDR | SHDF_FORWARD_MINIMAL;
+
+	m_graphicsPipelineKey = gEnv->pRenderer->CreateGraphicsPipeline(m_graphicsPipelineDesc);
+
 	m_bRenderContextCreated = true;
 	return true;
 }
@@ -459,18 +466,17 @@ void C2DViewport::Render()
 			}
 
 			// Render
-			gEnv->pRenderer->BeginFrame(m_displayContextKey);
+			gEnv->pRenderer->BeginFrame(m_displayContextKey, m_graphicsPipelineKey);
 
 			// TODO: BeginFrame/EndFrame calls can be dropped and replaced by RT_AuxRender
 			auto oldCamera = gEnv->pRenderer->GetIRenderAuxGeom()->GetCamera();
 			gEnv->pRenderer->UpdateAuxDefaultCamera(m_camera);
 
-			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditorImpl()->GetSystem()->GetViewCamera(), SRenderingPassInfo::DEFAULT_FLAGS, false, dc.GetDisplayContextKey());
-			passInfo.GetIRenderView()->SetShaderRenderingFlags(SHDF_ALLOWHDR | SHDF_SECONDARY_VIEWPORT);
+			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_graphicsPipelineKey, GetIEditorImpl()->GetSystem()->GetViewCamera(), SRenderingPassInfo::DEFAULT_FLAGS, false, dc.GetDisplayContextKey());
 			gEnv->pRenderer->EF_StartEf(passInfo);
 			dc.SetState(e_Mode3D | e_AlphaBlended | e_FillModeSolid | e_CullModeBack | e_DepthWriteOff | e_DepthTestOn);
 			Draw(CObjectRenderHelper { dc, passInfo });
-			gEnv->pRenderer->EF_EndEf3D(-1, -1, passInfo);
+			gEnv->pRenderer->EF_EndEf3D(-1, -1, passInfo, m_graphicsPipelineDesc.shaderFlags);
 
 			// Return back from 2D mode.
 			gEnv->pRenderer->GetIRenderAuxGeom()->SetOrthographicProjection(false);

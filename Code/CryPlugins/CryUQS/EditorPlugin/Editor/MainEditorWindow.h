@@ -25,7 +25,7 @@ class CUqsQueryDocument;
 class CUqsDatabaseSerializationCache;
 class CQueryListProvider;
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 class QLineEdit;
 class QDialogButtonBox;
@@ -146,11 +146,11 @@ private:
 	Explorer::ExplorerPanel*                m_pLibraryPanel;
 
 	QTabWidget*                             m_pDocumentTabsWidget;
-	QPropertyTree*                          m_pDocumentPropertyTree;
+	QPropertyTreeLegacy*                          m_pDocumentPropertyTree;
 	CUqsQueryDocument*                      m_pCurrentDocument;
 
 	QWidget*                                m_pSimulatorPanel;
-	QPropertyTree*                          m_pSimulatorPropertyTree;  // contains the runtime-params of the currently selected query blueprint
+	QPropertyTreeLegacy*                          m_pSimulatorPropertyTree;  // contains the runtime-params of the currently selected query blueprint
 	QPushButton*                            m_pSimulatorButton;
 	QCheckBox*                              m_pSimulatorRunModeCheckBox;
 	CQuerySimulator                         m_querySimulator;

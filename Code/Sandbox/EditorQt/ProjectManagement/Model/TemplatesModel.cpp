@@ -107,7 +107,7 @@ QVariant CTemplatesModel::data(const QModelIndex& index, int role) const
 		break;
 
 	case QThumbnailsView::s_ThumbnailIconsRole:
-		return m_subicons.GetLanguageIcon(pDescr->language);
+		return m_subicons.GetIcons(pDescr->language, false);
 	}
 
 	return QVariant();

@@ -2,6 +2,7 @@
 #include <UnitTest.h>
 #include <vector>
 #include <CryString/CryStringUtils.h>
+#include <CryThreading/CryThread.h>
 
 TEST(CryStringUtilsTest, Strcpy)
 {
@@ -17,81 +18,119 @@ TEST(CryStringUtilsTest, Strcpy)
 	REQUIRE(!cry_strcpy(bf, 0, ""));
 	REQUIRE(!memcmp(bf, "abcd", 4));
 
+	CryMT::CryMemoryBarrier();
+
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, 0, "", 1));
 	REQUIRE(!memcmp(bf, "abcd", 4));
 
+	CryMT::CryMemoryBarrier();
+
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, 1, nullptr));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, 1, nullptr, 0));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, nullptr));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, 3, "qwerty"));
-	REQUIRE(!memcmp(bf, "qw\000d", 4));
+	REQUIRE(!memcmp(bf, "qw\0d", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, 3, "qwerty", 4));
-	REQUIRE(!memcmp(bf, "qw\000d", 4));
+	REQUIRE(!memcmp(bf, "qw\0d", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, 3, "qwerty", 3));
-	REQUIRE(!memcmp(bf, "qw\000d", 4));
+	REQUIRE(!memcmp(bf, "qw\0d", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, 3, "qwerty", 2));
-	REQUIRE(!memcmp(bf, "qw\000d", 4));
+	REQUIRE(!memcmp(bf, "qw\0d", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, 3, "qwerty", 1));
-	REQUIRE(!memcmp(bf, "q\000cd", 4));
+	REQUIRE(!memcmp(bf, "q\0cd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, 3, "qwerty", 0));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, "qwerty"));
-	REQUIRE(!memcmp(bf, "qwe\000", 4));
+	REQUIRE(!memcmp(bf, "qwe\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcpy(bf, "qwerty", 4));
-	REQUIRE(!memcmp(bf, "qwe\000", 4));
+	REQUIRE(!memcmp(bf, "qwe\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, "qwerty", 3));
-	REQUIRE(!memcmp(bf, "qwe\000", 4));
+	REQUIRE(!memcmp(bf, "qwe\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, "qwerty", 2));
-	REQUIRE(!memcmp(bf, "qw\000d", 4));
+	REQUIRE(!memcmp(bf, "qw\0d", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, "qwe"));
-	REQUIRE(!memcmp(bf, "qwe\000", 4));
+	REQUIRE(!memcmp(bf, "qwe\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, "qwe", 4));
-	REQUIRE(!memcmp(bf, "qwe\000", 4));
+	REQUIRE(!memcmp(bf, "qwe\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, "qw", 3));
-	REQUIRE(!memcmp(bf, "qw\000d", 4));
+	REQUIRE(!memcmp(bf, "qw\0d", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, sizeof(bf), "q"));
-	REQUIRE(!memcmp(bf, "q\000cd", 4));
+	REQUIRE(!memcmp(bf, "q\0cd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcpy(bf, sizeof(bf), "q", 2));
-	REQUIRE(!memcmp(bf, "q\000cd", 4));
+	REQUIRE(!memcmp(bf, "q\0cd", 4));
 }
 
 TEST(CryStringUtilsTest, Strcat)
@@ -109,101 +148,149 @@ TEST(CryStringUtilsTest, Strcat)
 	REQUIRE(!cry_strcat(bf, 0, "xy"));
 	REQUIRE(!memcmp(bf, "abcd", 4));
 
+	CryMT::CryMemoryBarrier();
+
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, 0, "xy", 3));
 	REQUIRE(!memcmp(bf, "abcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, 0, "xy", 0));
 	REQUIRE(!memcmp(bf, "abcd", 4));
 
+	CryMT::CryMemoryBarrier();
+
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, 1, "xyz"));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, 1, "xyz", 4));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, 1, "xyz", 1));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcat(bf, 1, "xyz", 0));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, 1, 0, 0));
-	REQUIRE(!memcmp(bf, "\000bcd", 4));
+	REQUIRE(!memcmp(bf, "\0bcd", 4));
 
-	memcpy(bf, "a\000cd", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "a\0cd", 4);
 	REQUIRE(!cry_strcat(bf, 3, "xyz"));
-	REQUIRE(!memcmp(bf, "ax\000d", 4));
+	REQUIRE(!memcmp(bf, "ax\0d", 4));
 
-	memcpy(bf, "a\000cd", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "a\0cd", 4);
 	REQUIRE(!cry_strcat(bf, 3, "xyz", 4));
-	REQUIRE(!memcmp(bf, "ax\000d", 4));
+	REQUIRE(!memcmp(bf, "ax\0d", 4));
 
-	memcpy(bf, "a\000cd", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "a\0cd", 4);
 	REQUIRE(!cry_strcat(bf, 3, "xyz", 2));
-	REQUIRE(!memcmp(bf, "ax\000d", 4));
+	REQUIRE(!memcmp(bf, "ax\0d", 4));
 
-	memcpy(bf, "a\000cd", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "a\0cd", 4);
 	REQUIRE(cry_strcat(bf, 3, "xyz", 1));
-	REQUIRE(!memcmp(bf, "ax\000d", 4));
+	REQUIRE(!memcmp(bf, "ax\0d", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, "xyz"));
-	REQUIRE(!memcmp(bf, "abc\000", 4));
+	REQUIRE(!memcmp(bf, "abc\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, "xyz", 4));
-	REQUIRE(!memcmp(bf, "abc\000", 4));
+	REQUIRE(!memcmp(bf, "abc\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(!cry_strcat(bf, "xyz", 1));
-	REQUIRE(!memcmp(bf, "abc\000", 4));
+	REQUIRE(!memcmp(bf, "abc\0", 4));
+
+	CryMT::CryMemoryBarrier();
 
 	memcpy(bf, "abcd", 4);
 	REQUIRE(cry_strcat(bf, "xyz", 0));
-	REQUIRE(!memcmp(bf, "abc\000", 4));
+	REQUIRE(!memcmp(bf, "abc\0", 4));
 
-	memcpy(bf, "ab\000d", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "ab\0d", 4);
 	REQUIRE(!cry_strcat(bf, "xyz"));
-	REQUIRE(!memcmp(bf, "abx\000", 4));
+	REQUIRE(!memcmp(bf, "abx\0", 4));
 
-	memcpy(bf, "ab\000d", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "ab\0d", 4);
 	REQUIRE(!cry_strcat(bf, "xyz", 4));
-	REQUIRE(!memcmp(bf, "abx\000", 4));
+	REQUIRE(!memcmp(bf, "abx\0", 4));
 
-	memcpy(bf, "ab\000d", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "ab\0d", 4);
 	REQUIRE(cry_strcat(bf, "xyz", 1));
-	REQUIRE(!memcmp(bf, "abx\000", 4));
+	REQUIRE(!memcmp(bf, "abx\0", 4));
 
-	memcpy(bf, "ab\000d", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "ab\0d", 4);
 	REQUIRE(cry_strcat(bf, "xyz", 0));
-	REQUIRE(!memcmp(bf, "ab\000d", 4));
+	REQUIRE(!memcmp(bf, "ab\0d", 4));
 
-	memcpy(bf, "ab\000d", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "ab\0d", 4);
 	REQUIRE(!cry_strcat(bf, 0, 0));
-	REQUIRE(!memcmp(bf, "ab\000d", 4));
+	REQUIRE(!memcmp(bf, "ab\0d", 4));
 
-	memcpy(bf, "ab\000d", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "ab\0d", 4);
 	REQUIRE(!cry_strcat(bf, 0, 1));
-	REQUIRE(!memcmp(bf, "ab\000d", 4));
+	REQUIRE(!memcmp(bf, "ab\0d", 4));
 
-	memcpy(bf, "a\000cd", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "a\0cd", 4);
 	REQUIRE(cry_strcat(bf, sizeof(bf), "xy"));
-	REQUIRE(!memcmp(bf, "axy\000", 4));
+	REQUIRE(!memcmp(bf, "axy\0", 4));
 
-	memcpy(bf, "a\000cd", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "a\0cd", 4);
 	REQUIRE(cry_strcat(bf, sizeof(bf), "xy", 3));
-	REQUIRE(!memcmp(bf, "axy\000", 4));
+	REQUIRE(!memcmp(bf, "axy\0", 4));
 
-	memcpy(bf, "a\000cd", 4);
+	CryMT::CryMemoryBarrier();
+
+	memcpy(bf, "a\0cd", 4);
 	REQUIRE(cry_strcat(bf, sizeof(bf), "xy", 1));
-	REQUIRE(!memcmp(bf, "ax\000d", 4));
+	REQUIRE(!memcmp(bf, "ax\0d", 4));
 }
 
 TEST(CryStringUtilsTest, Sprintf)
@@ -221,7 +308,7 @@ TEST(CryStringUtilsTest, Sprintf)
 	test(true, 0, 0, "abc", "abc", false);
 	test(true, 1, 0, "abc", "abc", false);
 	test(false, 0, 0, "abc", "abc", false);
-	test(false, 1, 0, "abc", "\000bc", false);
+	test(false, 1, 0, "abc", "\0bc", false);
 
 	test(true, 0, "", "abc", "abc", false);
 	test(true, 1, "", "abc", "abc", false);
@@ -230,13 +317,13 @@ TEST(CryStringUtilsTest, Sprintf)
 	test(true, 2, "x", "abc", "abc", false);
 
 	test(false, 0, "", "abc", "abc", false);
-	test(false, 1, "", "abc", "\000bc", true);
+	test(false, 1, "", "abc", "\0bc", true);
 	test(false, 0, "x", "abc", "abc", false);
-	test(false, 1, "x", "abc", "\000bc", false);
-	test(false, 2, "x", "abc", "x\000c", true);
-	test(false, 3, "x", "abc", "x\000c", true);
-	test(false, 2, "xy", "abc", "x\000c", false);
-	test(false, 3, "xy", "abc", "xy\000", true);
+	test(false, 1, "x", "abc", "\0bc", false);
+	test(false, 2, "x", "abc", "x\0c", true);
+	test(false, 3, "x", "abc", "x\0c", true);
+	test(false, 2, "xy", "abc", "x\0c", false);
+	test(false, 3, "xy", "abc", "xy\0", true);
 }
 
 TEST(CryStringUtilsTest, ComputeLengthFormatted)
@@ -262,3 +349,31 @@ TEST(CryStringUtilsTest, ComputeLengthFormatted)
 	test(512, c);
 	test(4095, c);
 }
+
+TEST(CryStringUtilsTest, DetectLiterals)
+{
+	REQUIRE(CRY_IS_STRING_LITERAL(""));
+	REQUIRE(CRY_IS_STRING_LITERAL("\""));
+	REQUIRE(CRY_IS_STRING_LITERAL("sdf sdf sd"));
+	REQUIRE(CRY_IS_STRING_LITERAL("sd,;f "  "sd"));
+	REQUIRE(CRY_IS_STRING_LITERAL("sdf\n "	 "sd"));
+	REQUIRE(CRY_IS_STRING_LITERAL("sdf "	
+		"sd"));
+
+	REQUIRE(!CRY_IS_STRING_LITERAL("sdf\n "	 asdasd "sd"));
+	REQUIRE(!CRY_IS_STRING_LITERAL("sdf\n "	 asdasd "sd" asd));
+
+	static const char* const szStatConst = "afasdfghj";
+	REQUIRE(!CRY_IS_STRING_LITERAL(szStatConst));
+	const char* const szConst = "345j		";
+	REQUIRE(!CRY_IS_STRING_LITERAL(szConst));
+	const char* szStr = "09sdfsd";
+	REQUIRE(!CRY_IS_STRING_LITERAL(szStr));
+	string str = "dspimlkn";
+	REQUIRE(!CRY_IS_STRING_LITERAL(str.c_str()));
+
+	// avoid unused warnings
+	(void) szConst;
+	(void) szStr;
+}
+

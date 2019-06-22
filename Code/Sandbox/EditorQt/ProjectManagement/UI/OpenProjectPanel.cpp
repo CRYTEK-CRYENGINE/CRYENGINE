@@ -14,6 +14,7 @@
 
 #include <QBoxLayout>
 #include <QButtonGroup>
+#include <QKeyEvent>
 #include <QHeaderView>
 #include <QPushButton>
 #include <QToolButton>
@@ -27,6 +28,8 @@ COpenProjectPanel::COpenProjectPanel(CSelectProjectDialog* pParent, bool runOnSa
 	, m_pTreeView(new QAdvancedTreeView)
 	, m_pThumbnailView(new QThumbnailsView(nullptr, false, this))
 {
+	m_pMainLayout->setMargin(0);
+	m_pMainLayout->setSpacing(0);
 	setLayout(m_pMainLayout);
 
 	m_pSortedModel->setSourceModel(m_pModel);
@@ -42,14 +45,24 @@ COpenProjectPanel::COpenProjectPanel(CSelectProjectDialog* pParent, bool runOnSa
 
 void COpenProjectPanel::CreateSearchPanel()
 {
+
+	QWidget* pSearchBoxContainer = new QWidget();
+	pSearchBoxContainer->setObjectName("SearchBoxContainer");
+
+	QHBoxLayout* pSearchBoxLayout = new QHBoxLayout();
+	pSearchBoxLayout->setAlignment(Qt::AlignTop);
+	pSearchBoxLayout->setMargin(0);
+	pSearchBoxLayout->setSpacing(0);
+
 	QSearchBox* pSearchBox = new QSearchBox(this);
 	pSearchBox->EnableContinuousSearch(true);
 	pSearchBox->SetModel(m_pSortedModel);
 
-	QHBoxLayout* pLayout = new QHBoxLayout;
-	pLayout->addWidget(pSearchBox);
 
-	m_pMainLayout->addLayout(pLayout);
+	pSearchBoxLayout->addWidget(pSearchBox);
+	pSearchBoxContainer->setLayout(pSearchBoxLayout);
+
+	m_pMainLayout->addWidget(pSearchBoxContainer);
 }
 
 void COpenProjectPanel::CreateViews()
@@ -58,7 +71,10 @@ void COpenProjectPanel::CreateViews()
 	m_pTreeView->sortByColumn(CProjectsModel::eColumn_Name, Qt::AscendingOrder);
 	m_pTreeView->setRootIsDecorated(false);
 
-	m_pTreeView->header()->setSectionsMovable(false);
+	m_pTreeView->header()->setMinimumSectionSize(24);
+	m_pTreeView->header()->setSectionResizeMode(CProjectsModel::eColumn_RunOnStartup, QHeaderView::Fixed);
+	m_pTreeView->header()->resizeSection(CProjectsModel::eColumn_RunOnStartup, 24);
+
 	m_pTreeView->header()->resizeSection(CProjectsModel::eColumn_Name, fontMetrics().width(QStringLiteral("wwwwwwwwwwwwwwwwwwwwwwwwwwwww")));
 	m_pTreeView->header()->resizeSection(CProjectsModel::eColumn_LastAccessTime, fontMetrics().width(QStringLiteral("wwwwwwwwwwwwwwwwww")));
 
@@ -71,6 +87,7 @@ void COpenProjectPanel::CreateViews()
 	m_pThumbnailView->SetModel(m_pSortedModel);
 	m_pThumbnailView->SetItemSizeBounds({ 96, 96 }, { 96, 96 });
 	m_pThumbnailView->SetRootIndex(QModelIndex());
+	m_pThumbnailView->SetDataColumn(CProjectsModel::eColumn_Name);
 
 	m_pThumbnailView->setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -85,11 +102,14 @@ void COpenProjectPanel::CreateViews()
 	connect(pView, &QAbstractItemView::activated, this, &COpenProjectPanel::OpenProject);
 
 	QHBoxLayout* pLayout = new QHBoxLayout;
+	pLayout->setMargin(0);
+	pLayout->setSpacing(0);
 	pLayout->addWidget(m_pTreeView);
 	pLayout->addWidget(m_pThumbnailView);
 
 	QVBoxLayout* pButtonsLayout = new QVBoxLayout;
 	pButtonsLayout->setMargin(0);
+	pButtonsLayout->setSpacing(0);
 	pButtonsLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
 
 	QButtonGroup* pViewModeButtons = new QButtonGroup(this);
@@ -144,6 +164,8 @@ void COpenProjectPanel::CreateDialogButtons(bool runOnSandboxInit)
 	connect(pQuitBtn, SIGNAL(clicked()), m_pParent, SLOT(reject()));
 
 	QHBoxLayout* pButtonsLayout = new QHBoxLayout;
+	pButtonsLayout->setMargin(0);
+	pButtonsLayout->setSpacing(0);
 	pButtonsLayout->addWidget(m_pAddProjectBtn);
 	pButtonsLayout->addStretch();
 	pButtonsLayout->addWidget(m_pOpenProjectBtn, 0, Qt::AlignRight);
@@ -226,6 +248,10 @@ void COpenProjectPanel::OnContextMenu(const QPoint& pos)
 		QAction* pAction = pMenu->addAction("Show in File Explorer...");
 		connect(pAction, &QAction::triggered, this, [=] { QtUtil::OpenInExplorer(pDescription->rootFolder.c_str()); });
 
+		pAction = pMenu->addAction(pDescription->startupProject ? "Unset as Startup Project" : "Set as Startup Project");
+		pAction->setIcon(CryIcon("icons:General/Startup_Project.ico"));
+		connect(pAction, &QAction::triggered, this, [=] {m_pParent->GetProjectManager().ToggleStartupProperty(*pDescription); });
+
 		pAction = pMenu->addAction("Delete");
 		pAction->setIcon(CryIcon("icons:General/Folder_Remove.ico"));
 		connect(pAction, &QAction::triggered, this, [=] { OnDeleteProject(pDescription); });
@@ -251,10 +277,13 @@ void COpenProjectPanel::OnDeleteProject(const SProjectDescription* pDescription)
 	question.AddCheckBox("Remove project from disk (permanently)", &removeFromDisk);
 
 	question.SetupWarning(titleText, messageText, QDialogButtonBox::StandardButton::Yes | QDialogButtonBox::StandardButton::No);
-	if (QDialogButtonBox::StandardButton::Yes == question.Execute())
+	if (QDialogButtonBox::StandardButton::Yes != question.Execute())
 	{
-		m_pParent->GetProjectManager().DeleteProject(*pDescription, removeFromDisk);
+		return;
 	}
+
+	m_pParent->GetProjectManager().DeleteProject(*pDescription, removeFromDisk);
+	m_pTreeView->selectionModel()->clearSelection();
 }
 
 void COpenProjectPanel::OnLoadProjectPressed()
@@ -281,4 +310,30 @@ void COpenProjectPanel::OpenProject(const QModelIndex& index)
 void COpenProjectPanel::OnSelectionChanged(const QItemSelection& selected, const QItemSelection& deselected)
 {
 	m_pOpenProjectBtn->setEnabled(!selected.empty());
+}
+
+void COpenProjectPanel::keyPressEvent(QKeyEvent* pEvent)
+{
+	if (pEvent->key() == Qt::Key_Delete)
+	{
+		auto lst = m_pTreeView->selectionModel()->selectedIndexes();
+		if (!lst.empty())
+		{
+			const SProjectDescription* pDescription = m_pModel->ProjectFromIndex(m_pSortedModel->mapToSource(lst.front()));
+			OnDeleteProject(pDescription);
+
+			pEvent->setAccepted(true);
+			return;
+		}
+	}
+	
+	QWidget::keyPressEvent(pEvent);
+}
+
+void COpenProjectPanel::paintEvent(QPaintEvent*)
+{
+	QStyleOption styleOption;
+	styleOption.init(this);
+	QPainter painter(this);
+	style()->drawPrimitive(QStyle::PE_Widget, &styleOption, &painter, this);
 }

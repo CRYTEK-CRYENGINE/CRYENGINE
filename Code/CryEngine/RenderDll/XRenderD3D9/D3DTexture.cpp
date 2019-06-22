@@ -102,7 +102,7 @@ const byte* CTexture::Convert(const byte* pSrc, int nWidth, int nHeight, int nMi
 	byte* pDst = NULL;
 	if (eTFSrc == eTFDst && nMips == nOutMips)
 		return pSrc;
-	CD3D9Renderer* r = gcpRendD3D;
+
 	DXGI_FORMAT DeviceFormatSRC = (DXGI_FORMAT)DeviceFormats::ConvertFromTexFormat(eTFSrc);
 	if (eTFDst == eTF_L8)
 		eTFDst = eTF_A8;
@@ -196,7 +196,7 @@ D3DSurface* CTexture::GetSurface(int nCMSide, int nLevel)
 
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "Create Render Target: %s", GetSourceName());
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Texture, "Create Render Target: %s", GetSourceName());
 
 	const int nMipLevel = (m_eFlags & FT_FORCE_MIPS) ? min((int)(m_nMips - 1), nLevel) : 0;
 	const int nSlice = (m_eTT == eTT_Cube || m_eTT == eTT_CubeArray ? nCMSide : 0);
@@ -212,7 +212,7 @@ D3DSurface* CTexture::GetSurface(int nCMSide, int nLevel) const
 
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "Create Render Target: %s", GetSourceName());
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Texture, "Create Render Target: %s", GetSourceName());
 
 	const int nMipLevel = (m_eFlags & FT_FORCE_MIPS) ? min((int)(m_nMips - 1), nLevel) : 0;
 	const int nSlice = (m_eTT == eTT_Cube || m_eTT == eTT_CubeArray ? nCMSide : 0);
@@ -233,12 +233,14 @@ bool CTexture::Resolve(int nTarget, bool bUseViewportSize)
 	if (!(m_eFlags & FT_USAGE_MSAA))
 		return true;
 
-	assert((m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL)) && (m_eFlags & FT_USAGE_MSAA) && GetDevTexture() && GetDevTexture()->GetMSAATexture());
-	CDeviceTexture* pDestSurf = GetDevTexture();
-	CDeviceTexture* pSrcSurf = pDestSurf->GetMSAATexture();
+	CRY_ASSERT((m_eFlags & (FT_USAGE_RENDERTARGET | FT_USAGE_DEPTHSTENCIL)) && (m_eFlags & FT_USAGE_MSAA) && GetDevTexture() && GetDevTexture()->GetMSAATexture());
 
-	assert(pSrcSurf != NULL);
-	assert(pDestSurf != NULL);
+#if defined(USE_CRY_ASSERT) || defined(RENDERER_ENABLE_LEGACY_PIPELINE)
+	CDeviceTexture* pDestSurf = GetDevTexture();
+	CRY_ASSERT(pDestSurf != nullptr);
+	CDeviceTexture* pSrcSurf = pDestSurf->GetMSAATexture();
+	CRY_ASSERT(pSrcSurf != nullptr);
+#endif
 
 #ifdef RENDERER_ENABLE_LEGACY_PIPELINE
 	const SPixFormat* pPF;
@@ -257,7 +259,8 @@ void CTexture::CreateDeviceTexture(SSubresourceData&& pData)
 	const uint8** pSRP = pData.m_subresourcePointers;
 
 	this->AddRef();
-	gRenDev->ExecuteRenderThreadCommand([=] {
+	gRenDev->ExecuteRenderThreadCommand([=]
+	{
 		// Compensate for no move-capturing
 		SSubresourceData pLocalData(pSRP, bAsync);
 
@@ -277,9 +280,9 @@ void CTexture::CreateDeviceTexture(SSubresourceData&& pData)
 
 bool CTexture::RT_CreateDeviceTexture(const SSubresourceData& pData)
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CTexture::RT_CreateDeviceTexture");
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Texture, 0, "Creating Texture");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s %ix%ix%i %08x", m_SrcName.c_str(), m_nWidth, m_nHeight, m_nMips, m_eFlags);
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CTexture::RT_CreateDeviceTexture");
+	MEMSTAT_CONTEXT(EMemStatContextType::Texture, "Creating Texture");
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Texture, "%s %ix%ix%i %08x", m_SrcName.c_str(), m_nWidth, m_nHeight, m_nMips, m_eFlags);
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
 	if (m_eFlags & FT_USAGE_MSAA)
@@ -290,6 +293,7 @@ bool CTexture::RT_CreateDeviceTexture(const SSubresourceData& pData)
 	//if we have any device owned resources allocated, we must sync with render thread
 	if (m_pDevTexture)
 	{
+		CRY_ASSERT(!DEVICE_TEXTURE_STORE_OWNER || m_pDevTexture->GetOwner() == this);
 		RT_ReleaseDeviceTexture(false, false);
 	}
 
@@ -303,6 +307,7 @@ bool CTexture::RT_CreateDeviceTexture(const SSubresourceData& pData)
 		return false;
 
 	// Assign name to Texture for enhanced debugging
+	m_pDevTexture->SetOwner(this);
 	m_pDevTexture->SetDebugName(m_SrcName);
 
 	assert(!IsStreamed());
@@ -313,7 +318,7 @@ bool CTexture::RT_CreateDeviceTexture(const SSubresourceData& pData)
 		volatile size_t* pTexMem = &CTexture::s_nStatsCurManagedNonStreamedTexMem;
 		if (IsDynamic())
 			pTexMem = &CTexture::s_nStatsCurDynamicTexMem;
-		
+
 		CryInterlockedAdd(pTexMem, m_nDevTextureSize);
 	}
 
@@ -334,7 +339,8 @@ bool CTexture::RT_CreateDeviceTexture(const SSubresourceData& pData)
 void CTexture::ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload) threadsafe
 {
 	this->AddRef();
-	gRenDev->ExecuteRenderThreadCommand([=] {
+	gRenDev->ExecuteRenderThreadCommand([=]
+	{
 		this->RT_ReleaseDeviceTexture(bKeepLastMips, bFromUnload);
 		this->Release();
 
@@ -344,7 +350,7 @@ void CTexture::ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload) thread
 
 void CTexture::RT_ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload) threadsafe
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CTexture::RT_ReleaseDeviceTexture");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CTexture::RT_ReleaseDeviceTexture");
 
 	if (!bFromUnload)
 		AbortStreamingTasks(this);
@@ -359,6 +365,7 @@ void CTexture::RT_ReleaseDeviceTexture(bool bKeepLastMips, bool bFromUnload) thr
 		{
 			if (CDeviceTexture* const pDevTex = m_pDevTexture)
 			{
+				CRY_ASSERT(!DEVICE_TEXTURE_STORE_OWNER || m_pDevTexture->GetOwner() == this);
 				pDevTex->SetOwner(nullptr);
 
 				// Ref-Counting only works when there is a backing native objects, otherwise it's -1
@@ -520,24 +527,11 @@ bool SSamplerState::SetDefaultFilterMode(int nFilter)
 	return s_sDefState.SetFilterMode(nFilter);
 }
 
-#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
-void CTexture::ValidateSRVs()
-{
-	// We should only end up here if the texture was moved due to a defrag. This should only be for static textures.
-	m_pDevTexture->ReleaseResourceViews();
-	m_pDevTexture->AllocatePredefinedResourceViews();
-	// TODO: recreate all views that existed ...
-
-	// Notify that resource is dirty
-	InvalidateDeviceResource(this, eDeviceResourceDirty | eDeviceResourceViewDirty);
-}
-#endif
-
 void CTexture::UpdateTextureRegion(const byte* pSrcData, int nX, int nY, int nZ, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat)
 {
 	if (gRenDev->m_pRT->IsRenderThread())
 	{
-		RT_UpdateTextureRegion(pSrcData,nX,nY,nZ,USize,VSize,ZSize,eSrcFormat);
+		RT_UpdateTextureRegion(pSrcData, nX, nY, nZ, USize, VSize, ZSize, eSrcFormat);
 	}
 	else
 	{
@@ -551,10 +545,10 @@ void CTexture::UpdateTextureRegion(const byte* pSrcData, int nX, int nY, int nZ,
 
 		gRenDev->ExecuteRenderThreadCommand(
 			[=]
-			{
-				uint8 *pTempBuffer = tempData->data();
-				pSelf->RT_UpdateTextureRegion(pTempBuffer,nX,nY,nZ,USize,VSize,ZSize,eSrcFormat);
-			},
+		{
+			uint8* pTempBuffer = tempData->data();
+			pSelf->RT_UpdateTextureRegion(pTempBuffer, nX, nY, nZ, USize, VSize, ZSize, eSrcFormat);
+		},
 			flags
 		);
 	}
@@ -562,7 +556,7 @@ void CTexture::UpdateTextureRegion(const byte* pSrcData, int nX, int nY, int nZ,
 
 void CTexture::RT_UpdateTextureRegion(const byte* pSrcData, int nX, int nY, int nZ, int USize, int VSize, int ZSize, ETEX_Format eSrcFormat)
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CTexture::RT_UpdateTextureRegion");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CTexture::RT_UpdateTextureRegion");
 	PROFILE_FRAME(UpdateTextureRegion);
 	PROFILE_LABEL_SCOPE("UpdateTextureRegion");
 
@@ -572,7 +566,6 @@ void CTexture::RT_UpdateTextureRegion(const byte* pSrcData, int nX, int nY, int 
 		return;
 	}
 
-	HRESULT hr = S_OK;
 	CDeviceTexture* pDevTex = GetDevTexture();
 	assert(pDevTex);
 	if (!pDevTex)
@@ -668,7 +661,7 @@ void SEnvTexture::Release()
 	SAFE_DELETE(m_pTex);
 }
 
-void SEnvTexture::SetMatrix( const CCamera &camera )
+void SEnvTexture::SetMatrix(const CCamera& camera)
 {
 	camera.CalculateRenderMatrices();
 	Matrix44A matView = camera.GetRenderViewMatrix();
@@ -696,7 +689,7 @@ void SEnvTexture::ReleaseDeviceObjects()
 
 //////////////////////////////////////////////////////////////////////////
 
-static void DrawSceneToCubeSide(CRenderOutputPtr pRenderOutput, const Vec3& Pos, int tex_size, int side)
+static void DrawSceneToCubeSide(CRenderOutputPtr pRenderOutput, const Vec3& Pos, int tex_size, int side, uint32 shaderRenderflags, const SGraphicsPipelineKey& graphicsPipelineKey)
 {
 	CRY_ASSERT(gRenDev->m_pRT->IsMainThread());
 	if (!iSystem)
@@ -705,14 +698,17 @@ static void DrawSceneToCubeSide(CRenderOutputPtr pRenderOutput, const Vec3& Pos,
 	const float sCubeVector[6][7] =
 	{
 		{ 1,  0,  0,  0, 0, 1,  -90 }, //posx
-		{ -1, 0,  0,  0, 0, 1,  90 }, //negx
-		{ 0,  1,  0,  0, 0, -1, 0 }, //posy
-		{ 0,  -1, 0,  0, 0, 1,  0 }, //negy
-		{ 0,  0,  1,  0, 1, 0,  0 }, //posz
-		{ 0,  0,  -1, 0, 1, 0,  0 }, //negz
+		{ -1, 0,  0,  0, 0, 1,  90  }, //negx
+		{ 0,  1,  0,  0, 0, -1, 0   }, //posy
+		{ 0,  -1, 0,  0, 0, 1,  0   }, //negy
+		{ 0,  0,  1,  0, 1, 0,  0   }, //posz
+		{ 0,  0,  -1, 0, 1, 0,  0   }, //negz
 	};
 
+#ifdef DO_RENDERLOG
 	CRenderer* r = gRenDev;
+#endif
+
 	CCamera prevCamera = gEnv->pSystem->GetViewCamera();
 	CCamera tmpCamera = prevCamera;
 
@@ -733,11 +729,10 @@ static void DrawSceneToCubeSide(CRenderOutputPtr pRenderOutput, const Vec3& Pos,
 
 	gEnv->pSystem->SetViewCamera(tmpCamera);
 
-	int nRFlags = SHDF_CUBEMAPGEN | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOWHDR | SHDF_ZPASS | SHDF_NOASYNC | SHDF_ALLOW_AO;
 	uint32 nRenderPassFlags = SRenderingPassInfo::DEFAULT_FLAGS | SRenderingPassInfo::CUBEMAP_GEN;
-	
+
 	// TODO: Try to run cube-map generation as recursive pass
-	auto generalPassInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(tmpCamera, nRenderPassFlags);
+	auto generalPassInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(graphicsPipelineKey, tmpCamera, nRenderPassFlags, false, {});
 	CRenderView* pRenderView = generalPassInfo.GetRenderView();
 	pRenderView->AssignRenderOutput(pRenderOutput);
 	pRenderView->SetSkinningDataPools(gcpRendD3D->GetSkinningDataPools());
@@ -746,7 +741,12 @@ static void DrawSceneToCubeSide(CRenderOutputPtr pRenderOutput, const Vec3& Pos,
 	pRenderView->SetCameras(&cam, 1);
 	pRenderView->SetPreviousFrameCameras(&cam, 1);
 
-	pEngine->RenderWorld(nRFlags, generalPassInfo, __FUNCTION__);
+	gcpRendD3D->ResizePipelineAndContext(generalPassInfo.GetGraphicsPipelineKey(), generalPassInfo.GetDisplayContextKey(), tex_size, tex_size);
+	gcpRendD3D->BeginFrame(generalPassInfo.GetDisplayContextKey(), generalPassInfo.GetGraphicsPipelineKey());
+	
+	pEngine->RenderWorld(shaderRenderflags, generalPassInfo, __FUNCTION__);
+
+	gcpRendD3D->EndFrame();
 
 	gEnv->pSystem->SetViewCamera(prevCamera);
 
@@ -807,7 +807,6 @@ private:
 
 DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const Vec3& Pos)
 {
-	bool result = true;
 	DynArray<std::uint16_t> vecData;
 
 #if CRY_PLATFORM_DESKTOP
@@ -815,8 +814,6 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 	float timeStart = gEnv->pTimer->GetAsyncTime().GetSeconds();
 
 	iLog->Log("Start generating a cubemap (%d x %d) at position (%.1f, %.1f, %.1f)", size, size, Pos.x, Pos.y, Pos.z);
-
-	bool bFullScreen = gcpRendD3D->IsFullscreen();
 
 	CTexture* ptexGenEnvironmentCM = CTexture::GetOrCreate2DTexture("$GenEnvironmentCM", size, size, 1, FT_DONT_STREAM | FT_USAGE_RENDERTARGET, nullptr, eTF_R16G16B16A16F);
 	if (!ptexGenEnvironmentCM)
@@ -848,6 +845,7 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 	float oldSkyKm, oldSkyKr, oldSkyG;
 	if (CRenderer::CV_r_HideSunInCubemaps)
 	{
+		// if (isSkyProcedural)
 		gEnv->p3DEngine->GetSkyLightParameters(oldSunDir, oldSunStr, oldSkyKm, oldSkyKr, oldSkyG, oldSunRGB);
 		gEnv->p3DEngine->SetSkyLightParameters(oldSunDir, oldSunStr, oldSkyKm, oldSkyKr, 1.0f, oldSunRGB, true); // Hide sun disc
 	}
@@ -855,23 +853,23 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 	// TODO: allow cube-map super-sampling
 	CRenderOutputPtr pRenderOutput = std::make_shared<CRenderOutput>(ptexGenEnvironmentCM, FRT_CLEAR, Clr_Transparent, 1.0f);
 
-	gcpRendD3D->ExecuteRenderThreadCommand([=] {
-		gcpRendD3D->OnRenderResolutionChanged(size, size);
-		gcpRendD3D->GetGraphicsPipeline().Resize(size, size);
-	}, ERenderCommandFlags::None);
+	IRenderer::SGraphicsPipelineDescription pipelineDesc;
+	pipelineDesc.type = EGraphicsPipelineType::Standard;
+	pipelineDesc.shaderFlags = SHDF_CUBEMAPGEN | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOWHDR | SHDF_ZPASS | SHDF_NOASYNC | SHDF_ALLOW_AO | SHDF_ALLOW_SKY;
+	SGraphicsPipelineKey pipelineKey = gcpRendD3D->CreateGraphicsPipeline(pipelineDesc);
 
 	vecData.reserve(size * size * 6 * 4);
 	for (int nSide = 0; nSide < 6; nSide++)
 	{
 		int32 waitFrames = max(0, CRendererCVars::CV_r_CubemapGenerationTimeout);
-		while (waitFrames-->0)
+		while (waitFrames-- > 0)
 		{
 #if defined(FEATURE_SVO_GI)
 			const bool is_svo_ready_pre_draw = gEnv->p3DEngine->IsSvoReady(true);
 #endif
 
 			gEnv->nMainFrameID++;
-			DrawSceneToCubeSide(pRenderOutput, Pos, size, nSide);
+			DrawSceneToCubeSide(pRenderOutput, Pos, size, nSide, pipelineDesc.shaderFlags, pipelineKey);
 
 			SStreamEngineOpenStats streamStats;
 			gEnv->pSystem->GetStreamEngine()->GetStreamingOpenStatistics(streamStats);
@@ -890,16 +888,17 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 			gEnv->pSystem->GetStreamEngine()->Update(eStreamTaskTypeTerrain | eStreamTaskTypeTexture | eStreamTaskTypeGeometry);
 
 			// Flush and garbage collect
-			gcpRendD3D->ExecuteRenderThreadCommand([&] {
+			gcpRendD3D->ExecuteRenderThreadCommand([&]
+			{
 				GetDeviceObjectFactory().FlushToGPU(false, true);
 			}, ERenderCommandFlags::FlushAndWait);
 		}
 
-		if (waitFrames<0)
+		if (waitFrames < 0)
 		{
-			CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_WARNING, 
-			    "Cubemap generation timeout: some outstanding tasks didn't finish on time, generated cubemap might be incorrect.\n" \
-			    "Consider increasing r_CubemapGenerationTimeout");
+			CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_WARNING,
+			           "Cubemap generation timeout: some outstanding tasks didn't finish on time, generated cubemap might be incorrect.\n" \
+			           "Consider increasing r_CubemapGenerationTimeout");
 		}
 
 		bool success = false;
@@ -936,6 +935,7 @@ DynArray<std::uint16_t> CTexture::RenderEnvironmentCMHDR(std::size_t size, const
 			return DynArray<std::uint16_t>{};
 	}
 
+	gcpRendD3D->DeleteGraphicsPipeline(pipelineKey);
 	SAFE_RELEASE(ptexGenEnvironmentCM);
 
 	for (auto& cvarOverride : cvarOverrides)
@@ -971,7 +971,7 @@ bool CTexture::GenerateMipMaps(bool bSetOrthoProj, bool bUseHW, bool bNormalMap)
 	if (GetDevTexture()->IsWritable())
 	{
 		//	gcpRendD3D->GetDeviceContext().GenerateMips(m_pDeviceShaderResource);
-		CMipmapGenPass().Execute(this);
+		CMipmapGenPass(gcpRendD3D->FindGraphicsPipeline(SGraphicsPipelineKey::BaseGraphicsPipelineKey).get()).Execute(this);
 	}
 
 	return true;
@@ -1002,8 +1002,6 @@ void CD3D9Renderer::DrawAllDynTextures(const char* szFilter, const bool bLogName
 	TArray<CTexture*> UsedRT;
 	int nMaxCount = CV_r_ShowDynTexturesMaxCount;
 
-	CRenderDisplayContext* pDC = GetActiveDisplayContext();
-
 	float width = 800;
 	float height = 600;
 	float fArrDim = max(1.f, sqrtf((float)nMaxCount));
@@ -1013,7 +1011,7 @@ void CD3D9Renderer::DrawAllDynTextures(const char* szFilter, const bool bLogName
 	float y = 0;
 
 	GetIRenderAuxGeom()->SetOrthographicProjection(true, 0.0f, width, height, 0.0f);
-	
+
 	if (name[0] == '*' && !name[1])
 	{
 		SResourceContainer* pRL = CBaseResource::GetResourcesForClass(CTexture::mfGetClassName());
@@ -1204,7 +1202,7 @@ bool CFlashTextureSourceBase::Update()
 	pFlashPlayer->SetViewport(0, 0, m_width, m_height, m_aspectRatio);
 	pFlashPlayer->SetScissorRect(0, 0, m_width, m_height);
 	pFlashPlayer->SetBackgroundAlpha(Clr_Transparent.a);
-	
+
 	m_lastVisibleFrameID = gRenDev->GetRenderFrameID();
 	m_lastVisible = gEnv->pTimer->GetAsyncTime();
 
@@ -1224,7 +1222,7 @@ bool CFlashTextureSource::Update()
 	if (!CFlashTextureSourceBase::Update())
 		return false;
 	if (!m_pMipMapper)
-		m_pMipMapper = new CMipmapGenPass();
+		m_pMipMapper = new CMipmapGenPass(gcpRendD3D->FindGraphicsPipeline(SGraphicsPipelineKey::BaseGraphicsPipelineKey).get());
 
 	// calculate mip-maps after update, if mip-maps have been allocated
 	{
@@ -1247,7 +1245,7 @@ bool CFlashTextureSourceSharedRT::Update()
 	if (!CFlashTextureSourceBase::Update())
 		return false;
 	if (!ms_pMipMapper)
-		ms_pMipMapper = new CMipmapGenPass();
+		ms_pMipMapper = new CMipmapGenPass(gcpRendD3D->FindGraphicsPipeline(SGraphicsPipelineKey::BaseGraphicsPipelineKey).get());
 
 	// calculate mip-maps after update, if mip-maps have been allocated
 	{
@@ -1262,16 +1260,16 @@ bool CFlashTextureSourceSharedRT::Update()
 void CTexture::CopySliceChain(CDeviceTexture* const pDstDevTex, int8 nDstNumMips, int nDstSliceOffset, int8 nDstMipOffset,
                               CDeviceTexture* const pSrcDevTex, int8 nSrcNumMips, int nSrcSliceOffset, int8 nSrcMipOffset, int nNumSlices, int8 nNumMips)
 {
-	HRESULT hr = S_OK;
-	assert(pSrcDevTex && pDstDevTex);
-	assert(nNumSlices == 1 && "TODO: allow multiple slices being uploaded with the same command");
+	CRY_ASSERT(pSrcDevTex && pDstDevTex);
+	CRY_ASSERT_MESSAGE(nNumSlices == 1, "TODO: allow multiple slices being uploaded with the same command");
 
 #if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
 	pDstDevTex->InitD3DTexture();
 #endif
-
+#if !defined(_RELEASE) || (CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE))
 	D3DBaseTexture* pDstResource = pDstDevTex->GetBaseTexture();
 	D3DBaseTexture* pSrcResource = pSrcDevTex->GetBaseTexture();
+#endif
 
 #ifndef _RELEASE
 	if (!pDstResource) __debugbreak();
@@ -1281,7 +1279,7 @@ void CTexture::CopySliceChain(CDeviceTexture* const pDstDevTex, int8 nDstNumMips
 	if (0)
 	{
 	}
-#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)  && defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
+#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && defined(DEVICE_SUPPORTS_PERFORMANCE_DEVICE)
 	else if (!gcpRendD3D->m_pRT->IsRenderThread(true))
 	{
 		// We can use the move engine!
@@ -1292,13 +1290,13 @@ void CTexture::CopySliceChain(CDeviceTexture* const pDstDevTex, int8 nDstNumMips
 		for (int8 nMip = 0; nMip < nNumMips; ++nMip)
 		{
 			pDMA->CopySubresourceRegion(
-			  pDstResource,
-			  D3D11CalcSubresource(nDstMipOffset + nMip, nDstSliceOffset, nDstNumMips),
-			  0, 0, 0,
-			  pSrcResource,
-			  D3D11CalcSubresource(nSrcMipOffset + nMip, nSrcSliceOffset, nSrcNumMips),
-			  NULL,
-			  D3D11_COPY_NO_OVERWRITE);
+				pDstResource,
+				D3D11CalcSubresource(nDstMipOffset + nMip, nDstSliceOffset, nDstNumMips),
+				0, 0, 0,
+				pSrcResource,
+				D3D11CalcSubresource(nSrcMipOffset + nMip, nSrcSliceOffset, nSrcNumMips),
+				NULL,
+				D3D11_COPY_NO_OVERWRITE);
 		}
 
 		UINT64 fence = pDMA->InsertFence(D3D11_INSERT_FENCE_NO_KICKOFF);

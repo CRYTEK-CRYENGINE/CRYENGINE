@@ -7,8 +7,8 @@ sources_platform(ALL)
 
 add_sources("CryUDR_Uber_0.cpp"
 	SOURCE_GROUP "Root"
-		"Hub.cpp"
-		"Hub.h"
+		"UDRSystem.cpp"
+		"UDRSystem.h"
 		"Node.h"
 		"Node.cpp"
 		"NodeStack.h"
@@ -27,6 +27,8 @@ add_sources("CryUDR_Uber_0.cpp"
 		"TreeManager.cpp"
 		"RecursiveSyncObject.h"
 		"RecursiveSyncObject.cpp"
+		"TimeMetadata.h"
+		"TimeMetadata.cpp"
 		"CryUDR.cpp"
 )
 

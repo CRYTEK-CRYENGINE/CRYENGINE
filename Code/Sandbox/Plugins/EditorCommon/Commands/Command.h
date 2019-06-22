@@ -218,6 +218,7 @@ public:
 		UiInfo()
 			: buttonText(nullptr)
 			, icon(nullptr)
+			, isCheckable(false)
 		{}
 
 		UiInfo(const string& text, const string& iconName, const CKeyboardShortcut& shortcut, bool checkable)
@@ -241,6 +242,7 @@ public:
 			buttonText = info.buttonText;
 			icon = info.icon;
 			key = info.key;
+			isCheckable = info.isCheckable;
 		}
 	};
 

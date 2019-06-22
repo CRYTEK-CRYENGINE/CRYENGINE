@@ -32,7 +32,7 @@ public:
 	void ReadbackCounter(uint32 readLength);
 	int RetrieveCounter(uint32 readLength);
 
-	CGpuBuffer& GetDefaultParticleDataBuffer()     { return m_defaultData.Get().GetBuffer(); };
+	CGpuBuffer& GetDefaultParticleDataBuffer()     { return m_defaultData.Get().GetBuffer(); }
 	CGpuBuffer& GetDefaultParticleDataBackBuffer() { return m_defaultData.GetBackBuffer().GetBuffer(); }
 
 private:

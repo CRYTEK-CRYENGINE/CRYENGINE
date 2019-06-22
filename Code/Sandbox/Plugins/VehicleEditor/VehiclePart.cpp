@@ -87,7 +87,6 @@ void CVehiclePart::DrawRotationLimits(SDisplayContext& dc, IVariable* pSpeed, IV
 			{
 				const static Vec3 line(0, 2, 0);
 				const static float step = DEG2RAD(10);
-				const Matrix34& vehicleTM = m_pVehicle->GetWorldTM();
 				double angleMin = 0, angleMax = 0, angle = 0;
 				Matrix34 matMin, matMax;
 				Vec3 p0, p1;
@@ -105,8 +104,8 @@ void CVehiclePart::DrawRotationLimits(SDisplayContext& dc, IVariable* pSpeed, IV
 					angleMin = DEG2RAD(max > 0 ? max : 360 + max); // angles for x-rotation
 					angleMax = DEG2RAD(min < 0 ? 360 + min : min);
 
-					matMin = vehicleTM.CreateRotationX(angleMin);
-					matMax = vehicleTM.CreateRotationX(angleMax);
+					matMin = m_pVehicle->GetWorldTM().CreateRotationX(angleMin);
+					matMax = m_pVehicle->GetWorldTM().CreateRotationX(angleMax);
 
 					p0.y = sourcePos.y + radius * cos(angleMax - step);
 					p0.z = sourcePos.z + radius * sin(angleMax - step);
@@ -118,8 +117,8 @@ void CVehiclePart::DrawRotationLimits(SDisplayContext& dc, IVariable* pSpeed, IV
 					angleMin = DEG2RAD(min < 0 ? -min : 360 - min); // angles for z-rotation
 					angleMax = DEG2RAD(max > 0 ? 360 - max : -max);
 
-					matMin = vehicleTM.CreateRotationZ(angleMin);
-					matMax = vehicleTM.CreateRotationZ(angleMax);
+					matMin = m_pVehicle->GetWorldTM().CreateRotationZ(angleMin);
+					matMax = m_pVehicle->GetWorldTM().CreateRotationZ(angleMax);
 
 					p0.x = sourcePos.x + radius * -sin(angleMax - step);
 					p0.y = sourcePos.y + radius * cos(angleMax - step);

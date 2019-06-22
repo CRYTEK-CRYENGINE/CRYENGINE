@@ -43,7 +43,7 @@ void CopyFolderRecursively(const QString& src, const QString& dest)
 
 } // namespace Private_SelectProjectDialog
 
-CSelectProjectDialog::CSelectProjectDialog(QWidget* pParent, bool runOnSandboxInit)
+CSelectProjectDialog::CSelectProjectDialog(QWidget* pParent, bool runOnSandboxInit, Tab tabToShow)
 	: CEditorDialog("SelectProjectDialog", pParent)
 {
 	setWindowTitle("Project Browser");
@@ -53,12 +53,26 @@ CSelectProjectDialog::CSelectProjectDialog(QWidget* pParent, bool runOnSandboxIn
 
 	pTabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	pTabs->setTabsClosable(false);
+
 	pTabs->addTab(new COpenProjectPanel(this, runOnSandboxInit), "Projects");
 	pTabs->addTab(new CCreateProjectPanel(this, runOnSandboxInit), "New Project");
+
+	switch (tabToShow)
+	{
+	case CSelectProjectDialog::Tab::Open:
+		pTabs->setCurrentIndex(0);
+		break;
+	case CSelectProjectDialog::Tab::Create:
+		pTabs->setCurrentIndex(1);
+		break;
+	default:
+		CRY_ASSERT("Unhandled tab mode");
+	}
 
 	QVBoxLayout* pMainLayout = new QVBoxLayout;
 	pMainLayout->setContentsMargins(0, 0, 0, 0);
 	pMainLayout->setSpacing(0);
+	pMainLayout->setMargin(0);
 	pMainLayout->addWidget(pTabs);
 	setLayout(pMainLayout);
 

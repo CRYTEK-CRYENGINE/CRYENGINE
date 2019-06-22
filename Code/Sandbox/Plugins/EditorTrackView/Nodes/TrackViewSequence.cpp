@@ -572,9 +572,11 @@ bool CTrackViewSequence::SetName(const char* pName)
 	return true;
 }
 
-void CTrackViewSequence::CopyKeysToClipboard(const bool bOnlySelectedKeys, const bool bOnlyFromSelectedTracks)
+void CTrackViewSequence::CopyKeysToClipboard(const bool bOnlySelectedKeys, const bool bOnlyFromSelectedTracks, size_t selectedKeysCount)
 {
 	XmlNodeRef copyNode = XmlHelpers::CreateXmlNode("CopyKeysNode");
+	copyNode->setAttr("selectedKeysCount", selectedKeysCount);
+
 	CopyKeysToClipboard(copyNode, bOnlySelectedKeys, bOnlyFromSelectedTracks);
 
 	CClipboard clip;
@@ -602,12 +604,17 @@ void CTrackViewSequence::PasteKeysFromClipboard(CTrackViewAnimNode* pTargetNode,
 	{
 		std::vector<TMatchedTrackLocation> matchedLocations = GetMatchedPasteLocations(clipboardContent, pTargetNode, pTargetTrack);
 
+		size_t selectedKeysCount = 0;
+		clipboardContent->getAttr("selectedKeysCount", selectedKeysCount);
+
+		SAnimTime offsetTime = selectedKeysCount > 1 ? SAnimTime(0) : time;
+
 		for (auto iter = matchedLocations.begin(); iter != matchedLocations.end(); ++iter)
 		{
 			const TMatchedTrackLocation& location = *iter;
 			CTrackViewTrack* pTrack = location.first;
 			const XmlNodeRef& trackNode = location.second;
-			pTrack->PasteKeys(trackNode, time);
+			pTrack->PasteKeys(trackNode, offsetTime);
 		}
 	}
 }

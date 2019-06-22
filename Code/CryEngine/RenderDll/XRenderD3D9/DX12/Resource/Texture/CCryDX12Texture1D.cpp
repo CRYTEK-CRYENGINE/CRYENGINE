@@ -218,7 +218,7 @@ CCryDX12Texture1D* CCryDX12Texture1D::Create(CCryDX12Device* pDevice, const FLOA
 
 	if ((hresult != S_OK) || !resource)
 	{
-		DX12_ASSERT(0, "Could not create texture 1D resource!");
+		DX12_ERROR("Could not create texture 1D resource!");
 		return NULL;
 	}
 

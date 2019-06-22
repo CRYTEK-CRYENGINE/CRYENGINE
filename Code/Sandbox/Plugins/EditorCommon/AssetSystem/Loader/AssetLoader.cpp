@@ -268,7 +268,7 @@ namespace Loader_Private
 		{
 			ICryPak* const pPak = GetISystem()->GetIPak();
 
-			FILE* file = pPak->FOpen(szFilename, "rbx");
+			FILE* file = pPak->FOpen(szFilename, "rb");
 			if (!file)
 			{
 				CryWarning(EValidatorModule::VALIDATOR_MODULE_EDITOR, EValidatorSeverity::VALIDATOR_ERROR, "Failed to open asset file: \"%s\".", szFilename);

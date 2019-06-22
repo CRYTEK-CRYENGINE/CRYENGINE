@@ -18,11 +18,11 @@
 #include <IPostRenderer.h>
 
 #include <CryUDR/InterfaceIncludes.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <CryGame/IGameFramework.h>
 
 
-#define UDR_EDITOR_NAME "UDR Recordings (experimental)"
+#define UDR_EDITOR_NAME "UDR Visualizer (Experimental)"
 
 
 class CUDRTreeModel;
@@ -70,6 +70,9 @@ public:
 	virtual const char*                       GetPaneTitle() const override;
 	virtual IViewPaneClass::EDockingDirection GetDockingDirection() const override { return IViewPaneClass::DOCK_FLOAT; }
 	// ~CDockableWindow
+
+protected:
+	void customEvent(QEvent* event) override;
 
 private:
 

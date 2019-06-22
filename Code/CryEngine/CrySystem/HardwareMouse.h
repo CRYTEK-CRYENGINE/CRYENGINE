@@ -116,7 +116,9 @@ private:
 	bool       m_calledShowHWMouse;
 	int        m_debugHardwareMouse;
 
-	static int s_MouseControllerEmulation;
+	static float s_MouseCursorSoftwareOffsetX;
+	static float s_MouseCursorSoftwareOffsetY;
+	static int   s_MouseControllerEmulation;
 };
 
 //-----------------------------------------------------------------------------------------------------

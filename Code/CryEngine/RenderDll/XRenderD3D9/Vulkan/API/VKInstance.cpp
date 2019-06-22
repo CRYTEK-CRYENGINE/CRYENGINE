@@ -9,7 +9,7 @@ namespace NCryVulkan
 {
 
 CInstance::CInstance()
-	: m_instanceHandle(VK_NULL_HANDLE)
+	: CInstanceHolder()
 	, m_debugLayerCallbackHandle(VK_NULL_HANDLE)
 {
 	
@@ -24,11 +24,6 @@ CInstance::~CInstance()
 		{
 			pDestroyCallback(m_instanceHandle, m_debugLayerCallbackHandle, nullptr);
 		}
-	}
-
-	if (m_instanceHandle != VK_NULL_HANDLE)
-	{
-		vkDestroyInstance(m_instanceHandle, NULL);
 	}
 }
 
@@ -105,7 +100,7 @@ void CInstance::DestroySDLWindow(HWND kHandle)
 
 _smart_ptr<CDevice> CInstance::CreateDevice(size_t physicalDeviceIndex)
 {
-	VK_ASSERT(physicalDeviceIndex < m_physicalDevices.size() && "Bad device index");
+	VK_ASSERT(physicalDeviceIndex < m_physicalDevices.size(), "Bad device index");
 	const SPhysicalDeviceInfo& pDeviceInfo = m_physicalDevices[physicalDeviceIndex];
 	VkAllocationCallbacks allocationCallbacks;
 	m_Allocator.GetCpuHeapCallbacks(allocationCallbacks);
@@ -118,19 +113,40 @@ _smart_ptr<CDevice> CInstance::CreateDevice(size_t physicalDeviceIndex)
 	std::vector<const char*> extensions;
 	for (const auto& requestedExtension : m_enabledPhysicalDeviceExtensions)
 	{
-		int i;
-		for (i=0; i < pDeviceInfo.implicitExtensions.size(); ++i)
+		bool found = false;
+
+		for (int i = 0; i < pDeviceInfo.implicitExtensions.size(); ++i)
 		{
 			const VkExtensionProperties& availableExtension = pDeviceInfo.implicitExtensions[i];
 
 			if (strcmp(availableExtension.extensionName, requestedExtension.name) == 0)
 			{
 				extensions.push_back(requestedExtension.name);
+				found = true;
 				break;
 			}
 		}
 
-		if (i == pDeviceInfo.implicitExtensions.size() && requestedExtension.bRequired)
+		if (!found)
+		{
+			for (int l = 0; l < pDeviceInfo.devicelayers.size(); ++l)
+			{
+				for (const auto& e : pDeviceInfo.devicelayers[l].extensions)
+				{
+					if (strcmp(e.extensionName, requestedExtension.name) == 0)
+					{
+						extensions.push_back(e.extensionName);
+						found = true;
+						break;
+					}
+				}
+
+				if (found)
+					break;
+			}
+		}
+
+		if (!found && requestedExtension.bRequired)
 		{
 			VK_ERROR("Failed to load extension '%s'", requestedExtension.name);
 			return nullptr;
@@ -196,7 +212,7 @@ bool CInstance::Initialize(const char* appName, uint32_t appVersion, const char*
 
 	InitializeDebugLayerCallback();
 	InitializePhysicalDeviceInfos();
-	VK_ASSERT(m_physicalDevices.size() > 0);
+	VK_ASSERT(!m_physicalDevices.empty(), "");
 
 	GatherPhysicalDeviceLayersToEnable();
 	GatherPhysicalDeviceExtensionsToEnable();
@@ -293,7 +309,11 @@ VkResult CInstance::InitializeInstance(const char* appName, uint32_t appVersion,
 	applicationInfo.applicationVersion = appVersion;
 	applicationInfo.pEngineName = engineName;
 	applicationInfo.engineVersion = engineVersion;
+#if CRY_RENDERER_VULKAN >= 11
+	applicationInfo.apiVersion = VK_API_VERSION_1_1;
+#else
 	applicationInfo.apiVersion = VK_API_VERSION_1_0;
+#endif
 
 	VkInstanceCreateInfo instanceInfo = {};
 
@@ -320,7 +340,7 @@ VkResult CInstance::InitializeInstance(const char* appName, uint32_t appVersion,
 			CryLogAlways("vkCreateInstance: Discarded %" PRISIZE_T " layers during Vulkan initialization", m_enabledInstanceLayers.size());
 		}
 	}
-	VK_ASSERT(res == VK_SUCCESS);
+	VK_ASSERT(res == VK_SUCCESS, "");
 
 	return res;
 }
@@ -329,13 +349,13 @@ VkResult CInstance::InitializePhysicalDeviceInfos()
 {
 	uint32_t gpuCount(0);
 	VkResult res = vkEnumeratePhysicalDevices(m_instanceHandle, &gpuCount, NULL);
-	VK_ASSERT(gpuCount);
+	VK_ASSERT(gpuCount, "");
 
 	std::vector<VkPhysicalDevice> gpus;
 	gpus.resize(gpuCount);
 
 	res = vkEnumeratePhysicalDevices(m_instanceHandle, &gpuCount, gpus.data());
-	VK_ASSERT(res == VK_SUCCESS);
+	VK_ASSERT(res == VK_SUCCESS, "");
 
 	m_physicalDevices.resize(gpuCount);
 

@@ -34,7 +34,7 @@
 #include <QWidget>
 #include <QtViewPane.h>
 #include <Serialization.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 
 REGISTER_VIEWPANE_FACTORY(CDrsEditorMainWindow, "Dynamic Response System", "Tools", true)
 
@@ -49,8 +49,8 @@ enum eCurrentlyDisplayedSubelements
 	eCDS_eRecentResponses = 1,
 };
 
-static QPropertyTree* s_pPropertyTree = nullptr;
-static QPropertyTree* s_pSubElementsTree = nullptr;
+static QPropertyTreeLegacy* s_pPropertyTree = nullptr;
+static QPropertyTreeLegacy* s_pSubElementsTree = nullptr;
 static QDockWidget* s_ResponseDockWidget = nullptr;
 
 static CDrsResponseEditorWindow* s_ResponseEditorWindow = nullptr;
@@ -162,8 +162,8 @@ CDrsResponseEditorWindow::CDrsResponseEditorWindow()
 			}
 		});
 
-		s_pPropertyTree = new QPropertyTree(this);
-		PropertyTreeStyle customStyle(QPropertyTree::defaultTreeStyle());
+		s_pPropertyTree = new QPropertyTreeLegacy(this);
+		PropertyTreeStyle customStyle(QPropertyTreeLegacy::defaultTreeStyle());
 		customStyle.compact = false;
 		customStyle.doNotIndentSecondLevel = true;
 		customStyle.propertySplitter = false;
@@ -175,8 +175,8 @@ CDrsResponseEditorWindow::CDrsResponseEditorWindow()
 		m_pResponseDockWidget->widget()->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 		s_ResponseDockWidget = m_pResponseDockWidget->dock();
 
-		s_pSubElementsTree = new QPropertyTree(this);
-		PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+		s_pSubElementsTree = new QPropertyTreeLegacy(this);
+		PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 		treeStyle.propertySplitter = false;
 		s_pSubElementsTree->setTreeStyle(treeStyle);
 		s_pSubElementsTree->setUndoEnabled(true);

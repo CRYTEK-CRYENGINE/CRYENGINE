@@ -13,7 +13,9 @@
 class CWaterStage : public CGraphicsPipelineStage
 {
 public:
-	enum EPass
+	static const EGraphicsPipelineStage StageID = eStage_Water;
+
+	enum EPass : uint8
 	{
 		ePass_ReflectionGen = 0,
 		ePass_FogVolume,
@@ -21,9 +23,11 @@ public:
 		ePass_CausticsGen,
 		ePass_OceanMaskGen,
 
-		ePass_Count,
+		ePass_Count
 	};
-	static_assert(ePass_Count <= MAX_PIPELINE_SCENE_STAGE_PASSES, "Too many passes in one graphics pipeline stage");
+
+	static_assert(ePass_Count <= MAX_PIPELINE_SCENE_STAGE_PASSES,
+		"The pipeline-state array is unable to carry as much pass-permutation as defined here!");
 
 	enum EPassMask
 	{
@@ -61,7 +65,7 @@ public:
 		ePerPassTexture_Reflection            = 31,
 
 		ePerPassTexture_SceneLinearDepth      = 32,
-		
+
 		ePerPassTexture_ShadowMap0            = 33,
 		ePerPassTexture_ShadowMap1            = 34,
 		ePerPassTexture_ShadowMap2            = 35,
@@ -94,7 +98,7 @@ public:
 	static bool UpdateCausticsGrid(N3DEngineCommon::SCausticInfo& causticInfo, bool& bVertexUpdated, CRenderer* pRenderer);
 
 public:
-	CWaterStage();
+	CWaterStage(CGraphicsPipeline& graphicsPipeline);
 
 	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
@@ -104,103 +108,103 @@ public:
 		return true;
 	}
 
-	void Init() final;
-	void OnCVarsChanged(const CCVarUpdateRecorder& cvarUpdater) final;
-	void Update() final;
-	void Prepare();
-	void Resize(int renderWidth, int renderHeight) final;
+	void                          Init() final;
+	void                          OnCVarsChanged(const CCVarUpdateRecorder& cvarUpdater) final;
+	void                          Update() final;
+	void                          Prepare();
+	void                          Resize(int renderWidth, int renderHeight) final;
 
-	void  ExecuteWaterVolumeCaustics();
-	void  ExecuteDeferredWaterVolumeCaustics();
-	void  ExecuteDeferredOceanCaustics();
-	void  ExecuteWaterFogVolumeBeforeTransparent();
-	void  Execute();
+	void                          ExecuteWaterVolumeCaustics();
+	void                          ExecuteDeferredWaterVolumeCaustics();
+	void                          ExecuteDeferredOceanCaustics();
+	void                          ExecuteWaterFogVolumeBeforeTransparent();
+	void                          Execute();
 
 	const CDeviceResourceSetDesc& GetDefaultPerInstanceResources()   const { return m_defaultPerInstanceResources; }
 	const CDeviceResourceSetPtr&  GetDefaultPerInstanceResourceSet() const { return m_pDefaultPerInstanceResourceSet; }
 
-	bool  CreatePipelineStates(uint32 passMask, DevicePipelineStatesArray& pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
-	bool  CreatePipelineState(CDeviceGraphicsPSOPtr& outPSO, const SGraphicsPipelineStateDescription& desc, EPass passID, std::function<void(CDeviceGraphicsPSODesc& psoDesc)> modifier);
+	bool                          CreatePipelineStates(uint32 passMask, DevicePipelineStatesArray& pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
+	bool                          CreatePipelineState(CDeviceGraphicsPSOPtr& outPSO, const SGraphicsPipelineStateDescription& desc, EPass passID, std::function<void(CDeviceGraphicsPSODesc& psoDesc)> modifier);
 
-	bool  IsDeferredVolumeCausticsEnabled() const { return CRenderer::CV_r_watercaustics && CRenderer::CV_r_watercausticsdeferred && CRenderer::CV_r_watervolumecaustics; }
-	bool  IsDeferredOceanCausticsEnabled() const { return CRenderer::CV_r_watercaustics && CRenderer::CV_r_watercausticsdeferred; }
-	bool  IsNormalGenActive() const { return m_bWaterNormalGen; }
+	bool                          IsDeferredVolumeCausticsEnabled() const { return CRenderer::CV_r_watercaustics && CRenderer::CV_r_watercausticsdeferred && CRenderer::CV_r_watervolumecaustics; }
+	bool                          IsDeferredOceanCausticsEnabled() const  { return CRenderer::CV_r_watercaustics && CRenderer::CV_r_watercausticsdeferred; }
+	bool                          IsNormalGenActive() const               { return m_bWaterNormalGen; }
 
 private:
 	CDeviceResourceLayoutPtr CreateScenePassLayout(const CDeviceResourceSetDesc& perPassResources);
-	bool  PrepareDefaultPerInstanceResources();
-	bool  SetAndBuildPerPassResources(bool bOnInit, EPass passId);
-	void  UpdatePerPassResources(EPass passId);
-	void  PrepareVolumeCausticsRenderTargets(bool hasCaustics, int renderWidth, int renderHeight);
+	bool                     PrepareDefaultPerInstanceResources();
+	bool                     UpdatePerPassResources(bool bOnInit, EPass passId);
+	void                     UpdatePerPassResources(EPass passId);
+	void                     PrepareVolumeCausticsRenderTargets(bool hasCaustics, int renderWidth, int renderHeight);
 
-	void  ExecuteWaterNormalGen();
-	void  ExecuteOceanMaskGen();
-	void  ExecuteWaterVolumeCausticsGen(N3DEngineCommon::SCausticInfo& causticInfo);
-	void  ExecuteReflection();
+	void                     ExecuteWaterNormalGen();
+	void                     ExecuteOceanMaskGen();
+	void                     ExecuteWaterVolumeCausticsGen(N3DEngineCommon::SCausticInfo& causticInfo);
+	void                     ExecuteReflection();
 
-	void  ExecuteSceneRenderPass(CSceneRenderPass& pass, uint32 stagePassID, uint32 includeFilter, uint32 excludeFilter, ERenderListID renderList);
+	void                     ExecuteSceneRenderPass(CSceneRenderPass& pass, uint32 stagePassID, uint32 includeFilter, uint32 excludeFilter, ERenderListID renderList);
 
-	int32 GetCurrentFrameID(const int32 frameID) const;
-	int32 GetPreviousFrameID(const int32 frameID) const;
+	int32                    GetCurrentFrameID(const int32 frameID) const;
+	int32                    GetPreviousFrameID(const int32 frameID) const;
 
 private:
-	_smart_ptr<CTexture>                      m_pFoamTex;
-	_smart_ptr<CTexture>                      m_pJitterTex;
-	_smart_ptr<CTexture>                      m_pWaterGlossTex;
-	_smart_ptr<CTexture>                      m_pOceanWavesTex;
-	_smart_ptr<CTexture>                      m_pOceanCausticsTex;
-	_smart_ptr<CTexture>                      m_pOceanMaskTex = nullptr;
+	_smart_ptr<CTexture> m_pFoamTex;
+	_smart_ptr<CTexture> m_pJitterTex;
+	_smart_ptr<CTexture> m_pWaterGlossTex;
+	_smart_ptr<CTexture> m_pOceanWavesTex;
+	_smart_ptr<CTexture> m_pOceanCausticsTex;
+	_smart_ptr<CTexture> m_pOceanMaskTex = nullptr;
 
-	_smart_ptr<CTexture>                      m_pVolumeCausticsRT;
-	_smart_ptr<CTexture>                      m_pVolumeCausticsTempRT;
+	_smart_ptr<CTexture> m_pVolumeCausticsRT;
+	_smart_ptr<CTexture> m_pVolumeCausticsTempRT;
 
 	std::array<_smart_ptr<CTexture>, RainRippleTexCount> m_pRainRippleTex;
-	uint32                                               m_rainRippleTexIndex;
+	uint32                   m_rainRippleTexIndex;
 
-	CFullscreenPass                           m_passWaterNormalGen;
-	CMipmapGenPass                            m_passWaterNormalMipmapGen;
-	CSceneRenderPass                          m_passOceanMaskGen;
-	CSceneRenderPass                          m_passWaterCausticsSrcGen;
-	CFullscreenPass                           m_passWaterCausticsDilation;
-	CGaussianBlurPass                         m_passBlurWaterCausticsGen0;
-	CPrimitiveRenderPass                      m_passRenderCausticsGrid;
-	CGaussianBlurPass                         m_passBlurWaterCausticsGen1;
-	CFullscreenPass                           m_passDeferredWaterVolumeCaustics;
-	CPrimitiveRenderPass                      m_passDeferredOceanCausticsStencil;
-	CFullscreenPass                           m_passDeferredOceanCaustics;
-	CSceneRenderPass                          m_passWaterFogVolumeBeforeWater;
-	CStretchRectPass                          m_passCopySceneTargetReflection;
-	CStretchRectPass                          m_passCopySSReflection;
-	CClearRegionPass                          m_passWaterReflectionClear;
-	CSceneRenderPass                          m_passWaterReflectionGen;
-	CMipmapGenPass                            m_passWaterReflectionMipmapGen;
-	CStretchRectPass                          m_passCopySceneTarget;
-	CSceneRenderPass                          m_passWaterSurface;
-	CSceneRenderPass                          m_passWaterFogVolumeAfterWater;
+	CFullscreenPass          m_passWaterNormalGen;
+	CMipmapGenPass           m_passWaterNormalMipmapGen;
+	CSceneRenderPass         m_passOceanMaskGen;
+	CSceneRenderPass         m_passWaterCausticsSrcGen;
+	CFullscreenPass          m_passWaterCausticsDilation;
+	CGaussianBlurPass        m_passBlurWaterCausticsGen0;
+	CPrimitiveRenderPass     m_passRenderCausticsGrid;
+	CGaussianBlurPass        m_passBlurWaterCausticsGen1;
+	CFullscreenPass          m_passDeferredWaterVolumeCaustics;
+	CPrimitiveRenderPass     m_passDeferredOceanCausticsStencil;
+	CFullscreenPass          m_passDeferredOceanCaustics;
+	CSceneRenderPass         m_passWaterFogVolumeBeforeWater;
+	CStretchRectPass         m_passCopySceneTargetReflection;
+	CStretchRectPass         m_passCopySSReflection;
+	CClearRegionPass         m_passWaterReflectionClear;
+	CSceneRenderPass         m_passWaterReflectionGen;
+	CMipmapGenPass           m_passWaterReflectionMipmapGen;
+	CStretchRectPass         m_passCopySceneTarget;
+	CSceneRenderPass         m_passWaterSurface;
+	CSceneRenderPass         m_passWaterFogVolumeAfterWater;
 
-	CDeviceResourceLayoutPtr                  m_pResourceLayout;
-	CDeviceResourceSetDesc                    m_defaultPerInstanceResources;
-	CDeviceResourceSetPtr                     m_pDefaultPerInstanceResourceSet;
-	CDeviceResourceSetDesc                    m_perPassResources[ePass_Count];
-	CDeviceResourceSetPtr                     m_pPerPassResourceSets[ePass_Count];
-	CConstantBufferPtr                        m_pPerPassCB[ePass_Count];
+	CDeviceResourceLayoutPtr m_pResourceLayout;
+	CDeviceResourceSetDesc   m_defaultPerInstanceResources;
+	CDeviceResourceSetPtr    m_pDefaultPerInstanceResourceSet;
+	CDeviceResourceSetDesc   m_perPassResources[ePass_Count];
+	CDeviceResourceSetPtr    m_pPerPassResourceSets[ePass_Count];
+	CConstantBufferPtr       m_pPerPassCB[ePass_Count];
 
-	CRenderPrimitive                          m_causticsGridPrimitive;
-	CRenderPrimitive                          m_deferredOceanStencilPrimitive[2];
+	CRenderPrimitive         m_causticsGridPrimitive;
+	CRenderPrimitive         m_deferredOceanStencilPrimitive[2];
 
-	Matrix44 m_prevViewProj[MAX_GPU_NUM];
+	Matrix44                 m_prevViewProj[MAX_GPU_NUM];
 
-	uint64 m_frameIdWaterSim;
-	Vec4   m_oceanAnimationParams[2];
+	uint64                   m_frameIdWaterSim;
+	Vec4                     m_oceanAnimationParams[2];
 
-	int32 m_lastDepthCopyFrameID = 0;
-	int32 m_aniso16xClampSampler;
-	int32 m_aniso16xWrapSampler;
-	int32 m_linearCompareClampSampler;
-	int32 m_linearMirrorSampler;
+	int32                    m_lastDepthCopyFrameID = 0;
+	int32                    m_aniso16xClampSampler;
+	int32                    m_aniso16xWrapSampler;
+	int32                    m_linearCompareClampSampler;
+	int32                    m_linearMirrorSampler;
 
-	bool              m_bWaterNormalGen;
-	bool              m_bOceanMaskGen;
+	bool                     m_bWaterNormalGen;
+	bool                     m_bOceanMaskGen;
 
-	static constexpr int32 nGridSize = 64;
+	static constexpr int32   nGridSize = 64;
 };

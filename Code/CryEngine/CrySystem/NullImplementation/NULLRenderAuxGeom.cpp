@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "NULLRenderAuxGeom.h"
 #include <CryCore/Platform/CryLibrary.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CNULLRenderAuxGeom* CNULLRenderAuxGeom::s_pThis = NULL;
 

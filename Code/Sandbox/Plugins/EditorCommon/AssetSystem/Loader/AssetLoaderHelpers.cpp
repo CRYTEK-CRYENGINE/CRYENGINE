@@ -127,7 +127,7 @@ std::vector<CAsset*> CAssetFactory::LoadAssetsFromMetadataFiles(const std::vecto
 CAsset* CAssetFactory::LoadAssetFromXmlFile(const char* szAssetPath)
 {
 	ICryPak* const pPak = GetISystem()->GetIPak();
-	FILE* pFile = pPak->FOpen(szAssetPath, "rbx");
+	FILE* pFile = pPak->FOpen(szAssetPath, "rb");
 	if (!pFile)
 	{
 		return nullptr;
@@ -192,7 +192,7 @@ std::vector<CAsset*> CAssetFactory::LoadAssetsFromPakFile(const char* szArchiveP
 			ICryPak* const pPak = GetISystem()->GetIPak();
 
 			auto closeFile = [pPak](FILE* f) { return pPak->FClose(f); };
-			std::unique_ptr<FILE, decltype(closeFile)> file(pPak->FOpen(path, "rbx"), closeFile);
+			std::unique_ptr<FILE, decltype(closeFile)> file(pPak->FOpen(path, "rb"), closeFile);
 			if (!file)
 			{
 				return;

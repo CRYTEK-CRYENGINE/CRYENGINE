@@ -1,18 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   visareas.h
-//  Version:     v1.00
-//  Created:     18/12/2002 by Vladimir Kajalin
-//  Compilers:   Visual Studio.NET
-//  Description: visibility areas header
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef VisArea_H
-#define VisArea_H
+#pragma once
 
 #include "BasicArea.h"
 #include "PolygonClipContext.h"
@@ -116,7 +104,6 @@ struct CVisArea final : public IVisArea, public CBasicArea
 	int                     SaveHeader(byte*& pData, int& nDataSize);
 	int                     SaveObjetsTree(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo, byte* pHead);
 	int                     GetData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
-	int                     GetSegmentData(byte*& pData, int& nDataSize, std::vector<IStatObj*>* pStatObjTable, std::vector<IMaterial*>* pMatTable, std::vector<IStatInstGroup*>* pStatInstGroupTable, EEndian eEndian, SHotUpdateInfo* pExportInfo);
 #endif
 	template<class T>
 	int                 LoadHeader_T(T*& f, int& nDataSizeLeft, EEndian eEndian, int& objBlockSize);
@@ -134,7 +121,6 @@ struct CVisArea final : public IVisArea, public CBasicArea
 	float               GetHeight();
 	float               CalcSignedArea();
 
-	bool                CalcPortalBlendPlanes(Vec3 camPos);
 	virtual void        GetClipVolumeMesh(_smart_ptr<IRenderMesh>& renderMesh, Matrix34& worldTM) const;
 	virtual const AABB& GetClipVolumeBBox() const                       { return *GetStaticObjectAABBox(); }
 	virtual uint8       GetStencilRef() const                           { return m_nStencilRef; }
@@ -349,5 +335,3 @@ private:
 	std::vector<SActiveVerts> m_allActiveVerts;
 #endif
 };
-
-#endif // VisArea_H

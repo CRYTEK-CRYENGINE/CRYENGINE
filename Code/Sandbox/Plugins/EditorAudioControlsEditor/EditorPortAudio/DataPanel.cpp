@@ -6,7 +6,6 @@
 #include "common.h"
 #include "Impl.h"
 #include "FilterProxyModel.h"
-#include "ItemModel.h"
 #include "TreeView.h"
 #include "../Common/ModelUtils.h"
 
@@ -38,30 +37,27 @@ CDataPanel::CDataPanel(CImpl const& impl)
 	, m_pModel(new CItemModel(impl, impl.GetRootItem(), this))
 	, m_pTreeView(new CTreeView(this))
 	, m_pImportButton(new QPushButton(tr("Import Files"), this))
-	, m_nameColumn(static_cast<int>(CItemModel::EColumns::Name))
 {
 	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
 	m_pFilterProxyModel->setSourceModel(m_pModel);
-	m_pFilterProxyModel->setFilterKeyColumn(m_nameColumn);
+	m_pFilterProxyModel->setFilterKeyColumn(g_nameColumn);
 
 	m_pTreeView->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	m_pTreeView->setDragEnabled(true);
 	m_pTreeView->setDragDropMode(QAbstractItemView::DragDrop);
 	m_pTreeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_pTreeView->setSelectionBehavior(QAbstractItemView::SelectRows);
-	m_pTreeView->setTreePosition(m_nameColumn);
+	m_pTreeView->setTreePosition(g_nameColumn);
 	m_pTreeView->setUniformRowHeights(true);
 	m_pTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pTreeView->setModel(m_pFilterProxyModel);
-	m_pTreeView->sortByColumn(m_nameColumn, Qt::AscendingOrder);
+	m_pTreeView->sortByColumn(g_nameColumn, Qt::AscendingOrder);
 	m_pTreeView->viewport()->installEventFilter(this);
 	m_pTreeView->installEventFilter(this);
 	m_pTreeView->header()->setMinimumSectionSize(25);
 	m_pTreeView->header()->setSectionResizeMode(static_cast<int>(CItemModel::EColumns::Notification), QHeaderView::ResizeToContents);
 	m_pTreeView->header()->setSectionResizeMode(static_cast<int>(CItemModel::EColumns::PakStatus), QHeaderView::ResizeToContents);
-	m_pTreeView->SetNameColumn(m_nameColumn);
-	m_pTreeView->SetNameRole(static_cast<int>(ModelUtils::ERoles::Name));
 	m_pTreeView->TriggerRefreshHeaderColumns();
 
 	m_pFilteringPanel = new QFilteringPanel("ACEPortAudioDataPanel", m_pFilterProxyModel, this);
@@ -108,7 +104,7 @@ bool CDataPanel::eventFilter(QObject* pObject, QEvent* pEvent)
 void CDataPanel::OnContextMenu(QPoint const& pos)
 {
 	auto const pContextMenu = new QMenu(this);
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	auto const& selection = m_pTreeView->selectionModel()->selectedRows(g_nameColumn);
 
 	if (!selection.isEmpty())
 	{
@@ -208,12 +204,12 @@ void CDataPanel::OnImportFiles()
 	QString targetFolderName = "";
 	bool isLocalized = false;
 
-	if (!m_pTreeView->selectionModel()->selectedRows(m_nameColumn).isEmpty())
+	if (!m_pTreeView->selectionModel()->selectedRows(g_nameColumn).isEmpty())
 	{
 		targetFolderName = m_pModel->GetTargetFolderName(m_pFilterProxyModel->mapToSource(m_pTreeView->currentIndex()), isLocalized);
 	}
 
-	m_impl.SignalImportFiles(s_extensionFilters, s_supportedFileTypes, targetFolderName, isLocalized);
+	m_impl.SignalImportFiles(targetFolderName, isLocalized);
 }
 
 //////////////////////////////////////////////////////////////////////////

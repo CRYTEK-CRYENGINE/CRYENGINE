@@ -503,10 +503,6 @@ D3D12_RESOURCE_STATES CResource::TransitionBarrier(CCommandList* pCmdList, D3D12
 		DX12_BARRIER_ERROR("A resource has been marked for a transition which never happend: %s", StateToString(m_eAnnouncedState));
 		DX12_BARRIER_ERROR("Please clean-up the high-level layer. [Example: SetRenderTarget() without rendering to it.]");
 
-		D3D12_RESOURCE_STATES bak1 = eDesiredState;
-		D3D12_RESOURCE_STATES bak2 = m_eAnnouncedState;
-		D3D12_RESOURCE_STATES bak3 = m_eCurrentState;
-
 		EndTransitionBarrier(pCmdList, m_eAnnouncedState);
 
 		DX12_ASSERT(m_eAnnouncedState == (D3D12_RESOURCE_STATES)-1, "Resource barrier has conflicting begin without end: %s", StateToString(m_eAnnouncedState));
@@ -839,10 +835,6 @@ D3D12_RESOURCE_STATES CResource::BeginTransitionBarrier(CCommandList* pCmdList, 
 		m_eAnnouncedState = desiredState;
 
 		//		DX12_ASSERT(m_CurrentState != m_AnnouncedState, "Resource barrier corruption detected!");
-	}
-	else
-	{
-		bool omition = true;
 	}
 
 	return ePreviousState;

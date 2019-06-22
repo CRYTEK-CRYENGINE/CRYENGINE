@@ -207,8 +207,11 @@ bool CEntityLoadManager::ParseEntities(XmlNodeRef& entitiesNode, bool bIsLoading
 		EntityId usingId = INVALID_ENTITYID;
 		if (!CreateEntity(reinterpret_cast<CEntity*>(pBuffer), entityLoadParams, usingId, bIsLoadingLevelFile))
 		{
-			string sName = entityLoadParams.spawnParams.entityNode->getAttr("Name");
-			EntityWarning("CEntityLoadManager::ParseEntities : Failed when parsing entity \'%s\'", sName.empty() ? "Unknown" : sName.c_str());
+			if (entityLoadParams.spawnParams.spawnResult == EEntitySpawnResult::Error)
+			{
+				string sName = entityLoadParams.spawnParams.entityNode->getAttr("Name");
+				EntityWarning("CEntityLoadManager::ParseEntities : Failed when parsing entity \'%s\'", sName.empty() ? "Unknown" : sName.c_str());
+			}
 		}
 
 		pBuffer += entityLoadParams.allocationSize;
@@ -313,7 +316,7 @@ bool CEntityLoadManager::ExtractCommonEntityLoadParams(XmlNodeRef& entityNode, S
 		const char* szArchetypeName = entityNode->getAttr("Archetype");
 		if (szArchetypeName && szArchetypeName[0])
 		{
-			MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "%s", szArchetypeName);
+			MEMSTAT_CONTEXT(EMemStatContextType::Other, szArchetypeName);
 			spawnParams.pArchetype = g_pIEntitySystem->LoadEntityArchetype(szArchetypeName);
 
 			if (!spawnParams.pArchetype)
@@ -423,7 +426,7 @@ bool CEntityLoadManager::CreateEntity(XmlNodeRef& entityNode, SEntitySpawnParams
 bool CEntityLoadManager::CreateEntity(CEntity* pPreallocatedEntity, SEntityLoadParams& loadParams, EntityId& outUsingId, bool bIsLoadingLevellFile)
 {
 	CRY_ASSERT_MESSAGE(loadParams.spawnParams.pClass != nullptr, "Create Entity was called without an entity class! This will lead to a crash!");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Entity, 0, "Entity %s", loadParams.spawnParams.pClass->GetName());
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Entity, "Entity %s", loadParams.spawnParams.pClass->GetName());
 
 	outUsingId = INVALID_ENTITYID;
 
@@ -630,8 +633,12 @@ bool CEntityLoadManager::CreateEntity(CEntity* pPreallocatedEntity, SEntityLoadP
 		outUsingId = pSpawnedEntity->GetId();
 		return true;
 	}
+	
+	if (spawnParams.spawnResult == EEntitySpawnResult::Error)
+	{
+		EntityWarning("[CEntityLoadManager::CreateEntity] Entity Load Failed: %s (%s)", spawnParams.sName, spawnParams.pClass->GetName());
+	}
 
-	EntityWarning("[CEntityLoadManager::CreateEntity] Entity Load Failed: %s (%s)", spawnParams.sName, spawnParams.pClass->GetName());
 	return false;
 }
 

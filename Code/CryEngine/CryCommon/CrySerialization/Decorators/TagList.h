@@ -8,6 +8,7 @@
 
 struct ITagSource
 {
+	virtual ~ITagSource() {}
 	virtual void         AddRef() = 0;
 	virtual void         Release() = 0;
 	virtual unsigned int TagCount(unsigned int group) const = 0;

@@ -8,7 +8,6 @@
 
 #include "StdAfx.h"
 #include "Statoscope.h"
-#include "FrameProfileSystem.h"
 #include <CryGame/IGameFramework.h>
 #include <CryRenderer/IRenderer.h>
 #include <CryAnimation/ICryAnimation.h>
@@ -20,70 +19,59 @@
 #include <CryAISystem/IAISystem.h>
 #include <CryParticleSystem/IParticlesPfx2.h>
 #include <CryPhysics/IPhysics.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "StatoscopeStreamingIntervalGroup.h"
 #include "StatoscopeTextureStreamingIntervalGroup.h"
 
 #if ENABLE_STATOSCOPE
 
-namespace
+static void GetProfileTrackerPath(CryFixedStringT<128>& rName, const SProfilingSectionTracker* pTracker, ILegacyProfiler* pProfilingSystem)
 {
-class CCompareFrameProfilersSelfTime
-{
-public:
-	bool operator()(const std::pair<CFrameProfiler*, int64>& p1, const std::pair<CFrameProfiler*, int64>& p2)
+	CRY_ASSERT(pTracker);
+	const char* sThreadName = gEnv->pThreadManager->GetThreadName(pTracker->threadId);
+	char sThreadNameBuf[11]; // 0x 12345678 \0 => 2+8+1=11
+	if (CRY_PROFILER_COMBINE_JOB_TRACKERS && pTracker->threadId == CRY_PROFILER_JOB_THREAD_ID)
 	{
-		return p1.second > p2.second;
+		sThreadName = "JobSystem_Merged";
 	}
-};
-}
-
-static string GetFrameProfilerPath(CFrameProfiler* pProfiler)
-{
-	if (pProfiler)
+	else if (!sThreadName || !sThreadName[0])
 	{
-		const char* sThreadName = gEnv->pThreadManager->GetThreadName(pProfiler->m_threadId);
-		char sThreadNameBuf[11]; // 0x 12345678 \0 => 2+8+1=11
-		if (!sThreadName || !sThreadName[0])
-		{
-			cry_sprintf(sThreadNameBuf, "%" PRI_THREADID, (pProfiler->m_threadId));
-		}
-		if (strstr(sThreadName, "JobSystem_Worker_") == sThreadName)
-		{
-			sThreadName = "JobSystem_Merged";
-		}
+		cry_sprintf(sThreadNameBuf, "%" PRI_THREADID, (pTracker->threadId));
+	}
+	else if (strstr(sThreadName, "JobSystem_Worker_") == sThreadName)
+	{
+		sThreadName = "JobSystem_Merged";
+	}
 
-		char sNameBuffer[256];
-		cry_strcpy(sNameBuffer, pProfiler->m_name);
+#if CRY_FUNC_HAS_SIGNATURE // __FUNCTION__ only contains classname on MSVC, for other function we have __PRETTY_FUNCTION__, so we need to strip return / argument types
+	char sNameBuffer[256];
+	cry_strcpy(sNameBuffer, pTracker->pDescription->szEventname);
 
-	#if CRY_FUNC_HAS_SIGNATURE // __FUNCTION__ only contains classname on MSVC, for other function we have __PRETTY_FUNCTION__, so we need to strip return / argument types
+	{
+		char* pEnd = (char*)strchr(sNameBuffer, '(');
+		if (pEnd)
 		{
-			char* pEnd = (char*)strchr(sNameBuffer, '(');
-			if (pEnd)
+			*pEnd = 0;
+			while (*(pEnd) != ' ' && *(pEnd) != '*' && pEnd != (sNameBuffer - 1))
 			{
-				*pEnd = 0;
-				while (*(pEnd) != ' ' && *(pEnd) != '*' && pEnd != (sNameBuffer - 1))
-				{
-					--pEnd;
-				}
-				memmove(sNameBuffer, pEnd + 1, &sNameBuffer[sizeof(sNameBuffer)] - (pEnd + 1));
+				--pEnd;
 			}
+			memmove(sNameBuffer, pEnd + 1, &sNameBuffer[sizeof(sNameBuffer)] - (pEnd + 1));
 		}
-	#endif
-
-		string path = sThreadName ? sThreadName : sThreadNameBuf;
-		path += "/";
-		path += gEnv->pFrameProfileSystem->GetModuleName(pProfiler);
-		path += "/";
-		path += sNameBuffer;
-		path += "/";
-
-		return path;
 	}
-	else
-	{
-		return string("SmallFunctions/SmallFunction/");
-	}
+#endif
+
+	rName = sThreadName ? sThreadName : sThreadNameBuf;
+	rName += "/";
+	rName += pProfilingSystem->GetModuleName(pTracker);
+	rName += "/";
+#if CRY_FUNC_HAS_SIGNATURE
+	rName += sNameBuffer;
+#else
+	rName += pTracker->pDescription->szEventname;
+#endif
+	rName += "/";
 }
 
 CStatoscopeDataClass::CStatoscopeDataClass(const char* format)
@@ -270,10 +258,11 @@ struct SFrameLengthDG : public IStatoscopeDataGroup
 
 	virtual void Write(IStatoscopeFrameRecord& fr)
 	{
-		IFrameProfileSystem* pFrameProfileSystem = gEnv->pSystem->GetIProfileSystem();
+		ICryProfilingSystem* pProfiler = gEnv->pSystem->GetProfilingSystem();
+		const float profilingCost = pProfiler ? pProfiler->GetProfilingTimeCost() : -1.f;
 
 		fr.AddValue(gEnv->pTimer->GetRealFrameTime() * 1000.0f);
-		fr.AddValue(pFrameProfileSystem ? pFrameProfileSystem->GetLostFrameTimeMS() : -1.f);
+		fr.AddValue(profilingCost);
 	}
 };
 
@@ -281,7 +270,7 @@ struct SMemoryDG : public IStatoscopeDataGroup
 {
 	virtual SDescription GetDescription() const
 	{
-		return SDescription('m', "memory", "['/Memory/' (float mainMemUsageInMB) (int vidMemUsageInMB)]");
+		return SDescription('m', "memory", "['/Memory/' (float mainMemUsageInMB) (float workingSetSizeInMB) (int vidMemUsageInMB)]");
 	}
 
 	virtual void Write(IStatoscopeFrameRecord& fr)
@@ -289,10 +278,16 @@ struct SMemoryDG : public IStatoscopeDataGroup
 		IMemoryManager::SProcessMemInfo processMemInfo;
 		GetISystem()->GetIMemoryManager()->GetProcessMemInfo(processMemInfo);
 		fr.AddValue(processMemInfo.PagefileUsage / (1024.f * 1024.f));
+		fr.AddValue(processMemInfo.WorkingSetSize / (1024.f * 1024.f));
 
-		size_t vidMem, lastVidMem;
-		gEnv->pRenderer->GetVideoMemoryUsageStats(vidMem, lastVidMem);
-		fr.AddValue((int)vidMem);
+		if (gEnv->pRenderer)
+		{
+			size_t vidMem, lastVidMem;
+			gEnv->pRenderer->GetVideoMemoryUsageStats(vidMem, lastVidMem);
+			fr.AddValue((int)vidMem);
+		}
+		else
+			fr.AddValue(0);
 	}
 };
 
@@ -352,8 +347,8 @@ struct SThreadsDG : public IStatoscopeDataGroup
 {
 	virtual SDescription GetDescription() const
 	{
-		return SDescription('t', "threading", "['/Threading/' (float MTLoadInMS) (float MTWaitingForRTInMS) "
-		                                      "(float RTLoadInMS) (float RTWaitingForMTInMS) (float RTWaitingForGPUInMS) "
+		return SDescription('t', "threading", "['/Threading/' (float MTLoadInMS) (float MTWaitingForRTInMS) (float MTWaitingForGPUInMS)"
+		                                      "(float RTLoadInMS) (float RTWaitingForMTInMS) (float RTWaitingForGPUInMS)"
 		                                      "(float RTFrameLengthInMS) (float RTSceneDrawningLengthInMS) (float NetThreadTimeInMS)]");
 	}
 
@@ -370,16 +365,18 @@ struct SThreadsDG : public IStatoscopeDataGroup
 
 		float RTWaitingForMTInMS = renderTimes.fWaitForMain * 1000.f;
 		float MTWaitingForRTInMS = renderTimes.fWaitForRender * 1000.f;
-		float RTWaitingForGPUInMS = renderTimes.fWaitForGPU * 1000.f;
+		float RTWaitingForGPUInMS = renderTimes.fWaitForGPU_RT * 1000.f;
 		float RTLoadInMS = renderTimes.fTimeProcessedRT * 1000.f;
 
 		float MTLoadInMS = (gEnv->pTimer->GetRealFrameTime() * 1000.0f) - MTWaitingForRTInMS;
+		float MTWaitingForGPUInMS = renderTimes.fWaitForGPU_MT * 1000.f;
 
 		//Load represents pure RT work, so compensate for GPU sync
 		RTLoadInMS = RTLoadInMS - RTWaitingForGPUInMS;
 
 		fr.AddValue(MTLoadInMS);
 		fr.AddValue(MTWaitingForRTInMS);
+		fr.AddValue(MTWaitingForGPUInMS);
 		fr.AddValue(RTLoadInMS);
 		fr.AddValue(RTWaitingForMTInMS);
 		fr.AddValue(RTWaitingForGPUInMS);
@@ -389,7 +386,7 @@ struct SThreadsDG : public IStatoscopeDataGroup
 	}
 };
 
-	#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+	#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 
 struct SWorkerInfoSummarizedDG : public IStatoscopeDataGroup
 {
@@ -410,7 +407,7 @@ struct SWorkerInfoSummarizedDG : public IStatoscopeDataGroup
 
 		const SBackendPair pBackends[] =
 		{
-			{ gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Thread),   "NoneBlocking" },
+			{ gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Thread),   "NonBlocking" },
 			{ gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Blocking), "Blocking"     },
 		};
 
@@ -477,7 +474,7 @@ struct SJobsInfoSummarizedDG : public IStatoscopeDataGroup
 
 		const SBackendPair pBackendPairs[] =
 		{
-			{ gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Thread),   "NoneBlocking" },
+			{ gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Thread),   "NonBlocking" },
 			{ gEnv->GetJobManager()->GetBackEnd(JobManager::eBET_Blocking), "Blocking"     },
 		};
 
@@ -553,7 +550,7 @@ public:
 
 		const SFrameStatsPair pFrameStatsPairs[] =
 		{
-			{ m_pThreadFrameStats,   "NoneBlocking" },
+			{ m_pThreadFrameStats,   "NonBlocking" },
 			{ m_pBlockingFrameStats, "Blocking"     },
 		};
 
@@ -667,7 +664,7 @@ public:
 
 		const SFrameStatsPair pFrameStatsPairs[] =
 		{
-			{ &m_ThreadJobFrameStats,   "NoneBlocking" },
+			{ &m_ThreadJobFrameStats,   "NonBlocking" },
 			{ &m_BlockingJobFrameStats, "Blocking"     },
 		};
 
@@ -1186,50 +1183,33 @@ struct SPhysEntityProfilersDG : public IStatoscopeDataGroup
 	std::vector<SPhysInfo> m_physInfos;
 };
 
-struct SFrameProfilersDG : public IStatoscopeDataGroup
+struct SCryProfilerDG : public IStatoscopeDataGroup
 {
 	virtual SDescription GetDescription() const
 	{
 		return SDescription('r', "frame profilers", "['/Threads/$' (int count) (float selfTimeInMS) (float peak)]");
 	}
 
-	virtual void Enable()
-	{
-		IStatoscopeDataGroup::Enable();
-		ICVar* pCV_profile = gEnv->pConsole->GetCVar("profile");
-		if (pCV_profile)
-			pCV_profile->Set(-1);
-	}
-
-	virtual void Disable()
-	{
-		IStatoscopeDataGroup::Disable();
-		ICVar* pCV_profile = gEnv->pConsole->GetCVar("profile");
-		if (pCV_profile)
-			pCV_profile->Set(0);
-	}
-
 	virtual void Write(IStatoscopeFrameRecord& fr)
 	{
-		for (uint32 i = 0; i < m_frameProfilerRecords.size(); i++)
+		for (uint32 i = 0; i < m_profilerRecords.size(); i++)
 		{
-			SPerfStatFrameProfilerRecord& fpr = m_frameProfilerRecords[i];
-			string fpPath = GetFrameProfilerPath(fpr.m_pProfiler);
-			fr.AddValue(fpPath.c_str());
+			SPerfStatProfilerRecord& fpr = m_profilerRecords[i];
+			fr.AddValue(fpr.m_name);
 			fr.AddValue(fpr.m_count);
 			fr.AddValue(fpr.m_selfTime);
 			fr.AddValue(fpr.m_peak);
 		}
 
-		m_frameProfilerRecords.clear();
+		m_profilerRecords.clear();
 	}
 
 	virtual uint32 PrepareToWrite()
 	{
-		return m_frameProfilerRecords.size();
+		return m_profilerRecords.size();
 	}
 
-	std::vector<SPerfStatFrameProfilerRecord> m_frameProfilerRecords; // the most recent frame's profiler data
+	std::vector<SPerfStatProfilerRecord> m_profilerRecords; // the most recent frame's profiler data
 };
 
 struct SPerfCountersDG : public IStatoscopeDataGroup
@@ -1698,6 +1678,7 @@ CStatoscope::CStatoscope()
 
 	RegisterBuiltInDataGroups();
 	RegisterBuiltInIvDataGroups();
+	isRegisteredAsFrameListener = false;
 
 	m_pStatoscopeEnabledCVar = REGISTER_INT("e_StatoscopeEnabled", 0, VF_NULL, "Controls whether all statoscope is enabled.");
 	m_pStatoscopeDumpAllCVar = REGISTER_INT("e_StatoscopeDumpAll", 0, VF_NULL, "Controls whether all functions are dumped in a profile log.");
@@ -1733,18 +1714,18 @@ CStatoscope::CStatoscope()
 
 CStatoscope::~CStatoscope()
 {
-	gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
-	gEnv->pRenderer->UnRegisterCaptureFrame(this);
-	delete[] m_pScreenShotBuffer;
-	m_pScreenShotBuffer = NULL;
-
+	if (gEnv->pSystem->GetISystemEventDispatcher())
+		gEnv->pSystem->GetISystemEventDispatcher()->RemoveListener(this);
+	if (gEnv->pRenderer)
+		gEnv->pRenderer->UnRegisterCaptureFrame(this);
+	SAFE_DELETE_ARRAY(m_pScreenShotBuffer);
 	SAFE_DELETE(m_pDataWriter);
 	SAFE_DELETE(m_pServer);
 }
 
 static char* Base64Encode(const uint8* buffer, int len)
 {
-	CRY_PROFILE_REGION(PROFILE_SYSTEM, "CStatoscope::Base64Encode");
+	CRY_PROFILE_SECTION(PROFILE_SYSTEM, "CStatoscope::Base64Encode");
 
 	static const char base64Dict[64] = {
 		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -1847,6 +1828,7 @@ void CStatoscope::Tick()
 		if (m_pDataWriter && m_pDataWriter->Open())
 		{
 			SetIsRunning(true);
+			UpdateFrameListenerRegistration();
 
 			uint64 currentActiveDataGroupMask = (uint64)m_pStatoscopeDataGroupsCVar->GetI64Val();
 			uint64 differentDGs = currentActiveDataGroupMask ^ m_activeDataGroupMask;
@@ -1884,86 +1866,87 @@ void CStatoscope::Tick()
 		m_eventWriter.Reset();
 
 		SetIsRunning(false);
+		UpdateFrameListenerRegistration();
 	}
 }
 
-void CStatoscope::SetCurrentProfilerRecords(const std::vector<CFrameProfiler*>* profilers)
+void CStatoscope::OnFrameEnd(TTime, ILegacyProfiler* pProfSystem)
 {
-	if (m_pFrameProfilers)
+	if (m_pStatoscopeEnabledCVar->GetIVal() == 0)
+		return;
+
+	if (m_pProfilerDG && m_pProfilerDG->IsEnabled())
 	{
-		// we want to avoid reallocation of m_perfStatDumpProfilers
-		// even if numProfilers is quite large (in the thousands), it'll only be tens of KB
-		uint32 numProfilers = profilers->size();
-		m_perfStatDumpProfilers.clear();
-		m_perfStatDumpProfilers.reserve(std::max((size_t)numProfilers, m_perfStatDumpProfilers.size()));		
+		const std::vector<SProfilingSectionTracker*>* pTrackersList = pProfSystem->GetActiveTrackers();
+		if (pTrackersList == nullptr)
+			return;
+		const std::vector<SProfilingSectionTracker*>& trackers = *pTrackersList;
+
+		// we want to avoid reallocation of m_perfStatDumpTrackers
+		// even if numTrackers is quite large (in the thousands), it'll only be tens of KB
+		uint32 numTrackers = trackers.size();
+		m_perfStatDumpTrackers.clear();
+		m_perfStatDumpTrackers.reserve(std::max((size_t)numTrackers, m_perfStatDumpTrackers.size()));		
 
 		float minFuncTime = m_pStatoscopeMinFuncLengthMsCVar->GetFVal();
 
-		int64 smallFuncs = 0;
+		float smallFuncsSum = 0;
 		uint32 smallFuncsCount = 0;
 
-		for (uint32 i = 0; i < numProfilers; i++)
+		for(const SProfilingSectionTracker* pTracker : trackers)
 		{
-			CFrameProfiler* pProfiler = (*profilers)[i];
-
 			// ignore really quick functions or ones what weren't called
-			if (1000.f * gEnv->pTimer->TicksToSeconds(pProfiler->m_selfTime) > minFuncTime)
+			if (pTracker->selfValue.Latest() > minFuncTime)
 			{
-				m_perfStatDumpProfilers.push_back(std::make_pair(pProfiler, pProfiler->m_selfTime));
+				m_perfStatDumpTrackers.push_back(std::make_pair(pTracker, pTracker->selfValue.Latest()));
 			}
 			else
 			{
-				smallFuncs += pProfiler->m_selfTime;
-				smallFuncsCount++;
+				smallFuncsSum += pTracker->selfValue.Latest();
+				++smallFuncsCount;
 			}
 		}
 
-		std::sort(m_perfStatDumpProfilers.begin(), m_perfStatDumpProfilers.end(), CCompareFrameProfilersSelfTime());
+		std::sort(m_perfStatDumpTrackers.begin(), m_perfStatDumpTrackers.end(), 
+			[] (const std::pair<const SProfilingSectionTracker*, float>& p1, const std::pair<const SProfilingSectionTracker*, float>& p2)
+				{return p1.second > p2.second; }
+		);
 
-		bool bDumpAll = false;
-
-		if (m_pStatoscopeDumpAllCVar->GetIVal())
-		{
-			bDumpAll = true;
-		}
+		const bool bDumpAll = (m_pStatoscopeDumpAllCVar->GetIVal() != 0);
 
 		if (!bDumpAll)
 		{
 			uint32 maxNumFuncs = (uint32)m_pStatoscopeMaxNumFuncsPerFrameCVar->GetIVal();
 			// limit the number being recorded
-			m_perfStatDumpProfilers.resize(std::min(m_perfStatDumpProfilers.size(), (size_t)maxNumFuncs));
+			m_perfStatDumpTrackers.resize(std::min(m_perfStatDumpTrackers.size(), (size_t)maxNumFuncs));
 		}
 
-		uint32 numDumpProfilers = m_perfStatDumpProfilers.size();
-		std::vector<SPerfStatFrameProfilerRecord>& records = m_pFrameProfilers->m_frameProfilerRecords;
+		uint32 numDumpProfilers = m_perfStatDumpTrackers.size();
+		std::vector<SPerfStatProfilerRecord>& records = m_pProfilerDG->m_profilerRecords;
 
 		records.reserve(numDumpProfilers);
 		records.resize(0);
 
 		for (uint32 i = 0; i < numDumpProfilers; i++)
 		{
-			CFrameProfiler* pProfiler = m_perfStatDumpProfilers[i].first;
-			int64 selfTime = m_perfStatDumpProfilers[i].second;
-			SPerfStatFrameProfilerRecord profilerRecord;
-
-			profilerRecord.m_pProfiler = pProfiler;
-			profilerRecord.m_count = pProfiler->m_count;
-			profilerRecord.m_selfTime = 1000.f * gEnv->pTimer->TicksToSeconds(selfTime);
-			profilerRecord.m_variance = pProfiler->m_variance;
-			profilerRecord.m_peak = 1000.f * gEnv->pTimer->TicksToSeconds(pProfiler->m_peak);
-
+			const SProfilingSectionTracker* pTracker = m_perfStatDumpTrackers[i].first;
+			
+			SPerfStatProfilerRecord profilerRecord;
+			GetProfileTrackerPath(profilerRecord.m_name, pTracker, pProfSystem);
+			profilerRecord.m_count = (int)pTracker->count.Latest();
+			profilerRecord.m_selfTime = pTracker->selfValue.Latest();
+			profilerRecord.m_variance = pTracker->selfValue.Variance();
+			profilerRecord.m_peak = pTracker->peakSelfValue;
 			records.push_back(profilerRecord);
 		}
 
 		if (bDumpAll)
 		{
-			SPerfStatFrameProfilerRecord profilerRecord;
-
-			profilerRecord.m_pProfiler = NULL;
+			SPerfStatProfilerRecord profilerRecord;
+			profilerRecord.m_name = "SmallFunctions/SmallFunction/";
 			profilerRecord.m_count = smallFuncsCount;
-			profilerRecord.m_selfTime = 1000.f * gEnv->pTimer->TicksToSeconds(smallFuncs);
+			profilerRecord.m_selfTime = smallFuncsSum;
 			profilerRecord.m_variance = 0;
-
 			records.push_back(profilerRecord);
 		}
 	}
@@ -2052,6 +2035,14 @@ void CStatoscope::CloseTelemetryStream()
 	SAFE_DELETE(m_pDataWriter);
 }
 
+enum {
+	SCREENSHOT_SCALED_WIDTH, 
+	SCREENSHOT_SCALED_HEIGHT, 
+	SCREENSHOT_MULTIPLIER, 
+	SCREENSHOT_STATOSCOPE_HEADER_SIZE
+};
+const size_t SCREENSHOT_BYTES_PER_PIXEL = 3;
+
 void CStatoscope::PrepareScreenShot()
 {
 	const int widthDelta  = m_lastScreenWidth  - gEnv->pRenderer->GetOverlayWidth();
@@ -2067,9 +2058,8 @@ void CStatoscope::PrepareScreenShot()
 	if (!m_pScreenShotBuffer || widthDelta != 0 || heightDelta != 0)
 	{
 		SAFE_DELETE_ARRAY(m_pScreenShotBuffer);
-
-		const size_t SCREENSHOT_BIT_DEPTH = 4;
-		const size_t bufferSize = shrunkenWidth * shrunkenHeight * SCREENSHOT_BIT_DEPTH;
+		
+		const size_t bufferSize = shrunkenWidth * shrunkenHeight * SCREENSHOT_BYTES_PER_PIXEL + SCREENSHOT_STATOSCOPE_HEADER_SIZE;
 		m_pScreenShotBuffer = new uint8[bufferSize];
 		memset(m_pScreenShotBuffer, 0, bufferSize * sizeof(uint8));
 		gEnv->pRenderer->RegisterCaptureFrame(this);
@@ -2079,44 +2069,21 @@ void CStatoscope::PrepareScreenShot()
 
 uint8* CStatoscope::ProcessScreenShot()
 {
-	//Reserved bytes in buffer indicate size and scale
-	enum { SCREENSHOT_SCALED_WIDTH, SCREENSHOT_SCALED_HEIGHT, SCREENSHOT_MULTIPLIER };
-	uint8* pScreenshotBuf = NULL;
-
 	if (m_ScreenShotState == eSSCS_DataReceived)
 	{
-		const int SCREENSHOT_BIT_DEPTH = 4;
-		const int SCREENSHOT_TARGET_BIT_DEPTH = 3;
 		const int shrunkenWidthNotAligned = OnGetFrameWidth();
 		const int shrunkenWidth = shrunkenWidthNotAligned - shrunkenWidthNotAligned % 4;
 		const int shrunkenHeight = OnGetFrameHeight();
+		
+		m_pScreenShotBuffer[SCREENSHOT_MULTIPLIER] = (uint8)((max(shrunkenWidth, shrunkenHeight) + UCHAR_MAX) / UCHAR_MAX);            //Scaling factor
+		m_pScreenShotBuffer[SCREENSHOT_SCALED_WIDTH] = (uint8)(shrunkenWidth / m_pScreenShotBuffer[SCREENSHOT_MULTIPLIER]);
+		m_pScreenShotBuffer[SCREENSHOT_SCALED_HEIGHT] = (uint8)(shrunkenHeight / m_pScreenShotBuffer[SCREENSHOT_MULTIPLIER]);
 
-		const size_t bufferSize = 3 + (shrunkenWidth * shrunkenHeight * SCREENSHOT_TARGET_BIT_DEPTH);
-		pScreenshotBuf = new uint8[bufferSize];
-
-		if (pScreenshotBuf)
-		{
-			pScreenshotBuf[SCREENSHOT_MULTIPLIER] = (uint8)((max(shrunkenWidth, shrunkenHeight) + UCHAR_MAX) / UCHAR_MAX);            //Scaling factor
-			pScreenshotBuf[SCREENSHOT_SCALED_WIDTH] = (uint8)(shrunkenWidth / pScreenshotBuf[SCREENSHOT_MULTIPLIER]);
-			pScreenshotBuf[SCREENSHOT_SCALED_HEIGHT] = (uint8)(shrunkenHeight / pScreenshotBuf[SCREENSHOT_MULTIPLIER]);
-			int iSrcPixel = 0;
-			int iDstPixel = 3;
-
-			while (iSrcPixel < shrunkenWidth * shrunkenHeight * SCREENSHOT_BIT_DEPTH)
-			{
-				pScreenshotBuf[iDstPixel + 0] = m_pScreenShotBuffer[iSrcPixel++];
-				pScreenshotBuf[iDstPixel + 1] = m_pScreenShotBuffer[iSrcPixel++];
-				pScreenshotBuf[iDstPixel + 2] = m_pScreenShotBuffer[iSrcPixel++];
-
-				iSrcPixel++;
-				iDstPixel += SCREENSHOT_TARGET_BIT_DEPTH;
-			}
-
-			m_ScreenShotState = eSSCS_Idle;
-		}
+		m_ScreenShotState = eSSCS_Idle;		
+		return m_pScreenShotBuffer;
 	}
 
-	return pScreenshotBuf;
+	return nullptr;
 }
 
 void CStatoscope::AddFrameRecord(bool bOutputHeader)
@@ -2126,28 +2093,6 @@ void CStatoscope::AddFrameRecord(bool bOutputHeader)
 	float currentTime = gEnv->pTimer->GetAsyncTime().GetSeconds();
 
 	CStatoscopeFrameRecordWriter fr(m_pDataWriter);
-
-	uint8* pScreenshot = NULL;
-
-	//Screen shot in progress, attempt to process
-	if (m_ScreenShotState == eSSCS_DataReceived)
-	{
-		pScreenshot = ProcessScreenShot();
-	}
-
-	//auto screen shot logic
-	float screenshotCapturePeriod = m_pStatoscopeScreenshotCapturePeriodCVar->GetFVal();
-
-	if ((m_ScreenShotState == eSSCS_Idle) && (screenshotCapturePeriod >= 0.0f))
-	{
-		if (currentTime >= m_screenshotLastCaptureTime + screenshotCapturePeriod)
-		{
-			//Tell the Render thread to dump the mini screenshot to main memory
-			//Then wait for the callback to tell us the data is ready
-			RequestScreenShot();
-			m_screenshotLastCaptureTime = currentTime;
-		}
-	}
 
 	if (m_pDataWriter->m_bShouldOutputLogTopHeader)
 	{
@@ -2216,13 +2161,12 @@ void CStatoscope::AddFrameRecord(bool bOutputHeader)
 	//
 	// 2. Screen shot
 	//
-	if (pScreenshot)
+	if (uint8* pScreenshot = ProcessScreenShot())
 	{
 		m_pDataWriter->WriteData(StatoscopeDataWriter::B64Texture);
 		int screenShotSize = 3 + ((pScreenshot[0] * pScreenshot[2]) * (pScreenshot[1] * pScreenshot[2]) * 3); // width,height,scale + (width*scale * height*scale * 3bpp)
 		m_pDataWriter->WriteData(screenShotSize);
 		m_pDataWriter->WriteData(pScreenshot, screenShotSize);
-		SAFE_DELETE_ARRAY(pScreenshot);
 	}
 	else
 	{
@@ -2258,6 +2202,21 @@ void CStatoscope::AddFrameRecord(bool bOutputHeader)
 
 	// 5. Magic Number, indicate end of frame record
 	m_pDataWriter->WriteData(0xdeadbeef);
+
+
+	//auto screen shot logic
+	float screenshotCapturePeriod = m_pStatoscopeScreenshotCapturePeriodCVar->GetFVal();
+
+	if ((m_ScreenShotState == eSSCS_Idle) && (screenshotCapturePeriod >= 0.0f))
+	{
+		if (currentTime >= m_screenshotLastCaptureTime + screenshotCapturePeriod)
+		{
+			//Tell the Render thread to dump the mini screenshot to main memory
+			//Then wait for the callback to tell us the data is ready
+			RequestScreenShot();
+			m_screenshotLastCaptureTime = currentTime;
+		}
+	}
 }
 
 void CStatoscope::Flush()
@@ -2425,6 +2384,7 @@ void CStatoscope::SetDataGroups(uint64 enabledDGs, uint64 disabledDGs)
 			dataGroup.GetCallback()->Enable();
 		}
 	}
+	UpdateFrameListenerRegistration();
 }
 
 void CStatoscope::OutputLoadedModuleInformation(CDataWriter* pDataWriter)
@@ -2613,7 +2573,7 @@ bool CStatoscope::OnNeedFrameData(unsigned char*& pConvertedTextureBuf)
 	if (m_ScreenShotState == eSSCS_AwaitingBufferRequest || m_ScreenShotState == eSSCS_AwaitingCapture)
 	{
 		m_ScreenShotState = eSSCS_AwaitingCapture;
-		pConvertedTextureBuf = m_pScreenShotBuffer;
+		pConvertedTextureBuf = m_pScreenShotBuffer + SCREENSHOT_STATOSCOPE_HEADER_SIZE;
 		return true;
 	}
 	return false;
@@ -2694,7 +2654,7 @@ void CStatoscope::RegisterBuiltInDataGroups()
 {
 	m_pParticleProfilers = new SParticleProfilersDG();
 	m_pPhysEntityProfilers = new SPhysEntityProfilersDG();
-	m_pFrameProfilers = new SFrameProfilersDG();
+	m_pProfilerDG = new SCryProfilerDG();
 	m_pUserMarkers = new SUserMarkerDG();
 	m_pCallstacks = new SCallstacksDG();
 
@@ -2704,7 +2664,7 @@ void CStatoscope::RegisterBuiltInDataGroups()
 	RegisterDataGroup(new SStreamingAudioDG());
 	RegisterDataGroup(new SStreamingObjectsDG());
 	RegisterDataGroup(new SThreadsDG());
-	#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+	#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	RegisterDataGroup(new CWorkerInfoIndividualDG());
 	RegisterDataGroup(new SWorkerInfoSummarizedDG());
 	RegisterDataGroup(new CJobsInfoIndividualDG());
@@ -2718,7 +2678,7 @@ void CStatoscope::RegisterBuiltInDataGroups()
 	RegisterDataGroup(new SPerCGFGPUProfilersDG());
 	RegisterDataGroup(m_pParticleProfilers);
 	RegisterDataGroup(m_pPhysEntityProfilers);
-	RegisterDataGroup(m_pFrameProfilers);
+	RegisterDataGroup(m_pProfilerDG);
 	RegisterDataGroup(new SPerfCountersDG());
 	RegisterDataGroup(m_pUserMarkers);
 	RegisterDataGroup(m_pCallstacks);
@@ -2771,6 +2731,34 @@ void CStatoscope::WriteIntervalClassEvents()
 		(*it)->WriteDescEvent(pEv + 1);
 
 		m_eventWriter.EndEvent();
+	}
+}
+
+void CStatoscope::UpdateFrameListenerRegistration()
+{
+	if (m_pProfilerDG && m_pProfilerDG->IsEnabled() && IsRunning())
+	{
+		if (!isRegisteredAsFrameListener)
+		{
+			if (ILegacyProfiler* pProf = GetISystem()->GetLegacyProfilerInterface())
+			{
+				pProf->AddFrameListener(this);
+				isRegisteredAsFrameListener = true;
+			}
+			else
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "Statoscope: Profiler data group ('r') is enabled, but not supported by the current profiling system!");
+				UnregisterDataGroup(m_pProfilerDG);
+			}
+		}
+	}
+	else if (isRegisteredAsFrameListener)
+	{
+		if (ILegacyProfiler* pProf = GetISystem()->GetLegacyProfilerInterface())
+		{
+			pProf->RemoveFrameListener(this);
+			isRegisteredAsFrameListener = false;
+		}
 	}
 }
 

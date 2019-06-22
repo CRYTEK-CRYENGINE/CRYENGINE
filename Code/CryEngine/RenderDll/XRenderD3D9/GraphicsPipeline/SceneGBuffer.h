@@ -21,6 +21,8 @@ public:
 		eZPassMode_FullZPrePass       = 4
 	};
 
+	static const EGraphicsPipelineStage StageID = eStage_SceneGBuffer;
+
 	enum EPerPassTexture
 	{
 		ePerPassTexture_PerlinNoiseMap = 25,
@@ -33,16 +35,21 @@ public:
 		ePerPassTexture_SceneLinearDepth = 32,
 	};
 
-	enum EPass
+	enum EPass : uint8
 	{
 		// limit: MAX_PIPELINE_SCENE_STAGE_PASSES
 		ePass_FullGBufferFill  = 0,
 		ePass_DepthBufferFill  = 1,
 		ePass_AttrGBufferFill  = 2,
 		ePass_MicroGBufferFill = 3,
+
+		ePass_Count
 	};
 
-	CSceneGBufferStage();
+	static_assert(ePass_Count <= MAX_PIPELINE_SCENE_STAGE_PASSES,
+		"The pipeline-state array is unable to carry as much pass-permutation as defined here!");
+
+	CSceneGBufferStage(CGraphicsPipeline& graphicsPipeline);
 
 	void Init() final;
 	void Update() final;
@@ -62,13 +69,12 @@ public:
 	void ExecuteGBufferVisualization();
 
 	bool CreatePipelineStates(DevicePipelineStatesArray* pStateArray, const SGraphicsPipelineStateDescription& stateDesc, CGraphicsPipelineStateLocalCache* pStateCache);
+	bool CreatePipelineState(const SGraphicsPipelineStateDescription& desc, EPass passID, CDeviceGraphicsPSOPtr& outPSO);
 
 	bool IsGBufferVisualizationEnabled() const { return CRendererCVars::CV_r_DeferredShadingDebugGBuffer > 0; }
 
 private:
-	bool CreatePipelineState(const SGraphicsPipelineStateDescription& desc, EPass passID, CDeviceGraphicsPSOPtr& outPSO);
-
-	bool SetAndBuildPerPassResources(bool bOnInit);
+	bool UpdatePerPassResources(bool bOnInit);
 
 	void ExecuteDepthPrepass();
 	void ExecuteSceneOpaque();

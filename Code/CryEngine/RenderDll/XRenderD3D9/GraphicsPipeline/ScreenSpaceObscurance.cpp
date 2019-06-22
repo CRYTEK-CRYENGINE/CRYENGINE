@@ -23,42 +23,43 @@ void CScreenSpaceObscuranceStage::Init()
 	m_passObscurance.AllocateTypedConstantBuffer<ObscuranceConstants>(eConstantBufferShaderSlot_PerPrimitive, EShaderStage_Pixel);
 }
 
+void CScreenSpaceObscuranceStage::Update()
+{
+	if (CRendererCVars::CV_r_ssdo)
+		CClearSurfacePass::Execute(m_graphicsPipelineResources.m_pTexSceneNormalsBent, Clr_Median);
+}
+
 void CScreenSpaceObscuranceStage::Execute()
 {
 #if defined(DURANGO_USE_ESRAM)
-	m_passCopyFromESRAM.Execute(CRendererResources::s_ptexSceneSpecularESRAM, CRendererResources::s_ptexSceneSpecular);
+	m_passCopyFromESRAM.Execute(m_graphicsPipelineResources.m_pTexSceneSpecularESRAM, m_graphicsPipelineResources.m_pTexSceneSpecular);
 #endif
-
-	if (!CRenderer::CV_r_ssdo)
-	{
-		CClearSurfacePass::Execute(CRendererResources::s_ptexSceneNormalsBent, Clr_Median);
-		return;
-	}
 
 	PROFILE_LABEL_SCOPE("DIRECTIONAL_OCC");
 
-	CTexture* CRendererResources__s_ptexSceneSpecular = CRendererResources::CRendererResources::s_ptexSceneSpecularTmp;
+	CTexture* CRendererResources__s_ptexSceneSpecular = m_graphicsPipelineResources.m_pTexSceneSpecularTmp;
 #if defined(DURANGO_USE_ESRAM)
-	CRendererResources__s_ptexSceneSpecular = CRendererResources::s_ptexSceneSpecularESRAM;
+	CRendererResources__s_ptexSceneSpecular = m_graphicsPipelineResources.m_pTexSceneSpecularESRAM;
 #endif
 
-	const bool bLowResOutput = (CRenderer::CV_r_ssdoHalfRes == 3);
+	const bool bLowResOutput = (CRendererCVars::CV_r_ssdoHalfRes == 3);
 	if (bLowResOutput)
-		CRendererResources__s_ptexSceneSpecular = CRendererResources::s_ptexDisplayTargetScaled[0];
+		CRendererResources__s_ptexSceneSpecular = m_graphicsPipelineResources.m_pTexDisplayTargetScaled[0];
 
 	CShader* pShader = CShaderMan::s_shDeferredShading;
 
-	auto* heightMapAO = GetStdGraphicsPipeline().GetHeightMapAOStage();
+	auto* heightMapAO = m_graphicsPipeline.GetStage<CHeightMapAOStage>();
+	const bool bHMAOEnabled = (heightMapAO != nullptr) && (CRendererCVars::CV_r_HeightMapAO > 0);
 
 	// Obscurance generation
 	{
 		uint64 rtMask = 0;
-		rtMask |= CRenderer::CV_r_ssdoHalfRes ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
-		rtMask |= heightMapAO->GetHeightMapFrustum() ? g_HWSR_MaskBit[HWSR_SAMPLE1] : 0;
-		rtMask |= CRenderer::CV_r_DeferredShadingTiled == CTiledShadingStage::eDeferredMode_Disabled ? g_HWSR_MaskBit[HWSR_SAMPLE2] : 0;
+		rtMask |= CRendererCVars::CV_r_ssdoHalfRes ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
+		rtMask |= bHMAOEnabled ? g_HWSR_MaskBit[HWSR_SAMPLE1] : 0;
+		rtMask |= CRendererCVars::CV_r_DeferredShadingTiled == CTiledShadingStage::eDeferredMode_Disabled ? g_HWSR_MaskBit[HWSR_SAMPLE2] : 0;
 
 		// Extreme magnification as happening with small FOVs will cause banding issues with half-res depth
-		if (CRenderer::CV_r_ssdoHalfRes == 2 && RAD2DEG(RenderView()->GetCamera(CCamera::eEye_Left).GetFov()) < 30)
+		if (CRendererCVars::CV_r_ssdoHalfRes == 2 && RAD2DEG(RenderView()->GetCamera(CCamera::eEye_Left).GetFov()) < 30)
 			rtMask &= ~g_HWSR_MaskBit[HWSR_SAMPLE0];
 
 		static CCryNameTSCRC techSampling("SSDO_Sampling");
@@ -72,11 +73,14 @@ void CScreenSpaceObscuranceStage::Execute()
 		m_passObscurance.SetFlags(CPrimitiveRenderPass::ePassFlags_VrProjectionPass);
 
 		// These 'pairs' all used the same samplerstate!!
-		m_passObscurance.SetTexture(0, CRendererResources::s_ptexSceneNormalsMap);
-		m_passObscurance.SetTexture(1, CRendererResources::s_ptexLinearDepth);
-		m_passObscurance.SetTexture(5, CRendererResources::s_ptexLinearDepthScaled[bLowResOutput]);
-		m_passObscurance.SetTexture(11, heightMapAO->GetHeightMapAOScreenDepthTex());
-		m_passObscurance.SetTexture(12, heightMapAO->GetHeightMapAOTex());
+		m_passObscurance.SetTexture(0, m_graphicsPipelineResources.m_pTexSceneNormalsMap);
+		m_passObscurance.SetTexture(1, m_graphicsPipelineResources.m_pTexLinearDepth);
+		m_passObscurance.SetTexture(5, m_graphicsPipelineResources.m_pTexLinearDepthScaled[bLowResOutput]);
+		if (bHMAOEnabled)
+		{
+			m_passObscurance.SetTexture(11, heightMapAO->GetHeightMapAOScreenDepthTex());
+			m_passObscurance.SetTexture(12, heightMapAO->GetHeightMapAOTex());
+		}
 		m_passObscurance.SetSampler(0, EDefaultSamplerStates::PointClamp);
 
 		m_passObscurance.SetTexture(3, CRendererResources::s_ptexAOVOJitter);
@@ -84,7 +88,7 @@ void CScreenSpaceObscuranceStage::Execute()
 
 		{
 			SRenderViewInfo viewInfo[CCamera::eEye_eCount];
-			size_t viewInfoCount = GetGraphicsPipeline().GenerateViewInfo(viewInfo);
+			size_t viewInfoCount = m_graphicsPipeline.GenerateViewInfo(viewInfo);
 
 			Vec4 viewSpaceParams[CCamera::eEye_eCount];
 			for (uint32 i = 0; i < viewInfoCount; i++)
@@ -93,23 +97,23 @@ void CScreenSpaceObscuranceStage::Execute()
 				float stereoShift = projMat.m20 * 2.0f;
 				viewSpaceParams[i] = Vec4(2.0f / projMat.m00, 2.0f / projMat.m11, (-1.0f + stereoShift) / projMat.m00, -1.0f / projMat.m11);
 			}
-			
+
 			auto constants = m_passObscurance.BeginTypedConstantUpdate<ObscuranceConstants>(eConstantBufferShaderSlot_PerPrimitive, EShaderStage_Pixel);
 
-			constants->screenSize = Vec4((float)CRendererResources::s_ptexLinearDepth->GetWidth(), (float)CRendererResources::s_ptexLinearDepth->GetHeight(), 1.0f / (float)CRendererResources__s_ptexSceneSpecular->GetWidth(), 1.0f / (float)CRendererResources__s_ptexSceneSpecular->GetHeight());
+			constants->screenSize = Vec4((float)m_graphicsPipelineResources.m_pTexLinearDepth->GetWidth(), (float)m_graphicsPipelineResources.m_pTexLinearDepth->GetHeight(), 1.0f / (float)CRendererResources__s_ptexSceneSpecular->GetWidth(), 1.0f / (float)CRendererResources__s_ptexSceneSpecular->GetHeight());
 			constants->nearFarClipDist = Vec4(viewInfo[0].nearClipPlane, viewInfo[0].farClipPlane, 0, 0);
-		
+
 			float radius = CRenderer::CV_r_ssdoRadius / viewInfo[0].farClipPlane;
-	#if defined(FEATURE_SVO_GI)
+#if defined(FEATURE_SVO_GI)
 			if (CSvoRenderer::GetInstance()->IsActive())
 				radius *= CSvoRenderer::GetInstance()->GetSsaoAmount();
-	#endif
+#endif
 			constants->ssdoParams = Vec4(radius * 0.5f * viewInfo[0].projMatrix.m00, radius * 0.5f * viewInfo[0].projMatrix.m11,
-																	 CRenderer::CV_r_ssdoRadiusMin, CRenderer::CV_r_ssdoRadiusMax);
+			                             CRenderer::CV_r_ssdoRadiusMin, CRenderer::CV_r_ssdoRadiusMax);
 
 			constants->viewSpaceParams = viewSpaceParams[0];
 
-			if (heightMapAO->GetHeightMapFrustum())
+			if (bHMAOEnabled)
 			{
 				assert(heightMapAO->GetHeightMapAOTex() && heightMapAO->GetHeightMapAOScreenDepthTex());
 				assert(heightMapAO->GetHeightMapAOTex()->GetWidth() == heightMapAO->GetHeightMapAOScreenDepthTex()->GetWidth() && heightMapAO->GetHeightMapAOTex()->GetHeight() == heightMapAO->GetHeightMapAOScreenDepthTex()->GetHeight());
@@ -126,7 +130,7 @@ void CScreenSpaceObscuranceStage::Execute()
 				constants.BeginStereoOverride(true);
 				constants->viewSpaceParams = viewSpaceParams[1];
 			}
-		
+
 			m_passObscurance.EndTypedConstantUpdate(constants);
 		}
 
@@ -136,8 +140,8 @@ void CScreenSpaceObscuranceStage::Execute()
 	// Filtering pass
 	if (CRenderer::CV_r_ssdo != 99)
 	{
-		const int32 sizeX = CRendererResources::s_ptexLinearDepth->GetWidth();
-		const int32 sizeY = CRendererResources::s_ptexLinearDepth->GetHeight();
+		const int32 sizeX = m_graphicsPipelineResources.m_pTexLinearDepth->GetWidth();
+		const int32 sizeY = m_graphicsPipelineResources.m_pTexLinearDepth->GetHeight();
 		const int32 srcSizeX = CRendererResources__s_ptexSceneSpecular->GetWidth();
 		const int32 srcSizeY = CRendererResources__s_ptexSceneSpecular->GetHeight();
 
@@ -147,10 +151,10 @@ void CScreenSpaceObscuranceStage::Execute()
 			m_passFilter.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 			m_passFilter.SetPrimitiveType(CRenderPrimitive::ePrim_ProceduralTriangle);
 			m_passFilter.SetTechnique(pShader, techFilter, 0);
-			m_passFilter.SetRenderTarget(0, CRendererResources::s_ptexSceneNormalsBent);
+			m_passFilter.SetRenderTarget(0, m_graphicsPipelineResources.m_pTexSceneNormalsBent);
 			m_passFilter.SetState(GS_NODEPTHTEST);
 			m_passFilter.SetTexture(0, CRendererResources__s_ptexSceneSpecular);
-			m_passFilter.SetTexture(1, CRendererResources::s_ptexLinearDepth);
+			m_passFilter.SetTexture(1, m_graphicsPipelineResources.m_pTexLinearDepth);
 			m_passFilter.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 			m_passFilter.SetSampler(1, EDefaultSamplerStates::PointClamp);
 		}
@@ -172,15 +176,15 @@ void CScreenSpaceObscuranceStage::Execute()
 	}
 	else  // For debugging
 	{
-		PostProcessUtils().StretchRect(CRendererResources__s_ptexSceneSpecular, CRendererResources::s_ptexSceneNormalsBent);
+		PostProcessUtils().StretchRect(CRendererResources__s_ptexSceneSpecular, m_graphicsPipelineResources.m_pTexSceneNormalsBent);
 	}
 
-	if (CRenderer::CV_r_ssdoColorBleeding)
+	if (IsColorBleeding())
 	{
 		// Generate low frequency scene albedo for color bleeding (convolution not gamma correct but acceptable)
-		m_passAlbedoDownsample0.Execute(CRendererResources::s_ptexSceneDiffuse, CRendererResources::s_ptexDisplayTargetScaled[0]);
-		m_passAlbedoDownsample1.Execute(CRendererResources::s_ptexDisplayTargetScaled[0], CRendererResources::s_ptexDisplayTargetScaled[1]);
-		m_passAlbedoDownsample2.Execute(CRendererResources::s_ptexDisplayTargetScaled[1], CRendererResources::s_ptexAOColorBleed);
-		m_passAlbedoBlur.Execute(CRendererResources::s_ptexAOColorBleed, CRendererResources::s_ptexDisplayTargetScaled[2], 1.0f, 4.0f);
+		m_passAlbedoDownsample0.Execute(m_graphicsPipelineResources.m_pTexSceneDiffuse, m_graphicsPipelineResources.m_pTexDisplayTargetScaled[0]);
+		m_passAlbedoDownsample1.Execute(m_graphicsPipelineResources.m_pTexDisplayTargetScaled[0], m_graphicsPipelineResources.m_pTexDisplayTargetScaled[1]);
+		m_passAlbedoDownsample2.Execute(m_graphicsPipelineResources.m_pTexDisplayTargetScaled[1], m_graphicsPipelineResources.m_pTexAOColorBleed);
+		m_passAlbedoBlur.Execute(m_graphicsPipelineResources.m_pTexAOColorBleed, m_graphicsPipelineResources.m_pTexDisplayTargetScaled[2], 1.0f, 4.0f);
 	}
 }

@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _DEFORMABLE_NODE_
-#define _DEFORMABLE_NODE_
+#pragma once
 
 struct SDeformableData;
 struct SMMRMProjectile;
@@ -64,5 +63,3 @@ public:
 
 	bool HasDeformableData() const { return m_nData != 0; }
 };
-
-#endif

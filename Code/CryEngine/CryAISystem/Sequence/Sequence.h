@@ -27,7 +27,6 @@ public:
 
 	bool       TraverseAndValidateSequence();
 	void       Start();
-	void       PrepareAgentSequenceBehavior();
 	void       SequenceBehaviorReady();
 	void       SequenceInterruptibleBehaviorLeft();
 	void       Stop();

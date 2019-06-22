@@ -516,7 +516,7 @@ void CPersonalRangeSignaling::SendSignal(IActor* pActor, const string& sSignal, 
 	//CRY_ASSERT(pAI);  Not every actor has an ai, and nor do they need it
 	if (pAI && gEnv->pAISystem)
 	{
-		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT,sSignal, pAI->GetAIObjectID(), PrepareSignalData(pData));
+		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT,sSignal, pAI->GetEntityID(), PrepareSignalData(pData));
 		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 	}
 }

@@ -47,9 +47,9 @@ void CTerrain::SetDetailLayerProperties(int nId, float fScaleX, float fScaleY,
 
 void CTerrain::LoadSurfaceTypesFromXML(XmlNodeRef pDetTexTagList)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "Surface types");
+	MEMSTAT_CONTEXT(EMemStatContextType::Terrain, "Surface types");
 
 #ifndef SW_STRIP_LOADING_MSG
 	CTerrain::Get3DEngine()->PrintMessage("Loading terrain layers ...");

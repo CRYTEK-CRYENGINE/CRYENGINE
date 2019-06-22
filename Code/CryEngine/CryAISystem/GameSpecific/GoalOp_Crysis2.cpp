@@ -888,7 +888,7 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 
 				CreateHideTarget(pPipeUser, pos, -normal);
 
-				if (gAIEnv.CVars.CoverExactPositioning)
+				if (gAIEnv.CVars.LegacyCoverExactPositioning)
 				{
 					SAIActorTargetRequest req;
 					req.approachLocation = pos + normal * 0.25f;
@@ -905,7 +905,7 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 				}
 
 #ifdef CRYAISYSTEM_DEBUG
-				if (gAIEnv.CVars.DebugDrawCover)
+				if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCover)
 					GetAISystem()->AddDebugCylinder(pos + CoverUp * 0.015f, CoverUp, pPipeUser->GetParameters().m_fPassRadius, 0.025f, Col_Red, 3.5f);
 #endif
 			}
@@ -924,7 +924,7 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 	{
 		if (!m_pPathfinder)
 		{
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 			{
 				const Vec3& vPos = m_refHideTarget->GetPos();
 				AILogAlways("COPCrysis2Hide::Execute %s pathfinding to (%5.2f, %5.2f, %5.2f)", pPipeUser->GetName(),
@@ -932,7 +932,7 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 			}
 
 			CAIObject* targetObject = 0;
-			if (gAIEnv.CVars.CoverSystem && gAIEnv.CVars.CoverExactPositioning)
+			if ((gAIEnv.CVars.legacyCoverSystem.CoverSystem > 0) && (gAIEnv.CVars.LegacyCoverExactPositioning > 0))
 				targetObject = pPipeUser->GetOrCreateSpecialAIObject(CPipeUser::AISPECIAL_ANIM_TARGET);
 			else
 				targetObject = m_refHideTarget.GetAIObject();
@@ -944,7 +944,7 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 		{
 			if (pPipeUser->m_nPathDecision == PATHFINDER_PATHFOUND)
 			{
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					const Vec3& vPos = m_refHideTarget->GetPos();
 					AILogAlways("COPCrysis2Hide::Execute %s Creating trace to hide target (%5.2f, %5.2f, %5.2f)", pPipeUser->GetName(),
@@ -2416,7 +2416,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 	{
 	case C2F_INVALID:
 		{
-			CRY_PROFILE_REGION(PROFILE_AI, "COPCrysis2Fly: SETUP ASTAR" );
+			CRY_PROFILE_SECTION(PROFILE_AI, "COPCrysis2Fly: SETUP ASTAR" );
 
 			result = CalculateTarget(pPipeUser);
 
@@ -2433,7 +2433,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 		}
 	case C2F_PATHFINDING:
 		{
-			CRY_PROFILE_REGION(PROFILE_AI, "COPCrysis2Fly: ASTAR UPDATE";
+			CRY_PROFILE_SECTION(PROFILE_AI, "COPCrysis2Fly: ASTAR UPDATE";
 
 			if (m_Solver)
 			{
@@ -2580,7 +2580,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 					result = eGOR_FAILED;
 				}
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					gEnv->pRenderer->GetIRenderAuxGeom()->DrawCone(nextPos + Vec3(0.0f, 0.0f, 2.0f), Vec3(0.0f, 0.0f, -1.0f), 1.0f, 2.0f, colour);
 				}
@@ -2592,7 +2592,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 				float lookDist = m_lookAheadDist;
 				GetLookAheadPoint(m_PathOut, lookDist, lookAheadPos);
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					gEnv->pRenderer->GetIRenderAuxGeom()->DrawCone(lookAheadPos + Vec3(0.0f, 0.0f, 2.0f), Vec3(0.0f, 0.0f, -1.0f), 1.0f, 2.0f, colour);
 				}
@@ -2641,7 +2641,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 
 				GetLookAheadPoint(m_PathOut, lookDist * 2.0f, lookAheadPos);
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					colour.r = 0;
 					colour.b = 255;
@@ -2693,7 +2693,7 @@ EGoalOpResult COPCrysis2Fly::Execute(CPipeUser* pPipeUser)
 		break;
 	}
 
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 	{
 		CFlightNavRegion2::DrawPath(m_PathOut);
 
@@ -3493,7 +3493,7 @@ EGoalOpResult COPCrysis2ChaseTarget::Execute(CPipeUser* pPipeUser)
 				Vec3 nextPos;
 				GetNextPathPoint(m_PathOut, curPos, nextPos);
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					gEnv->pRenderer->GetIRenderAuxGeom()->DrawCone(nextPos + Vec3(0.0f, 0.0f, 2.0f), Vec3(0.0f, 0.0f, -1.0f), 1.0f, 2.0f, colour);
 				}
@@ -3506,7 +3506,7 @@ EGoalOpResult COPCrysis2ChaseTarget::Execute(CPipeUser* pPipeUser)
 				float lookDist = m_lookAheadDist;
 				GetLookAheadPoint(m_PathOut, lookDist, lookAheadPos);
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					gEnv->pRenderer->GetIRenderAuxGeom()->DrawCone(lookAheadPos + Vec3(0.0f, 0.0f, 2.0f), Vec3(0.0f, 0.0f, -1.0f), 1.0f, 2.0f, colour);
 				}
@@ -3527,7 +3527,7 @@ EGoalOpResult COPCrysis2ChaseTarget::Execute(CPipeUser* pPipeUser)
 				pPipeUser->m_State.fDistanceToPathEnd = distanceToEnd;
 				pPipeUser->m_State.vLookTargetPos = lookAheadPos2;
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					colour.r = 0;
 					colour.b = 255;

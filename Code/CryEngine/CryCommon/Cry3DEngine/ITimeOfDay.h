@@ -26,6 +26,13 @@ struct ITimeOfDay
 		PARAM_SUN_INTENSITY,
 		PARAM_SUN_SPECULAR_MULTIPLIER,
 
+		PARAM_SKYBOX_ANGLE,
+		PARAM_SKYBOX_STRETCHING,
+		PARAM_SKYBOX_COLOR,
+		PARAM_SKYBOX_INTENSITY,
+		PARAM_SKYBOX_FILTER,
+		PARAM_SKYBOX_OPACITY,
+
 		PARAM_FOG_COLOR,
 		PARAM_FOG_COLOR_MULTIPLIER,
 		PARAM_VOLFOG_HEIGHT,
@@ -187,6 +194,7 @@ struct ITimeOfDay
 		PARAM_GI_MULTIPLIER,
 		PARAM_SUN_COLOR_MULTIPLIER,
 
+
 		PARAM_TOTAL
 	};
 
@@ -236,6 +244,12 @@ struct ITimeOfDay
 		string texture;
 	};
 
+	struct Sky
+	{
+		string materialDefSpec;
+		string materialLowSpec;
+	};
+
 	struct Wind
 	{
 		Vec3     windVector;
@@ -261,6 +275,12 @@ struct ITimeOfDay
 		bool   invert;
 	};
 
+	struct ColorGrading
+	{
+		bool   useTexture;
+		string texture;
+	};
+	
 	struct TotalIllum
 	{
 		bool  active;
@@ -343,13 +363,15 @@ struct ITimeOfDay
 
 		virtual Sun&           GetSunParams() = 0;
 		virtual Moon&          GetMoonParams() = 0;
+		virtual Sky&           GetSkyParams() = 0;
 		virtual Wind&          GetWindParams() = 0;
 		virtual CloudShadows&  GetCloudShadowsParams() = 0;
+		virtual ColorGrading&  GetColorGradingParams() = 0;
 		virtual TotalIllum&    GetTotalIlluminationParams() = 0;
 		virtual TotalIllumAdv& GetTotalIlluminationAdvParams() = 0;
 
-		virtual void Serialize(Serialization::IArchive& ar) = 0;
-		virtual void Reset() = 0;
+		virtual void           Serialize(Serialization::IArchive& ar) = 0;
+		virtual void           Reset() = 0;
 	};
 
 	struct IPreset
@@ -399,7 +421,7 @@ struct ITimeOfDay
 	virtual const char* GetDefaultPresetName() const = 0;
 
 	//! Adds a new preset with a default values to the list of presets of the active level. Sets the preset as current.
-	//! \return Returns true if succeeded, false if a preset with the specified name is already exists. 
+	//! \return Returns true if succeeded, false if a preset with the specified name is already exists.
 	virtual bool AddNewPreset(const char* szPresetName) = 0;
 
 	//! Loads and adds the loaded preset to the list of presets of the active level. Sets the preset as current.
@@ -408,11 +430,11 @@ struct ITimeOfDay
 	//! Removes preset from the list of presets of the active level.
 	virtual bool RemovePreset(const char* szPresetName) = 0;
 
-	//! Returns true if succeeded, false if the preset with the specified name could not be found or the save failed. 
+	//! Returns true if succeeded, false if the preset with the specified name could not be found or the save failed.
 	virtual bool SavePreset(const char* szPresetName) const = 0;
 
 	//! Resets the preset to a default values.
-	//! \return Returns true if succeeded, false if a preset with the specified name is not found. 
+	//! \return Returns true if succeeded, false if a preset with the specified name is not found.
 	virtual bool ResetPreset(const char* szPresetName) = 0;
 
 	//! Unconditionally discards unsaved changes and reloads the preset from the preset data file.
@@ -477,10 +499,13 @@ struct ITimeOfDay
 	void                 ResetVariables()                                    { GetCurrentPreset().Reset(); }
 	Sun&                 GetSunParams()                                      { return GetConstants().GetSunParams(); }
 	const Moon&          GetMoonParams()                                     { return GetConstants().GetMoonParams(); }
+	const Sky&           GetSkyParams()                                      { return GetConstants().GetSkyParams(); }
 	const Wind&          GetWindParams()                                     { return GetConstants().GetWindParams(); }
 	const CloudShadows&  GetCloudShadowsParams()                             { return GetConstants().GetCloudShadowsParams(); }
 	const TotalIllum&    GetTotalIlluminationParams()                        { return GetConstants().GetTotalIlluminationParams(); }
 	const TotalIllumAdv& GetTotalIlluminationAdvParams()                     { return GetConstants().GetTotalIlluminationAdvParams(); }
+
+	static const char*   GetDefaultPresetFilepath()                          { return "%ENGINE%/EngineAssets/Shading/default.env"; }
 
 protected:
 	virtual bool RegisterListenerImpl(IListener* const pListener, const char* const szDbgName, const bool staticName) = 0;

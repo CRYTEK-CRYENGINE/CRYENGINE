@@ -12,6 +12,7 @@
 
 #include "StdAfx.h"
 #include "Keyboard.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #ifdef USE_DXINPUT
 

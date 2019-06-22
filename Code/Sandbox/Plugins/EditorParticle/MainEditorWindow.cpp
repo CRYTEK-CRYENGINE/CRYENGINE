@@ -13,7 +13,6 @@
 #include "Objects/ParticleEffectObject.h"
 #include "Particles/ParticleManager.h"
 #include "Particles/ParticleItem.h"
-
 #include "ParticleAssetType.h"
 
 #include "ViewManager.h"
@@ -23,6 +22,7 @@
 #include <AssetSystem/Asset.h>
 #include <AssetSystem/AssetManager.h>
 #include <AssetSystem/EditableAsset.h>
+#include <Commands/QCommandAction.h>
 #include <Controls/CurveEditorPanel.h>
 #include <Controls/QuestionDialog.h>
 #include <Controls/CurveEditorPanel.h>
@@ -56,11 +56,20 @@
 #include <QTabWidget>
 #include <QDir>
 
-#include <QAdvancedPropertyTree.h>
+#include <QAdvancedPropertyTreeLegacy.h>
 #include <QCollapsibleFrame.h>
 
 #define APPLICATION_USER_DIRECTORY      "/CryEngine"
 #define APPLICATION_USER_STATE_FILENAME "EditorState.json"
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(particle, show_options, CCommandDescription("Shows effect options"))
+REGISTER_EDITOR_UI_COMMAND_DESC(particle, show_options, "Show Effect Options", "", "icons:General/Options.ico", false)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(particle, get_from_selection, CCommandDescription("Loads effect from selected entity"))
+REGISTER_EDITOR_UI_COMMAND_DESC(particle, get_from_selection, "Load from Selected Entity", "", "icons:General/Get_From_Selection.ico", false)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(particle, assign_to_selection, CCommandDescription("Applies effect to selected entity"))
+REGISTER_EDITOR_UI_COMMAND_DESC(particle, assign_to_selection, "Apply to Selected Entity", "", "icons:General/Assign_To_Selection.ico", false)
 
 namespace CryParticleEditor
 {
@@ -89,15 +98,25 @@ CParticleEditor::CParticleEditor()
 {
 	setAttribute(Qt::WA_DeleteOnClose);
 	setObjectName(GetEditorName());
+	RegisterActions();
+}
 
-	QVBoxLayout* pMainLayout = new QVBoxLayout();
-	pMainLayout->setContentsMargins(1, 1, 1, 1);
-	SetContent(pMainLayout);
+void CParticleEditor::RegisterActions()
+{
+	RegisterAction("general.copy", &CParticleEditor::OnCopy);
+	RegisterAction("general.paste", &CParticleEditor::OnPaste);
+	RegisterAction("general.delete", &CParticleEditor::OnDelete);
+	RegisterAction("general.import", &CParticleEditor::OnImport);
+	RegisterAction("general.undo", &CParticleEditor::OnUndo);
+	RegisterAction("general.redo", &CParticleEditor::OnRedo);
+	m_pReloadEffectMenuAction = RegisterAction("general.reload", &CParticleEditor::OnReload);
 
-	InitMenu();
-	InitToolbar(pMainLayout);
+	m_pShowEffectOptionsMenuAction = RegisterAction("particle.show_options", &CParticleEditor::OnShowEffectOptions);
+	RegisterAction("particle.get_from_selection", &CParticleEditor::OnLoadFromSelectedEntity);
+	RegisterAction("particle.assign_to_selection", &CParticleEditor::OnApplyToSelectedEntity);
 
-	RegisterDockingWidgets();
+	m_pReloadEffectMenuAction->setEnabled(false);
+	m_pShowEffectOptionsMenuAction->setEnabled(false);
 }
 
 void CParticleEditor::InitMenu()
@@ -112,89 +131,21 @@ void CParticleEditor::InitMenu()
 		CAbstractMenu* const pFileMenu = GetMenu(CEditor::MenuItems::FileMenu);
 
 		int sec;
+		sec = pFileMenu->GetNextEmptySection();
+		pFileMenu->AddAction(m_pReloadEffectMenuAction, sec);
+		pFileMenu->AddAction(m_pShowEffectOptionsMenuAction, sec);
 
 		sec = pFileMenu->GetNextEmptySection();
-
-		m_pReloadEffectMenuAction = pFileMenu->CreateAction(CryIcon("icons:General/Reload.ico"), tr("Reload Effect"), sec);
-		connect(m_pReloadEffectMenuAction, &QAction::triggered, this, &CParticleEditor::OnReloadEffect);
-		m_pReloadEffectMenuAction->setEnabled(false);
-
-		m_pShowEffectOptionsMenuAction = pFileMenu->CreateAction(CryIcon("icons:General/Options.ico"), tr("Show Effect Options"), sec);
-		connect(m_pShowEffectOptionsMenuAction, &QAction::triggered, this, &CParticleEditor::OnShowEffectOptions);
-		m_pShowEffectOptionsMenuAction->setEnabled(false);
+		pFileMenu->AddAction(GetAction("particle.get_from_selection"), sec);
+		pFileMenu->AddAction(GetAction("particle.assign_to_selection"), sec);
 
 		sec = pFileMenu->GetNextEmptySection();
-
-		auto action = pFileMenu->CreateAction(CryIcon("icons:General/Get_From_Selection.ico"), tr("Load from Selected Entity"), sec);
-		connect(action, &QAction::triggered, this, &CParticleEditor::OnLoadFromSelectedEntity);
-
-		action = pFileMenu->CreateAction(CryIcon("icons:General/Assign_To_Selection.ico"), tr("Apply to Selected Entity"), sec);
-		connect(action, &QAction::triggered, this, &CParticleEditor::OnApplyToSelectedEntity);
-
-		sec = pFileMenu->GetNextEmptySection();
-
-		action = pFileMenu->CreateAction(CryIcon("icons:General/File_Import.ico"), tr("Import Selected Pfx1 Effect"), sec);
-		connect(action, &QAction::triggered, this, &CParticleEditor::OnImportPfx1);
+		pFileMenu->AddAction(GetAction("general.import"), sec);
 	}
-
-	// Enable instant editing if possible
-	CAbstractMenu* const pEditMenu = GetMenu(CEditor::MenuItems::EditMenu);
-	pEditMenu->AddAction(m_pLockAction);
 }
 
-void CParticleEditor::InitToolbar(QVBoxLayout* pWindowLayout)
+void CParticleEditor::OnInitialize()
 {
-#define ADD_BUTTON(slot, name, shortcut, icon)                           \
-	{ QAction* pAction = pToolBar->addAction(CryIcon(icon), QString());    \
-		pAction->setToolTip(name);                                           \
-		if (shortcut) pAction->setShortcut(tr(shortcut));                    \
-		connect(pAction, &QAction::triggered, this, &CParticleEditor::slot); \
-	}
-
-	// TODO: make this better, the toolbars should behave like the main frame
-	//			 toolbars, where you can move them around in dedicated areas!
-	QHBoxLayout* pToolBarsLayout = new QHBoxLayout();
-	pToolBarsLayout->setDirection(QBoxLayout::LeftToRight);
-	pToolBarsLayout->setSizeConstraint(QLayout::SetMaximumSize);
-
-	// Add Library Toolbar
-	{
-		QToolBar* pToolBar = new QToolBar("Library");
-
-		pToolBar->addAction(GetAction("general.save"));
-
-		pToolBar->addSeparator();
-		ADD_BUTTON(OnLoadFromSelectedEntity, "Load from Selected Entity", 0, "icons:General/Get_From_Selection.ico");
-		ADD_BUTTON(OnApplyToSelectedEntity, "Apply to Selected Entity", 0, "icons:General/Assign_To_Selection.ico");
-		ADD_BUTTON(OnImportPfx1, "Import Selected Pfx1 Effect", 0, "icons:General/File_Import.ico");
-
-		pToolBarsLayout->addWidget(pToolBar, 0, Qt::AlignLeft);
-	}
-
-	// Add Effect Toolbar
-	{
-		QToolBar* pToolBar = new QToolBar("Effect");
-		pToolBar->addSeparator();
-		ADD_BUTTON(OnReloadEffect, "Reload Effect", 0, "icons:General/Reload.ico")
-		ADD_BUTTON(OnShowEffectOptions, "Show Effect Options", 0, "icons:General/Options.ico")
-
-		pToolBarsLayout->addWidget(pToolBar, 0, Qt::AlignLeft);
-		m_pEffectToolBar = pToolBar;
-		m_pEffectToolBar->hide();
-	}
-
-	// Add instant editing button
-	QSpacerItem* pSpacer = new QSpacerItem(20, 0, QSizePolicy::Expanding, QSizePolicy::Minimum);
-	pToolBarsLayout->addSpacerItem(pSpacer);
-	pToolBarsLayout->addWidget(CreateInstantEditorToolbar(), 0, Qt::AlignRight);
-
-	pWindowLayout->addLayout(pToolBarsLayout);
-}
-
-void CParticleEditor::RegisterDockingWidgets()
-{
-	EnableDockingSystem();
-
 	RegisterDockableWidget(s_szEffectGraphName, [=]() { return new CEffectAssetWidget(m_pEffectAssetModel.get(), this); }, false, false);
 	RegisterDockableWidget(s_szEffectTreeName, [=]() { return new CEffectPanel(m_pEffectAssetModel.get(), this); }, false, false);
 	RegisterDockableWidget(s_szCurveEditorPanelName, [=]() { return CreateCurveEditorPanel(this); }, false, false);
@@ -204,6 +155,8 @@ void CParticleEditor::RegisterDockingWidgets()
 	// Similar to the object properties, the property trees should be reverted when a feature item
 	// signals SignalInvalidated.
 	RegisterDockableWidget(s_szInspectorName, [&]() { return new CInspectorLegacy(this); }, true, false);
+
+	InitMenu();
 }
 
 bool CParticleEditor::OnUndo()
@@ -218,17 +171,6 @@ bool CParticleEditor::OnRedo()
 	return true;
 }
 
-void CParticleEditor::SetLayout(const QVariantMap& state)
-{
-	CEditor::SetLayout(state);
-}
-
-QVariantMap CParticleEditor::GetLayout() const
-{
-	QVariantMap state = CEditor::GetLayout();
-	return state;
-}
-
 void CParticleEditor::Serialize(Serialization::IArchive& archive)
 {
 	// TODO: Remove this?
@@ -240,18 +182,12 @@ bool CParticleEditor::OnOpenAsset(CAsset* pAsset)
 
 	if (m_pEffectAssetModel->OpenAsset(pAsset))
 	{
-		m_pEffectToolBar->show();
 		m_pReloadEffectMenuAction->setEnabled(true);
 		m_pShowEffectOptionsMenuAction->setEnabled(true);
 
 		return true;
 	}
 	return false;
-}
-
-bool CParticleEditor::OnSaveAsset(CEditableAsset& editAsset)
-{
-	return GetAssetBeingEdited()->GetEditingSession()->OnSaveAsset(editAsset);
 }
 
 void CParticleEditor::OnDiscardAssetChanges(CEditableAsset& editAsset)
@@ -319,10 +255,10 @@ bool CParticleEditor::OnAboutToCloseAsset(string& reason) const
 	return !strncmp(&newPfx[0], &oldPfx[0], newPfx.size());
 }
 
-void CParticleEditor::CreateDefaultLayout(CDockableContainer* pSender)
+void CParticleEditor::OnCreateDefaultLayout(CDockableContainer* pSender, QWidget* pAssetBrowser)
 {
 	CRY_ASSERT(pSender);
-	pSender->SpawnWidget(s_szCurveEditorPanelName);
+	pSender->SpawnWidget(s_szCurveEditorPanelName, pAssetBrowser, QToolWindowAreaReference::VSplitRight);
 	pSender->SpawnWidget(s_szEffectGraphName, QToolWindowAreaReference::HSplitTop);
 	pSender->SpawnWidget(s_szInspectorName, QToolWindowAreaReference::VSplitRight);
 }
@@ -368,15 +304,16 @@ bool CParticleEditor::AssetSaveDialog(string* pOutputName)
 		*pOutputName = filename.toLocal8Bit().data();
 		return true;
 	}
+
 	return false;
 }
 
-void CParticleEditor::OnReloadEffect()
+bool CParticleEditor::OnReload()
 {
 	CAsset* const pAsset = GetAssetBeingEdited();
 	if (!pAsset)
 	{
-		return;
+		return false;
 	}
 
 	const char* szFxFilePath = pAsset->GetFile(0);
@@ -386,9 +323,11 @@ void CParticleEditor::OnReloadEffect()
 	{
 		DiscardAssetChanges();
 	}
+
+	return true;
 }
 
-void CParticleEditor::OnImportPfx1()
+bool CParticleEditor::OnImport()
 {
 	// Find selected Pfx1 effect
 	IDataBaseManager* particleMgr = static_cast<CParticleManager*>(GetIEditor()->GetDBItemManager(EDB_TYPE_PARTICLE));
@@ -424,6 +363,8 @@ void CParticleEditor::OnImportPfx1()
 			CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "No particle selected for import in database view");
 		}
 	}
+
+	return true;
 }
 
 void CParticleEditor::OnLoadFromSelectedEntity()
@@ -502,28 +443,28 @@ void CParticleEditor::OnShowEffectOptions()
 		return;
 
 	PopulateLegacyInspectorEvent popEvent([this, pEffect](CInspectorLegacy& inspector)
-	{
-		QAdvancedPropertyTree* pPropertyTree = new QAdvancedPropertyTree(pEffect->GetName());
-		// WORKAROUND: Serialization of features doesn't work with the default style.
-		//						 We either need to fix serialization or property tree. As soon as it's
-		//						 done use the commented out code below.
-		PropertyTreeStyle treeStyle(pPropertyTree->treeStyle());
-		treeStyle.propertySplitter = false;
-		pPropertyTree->setTreeStyle(treeStyle);
-		pPropertyTree->setSizeToContent(true);
-		// ~WORKAROUND
-		//pPropertyTree->setExpandLevels(2);
-		//pPropertyTree->setValueColumnWidth(0.6f);
-		//pPropertyTree->setAutoRevert(false);
-		//pPropertyTree->setAggregateMouseEvents(false);
-		//pPropertyTree->setFullRowContainers(true);
-		pPropertyTree->attach(pEffect->GetEffectOptionsSerializer());
-		QObject::connect(pPropertyTree, &QPropertyTree::signalChanged, this, &CParticleEditor::OnEffectOptionsChanged);
+	    {
+	                                      QAdvancedPropertyTreeLegacy* pPropertyTree = new QAdvancedPropertyTreeLegacy(pEffect->GetName());
+	                                      // WORKAROUND: Serialization of features doesn't work with the default style.
+	                                      //						 We either need to fix serialization or property tree. As soon as it's
+	                                      //						 done use the commented out code below.
+	                                      PropertyTreeStyle treeStyle(pPropertyTree->treeStyle());
+	                                      treeStyle.propertySplitter = false;
+	                                      pPropertyTree->setTreeStyle(treeStyle);
+	                                      pPropertyTree->setSizeToContent(true);
+	                                      // ~WORKAROUND
+	                                      //pPropertyTree->setExpandLevels(2);
+	                                      //pPropertyTree->setValueColumnWidth(0.6f);
+	                                      //pPropertyTree->setAutoRevert(false);
+	                                      //pPropertyTree->setAggregateMouseEvents(false);
+	                                      //pPropertyTree->setFullRowContainers(true);
+	                                      pPropertyTree->attach(pEffect->GetEffectOptionsSerializer());
+	                                      QObject::connect(pPropertyTree, &QPropertyTreeLegacy::signalChanged, this, &CParticleEditor::OnEffectOptionsChanged);
 
-		QCollapsibleFrame* pInspectorWidget = new QCollapsibleFrame("Particle Effect");
-		pInspectorWidget->SetWidget(pPropertyTree);
-		inspector.AddWidget(pInspectorWidget);
-	});
+	                                      QCollapsibleFrame* pInspectorWidget = new QCollapsibleFrame("Particle Effect");
+	                                      pInspectorWidget->SetWidget(pPropertyTree);
+	                                      inspector.AddWidget(pInspectorWidget);
+			});
 
 	GetBroadcastManager().Broadcast(popEvent);
 }

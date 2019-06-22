@@ -53,7 +53,7 @@ public:
 
 	virtual bool               mfUpdate(InputLayoutHandle eVertFormat, EStreamMasks StreamMask, bool bTessellation = false)
 	{
-		bool bRet = m_pSrc->mfUpdate(eVertFormat, StreamMask, bTessellation); 
+		bool bRet = m_pSrc->mfUpdate(eVertFormat, StreamMask, bTessellation);
 		return bRet;
 	}
 
@@ -377,21 +377,21 @@ static IMaterial* PatchMaterial(IMaterial* pMat)
 
 static void EtchAlphas(std::vector<IIndexedMesh*> outputList, IMaterial* pMaterial, const SMeshBakingMaterialParams* params, int numParams)
 {
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	//CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
 	if (outputList.empty())
 		return;
 
-	int i = 0;
+	//int i = 0;
 	for (std::vector<IIndexedMesh*>::iterator mit = outputList.begin(), mend = outputList.end(); mit != mend; ++mit)
 	{
 		IIndexedMesh* pOutput = *mit;
 		if (!pOutput)
 			continue;
-		int numOutputTriangles = pOutput->GetIndexCount() / 3;
-		CMesh* pOutputMesh = pOutput->GetMesh();
-		vtx_idx* pOutIndices = pOutputMesh->GetStreamPtr<vtx_idx>(CMesh::INDICES);
-		SMeshTexCoord* pOutTexCoords = pOutputMesh->GetStreamPtr<SMeshTexCoord>(CMesh::TEXCOORDS);
+		//int numOutputTriangles = pOutput->GetIndexCount() / 3;
+		//CMesh* pOutputMesh = pOutput->GetMesh();
+		//vtx_idx* pOutIndices = pOutputMesh->GetStreamPtr<vtx_idx>(CMesh::INDICES);
+		//SMeshTexCoord* pOutTexCoords = pOutputMesh->GetStreamPtr<SMeshTexCoord>(CMesh::TEXCOORDS);
 
 		// OLD PIPELINE
 		ASSERT_LEGACY_PIPELINE
@@ -743,8 +743,6 @@ bool CD3D9Renderer::BakeMesh(const SMeshBakingInputParams* pInputParams, SMeshBa
 		}
 
 		PROFILE_LABEL_SCOPE("BakeMesh");
-
-		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(gEnv->p3DEngine->GetRenderingCamera());
 
 		bool bAlphaCutout = false;
 		for (int i = 0; i < pInputParams->numMaterialParams; i++)

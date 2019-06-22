@@ -2,28 +2,28 @@
     "toolBar": [
         {
             "command": "tools.enable_x_axis_constraint",
-            "iconPath": "icons:Navigation/Axis_X.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "enable_x_axis_constraint",
             "type": 0
         },
         {
             "command": "tools.enable_y_axis_constraint",
-            "iconPath": "icons:Navigation/Axis_Y.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "enable_y_axis_constraint",
             "type": 0
         },
         {
             "command": "tools.enable_z_axis_constraint",
-            "iconPath": "icons:Navigation/Axis_Z.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "enable_z_axis_constraint",
             "type": 0
         },
         {
             "command": "tools.enable_xy_axis_constraint",
-            "iconPath": "icons:Navigation/Axis_XY.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "enable_xy_axis_constraint",
             "type": 0

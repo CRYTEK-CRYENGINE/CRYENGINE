@@ -1,18 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   CGFLoader.h
-//  Version:     v1.00
-//  Created:     6/11/2004 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __CGFLoader_h__
-#define __CGFLoader_h__
 #pragma once
 
 #include "../MeshCompiler/MeshCompiler.h"
@@ -24,9 +11,8 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////
-class ILoaderCGFListener
+struct ILoaderCGFListener
 {
-public:
 	virtual ~ILoaderCGFListener(){}
 	virtual void Warning(const char* format) = 0;
 	virtual void Error(const char* format) = 0;
@@ -159,5 +145,3 @@ private:
 	AllocFncPtr         m_pAllocFnc;
 	DestructFncPtr      m_pDestructFnc;
 };
-
-#endif //__CGFLoader_h__

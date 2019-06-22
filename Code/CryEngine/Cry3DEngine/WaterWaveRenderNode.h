@@ -1,18 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   WaterWavesRenderNode.h
-//  Version:     v1.00
-//  Created:     20/09/2005 by Tiago Sousa.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef _WATERWAVES_RENDERNODE_
-#define _WATERWAVES_RENDERNODE_
+#pragma once
 
 #include <CryRenderer/VertexFormats.h>
 
@@ -174,5 +162,3 @@ private:
 	InstancedWavesMap m_pInstancedWaves;
 
 };
-
-#endif

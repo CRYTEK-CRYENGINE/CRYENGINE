@@ -377,7 +377,7 @@ void CRuntimePrefab::HideComponents(bool bHide)
 	{
 		IRenderNode* pNode=(*i);
 		if (pNode)
-			pNode->Hide(bHide);
+			pNode->SetRndFlags(ERF_HIDDEN, bHide);
 	}
 }
 

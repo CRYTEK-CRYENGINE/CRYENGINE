@@ -275,7 +275,7 @@ static void RecordNetLog(uint32 sev, float timeout, const char* fmt, va_list arg
 		rec.Print(0);
 	else
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Debug, 0, "Net Log");
+		MEMSTAT_CONTEXT(EMemStatContextType::Debug, "Net Log");
 		// SCOPED_GLOBAL_LOCK_NO_LOG;
 		SCOPED_GLOBAL_LOG_LOCK;
 		if (!records)

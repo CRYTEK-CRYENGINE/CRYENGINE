@@ -629,7 +629,7 @@ CBaseObject::~CBaseObject()
 
 void CBaseObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(m_name.c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, m_name.c_str());
 	CBaseObject* pGroup = GetGroup();
 
 	// Must unlink all objects before removing from group or prefab
@@ -791,7 +791,7 @@ bool CBaseObject::SetPos(const Vec3& pos, int flags)
 		InvalidateTM(flags | eObjectUpdateFlags_PositionChanged);
 	}
 
-	SetModified(true, false);
+	SetModified(true, true);
 
 	return true;
 }
@@ -843,7 +843,7 @@ bool CBaseObject::SetRotation(const Quat& rotate, int flags)
 		InvalidateTM(flags | eObjectUpdateFlags_RotationChanged);
 	}
 
-	SetModified(true, false);
+	SetModified(true, true);
 
 	return true;
 }
@@ -1073,7 +1073,7 @@ void CBaseObject::DrawDefault(SDisplayContext& dc, COLORREF labelColor)
 
 	if (dc.showSelectedObjectOrientation && IsSelected())
 	{
-		float textSize = 1.4;
+		float textSize = 1.4f;
 		const Matrix34& m = GetWorldTM();
 		float scale = dc.view->GetScreenScaleFactor(m.GetTranslation()) * gGizmoPreferences.axisGizmoSize * 0.5f;
 		Vec3 xVec = m.GetTranslation() + scale * m.GetColumn0().GetNormalized();
@@ -2977,7 +2977,7 @@ bool CBaseObject::IsParentAttachmentValid() const
 
 void CBaseObject::InvalidateTM(int flags)
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 	bool bMatrixWasValid = m_bMatrixValid;
 
@@ -3324,8 +3324,12 @@ void CBaseObject::SetMaterial(IEditorMaterial* mtl)
 		m_pMaterial->AddRef();
 	}
 
-	// Not sure if really needed, but add just in case
+	//This will notify CObjectPropertyWidget (if the object is selected CObjectPropertyWidget will be an observer) in CObjectPropertyWidget::OnObjectEvent
+	//and cause the object properties widget to update and display the new material
 	UpdateUIVars();
+
+	//If we are in a prefab propagate material change to all the other instances
+	UpdatePrefab(eOCOT_Modify);
 }
 
 string CBaseObject::GetMaterialName() const
@@ -3750,7 +3754,7 @@ Matrix33 CBaseObject::GetWorldScaleTM() const
 
 void CBaseObject::SetTransformDelegate(ITransformDelegate* pTransformDelegate, bool bInvalidateTM)
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	if (m_pTransformDelegate != pTransformDelegate)
 	{
 		m_pTransformDelegate = pTransformDelegate;
@@ -3846,6 +3850,8 @@ void CBaseObject::LinkTo(CBaseObject* pLinkTo, bool bKeepPos /* = true*/)
 		UpdatePrefab(eOCOT_ModifyTransform);
 	}
 
+	SetLayerModified();
+
 	if (CUndo::IsRecording())
 	{
 		CUndo::Record(new CUndoLinkBaseObject(this));
@@ -3907,6 +3913,8 @@ void CBaseObject::UnLink(bool placeOnRoot /*= false*/)
 		if (pGrandParent && !placeOnRoot)
 			pGrandParent->AddMember(this, true);
 	}
+
+	SetLayerModified();
 }
 
 void CBaseObject::UnLinkAll()

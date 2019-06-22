@@ -28,7 +28,6 @@
 #include "SmartObjectOffMeshNavigation.h"
 
 #include "Navigation/NavigationSystem/NavigationSystem.h"
-#include "Navigation/MNM/MNM.h"
 
 CSmartObject::CState::MapSmartObjectStateIds CSmartObject::CState::g_mapStateIds;
 CSmartObject::CState::MapSmartObjectStates CSmartObject::CState::g_mapStates;
@@ -429,7 +428,7 @@ void CSmartObject::Use(CSmartObject* pObject, CCondition* pCondition, int eventI
 			pExtraData->nID = pObject->GetEntityId();
 
 			pExtraData->point = pCondition->pObjectHelper ? pObject->GetHelperPos(pCondition->pObjectHelper) : pObject->GetPos();
-			pAIObject->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_ALLOW_DUPLICATES, sSignal, pObjectEntity->GetAIObjectID(), pExtraData));
+			pAIObject->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_ALLOW_DUPLICATES, sSignal, pObjectEntity->GetId(), pExtraData));
 
 			// update states
 			if (!pCondition->userPostActionStates.empty())   // check is next state non-empty
@@ -506,7 +505,7 @@ void CSmartObject::Use(CSmartObject* pObject, CCondition* pCondition, int eventI
 				                          ",\"" + pCondition->userPreActionStates.AsUndoString() + '\"' +
 				                          ",\"" + pCondition->objectPreActionStates.AsUndoString() + '\"');
 				pExtraData->iValue = maxAlertness;
-				pAIObject->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnUseSmartObject(), pObjectEntity ? pObjectEntity->GetAIObjectID() : 0, pExtraData));
+				pAIObject->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnUseSmartObject(), pObjectEntity ? pObjectEntity->GetId() : INVALID_ENTITYID, pExtraData));
 			}
 
 			return;
@@ -2818,7 +2817,7 @@ void CSmartObjectManager::UseSmartObject(CSmartObject* pSmartObjectUser, CSmartO
 		if (!pCondition->objectPreActionStates.empty())   // check is next state non-empty
 			ModifySmartObjectStates(pSmartObject, pCondition->objectPreActionStates);
 
-	if (gAIEnv.CVars.DrawSmartObjects)
+	if (gAIEnv.CVars.legacySmartObjects.DrawSmartObjects)
 	{
 		if (pCondition->eActionType != eAT_None && !pCondition->sAction.empty())
 		{
@@ -2851,7 +2850,7 @@ void CSmartObjectManager::UseSmartObject(CSmartObject* pSmartObjectUser, CSmartO
 			AILogComment("User %s should execute NULL action on smart object %s!", pSmartObjectUser->GetName(), pSmartObject->GetName());
 	}
 
-	if (gAIEnv.CVars.DrawSmartObjects)
+	if (gAIEnv.CVars.legacySmartObjects.DrawSmartObjects)
 	{
 		// show in debug draw
 		CDebugUse debugUse = { GetAISystem()->GetFrameStartTime(), pSmartObjectUser, pSmartObject };
@@ -2907,7 +2906,7 @@ bool CSmartObjectManager::PrepareUseNavigationSmartObject(SAIActorTargetRequest&
 	states.sAnimationFailUserStates = pCondition->userPreActionStates.AsUndoString();
 	states.sAnimationFailObjectStates = pCondition->objectPreActionStates.AsUndoString();
 
-	if (gAIEnv.CVars.DrawSmartObjects)
+	if (gAIEnv.CVars.legacySmartObjects.DrawSmartObjects)
 	{
 		AILogComment("User %s is going to play %s animation %s on navigation smart object %s!", pSmartObjectUser->GetName(),
 		             pCondition->eActionType == eAT_AnimationSignal || pCondition->eActionType == eAT_PriorityAnimationSignal ? "one shot" : "looping", pCondition->sAction.c_str(), pSmartObject->GetName());
@@ -3117,7 +3116,7 @@ void CSmartObjectManager::DebugDraw()
 	CDebugDrawContext dc;
 	dc->SetAlphaBlended(true);
 
-	float drawDist2 = gAIEnv.CVars.AgentStatsDist;
+	float drawDist2 = gAIEnv.CVars.legacyDebugDraw.AgentStatsDist;
 	if (drawDist2 <= 0 || !GetAISystem()->GetPlayer())
 		return;
 	drawDist2 *= drawDist2;
@@ -4126,7 +4125,7 @@ bool CSmartObjectManager::LoadSmartObjectsLibrary()
 	char szPath[512];
 	cry_sprintf(szPath, "%s", SMART_OBJECTS_XML);
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Navigation, 0, "Smart objects library (%s)", szPath);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Navigation, "Smart objects library (%s)", szPath);
 
 	XmlNodeRef root = GetISystem()->LoadXmlFromFile(szPath);
 	if (!root)
@@ -4352,7 +4351,7 @@ bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_S
 				                         pRequesterEntity,
 				                         &m_statesToExcludeForPathfinding) > 0)
 				{
-					CRY_PROFILE_REGION(PROFILE_AI, "CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM::CostMultiplierCalculation");
+					CRY_PROFILE_SECTION(PROFILE_AI, "CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM::CostMultiplierCalculation");
 					if (fCostMultiplier)
 					{
 						*fCostMultiplier = vHelperLinks[0]->condition->fProximityFactor;
@@ -4360,7 +4359,7 @@ bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_S
 
 					return true;
 				}
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 				{
 					AILogAlways("CAISystem::GetSmartObjectLinkCostFactor %s Cannot find any links for NAVSO %s.",
 					            pRequesterEntity->GetName(), pObject->GetEntity() ? pObject->GetEntity()->GetName() : "<unknown>");
@@ -4369,7 +4368,7 @@ bool CSmartObjectManager::GetSmartObjectLinkCostFactorForMNM(const OffMeshLink_S
 		}
 		else  // if (pObject->GetValidationResult() != eSOV_InvalidStatic)
 		{
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 			{
 				AILogAlways("CAISystem::GetSmartObjectLinkCostFactor %s NAVSO %s is statically invalid.",
 				            pRequesterEntity->GetName(), pObject->GetEntity() ? pObject->GetEntity()->GetName() : "<unknown>");
@@ -4452,7 +4451,7 @@ bool CSmartObjectManager::PrepareNavigateSmartObject(CPipeUser* pPipeUser, CSmar
 	// Check if the NAVSO is valid.
 	if (pObject->GetValidationResult() == eSOV_InvalidStatic)
 	{
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 		{
 			AILogAlways("CAISystem::PrepareNavigateSmartObject %s NAVSO %s is statically invalid.",
 			            pPipeUser->GetName(), pObject->GetEntity() ? pObject->GetEntity()->GetName() : "<unknown>");
@@ -4465,12 +4464,12 @@ bool CSmartObjectManager::PrepareNavigateSmartObject(CPipeUser* pPipeUser, CSmar
 	if (!ValidateTemplate(pObject, checkForStaticObstablesOnly, pPipeUser->GetEntity(),
 	                      pFromHelper->templateHelperIndex, pToHelper->templateHelperIndex))
 	{
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 		{
 			AILogAlways("CAISystem::PrepareNavigateSmartObject %s Template validation for NAVSO %s failed.",
 			            pPipeUser->GetName(), pObject->GetEntity() ? pObject->GetEntity()->GetName() : "<unknown>");
 		}
-		m_bannedNavSmartObjects[pObject] = gAIEnv.CVars.BannedNavSoTime;
+		m_bannedNavSmartObjects[pObject] = gAIEnv.CVars.legacySmartObjects.BannedNavSoTime;
 		return false;
 	}
 
@@ -4488,7 +4487,7 @@ bool CSmartObjectManager::PrepareNavigateSmartObject(CPipeUser* pPipeUser, CSmar
 
 	if (!numVariations)
 	{
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 		{
 			string stateString;
 			const CSmartObject::SetStates& states = pObject->GetStates();

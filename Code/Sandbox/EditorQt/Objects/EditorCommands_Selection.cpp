@@ -162,13 +162,13 @@ void HideSelectedObjects()
 	}
 }
 
-void MakeSelectedObjectsUneditable()
+void LockSelectedObjects()
 {
 	const CSelectionGroup* pSelection = GetIEditorImpl()->GetSelection();
 	if (!pSelection->IsEmpty())
 	{
-		CUndo undo("Make Uneditable");
-		// Making selection uneditable will remove objects from selection
+		CUndo undo("Lock Selected Objects");
+		// Making selection locked will remove objects from selection
 		for (int i = pSelection->GetCount() - 1; i >= 0; --i)
 		{
 			pSelection->GetObject(i)->SetFrozen(true);
@@ -232,7 +232,6 @@ REGISTER_COMMAND_REMAPPING(ui_action, actionLock_Selection, selection, lock)
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::SelectAndGoTo, selection, select_and_go_to,
                                    CCommandDescription("Select object of given name and go to it's position").Param("objectName", "Name of object that should be selected and focused"))
-REGISTER_EDITOR_UI_COMMAND_DESC(selection, select_and_go_to, "Select and Go To Object", "", "", false)
 REGISTER_COMMAND_REMAPPING(general, select_and_go_to_object, selection, select_and_go_to)
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::GoToSelection, selection, go_to,
@@ -245,7 +244,8 @@ REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::HideSelectedObjects, 
 REGISTER_EDITOR_UI_COMMAND_DESC(selection, hide_objects, "Hide", "H", "icons:General/Visibility_False.ico", false)
 REGISTER_COMMAND_REMAPPING(ui_action, actionHide_Selection, selection, hide_objects)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::MakeSelectedObjectsUneditable, selection, make_objects_uneditable,
-                                   CCommandDescription("Make selected objects uneditable"));
-REGISTER_EDITOR_UI_COMMAND_DESC(selection, make_objects_uneditable, "Make Uneditable", "F", "icons:General/editable_false.ico", false)
-REGISTER_COMMAND_REMAPPING(ui_action, actionFreeze_Selection, selection, make_objects_uneditable)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::LockSelectedObjects, selection, lock_objects,
+                                   CCommandDescription("Locks selected objects"));
+REGISTER_EDITOR_UI_COMMAND_DESC(selection, lock_objects, "Lock Selected Objects", "F", "icons:general_lock_true.ico", false)
+REGISTER_COMMAND_REMAPPING(ui_action, actionFreeze_Selection, selection, lock_objects)
+REGISTER_COMMAND_REMAPPING(selection, make_objects_uneditable, selection, lock_objects)

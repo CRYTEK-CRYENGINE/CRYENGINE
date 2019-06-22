@@ -6,6 +6,7 @@
 #include <CryGame/IGameFramework.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Cry_Camera.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if MANUAL_FRAME_STEP_ENABLED
 
@@ -316,11 +317,11 @@ bool CManualFrameStepController::OnInputEvent(const SInputEvent& inputEvent)
 				stack_string framesFolder;
 				GetFramesFolder(framesFolder);
 
-				char buffer[ICryPak::g_nMaxPath];
-				const char* szAdjustedFramesFolder = gEnv->pCryPak->AdjustFileName(framesFolder.c_str(), buffer, ICryPak::FLAGS_FOR_WRITING);
+				CryPathString adjustedFramesFolder;
+				gEnv->pCryPak->AdjustFileName(framesFolder.c_str(), adjustedFramesFolder, ICryPak::FLAGS_FOR_WRITING);
 
 				char szBuffer[MAX_PATH + 256];
-				cry_sprintf(szBuffer, "explorer.exe %s\\%s", szAdjustedFramesFolder, lastFrameName.c_str());
+				cry_sprintf(szBuffer, "explorer.exe %s\\%s", adjustedFramesFolder.c_str(), lastFrameName.c_str());
 
 				STARTUPINFO startupInfo;
 				ZeroMemory(&startupInfo, sizeof(startupInfo));

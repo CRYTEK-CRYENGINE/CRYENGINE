@@ -3012,7 +3012,7 @@ int CScriptBind_AI::Signal(IFunctionHandler* pH)
 
 		if (IAIObject* aiObject = pEntity->GetAI())
 		{
-			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(nSignalID, szSignalText, aiObject->GetAIObjectID(), pEData);
+			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(nSignalID, szSignalText, aiObject->GetEntityID(), pEData);
 			GetAISystem()->SendSignal(cFilter, pSignal);
 
 			return pH->EndFunction();
@@ -3072,7 +3072,7 @@ int CScriptBind_AI::FreeSignal(IFunctionHandler* pH)
 		pObject = pEntity->GetAI();
 	}
 
-	GetAISystem()->SendAnonymousSignal(GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(nSignalID, szSignalText, pObject->GetAIObjectID(), pEData), pos, fRadius);
+	GetAISystem()->SendAnonymousSignal(GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(nSignalID, szSignalText, pObject->GetEntityID(), pEData), pos, fRadius);
 
 	return pH->EndFunction();
 }
@@ -5969,10 +5969,10 @@ int CScriptBind_AI::SetLeader(IFunctionHandler* pH)
 			{
 				if (pOldLeader)
 				{
-					GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderDeassigned_DEPRECATED(), pOldLeader->GetAIObjectID()));
+					GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderDeassigned_DEPRECATED(), pOldLeader->GetEntityID()));
 				}
 				GetAISystem()->SetLeader(pAIObject);
-				GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderAssigned_DEPRECATED(), pAIObject->GetAIObjectID()));
+				GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderAssigned_DEPRECATED(), pAIObject->GetEntityID()));
 			}
 		}
 	}

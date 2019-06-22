@@ -181,7 +181,6 @@ SSkinningData* CStatObjFoliage::GetSkinningData(const Matrix34& RenderMat34, con
 	Matrix34 transformation = RenderMat34.GetInverted();
 
 	pPose[0].q.SetIdentity();
-	;
 	pPose[0].t.x = 0.0f;
 	pPose[0].t.y = 0.0f;
 	pPose[0].t.z = 0.0f;

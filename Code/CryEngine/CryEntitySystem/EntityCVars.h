@@ -81,6 +81,8 @@ struct CVar
 
 	static float  es_EntityUpdatePosDelta;
 
+	static int    es_UseProximityTriggerSystem;
+
 	// Script CVars
 	static ICVar* pEnableFullScriptSave;
 	static ICVar* pSysSpecLight;

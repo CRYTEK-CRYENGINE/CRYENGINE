@@ -198,6 +198,8 @@ struct IActor : public IGameObjectExtension
 
 	// IVehicle
 	virtual IVehicle* GetLinkedVehicle() const = 0;
+	virtual bool      GetValidPositionNearby(const Vec3& proposedPosition, Vec3& adjustedPosition) const = 0;
+	virtual void      SetExpectedPhysicsPos(const Vec3& expectedPosition) = 0;
 
 	virtual void      OnAIProxyEnabled(bool enabled) = 0;
 	virtual void      OnReturnedToPool() = 0;

@@ -34,7 +34,6 @@ public:
 
 	/////////////////////////////////////////////////////
 
-	float        m_fMinMipFactorLoad;
 	int          m_nLastTexture;
 	int          m_nFrameLoad;
 	uint32       m_nUpdateFrameID;
@@ -177,7 +176,7 @@ public:
 
 	virtual void          SetInvalid() final;
 	// Check if shader resource is valid
-	virtual bool          IsValid() { return 0 == (m_flags & eFlagInvalid); };
+	virtual bool          IsValid() { return 0 == (m_flags & eFlagInvalid); }
 
 	~CShaderResources();
 	void                      RT_Release();

@@ -94,7 +94,7 @@ CMaterialEffects::~CMaterialEffects()
 
 void CMaterialEffects::LoadFXLibraries()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "MaterialEffects");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "MaterialEffects");
 
 	m_mfxLibraries.clear();
 	m_effectContainers.clear();
@@ -130,7 +130,7 @@ void CMaterialEffects::LoadFXLibraries()
 
 void CMaterialEffects::LoadFXLibrary(const char* name)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "FX Library XML (%s)", name);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "FX Library XML (%s)", name);
 
 	string path = PathUtil::Make(MATERIAL_EFFECTS_LIBRARIES_FOLDER, name);
 	string fileName = name;
@@ -511,7 +511,7 @@ void CMaterialEffects::LoadSpreadSheet()
 
 void CMaterialEffects::PreLoadAssets()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	for (TMFXEffectId id = 0; id < m_effectContainers.size(); ++id)
 		if (m_effectContainers[id])
@@ -893,7 +893,7 @@ bool CMaterialEffects::PlayBreakageEffect(ISurfaceType* pSurfaceType, const char
 
 void CMaterialEffects::CompleteInit()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 	if (m_bDataInitialized)
 		return;
@@ -975,7 +975,7 @@ void CMaterialEffects::UnloadFXLibrariesWithPrefix(const char* szName)
 
 void CMaterialEffects::LoadFXLibraryFromXMLInMemory(const char* szName, XmlNodeRef root)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "FX Library XML (%s)", szName);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "FX Library XML (%s)", szName);
 
 	const string libName = szName;
 

@@ -174,13 +174,13 @@ bool CD3DOpenVRRenderer::Initialize(int initialWidth, int initialeight)
 	}
 
 	// Mirror texture
-	void* srv = nullptr;
 	for (uint32 eye = 0; eye < 2; ++eye)
 	{
 #if CRY_RENDERER_DIRECT3D >= 120
 		// No mirror textures in D3D12
 		// Request the resource-view from openVR
 #elif CRY_RENDERER_DIRECT3D >= 110
+		void* srv = nullptr;
 		m_pOpenVRDevice->GetMirrorImageView(static_cast<EEyeType>(eye), m_mirrorTextures[eye]->GetDevTexture()->Get2DTexture(), &srv);
 		m_mirrorTextures[eye]->SetDefaultShaderResourceView(static_cast<D3DShaderResource*>(srv), false);
 #endif

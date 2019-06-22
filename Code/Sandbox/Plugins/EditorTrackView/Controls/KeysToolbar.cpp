@@ -45,12 +45,20 @@ CTrackViewKeysToolbar::CTrackViewKeysToolbar(CTrackViewCore* pTrackViewCore)
 	m_pMoveModeGroup = new QActionGroup(this);
 	m_pMoveModeGroup->setExclusive(true);
 
+	QAction* pMoveAction = new QAction(m_pMoveModeGroup);
+	pMoveAction->setIcon(CryIcon("icons:Trackview/trackview_keys-move.ico"));
+	pMoveAction->setText("Move Keys");
+	pMoveAction->setData(QVariant(eKeyMoveMode_Move));
+	pMoveAction->connect(pMoveAction, SIGNAL(triggered()), this, SLOT(OnMoveKeys()));
+	pMoveAction->setCheckable(true);
+	m_pMoveModeGroup->addAction(pMoveAction);
+
 	QAction* pSlideAction = new QAction(m_pMoveModeGroup);
-	pSlideAction->setIcon(CryIcon("icons:Trackview/trackview_keys-slide.ico"));
+	pSlideAction->setIcon(CryIcon("icons:Trackview/trackview_keys-slide_both.ico"));
 	pSlideAction->setText("Slide Keys");
 	pSlideAction->setData(QVariant(eKeyMoveMode_Slide));
 	pSlideAction->connect(pSlideAction, SIGNAL(triggered()), this, SLOT(OnSlideKeys()));
-	pSlideAction->setCheckable(true);
+	pSlideAction->setCheckable(true);	
 	m_pMoveModeGroup->addAction(pSlideAction);
 
 	QAction* pScaleAction = new QAction(m_pMoveModeGroup);
@@ -67,6 +75,61 @@ CTrackViewKeysToolbar::CTrackViewKeysToolbar(CTrackViewCore* pTrackViewCore)
 	addSeparator();
 	addAction(CryIcon("icons:Trackview/Sync_Selected_Tracks_To_Base_Pos.ico"), "Sync selected Tracks to Base Position", this, SLOT(OnSyncSelectedTracksToBase()));
 	addAction(CryIcon("icons:Trackview/Sync_Selected_Tracks_From_Base_Pos.ico"), "Sync selected Tracks from Base Position", this, SLOT(OnSyncSelectedTracksFromBase()));
+
+	SetupSlideAction(pSlideAction);
+}
+
+void CTrackViewKeysToolbar::SetupSlideAction(QAction* pSlideAction)
+{
+	QWidget* pSlideActionWidget = widgetForAction(pSlideAction);
+	if (pSlideActionWidget)
+	{
+		pSlideActionWidget->setContextMenuPolicy(Qt::CustomContextMenu);
+		connect(pSlideActionWidget, &QWidget::customContextMenuRequested, [this, pSlideAction]()
+		{
+			std::unique_ptr<QMenu> pContextMenu(new QMenu());
+
+			QAction* pAction = nullptr;
+
+			pAction = pContextMenu->addAction("Slide both");
+			QObject::connect(pAction, &QAction::toggled, [this, pSlideAction](bool checked)
+			{
+				if (checked)
+				{
+					GetTrackViewCore()->SetKeysSlideMode(eKeySlideMode_Both);
+					pSlideAction->setIcon(CryIcon("icons:Trackview/trackview_keys-slide_both.ico"));
+				}
+			});
+			pAction->setCheckable(true);
+			pAction->setChecked(GetTrackViewCore()->GetCurrentKeySlideMode() == eKeySlideMode_Both);
+
+			pAction = pContextMenu->addAction("Slide left");
+			QObject::connect(pAction, &QAction::toggled, [this, pSlideAction](bool checked)
+			{
+				if (checked)
+				{
+					GetTrackViewCore()->SetKeysSlideMode(eKeySlideMode_Left);
+					pSlideAction->setIcon(CryIcon("icons:Trackview/trackview_keys-slide_left.ico"));
+				}
+			});
+			pAction->setCheckable(true);
+			pAction->setChecked(GetTrackViewCore()->GetCurrentKeySlideMode() == eKeySlideMode_Left);
+
+			pAction = pContextMenu->addAction("Slide right");
+			QObject::connect(pAction, &QAction::toggled, [this, pSlideAction](bool checked)
+			{
+				if (checked)
+				{
+					GetTrackViewCore()->SetKeysSlideMode(eKeySlideMode_Right);
+					pSlideAction->setIcon(CryIcon("icons:Trackview/trackview_keys-slide_right.ico"));
+				}
+			});
+			pAction->setCheckable(true);
+			pAction->setChecked(GetTrackViewCore()->GetCurrentKeySlideMode() == eKeySlideMode_Right);
+
+			pContextMenu->exec(QCursor::pos());
+		});
+	}
 }
 
 void CTrackViewKeysToolbar::OnGoToPreviousKey()
@@ -77,6 +140,11 @@ void CTrackViewKeysToolbar::OnGoToPreviousKey()
 void CTrackViewKeysToolbar::OnGoToNextKey()
 {
 	GetTrackViewCore()->OnGoToNextKey();
+}
+
+void CTrackViewKeysToolbar::OnMoveKeys()
+{
+	GetTrackViewCore()->OnMoveKeys();
 }
 
 void CTrackViewKeysToolbar::OnSlideKeys()

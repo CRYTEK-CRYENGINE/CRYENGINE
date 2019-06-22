@@ -26,6 +26,7 @@
 
 // Engine Includes
 #include <CryLobby/ICryTCPService.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define k_defaultPlaylistActivityServerName		""	
 #define k_defaultPlaylistActivityServerPort		8042

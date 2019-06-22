@@ -80,11 +80,12 @@ private:
 	CharacterDocument*          m_document;
 	CharacterToolForm*          m_window;
 	TransformPanel*             m_transformPanel;
-	std::vector<QPropertyTree*> m_layerPropertyTrees;
+	std::vector<QPropertyTreeLegacy*> m_layerPropertyTrees;
 
 	string                      m_curBoneName;
 	Vec2                        m_posMouse;
 	bool                        m_isCurBoneFree;
+	bool                        m_editProxies = false, m_tempProxyRender = false;
 };
 
 }

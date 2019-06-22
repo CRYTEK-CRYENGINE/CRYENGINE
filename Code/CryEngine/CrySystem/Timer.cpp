@@ -4,7 +4,7 @@
 #include "Timer.h"
 #include <time.h>
 #include <CrySystem/ISystem.h>
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CrySystem/ILog.h>
 #include <CryNetwork/ISerialize.h>
 #include <CryRenderer/IRenderer.h>

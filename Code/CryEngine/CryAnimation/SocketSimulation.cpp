@@ -7,6 +7,25 @@
 #include "AttachmentManager.h"
 #include "CharacterInstance.h"
 
+namespace
+{
+	void SetJointAbsoluteAndUpdateChildren(const CCharInstance* pCharacter, Skeleton::CPoseData& poseData, DynArray<JointIdType> const& children, int32 jointId, const QuatT& q)
+	{
+		const CDefaultSkeleton& rDefaultSkeleton = *pCharacter->m_pDefaultSkeleton;
+		const uint32 p = rDefaultSkeleton.GetJointParentIDByID(jointId);
+		assert(p >= 0);
+		poseData.SetJointAbsolute(jointId, q);
+		poseData.SetJointRelative(jointId, poseData.GetJointAbsolute(p).GetInverted() * q);
+		uint32 numChildren = children.size();
+		for (uint32 i = 0; i < numChildren; i++)
+		{
+			const uint32 id = children[i];
+			const uint32 pid = rDefaultSkeleton.GetJointParentIDByID(id);
+			poseData.SetJointAbsolute(id, poseData.GetJointAbsolute(pid) * poseData.GetJointRelative(id));
+		}
+	}
+}
+
 void CSimulation::PostUpdate(const CAttachmentManager* pAttachmentManager, const char* pJointName)
 {
 	const CCharInstance* pSkelInstance = pAttachmentManager->m_pSkelInstance;
@@ -37,6 +56,12 @@ void CSimulation::PostUpdate(const CAttachmentManager* pAttachmentManager, const
 		if (IsNotIdentical)
 			m_idxDirTransJoint = rDefaultSkeleton.GetJointIDByName(pDirTransJoint);
 	}
+
+	if (GetBlendControlJointId()<0 && GetBlendControlJointName().length()>0)
+	{
+		SetBlendControlJointId(rDefaultSkeleton.GetJointIDByName(GetBlendControlJointName().c_str()) );
+	}
+
 	m_aa1c = cos_tpl(m_vStiffnessTarget.x);
 	m_aa1s = sin_tpl(m_vStiffnessTarget.x);
 	m_aa2c = cos_tpl(m_vStiffnessTarget.y);
@@ -192,7 +217,7 @@ void CSimulation::UpdatePendulumSimulation(const CAttachmentManager* pAttachment
 	const Vec3 vRodAnimN = (m_vBobPosition - AttLocation.t) * isqrt_tpl(sqr(m_vBobPosition - AttLocation.t));
 	const Vec3 vRodDefN = AttLocation.q * vSimulationAxisN; //this is the Cone-Axis
 	const Quat R = Quat((vRodDefN | vRodAnimN) + 1.0f, vRodDefN % vRodAnimN).GetNormalized();
-	const f32 t = m_nAnimOverrideJoint > 0 ? 1 - rPoseData.GetJointAbsolute(m_nAnimOverrideJoint).t.x : 1;
+	const f32 t = GetBlendWeight(rPoseData);
 	m_vAttModelRelativePrev = rPhysLocation.q * rAttModelRelative.t;
 	raddTransformation.q = Quat(R.w, R.v * AttLocation.q).GetNormalized();
 	raddTransformation.t = raddTransformation.q * m_vPivotOffset;
@@ -200,18 +225,17 @@ void CSimulation::UpdatePendulumSimulation(const CAttachmentManager* pAttachment
 	m_vAttLocationPrev.t = AttLocation.t;
 	if (nAllowRedirect && m_useRedirect)
 	{
-		const CDefaultSkeleton& rDefaultSkeleton = *pSkelInstance->m_pDefaultSkeleton;
 		QuatT ajt = rPoseData.GetJointAbsolute(nRedirectionID);
-		ajt.SetNLerp(ajt, rAttModelRelative * raddTransformation, t);
-		const uint32 p = rDefaultSkeleton.GetJointParentIDByID(nRedirectionID);
-		rPoseData.SetJointAbsolute(nRedirectionID, ajt);
-		rPoseData.SetJointRelative(nRedirectionID, rPoseData.GetJointAbsolute(p).GetInverted() * ajt);
-		uint32 numChildren = m_arrChildren.size();
-		for (uint32 i = 0; i < numChildren; i++)
+		ajt.SetNLerp(ajt, rAttModelRelative * raddTransformation, t); // Blend between animation and simulation
+		SetJointAbsoluteAndUpdateChildren(pSkelInstance, rPoseData, m_arrChildren, nRedirectionID, ajt);
+	}
+	else
+	{
+		// Blend between animation and simulation
+		if (t < 1.0f)
 		{
-			const uint32 id = m_arrChildren[i];
-			const uint32 pid = rDefaultSkeleton.GetJointParentIDByID(id);
-			rPoseData.SetJointAbsolute(id, rPoseData.GetJointAbsolute(pid) * rPoseData.GetJointRelative(id));
+			QuatT qDefault(Quat::CreateRotationAA(0, vSimulationAxisN),m_vPivotOffset);
+			raddTransformation = QuatT::CreateNLerp(qDefault, raddTransformation, t);
 		}
 	}
 
@@ -552,25 +576,15 @@ void CSimulation::UpdateSpringSimulation(const CAttachmentManager* pAttachmentMa
 
 	// Set delta translation in MS
 	raddTranslation = (m_vSpringBobPositionMS - AttLocationMS.t) * rPhysLocationWS.q * rAttModelRelative.q.GetNormalized() + m_vPivotOffset;
+	raddTranslation *= GetBlendWeight(rPoseData); // Blend between animation and simulation
 
 	// Redirect to joint
 	const uint32 nAllowRedirect = nBindPose & CA_BindPose ? nBindPose & CA_AllowRedirection : 1;
 	if (m_useRedirect && nAllowRedirect)
 	{
-		const CDefaultSkeleton& rDefaultSkeleton = *pSkelInstance->m_pDefaultSkeleton;
-		raddTranslation *= m_nAnimOverrideJoint > 0 ? 1 - rPoseData.GetJointAbsolute(m_nAnimOverrideJoint).t.x : 1;
 		QuatT ajt = rPoseData.GetJointAbsolute(nRedirectionID);
 		ajt.t = rAttModelRelative.t + rAttModelRelative.q * raddTranslation;
-		const uint32 p = rDefaultSkeleton.GetJointParentIDByID(nRedirectionID);
-		rPoseData.SetJointAbsolute(nRedirectionID, ajt);
-		rPoseData.SetJointRelative(nRedirectionID, rPoseData.GetJointAbsolute(p).GetInverted() * ajt);
-		uint32 numChildren = m_arrChildren.size();
-		for (uint32 i = 0; i < numChildren; i++)
-		{
-			const uint32 id = m_arrChildren[i];
-			const uint32 pid = rDefaultSkeleton.GetJointParentIDByID(id);
-			rPoseData.SetJointAbsolute(id, rPoseData.GetJointAbsolute(pid) * rPoseData.GetJointRelative(id));
-		}
+		SetJointAbsoluteAndUpdateChildren(pSkelInstance, rPoseData, m_arrChildren, nRedirectionID, ajt);
 	}
 
 	// Store some states for differentiation in the next step
@@ -897,4 +911,24 @@ void CSimulation::Draw(const QuatTS& qt, const ColorB clr, const uint32 tesselat
 	SAuxGeomRenderFlags renderFlags(rflag);
 	g_pAuxGeom->SetRenderFlags(renderFlags);
 	g_pAuxGeom->DrawTriangles(&_p[0], p, &_c[0]);
+}
+
+inline f32 CSimulation::GetBlendWeight(Skeleton::CPoseData& rPoseData) const
+{
+#ifndef RELEASE
+	float tOverride = gEnv->pConsole->GetCVar("ca_OverrideBlendWeightSimulatedSockets")->GetFVal();
+	if (tOverride < 1.0f)
+	{
+		return tOverride;
+	}
+#endif
+
+	const f32 fullBlend = 1.0f;
+	const f32 noBlend = 0.0f;
+	if (m_blendControlJointId <= 0) return fullBlend;
+
+	const int blendControlAxis = static_cast<int>(m_blendControlAxis);
+	assert(blendControlAxis >= 0 && blendControlAxis < 3);
+	const f32 t = m_blendControlJointId > 0 ? clamp_tpl(rPoseData.GetJointAbsolute(m_blendControlJointId).t[blendControlAxis], noBlend, fullBlend) : fullBlend;
+	return t;
 }

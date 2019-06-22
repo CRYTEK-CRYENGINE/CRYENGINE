@@ -124,6 +124,7 @@ private:
 	bool AddToWatchList(const char* szDstFile, const char* szSrcFile);
 	void NotifyCompilationQueueTriggered(int pending);
 	void NotifyCompilationStarted(TProcItem* item, int pending);
+	void NotifyCompilationFinished(const char* szSourceFile, const char* szDestFile, ERcExitCode eReturnCode);
 	void NotifyCompilationFinished(TProcItem* item);
 	void NotifyCompilationQueueDepleted();
 	void GetNextItem(TProcItem* &item, int &pending);

@@ -1,15 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   Particle.cpp
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Modified:    11/3/2005 by Scott Peter
-//  Compilers:   Visual Studio.NET
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 
 #include "ParticleSystem/ParticleCommon.h"
@@ -663,7 +653,7 @@ void CParticle::InitPos(SParticleUpdateContext const& context, QuatTS const& loc
 		//
 		//		density distribution d(phi) = sin phi
 		//		cumulative density c(phi) = Int(0,phi) sin x dx = 1 - cos phi
-		//		normalised cn(phi) = (1 - cos phi) / (1 - cos phiMax)
+		//		normalized cn(phi) = (1 - cos phi) / (1 - cos phiMax)
 		//		reverse function phi(cn) = acos_tpl(1 + cn(cos phiMax - 1))
 		//
 

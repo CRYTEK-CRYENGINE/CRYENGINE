@@ -2,9 +2,7 @@
 
 #include "stdafx.h"
 #include "AisacEnvironment.h"
-#include "BaseObject.h"
-
-#include <cri_atom_ex.h>
+#include "Object.h"
 
 namespace CryAudio
 {
@@ -15,10 +13,10 @@ namespace Adx2
 //////////////////////////////////////////////////////////////////////////
 void CAisacEnvironment::Set(IObject* const pIObject, float const amount)
 {
-	auto const pBaseObject = static_cast<CBaseObject const*>(pIObject);
+	auto const pObject = static_cast<CObject const*>(pIObject);
 
-	CriAtomExPlayerHn const pPlayer = pBaseObject->GetPlayer();
-	criAtomExPlayer_SetAisacControlByName(pPlayer, static_cast<CriChar8 const*>(m_name.c_str()), static_cast<CriFloat32>(m_multiplier * amount + m_shift));
+	CriAtomExPlayerHn const pPlayer = pObject->GetPlayer();
+	criAtomExPlayer_SetAisacControlById(pPlayer, m_id, static_cast<CriFloat32>(m_multiplier * amount + m_shift));
 	criAtomExPlayer_UpdateAll(pPlayer);
 }
 } // namespace Adx2

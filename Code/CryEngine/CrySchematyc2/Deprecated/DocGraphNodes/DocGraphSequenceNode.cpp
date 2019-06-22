@@ -58,7 +58,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocGraphSequenceNode::Refresh(const SScriptRefreshParams& params)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		CDocGraphNodeBase::Refresh(params);
 		CDocGraphNodeBase::AddInput("In", EScriptGraphPortFlags::MultiLink | EScriptGraphPortFlags::Execute);
 		for(PoolStringVector::iterator itSequenceName = m_sequenceNames.begin(), itEndSequenceName = m_sequenceNames.end(); itSequenceName != itEndSequenceName; ++ itSequenceName)
@@ -70,7 +70,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocGraphSequenceNode::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		CDocGraphNodeBase::Serialize(archive);
 		archive(m_sequenceNames, "m_sequenceNames", "Sequences");
 	}

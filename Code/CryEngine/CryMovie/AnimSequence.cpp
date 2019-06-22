@@ -286,13 +286,12 @@ void CAnimSequence::RemoveNode(IAnimNode* node)
 	{
 		if (node == m_nodes[i])
 		{
-			m_nodes.erase(m_nodes.begin() + i);
-
 			if (node->NeedToRender())
 			{
 				RemoveNodeNeedToRender(node);
 			}
 
+			m_nodes.erase(m_nodes.begin() + i);
 			continue;
 		}
 

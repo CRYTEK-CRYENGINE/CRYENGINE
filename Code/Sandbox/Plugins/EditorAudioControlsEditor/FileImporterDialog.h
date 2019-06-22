@@ -33,6 +33,7 @@ public:
 		QString const& targetPath,
 		QString const& targetFolderName,
 		bool const isLocalized,
+		bool const getImplItemIds,
 		QWidget* const pParent);
 
 	virtual ~CFileImporterDialog() override = default;
@@ -61,5 +62,6 @@ private:
 	QString                           m_targetFolderName;
 	QDir const                        m_gameFolder;
 	bool                              m_isLocalized;
+	bool const                        m_getImplItemIds;
 };
 } // namespace ACE

@@ -1,6 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// Includes
 #include "StdAfx.h"
 #include "BreakableGlassRenderNode.h"
 
@@ -11,7 +10,6 @@
 #include <CryAction/IMaterialEffects.h>
 #include <CryRenderer/IShader.h>
 
-// Constants
 #define DEFAULT_MAX_VIEW_DIST       1000.0f
 #define GLASS_IMPACT_BOUNDARY       0.01f
 #define LOOSE_FRAG_LIFETIME         4.5f
@@ -32,7 +30,6 @@ enum EGlassRNState
 	EGlassRNState_ActiveFrags = 1 << 3
 };
 
-// Statics
 const SBreakableGlassCVars* CBreakableGlassRenderNode::s_pCVars = NULL;
 
 // Error logging
@@ -42,10 +39,6 @@ const SBreakableGlassCVars* CBreakableGlassRenderNode::s_pCVars = NULL;
 	#define LOG_GLASS_ERROR(...)
 #endif
 
-//--------------------------------------------------------------------------------------------------
-// Name: CBreakableGlassRenderNode
-// Desc: Constructor
-//--------------------------------------------------------------------------------------------------
 CBreakableGlassRenderNode::CBreakableGlassRenderNode()
 	: m_pBreakableGlassRE(NULL)
 	, m_pPhysEnt(NULL)
@@ -66,23 +59,15 @@ CBreakableGlassRenderNode::CBreakableGlassRenderNode()
 	{
 		m_physFrags.push_back();
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: ~CBreakableGlassRenderNode
-// Desc: Destructor
-//--------------------------------------------------------------------------------------------------
 CBreakableGlassRenderNode::~CBreakableGlassRenderNode()
 {
 	GetInstCount(GetRenderNodeType())--;
 
 	gEnv->p3DEngine->FreeRenderNodeState(this);
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: InitialiseNode
-// Desc: Initialises render node
-//--------------------------------------------------------------------------------------------------
 bool CBreakableGlassRenderNode::InitialiseNode(const SBreakableGlassInitParams& params, const Matrix34& matrix)
 {
 	// Store param data
@@ -113,12 +98,8 @@ bool CBreakableGlassRenderNode::InitialiseNode(const SBreakableGlassInitParams& 
 	}
 
 	return true;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: ReleaseNode
-// Desc: Releases render node
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::ReleaseNode(bool bImmediate)
 {
 	CRY_ASSERT((m_dwRndFlags & ERF_PENDING_DELETE) == 0);
@@ -144,30 +125,19 @@ void CBreakableGlassRenderNode::ReleaseNode(bool bImmediate)
 	}
 
 	bImmediate ? gEnv->p3DEngine->UnRegisterEntityDirect(this) : gEnv->p3DEngine->UnRegisterEntityAsJob(this);
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: SetId
-// Desc: Sets the node's id
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::SetId(const uint16 id)
 {
 	m_id = id;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: GetId
-// Desc: Returns the node's id
-//--------------------------------------------------------------------------------------------------
 uint16 CBreakableGlassRenderNode::GetId()
 {
 	return m_id;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: PhysicalizeGlass
-// Desc: Creates the physics representation of the plane
-//--------------------------------------------------------------------------------------------------
+// Creates the physics representation of the plane
 void CBreakableGlassRenderNode::PhysicalizeGlass()
 {
 	// Generate aabb
@@ -222,12 +192,9 @@ void CBreakableGlassRenderNode::PhysicalizeGlass()
 	// Default state
 	m_state = EGlassRNState_Initial;
 	m_lastGlassState = SBreakableGlassState();
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: DephysicalizeGlass
-// Desc: Removes the physics representation of the plane
-//--------------------------------------------------------------------------------------------------
+// Removes the physics representation of the plane
 void CBreakableGlassRenderNode::DephysicalizeGlass()
 {
 	if (m_pPhysEnt)
@@ -235,12 +202,8 @@ void CBreakableGlassRenderNode::DephysicalizeGlass()
 		gEnv->pPhysicalWorld->DestroyPhysicalEntity(m_pPhysEnt);
 		m_pPhysEnt = NULL;
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: PhysicalizeGlassFragment
-// Desc: Creates the physics representation of a glass fragment
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::PhysicalizeGlassFragment(SGlassPhysFragment& physFrag, const Vec3& centerOffset)
 {
 	if (!physFrag.m_pPhysEnt)
@@ -281,12 +244,9 @@ void CBreakableGlassRenderNode::PhysicalizeGlassFragment(SGlassPhysFragment& phy
 			physFrag.m_pPhysEnt->SetParams(&foreignData);
 		}
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: DephysicalizeGlassFragment
-// Desc: Removes the physics representation of a glass fragment
-//--------------------------------------------------------------------------------------------------
+//Removes the physics representation of a glass fragment
 void CBreakableGlassRenderNode::DephysicalizeGlassFragment(SGlassPhysFragment& physFrag)
 {
 	// Remove physical entity
@@ -303,12 +263,8 @@ void CBreakableGlassRenderNode::DephysicalizeGlassFragment(SGlassPhysFragment& p
 
 	// Zero lifetime as now dead
 	physFrag.m_lifetime = 0.0f;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: Update
-// Desc: Updates every frame
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::Update(SBreakableGlassUpdateParams& params)
 {
 	if (m_pBreakableGlassRE)
@@ -428,30 +384,20 @@ void CBreakableGlassRenderNode::Update(SBreakableGlassUpdateParams& params)
 		// Expand box to encompass largest fragment
 		m_fragBBox.Expand(Vec3(maxFragSize, maxFragSize, maxFragSize));
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: HasGlassShattered
-// Desc: Used to determine if the glass has fully shattered
-//--------------------------------------------------------------------------------------------------
 bool CBreakableGlassRenderNode::HasGlassShattered()
 {
 	return (m_state & EGlassRNState_Shattered) ? true : false;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: HasActiveFragments
-// Desc: Used to determine if there are any physicalized fragments still active
-//--------------------------------------------------------------------------------------------------
+// Determine if there are any physicalized fragments still active
 bool CBreakableGlassRenderNode::HasActiveFragments()
 {
 	return (m_state & EGlassRNState_ActiveFrags) ? true : false;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: ApplyImpactToGlass
-// Desc: Top level impact handler, passes impact down and updates state
-//--------------------------------------------------------------------------------------------------
+// Top level impact handler, passes impact down and updates state
 void CBreakableGlassRenderNode::ApplyImpactToGlass(const EventPhysCollision* pPhysEvent)
 {
 	if (m_pBreakableGlassRE && pPhysEvent)
@@ -513,12 +459,9 @@ void CBreakableGlassRenderNode::ApplyImpactToGlass(const EventPhysCollision* pPh
 		// Process any changes in glass
 		UpdateGlassState(pPhysEvent);
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: ApplyExplosionToGlass
-// Desc: Passes on the data to the RE and updates glass state
-//--------------------------------------------------------------------------------------------------
+// Passes on the data to the RE and updates glass state
 void CBreakableGlassRenderNode::ApplyExplosionToGlass(const EventPhysCollision* pPhysEvent)
 {
 	if (m_pBreakableGlassRE && pPhysEvent)
@@ -547,12 +490,9 @@ void CBreakableGlassRenderNode::ApplyExplosionToGlass(const EventPhysCollision* 
 		// Process any changes in glass
 		UpdateGlassState(pPhysEvent);
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: DestroyPhysFragment
-// Desc: Removes a physicalized fragment when it collides
-//--------------------------------------------------------------------------------------------------
+// Removes a physicalized fragment when it collides
 void CBreakableGlassRenderNode::DestroyPhysFragment(SGlassPhysFragment* pPhysFrag)
 {
 	if (pPhysFrag && pPhysFrag->m_pPhysEnt)
@@ -605,12 +545,8 @@ void CBreakableGlassRenderNode::DestroyPhysFragment(SGlassPhysFragment* pPhysFra
 			}
 		}
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: CalculateImpactPoint
-// Desc: Calculates an impact point (if any) from the input position
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::CalculateImpactPoint(const Vec3& pt, Vec2& impactPt)
 {
 	// Create point in plane's local space
@@ -620,12 +556,9 @@ void CBreakableGlassRenderNode::CalculateImpactPoint(const Vec3& pt, Vec2& impac
 	// Can assume valid as a phys event led here
 	impactPt.x = clamp_tpl<float>(localPt.x, GLASS_IMPACT_BOUNDARY, m_glassParams.size.x - GLASS_IMPACT_BOUNDARY);
 	impactPt.y = clamp_tpl<float>(localPt.y, GLASS_IMPACT_BOUNDARY, m_glassParams.size.y - GLASS_IMPACT_BOUNDARY);
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: UpdateGlassState
-// Desc: Spawns/plays glass impact effects
-//--------------------------------------------------------------------------------------------------
+// Spawns/plays glass impact effects
 void CBreakableGlassRenderNode::UpdateGlassState(const EventPhysCollision* pPhysEvent)
 {
 	if (m_pBreakableGlassRE && m_pPhysEnt)
@@ -704,12 +637,8 @@ void CBreakableGlassRenderNode::UpdateGlassState(const EventPhysCollision* pPhys
 			m_state |= EGlassRNState_Shattering;
 		}
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: SetParticleEffectColours
-// Desc: Recursively updates all of a particular particle effect's colour params
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::SetParticleEffectColours(IParticleEffect* pEffect, const Vec4& rgba)
 {
 	if (pEffect)
@@ -727,12 +656,8 @@ void CBreakableGlassRenderNode::SetParticleEffectColours(IParticleEffect* pEffec
 			SetParticleEffectColours(pEffect->GetChild(i), rgba);
 		}
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: PlayBreakageEffect
-// Desc: Spawns/plays glass impact breakage effects
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::PlayBreakageEffect(const EventPhysCollision* pPhysEvent)
 {
 	if (m_glassParams.pGlassMaterial && pPhysEvent)
@@ -749,40 +674,24 @@ void CBreakableGlassRenderNode::PlayBreakageEffect(const EventPhysCollision* pPh
 			pMaterialEffects->PlayBreakageEffect(m_glassParams.pGlassMaterial->GetSurfaceType(), "Breakage", breakParams);
 		}
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: GetName
-// Desc: Gets the node's name
-//--------------------------------------------------------------------------------------------------
 const char* CBreakableGlassRenderNode::GetName() const
 {
 	return "BreakableGlass";
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: GetEntityClassName
-// Desc: Gets the entity's class name
-//--------------------------------------------------------------------------------------------------
 const char* CBreakableGlassRenderNode::GetEntityClassName() const
 {
 	return "BreakableGlass";
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: GetMemoryUsage
-// Desc: Gets the node's memory usage
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::GetMemoryUsage(ICrySizer* pSizer) const
 {
 	SIZER_COMPONENT_NAME(pSizer, "BreakableGlassRenderNode");
 	pSizer->AddObject(this, sizeof(*this));
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: SetMaterial
-// Desc: Sets the node's material
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::SetMaterial(IMaterial* pMaterial)
 {
 	// Update material pointer if changed
@@ -848,12 +757,8 @@ void CBreakableGlassRenderNode::SetMaterial(IMaterial* pMaterial)
 			m_glassTintColour = Vec4(0.5f, 0.5f, 0.5f, 0.5f);
 		}
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: SetMatrix
-// Desc: Sets the node's matrix and updates the bbox
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::SetMatrix(const Matrix34& matrix)
 {
 	if (m_matrix == matrix)
@@ -882,47 +787,27 @@ void CBreakableGlassRenderNode::SetMatrix(const Matrix34& matrix)
 	}
 
 	gEnv->p3DEngine->RegisterEntity(this);
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: SetBBox
-// Desc: Sets the node's bbox
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::SetBBox(const AABB& worldSpaceBoundingBox)
 {
 	m_planeBBox = worldSpaceBoundingBox;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: GetPhysics
-// Desc: Gets the node's physics
-//--------------------------------------------------------------------------------------------------
 IPhysicalEntity* CBreakableGlassRenderNode::GetPhysics() const
 {
 	return m_pPhysEnt;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: SetPhysics
-// Desc: Sets the node's physics
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::SetPhysics(IPhysicalEntity* pPhysics)
 {
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: GetMaterialOverride
-// Desc: Returns the material override
-//--------------------------------------------------------------------------------------------------
 IMaterial* CBreakableGlassRenderNode::GetMaterialOverride() const
 {
 	return m_glassParams.pGlassMaterial;
-}//-------------------------------------------------------------------------------------------------
+}
 
-//--------------------------------------------------------------------------------------------------
-// Name: SetCVars
-// Desc: Updates the cvar pointer
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::SetCVars(const SBreakableGlassCVars* pCVars)
 {
 	s_pCVars = pCVars;
@@ -932,12 +817,7 @@ void CBreakableGlassRenderNode::SetCVars(const SBreakableGlassCVars* pCVars)
 		m_pBreakableGlassRE->SetCVars(pCVars);
 	}
 }
-//--------------------------------------------------------------------------------------------------
 
-//--------------------------------------------------------------------------------------------------
-// Name: Render
-// Desc: Renders the node
-//--------------------------------------------------------------------------------------------------
 void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SRenderingPassInfo& passInfo)
 {
 	DBG_LOCK_TO_THREAD(this);
@@ -970,13 +850,13 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 			if (CRenderObject* pRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject())
 			{
 				// Set render object properties
-				pRenderObject->SetMatrix(m_matrix, passInfo);
+				pRenderObject->SetMatrix(m_matrix);
 				pRenderObject->m_ObjFlags |= FOB_TRANS_MASK;
 				pRenderObject->m_fSort = 0;
 				pRenderObject->m_fDistance = renderParams.fDistance;
 				pRenderObject->m_pCurrMaterial = NULL;  // Null flags as cracks
 				pRenderObject->m_pRenderNode = this;
-				pRenderObject->SetAmbientColor(renderParams.AmbientColor, passInfo);
+				pRenderObject->SetAmbientColor(renderParams.AmbientColor);
 				pRenderObject->m_breakableGlassSubFragIndex = GLASSCFG_GLASS_PLANE_FLAG_LOD;
 				pRenderObject->m_nTextureID = renderParams.nTextureID;
 
@@ -999,13 +879,13 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 				// Set render object properties
 				Matrix34 mat = m_matrix;
 				mat.AddTranslation(offset);
-				pRenderObject->SetMatrix(mat, passInfo);
+				pRenderObject->SetMatrix(mat);
 				pRenderObject->m_ObjFlags |= FOB_TRANS_MASK;
 				pRenderObject->m_fSort = 0;
 				pRenderObject->m_fDistance = renderParams.fDistance;
 				pRenderObject->m_pCurrMaterial = pMaterial;  // Material flags as plane
 				pRenderObject->m_pRenderNode = this;
-				pRenderObject->SetAmbientColor(renderParams.AmbientColor, passInfo);
+				pRenderObject->SetAmbientColor(renderParams.AmbientColor);
 				pRenderObject->m_breakableGlassSubFragIndex = GLASSCFG_GLASS_PLANE_FLAG_LOD;
 				pRenderObject->m_nTextureID = renderParams.nTextureID;
 
@@ -1037,14 +917,14 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 					physFrag.m_initialised = true;
 
 					// Set render object properties
-					pRenderObject->SetMatrix(physFrag.m_matrix, passInfo);
+					pRenderObject->SetMatrix(physFrag.m_matrix);
 					pRenderObject->m_ObjFlags |= FOB_TRANS_MASK;
 					pRenderObject->m_fSort = 0;
 					pRenderObject->m_fAlpha = alpha;
 					pRenderObject->m_fDistance = dist;
 					pRenderObject->m_pCurrMaterial = pMaterial;  // Material flags as plane
 					pRenderObject->m_pRenderNode = this;
-					pRenderObject->SetAmbientColor(renderParams.AmbientColor, passInfo);
+					pRenderObject->SetAmbientColor(renderParams.AmbientColor);
 					pRenderObject->m_breakableGlassSubFragIndex = physFrag.m_bufferIndex;
 					pRenderObject->m_nTextureID = renderParams.nTextureID;
 
@@ -1063,7 +943,7 @@ void CBreakableGlassRenderNode::Render(const SRendParams& renderParams, const SR
 			}
 		}
 	}
-}//-------------------------------------------------------------------------------------------------
+}
 
 void CBreakableGlassRenderNode::OffsetPosition(const Vec3& delta)
 {

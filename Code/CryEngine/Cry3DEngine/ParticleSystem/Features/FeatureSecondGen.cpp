@@ -127,11 +127,6 @@ public:
 		return nullptr;
 	}
 
-	const SParticleFeatureParams& GetFeatureParams() const override
-	{
-		static SParticleFeatureParams s_params; return s_params;
-	}
-
 private:
 
 	void VersionFix(Serialization::IArchive& ar)

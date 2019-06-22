@@ -54,7 +54,7 @@
 #include "Serialization.h"
 #include "UndoStack.h"
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include "IResourceSelectorHost.h"
 
 IEditor*               GetIEditor();

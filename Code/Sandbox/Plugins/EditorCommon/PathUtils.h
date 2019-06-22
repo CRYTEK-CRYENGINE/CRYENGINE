@@ -73,6 +73,20 @@ EDITOR_COMMON_API string GetGameProjectAssetsPath();
 //! For example, for "path A:/ProjectDir/Assets" return value would be "Assets"
 EDITOR_COMMON_API string GetGameProjectAssetsRelativePath();
 
+//! Returns absolute path to the editor's resource cache folder of active project.
+//! Path uses unix-style delimiters and contains no trailing delimiter.
+//! Example: A:/ProjectDir/Editor/ResourceCache
+EDITOR_COMMON_API string GetEditorCachePath();
+
+//! Returns relative path to game the editor's resource cache folder of active project.
+//! Path uses unix-style delimiters and contains no trailing delimiter.
+//! Example: Editor/ResourceCache
+EDITOR_COMMON_API string GetEditorCacheRelativePath();
+
+//! Gets the absolute path to the root of the project directory, where the .cryproject resides.
+//! \return Path without trailing separator.
+EDITOR_COMMON_API string GetCurrentProjectDirectoryAbsolute();
+
 //! Converts any path to a game path (relative to assets folder)
 //! Strips project root path and game directory from 'path'.
 //! A:/p4/GameSDK/Objects/bird.cgf -> Objects/bird.cgf
@@ -84,6 +98,12 @@ EDITOR_COMMON_API QString ToGamePath(const QString& path);
 EDITOR_COMMON_API string  ToGamePath(const char* path);
 
 EDITOR_COMMON_API QString ToUnixPath(const QString& path);
+
+//!Get the path of the Editor folder in the engine installation path
+EDITOR_COMMON_API string GetEditorFolderPath();
+
+//!Get the path of the Scripts folder inside the Editor folder in the engine installation path
+EDITOR_COMMON_API string GetEditorScriptsFolderPath();
 
 //! Returns true if the name is not empty and only contains letters, numbers or '-' '_' ' ', and starts with a significant character
 //! This restrictive naming policy ensures filenames will work on any system

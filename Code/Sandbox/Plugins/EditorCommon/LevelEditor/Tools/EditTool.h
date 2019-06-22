@@ -86,11 +86,6 @@ public:
 	virtual bool IsNeedToSkipPivotBoxForObjects()                                              { return false; }
 	virtual bool IsDisplayGrid()                                                               { return true; }
 
-	//DO NOT USE THESE METHODS IF POSSIBLE
-	//TODO : these two helper methods were added for CryDesigner support, remove if possible
-	virtual bool IsAllowTabKey()   { return false; }
-	virtual bool IsExclusiveMode() { return false; }//Ambiguous naming
-
 	// Draws object specific helpers for this tool
 	virtual void DrawObjectHelpers(CBaseObject* pObject, SDisplayContext& dc) {}
 

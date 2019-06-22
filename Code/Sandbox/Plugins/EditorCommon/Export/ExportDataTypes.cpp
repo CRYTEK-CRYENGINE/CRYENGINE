@@ -13,9 +13,9 @@ static void SetTexture(Export::TPath& outName, const IRenderShaderResources* pRe
 	if (pTex)
 	{
 		ICryPak* const pPak = GetISystem()->GetIPak();
-		char path[ICryPak::g_nMaxPath] = {};
-		const char* szPath = pPak->AdjustFileName(pTex->m_Name.c_str(), path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
-		cry_strcat(outName, szPath);
+		CryPathString path;
+		pPak->AdjustFileName(pTex->m_Name.c_str(), path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
+		cry_strcat(outName, path.c_str());
 	}
 }
 
@@ -95,6 +95,121 @@ SExportObject::SExportObject(const char* pName) :
 void SExportObject::SetMaterialName(const char* pName)
 {
 	cry_strcpy(materialName, pName);
+}
+
+void SExportObject::Weld()
+{
+	auto vectorLess = [](const Export::Vector3D& a, const Export::Vector3D& b) 
+	{ 
+		if (fabsf(a.x - b.x) < VEC_EPSILON)
+		{
+			if (fabsf(a.y - b.y) < VEC_EPSILON)
+			{
+				if (fabsf(a.z - b.z) < VEC_EPSILON)
+				{
+					return false;
+				}
+				return a.z < b.z;
+			}
+			return a.y < b.y;
+		}
+		return a.x < b.x;
+	};
+
+	auto uvLess = [](const Export::UV& a, const Export::UV& b)
+	{
+		constexpr float texCoordEpsilon = 0.001f;
+		if (fabsf(a.u - b.u) < texCoordEpsilon)
+		{
+			if (fabsf(a.v - b.v) < texCoordEpsilon)
+			{
+				return false;
+			}
+			return a.v < b.v;
+		}
+		return a.u < b.u;
+	};
+
+	std::map<Export::Vector3D, uint32, decltype(vectorLess)> vertices(vectorLess);
+	std::map<Export::Vector3D, uint32, decltype(vectorLess)> normals(vectorLess);
+	std::map<Export::UV, uint32, decltype(uvLess)> texCoords(uvLess);
+
+	uint32 vertexCount = 0;
+	uint32 normalCount = 0;
+	uint32 texCoordCount = 0;
+	for (size_t meshIndex = 0, meshCount = m_meshes.size(); meshIndex < meshCount; ++meshIndex)
+	{
+		SExportMesh& mesh = *m_meshes[meshIndex];
+		for (size_t faceIndex = 0, faceCount = mesh.m_faces.size(); faceIndex < faceCount; ++faceIndex)
+		{
+			Export::Face& face = mesh.m_faces[faceIndex];
+			for (int i = 0; i < 3; ++i)
+			{
+				const Export::Vector3D v = m_vertices[face.vertex[i]];
+				const auto vertexIt = vertices.find(v);
+				if (vertexIt != vertices.end())
+				{
+					face.vertex[i] = vertexIt->second;
+				}
+				else
+				{
+					face.vertex[i] = vertexCount;
+					vertices[v] = vertexCount;
+					++vertexCount;
+				}
+
+				if (!m_normals.empty())
+				{
+					const Export::Vector3D n = m_normals[face.normal[i]];
+					const auto normalIt = normals.find(n);
+					if (normalIt != normals.end())
+					{
+						face.normal[i] = normalIt->second;
+					}
+					else
+					{
+						face.normal[i] = normalCount;
+						normals[n] = normalCount;
+						++normalCount;
+					}
+				}
+
+				if (!m_texCoords.empty())
+				{
+					const Export::UV uv = m_texCoords[face.texCoord[i]];
+					const auto texCoordIt = texCoords.find(uv);
+					if (texCoordIt != texCoords.end())
+					{
+						face.texCoord[i] = texCoordIt->second;
+					}
+					else
+					{
+						face.texCoord[i] = texCoordCount;
+						texCoords[uv] = texCoordCount;
+						++texCoordCount;
+					}
+				}
+			}
+		}
+	}
+
+	m_vertices.resize(vertices.size());
+	for (const auto vertex : vertices)
+	{
+		m_vertices[vertex.second] = vertex.first;
+	}
+
+	m_normals.resize(normals.size());
+	for (const auto normal : normals)
+	{
+		m_normals[normal.second] = normal.first;
+	}
+
+	m_texCoords.resize(texCoords.size());
+	for (const auto texCoord : texCoords)
+	{
+		m_texCoords[texCoord.second] = texCoord.first;
+	}
 }
 
 // SExportData

@@ -164,7 +164,7 @@ void CShadowUtils::GetCubemapFrustumForLight(const SRenderLight* pLight, int nS,
 	   };*/
 
 	Vec3 vForward = Vec3(sCubeVector[nS][0], sCubeVector[nS][1], sCubeVector[nS][2]);
-	Vec3 vUp = Vec3(sCubeVector[nS][3], sCubeVector[nS][4], sCubeVector[nS][5]);
+	//Vec3 vUp = Vec3(sCubeVector[nS][3], sCubeVector[nS][4], sCubeVector[nS][5]);
 	Vec3 vEyePt = pLight->m_Origin;
 	vForward = vForward + vEyePt;
 
@@ -355,9 +355,6 @@ void CShadowUtils::mathMatrixLookAtSnap(Matrix44A* pMatr, const Vec3& Eye, const
 	//TD - add ratios to the frustum
 	fSnapXY *= 2.0f;
 
-	float fZSnap = 192.0f * 2.0f / 16777216.f /*1024.0f*/;
-	//fZSnap *= 32.0f;
-
 	Vec3 zaxis = vLightDir.GetNormalized();
 	Vec3 xaxis = (vUp.Cross(zaxis)).GetNormalized();
 	Vec3 yaxis = zaxis.Cross(xaxis);
@@ -384,12 +381,10 @@ void CShadowUtils::mathMatrixLookAtSnap(Matrix44A* pMatr, const Vec3& Eye, const
 
 	float fTranslX = (*pMatr)(3, 0);
 	float fTranslY = (*pMatr)(3, 1);
-	float fTranslZ = (*pMatr)(3, 2);
+	//float fTranslZ = (*pMatr)(3, 2);
 
 	(*pMatr)(3, 0) = snap_frac2(fTranslX, fSnapXY);
 	(*pMatr)(3, 1) = snap_frac2(fTranslY, fSnapXY);
-	//(*pMatr)(3,2) = snap_frac2(fTranslZ, fZSnap);
-
 }
 
 //todo move frustum computations to the 3d engine
@@ -461,7 +456,7 @@ void CShadowUtils::GetShadowMatrixForObject(Matrix44A& mLightProj, Matrix44A& mL
 	{
 		mLightProj.SetIdentity();
 		mLightView.SetIdentity();
-		vFrustumInfo.x = 0.1;
+		vFrustumInfo.x = 0.1f;
 		vFrustumInfo.y = 100.0f;
 		vFrustumInfo.w = 0.00001f;  //ObjDepthTestBias;
 		vFrustumInfo.z = 0.0f;
@@ -679,7 +674,6 @@ bool CShadowUtils::GetShadowCascadesSamplingInfo(SShadowCascadesSamplingInfo& sa
 {
 	CRY_ASSERT(pRenderView != nullptr);
 
-	EShaderQuality shaderQuality = gcpRendD3D->m_cEF.m_ShaderProfiles[eST_Shadow].GetShaderQuality();
 	const auto& PF = pRenderView->GetShaderConstants();
 	const bool bCloudShadow = gcpRendD3D->m_bCloudShadowsEnabled && (gcpRendD3D->GetCloudShadowTextureId() > 0);
 
@@ -890,7 +884,7 @@ void CShadowUtils::GetForwardShadowSamplingInfo(
 	{
 		float fFilteredArea = gcpRendD3D->GetShadowJittering() * (pFr->fWidthS + pFr->fBlurS);
 		if (pFr->m_eFrustumType == ShadowMapFrustum::e_Nearest)
-			fFilteredArea *= 0.1;
+			fFilteredArea *= 0.1f;
 
 		kernelSize = fFilteredArea;
 	}

@@ -69,7 +69,6 @@ bool CCommandList::Init(UINT64 currentFenceValue)
 		m_CmdQueue = m_rPool.GetVkCommandQueue();
 	}
 
-	VkQueueFlagBits eCmdListType = m_rPool.GetVkQueueType();
 	uint32 nCmdListFamily = m_rPool.GetVkQueueFamily();
 
 	if (!m_CmdAllocator)
@@ -138,7 +137,7 @@ void CCommandList::Begin()
 	const VkCommandBufferBeginInfo Info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, nullptr };
 
 	VkResult res = vkBeginCommandBuffer(m_CmdList, &Info);
-	VK_ASSERT(res == VK_SUCCESS && "Could not open command list!");
+	CRY_VULKAN_VERIFY(res == VK_SUCCESS, "Could not open command list!");
 }
 
 void CCommandList::End()
@@ -149,7 +148,7 @@ void CCommandList::End()
 	}
 
 	VkResult res = vkEndCommandBuffer(m_CmdList);
-	VK_ASSERT(res == VK_SUCCESS && "Could not close command list!");
+	CRY_VULKAN_VERIFY(res == VK_SUCCESS, "Could not close command list!");
 
 	m_eState = CLSTATE_COMPLETED;
 }
@@ -240,7 +239,7 @@ bool CCommandList::Reset()
 	{
 		PROFILE_FRAME("vkResetCommandBuffer");
 		ret = vkResetCommandBuffer(m_CmdList, VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-		VK_ASSERT(ret == VK_SUCCESS);
+		VK_ASSERT(ret == VK_SUCCESS, "");
 	}
 
 	m_eState = CLSTATE_FREE;
@@ -440,7 +439,7 @@ VkQueueFlagBits CCommandListPool::m_MapQueueType[CMDQUEUE_NUM] =
 	VkQueueFlagBits(CMDLIST_TYPE_COPY)
 };
 
-std::pair<uint32, uint32> CCommandListPool::m_MapQueueBits[1U << 4] =
+std::pair<uint32, uint32> CCommandListPool::m_MapQueueBits[1U << 5] =
 {
 	std::make_pair(0, 0)
 };
@@ -479,7 +478,8 @@ void CCommandListPool::Configure()
 	m_MapQueueType[CMDQUEUE_COMPUTE] = VkQueueFlagBits(CMDLIST_TYPE_COMPUTE /*CRenderer::CV_r_VkHardwareComputeQueue & 7*/);
 	m_MapQueueType[CMDQUEUE_COPY] = VkQueueFlagBits(CMDLIST_TYPE_COPY /*CRenderer::CV_r_VkHardwareCopyQueue & 7*/);
 
-	memset(m_MapQueueBits, ~0U, sizeof(m_MapQueueBits));
+	const uint32 invalidQueueIdx = ~0U;
+	memset(m_MapQueueBits, invalidQueueIdx, sizeof(m_MapQueueBits));
 	memset(m_MapQueueIndices, 0U, sizeof(m_MapQueueIndices));
 	if (const SPhysicalDeviceInfo* pInfo = m_pDevice->GetPhysicalDeviceInfo())
 	{
@@ -494,14 +494,23 @@ void CCommandListPool::Configure()
 			m_MapQueueBits[queueFlags] = std::make_pair(f, queueCount);
 		}
 
-		for (int i = 0x0; i <= 0x3; ++i)
-		for (int f = 0x0; f <= 0xF; ++f)
-		for (int n = 0x0; n <= 0x3; ++n)
-		{
-			int queueFlags = f & ~(1U << n);
+		int allQueueFlagBits = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT | VK_QUEUE_SPARSE_BINDING_BIT;
+#if CRY_RENDERER_VULKAN >= 11
+		allQueueFlagBits |= VK_QUEUE_PROTECTED_BIT;
+#endif
 
-			if (m_MapQueueBits[queueFlags].first == 0xFFFFFFFF)
-				m_MapQueueBits[queueFlags] = m_MapQueueBits[f];
+		for (int queueFlags = 0x1; queueFlags <= allQueueFlagBits; ++queueFlags)
+		{
+			if (m_MapQueueBits[queueFlags].first == invalidQueueIdx) continue;
+
+			for (int subsetQueueFlags = 0x1; subsetQueueFlags < queueFlags; ++subsetQueueFlags)
+			{
+				bool allSubsetFlagsAvailable = (queueFlags & subsetQueueFlags) == subsetQueueFlags;
+
+				// if the subset queue flags is available in the current queueFlags and it is not mapped to another queue flag permutation, yet.
+				if (allSubsetFlagsAvailable && m_MapQueueBits[subsetQueueFlags].first == invalidQueueIdx)
+					m_MapQueueBits[subsetQueueFlags] = m_MapQueueBits[queueFlags];
+			}
 		}
 	}
 }
@@ -658,7 +667,7 @@ void CCommandListPool::ForfeitCommandList(VK_PTR(CCommandList)& result, bool bWa
 	VK_PTR(CCommandList) pWaitable = result;
 
 	{
-		VK_ASSERT(result->IsCompleted() && "It's not possible to forfeit an unclosed command list!");
+		VK_ASSERT(result->IsCompleted(), "It's not possible to forfeit an unclosed command list!");
 		result->Schedule();
 		result = nullptr;
 	}
@@ -689,7 +698,7 @@ void CCommandListPool::ForfeitCommandLists(uint32 numCLs, VK_PTR(CCommandList)* 
 	int32 i = numCLs;
 	while (--i >= 0)
 	{
-		VK_ASSERT(results[i]->IsCompleted() && "It's not possible to forfeit an unclosed command list!");
+		VK_ASSERT(results[i]->IsCompleted(), "It's not possible to forfeit an unclosed command list!");
 		results[i]->Schedule();
 		results[i] = nullptr;
 	}

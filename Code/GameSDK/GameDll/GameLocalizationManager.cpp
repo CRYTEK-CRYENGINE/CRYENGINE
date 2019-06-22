@@ -14,6 +14,7 @@ Also as a special case credits are dynamically loaded
 #include "StdAfx.h"
 #include "GameLocalizationManager.h"
 #include "Network/Lobby/GameLobby.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 CGameLocalizationManager::CGameLocalizationManager()
 {

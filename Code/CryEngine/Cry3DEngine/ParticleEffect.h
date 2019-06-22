@@ -142,14 +142,14 @@ struct SEmitParams;
 // Additional runtime parameters.
 //
 struct ResourceParticleParams
-	: ParticleParams, Cry3DEngineBase, ZeroInit<ResourceParticleParams>
+	: ParticleParams, Cry3DEngineBase
 {
 	// Texture, material, geometry params.
-	float                 fTexAspect;               // H/V aspect ratio.
-	uint16                mConfigSpecMask;          // Allowed config specs.
+	float                 fTexAspect = 0.0f;        // H/V aspect ratio.
+	uint16                mConfigSpecMask = 0;      // Allowed config specs.
 	_smart_ptr<IMaterial> pMaterial;                // Used to override the material
 	_smart_ptr<IStatObj>  pStatObj;                 // If it isn't set to 0, this object will be used instead of a sprite
-	uint32                nEnvFlags;                // Summary of environment info needed for effect.
+	uint32                nEnvFlags = 0;            // Summary of environment info needed for effect.
 	TrinaryFlags<uint64>  nRenObjFlags;             // Flags for renderer, combining FOB_ and OS_.
 	SParticleShaderData   ShaderData;               // Data to be used by the particle shaders
 

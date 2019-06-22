@@ -15,6 +15,7 @@
 
 #include "Common/RenderView.h"
 #include "Common/RendererResources.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 CShader* CShaderMan::s_DefaultShader;
 CShader* CShaderMan::s_shPostEffects;
@@ -528,7 +529,7 @@ void CShaderMan::mfReleaseShaders()
 	{
 		int n = 0;
 		ResourcesMapItor itor;
-		for (itor = pRL->m_RMap.begin(); itor != pRL->m_RMap.end(); )
+		for (itor = pRL->m_RMap.begin(); itor != pRL->m_RMap.end();)
 		{
 			CShader* sh = (CShader*)itor->second;
 			itor++;
@@ -668,11 +669,9 @@ void CShaderMan::mfCreateCommonGlobalFlags(const char* szName)
 					pCurrOffset += 4;
 					char dummy[256] = "\n";
 					char name[256] = "\n";
-					int res = sscanf(pCurrOffset, "%255s %255s", dummy, name);         // Get flag name..
-					assert(res);
+					CRY_VERIFY(sscanf(pCurrOffset, "%255s %255s", dummy, name) != 0); // Get flag name
 
 					string pszNameFlag = name;
-					int nSzSize = pszNameFlag.size();
 					pszNameFlag.MakeUpper();
 
 					MapNameFlagsItor pCheck = m_pShaderCommonGlobalFlag.find(pszNameFlag);
@@ -820,12 +819,10 @@ bool CShaderMan::mfRemapCommonGlobalFlagsWithLegacy(void)
 
 			// Search for duplicates and swap with old mask
 			MapNameFlagsItor pCommonGlobalsIter = m_pShaderCommonGlobalFlag.begin();
-			uint64 test = (uint64)0x10;
 			for (; pCommonGlobalsIter != pCommonGlobalsEnd; ++pCommonGlobalsIter)
 			{
 				if (pFoundMatch != pCommonGlobalsIter && pCommonGlobalsIter->second == nRemapedMask)
 				{
-					uint64 nPrev = pCommonGlobalsIter->second;
 					pCommonGlobalsIter->second = nOldMask;
 					bRemaped = true;
 					break;
@@ -863,8 +860,7 @@ void CShaderMan::mfInitCommonGlobalFlags(void)
 		if (strstr(str, "FX_CACHE_VER"))
 		{
 			float fCacheVer = 0.0f;
-			int res = sscanf(str, "%127s %f", name, &fCacheVer);
-			assert(res);
+			CRY_VERIFY(sscanf(str, "%127s %f", name, &fCacheVer) != 0);
 			if (!stricmp(name, "FX_CACHE_VER") && fabs(FX_CACHE_VER - fCacheVer) >= 0.01f)
 			{
 				// re-create common global flags (shader cache bumped)
@@ -948,11 +944,11 @@ void CShaderMan::mfInitLookups()
 	string dirdatafilename("%ENGINE%/" + string(m_ShadersCache));
 	dirdatafilename += "lookupdata.bin";
 	m_ResLookupDataMan[static_cast<int>(cacheSource::readonly)].LoadData(dirdatafilename.c_str(), CParserBin::m_bEndians, true);
-	
+
 	dirdatafilename = m_szUserPath + string(m_ShadersCache);
-	
+
 	mfUpdateBuildVersion(dirdatafilename.c_str());
-	
+
 	m_ResLookupDataMan[static_cast<int>(cacheSource::user)].Clear();
 	dirdatafilename += "lookupdata.bin";
 	m_ResLookupDataMan[static_cast<int>(cacheSource::user)].LoadData(dirdatafilename.c_str(), CParserBin::m_bEndians, false);
@@ -1082,7 +1078,7 @@ void CShaderMan::mfInitGlobal(void)
 
 void CShaderMan::mfInit(void)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	s_cNameHEAD = CCryNameTSCRC("HEAD");
 
 	CTexture::Init();
@@ -1167,8 +1163,7 @@ void CShaderMan::mfInit(void)
 		{
 			// make sure we can write to the shader cache
 			if (!CheckAllFilesAreWritable((string(m_ShadersCache) + "cgpshaders").c_str())
-				|| !CheckAllFilesAreWritable((string(m_ShadersCache) + "cgvshaders").c_str()))
-
+			    || !CheckAllFilesAreWritable((string(m_ShadersCache) + "cgvshaders").c_str()))
 			{
 				// message box causes problems in fullscreen
 				//			MessageBox(0,"WARNING: Shader cache cannot be updated\n\n"
@@ -1211,7 +1206,7 @@ void CShaderMan::UnloadShaderStartupCache()
 
 void CShaderMan::mfPostInit()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	CTexture::PostInit();
 
@@ -1356,7 +1351,7 @@ const SShaderProfile& CRenderer::GetShaderProfile(EShaderType eST) const
 
 void CShaderMan::RT_SetShaderQuality(EShaderType eST, EShaderQuality eSQ)
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CShaderMan::RT_SetShaderQuality");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CShaderMan::RT_SetShaderQuality");
 
 	eSQ = CLAMP(eSQ, eSQ_Low, eSQ_VeryHigh);
 	if (eST == eST_All)
@@ -1447,7 +1442,7 @@ void CShaderMan::mfReleaseSystemShaders()
 
 void CShaderMan::mfLoadBasicSystemShaders()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!s_DefaultShader)
 	{
 		s_DefaultShader = mfNewShader("<Default>");
@@ -1468,7 +1463,7 @@ void CShaderMan::mfLoadBasicSystemShaders()
 
 void CShaderMan::mfLoadDefaultSystemShaders()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!s_DefaultShader)
 	{
 		s_DefaultShader = mfNewShader("<Default>");
@@ -1698,8 +1693,7 @@ void CShaderMan::mfPreloadShaderExts(void)
 		char s[256];
 		cry_strcpy(s, fileinfo.name);
 		PathUtil::RemoveExtension(s);
-		SShaderGen* pShGen = mfCreateShaderGenInfo(s, false);
-		assert(pShGen);
+		CRY_VERIFY(mfCreateShaderGenInfo(s, false) != nullptr);
 	}
 	while (gEnv->pCryPak->FindNext(handle, &fileinfo) != -1);
 
@@ -1741,7 +1735,6 @@ CShader* CShaderMan::mfNewShader(const char* szName)
 
 SEnvTexture* SHRenderTarget::GetEnv2D()
 {
-	CRenderer* rd = gRenDev;
 	SEnvTexture* pEnvTex = NULL;
 	if (m_nIDInPool >= 0)
 	{
@@ -1751,7 +1744,7 @@ SEnvTexture* SHRenderTarget::GetEnv2D()
 	}
 	else
 	{
-		CRenderView* pRenderView = gcpRendD3D.GetGraphicsPipeline().GetCurrentRenderView();
+		CRenderView* pRenderView = gcpRendD3D.GetActiveGraphicsPipeline()->GetCurrentRenderView();
 		const CCamera& cam = (pRenderView) ? pRenderView->GetCamera(CCamera::eEye_Left) : GetISystem()->GetViewCamera();
 		Matrix33 orientation = Matrix33(cam.GetMatrix());
 		Ang3 Angs = CCamera::CreateAnglesYPR(orientation);
@@ -1801,7 +1794,6 @@ void CShaderResources::CreateModifiers(SInputShaderResources* pInRes)
 		InTex.m_Ext.m_nUpdateFlags = 0;
 		InTex.m_Ext.m_nLastRecursionLevel = -1;
 		m_nLastTexture = i;
-		SEfResTexture* pTex = m_Textures[i];
 		SEfTexModificator* pMod = InTex.m_Ext.m_pTexModifier;
 		if (i != EFTT_DETAIL_OVERLAY)
 		{
@@ -1905,10 +1897,8 @@ void SEfResTexture::Update(int nTSlot, uint32& nMDMask)
 {
 	FUNCTION_PROFILER_RENDER_FLAT
 	  PrefetchLine(m_Sampler.m_pTex, 0);
-	CRenderer* rd = gRenDev;
 
 	assert(nTSlot < MAX_TMU);
-
 
 	const SEfTexModificator* const pMod = m_Ext.m_pTexModifier;
 
@@ -1925,7 +1915,6 @@ void SEfResTexture::Update(int nTSlot, uint32& nMDMask)
 
 void SEfResTexture::UpdateWithModifier(int nTSlot, uint32& nMDMask)
 {
-	CRenderer* rd = gRenDev;
 	int nFrameID = gRenDev->GetRenderFrameID();
 	int recursion = 0;
 	if (m_Ext.m_nFrameUpdated == nFrameID && m_Ext.m_nLastRecursionLevel == recursion)
@@ -1955,7 +1944,6 @@ void SEfResTexture::UpdateWithModifier(int nTSlot, uint32& nMDMask)
 	}
 
 	bool bTr = false;
-	bool bTranspose = false;
 	Plane Pl;
 	Plane PlTr;
 
@@ -2236,7 +2224,7 @@ void SEfResTexture::UpdateWithModifier(int nTSlot, uint32& nMDMask)
 					memset(&Pl, 0, sizeof(Pl));
 					float* fPl = (float*)&Pl;
 					fPl[i] = 1.0f;
-					Matrix44A matView = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left).viewMatrix;
+					Matrix44A matView = gcpRendD3D.GetActiveGraphicsPipeline()->GetCurrentViewInfo(CCamera::eEye_Left).viewMatrix;
 					PlTr = TransformPlane2_NoTrans(matView, Pl);
 					pMod->m_TexGenMatrix(i, 0) = PlTr.n.x;
 					pMod->m_TexGenMatrix(i, 1) = PlTr.n.y;
@@ -2311,7 +2299,7 @@ float CShaderMan::EvalWaveForm(SWaveForm* wf)
 		Freq = wf->m_Freq;
 	}
 
-	const char *sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
+	const char* sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
 
 	switch (wf->m_eWFType)
 	{
@@ -2325,7 +2313,7 @@ float CShaderMan::EvalWaveForm(SWaveForm* wf)
 
 	// Other wave types aren't supported anymore
 	case eWF_HalfSin:
-		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType,sShaderName );
+		Warning("WARNING: CShaderMan::EvalWaveForm: bad WaveType '%d' in Shader '%s'\n", wf->m_eWFType, sShaderName);
 		assert(0);
 		return 0;
 
@@ -2375,7 +2363,7 @@ float CShaderMan::EvalWaveForm(SWaveForm2* wf)
 {
 	int val;
 
-	const char *sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
+	const char* sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
 
 	float animationTime = gRenDev->GetAnimationTime().GetSeconds();
 
@@ -2441,7 +2429,7 @@ float CShaderMan::EvalWaveForm2(SWaveForm* wf, float frac)
 {
 	int val;
 
-	const char *sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
+	const char* sShaderName = "Unknown"; //gRenDev->m_RP.m_pShader->GetName();
 
 	if (!(wf->m_Flags & WFF_CLAMP))
 		switch (wf->m_eWFType)
@@ -2542,7 +2530,7 @@ float CShaderMan::EvalWaveForm2(SWaveForm* wf, float frac)
 
 void CShaderMan::mfBeginFrame()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 }
 
 void CHWShader::mfCleanupCache()
@@ -2559,7 +2547,7 @@ EHWShaderClass CHWShader::mfStringProfile(const char* profile)
 	if (!strncmp(profile, "hs_6_1", 6) || !strncmp(profile, "hs_6_0", 6) || !strncmp(profile, "hs_5_1", 6) || !strncmp(profile, "hs_5_0", 6)) return eHWSC_Hull;
 	if (!strncmp(profile, "ds_6_1", 6) || !strncmp(profile, "ds_6_0", 6) || !strncmp(profile, "ds_5_1", 6) || !strncmp(profile, "ds_5_0", 6)) return eHWSC_Domain;
 	if (!strncmp(profile, "cs_6_1", 6) || !strncmp(profile, "cs_6_0", 6) || !strncmp(profile, "cs_5_1", 6) || !strncmp(profile, "cs_5_0", 6)) return eHWSC_Compute;
-	
+
 	assert(0);
 	return eHWSC_Num;
 }
@@ -2572,7 +2560,7 @@ EHWShaderClass CHWShader::mfStringClass(const char* szClass)
 	if (!strnicmp(szClass, "HS", 2)) return eHWSC_Hull;
 	if (!strnicmp(szClass, "DS", 2)) return eHWSC_Domain;
 	if (!strnicmp(szClass, "CS", 2)) return eHWSC_Compute;
-	
+
 	assert(0);
 	return eHWSC_Num;
 }
@@ -2843,7 +2831,7 @@ inline bool sCompareShd(CBaseResource* a, CBaseResource* b)
 void CShaderMan::mfSortResources()
 {
 	uint32 i;
-	
+
 	iLog->Log("-- Presort shaders by states...");
 	//return;
 	std::sort(&CShader::s_ShaderResources_known.begin()[1], CShader::s_ShaderResources_known.end(), sCompareRes);

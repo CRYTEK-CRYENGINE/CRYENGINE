@@ -1,23 +1,13 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   PostProcessFilters : image filters post processing
-
-   Revision history:
-* 23/02/2005: Re-factored/Converted to CryEngine 2.0 by Tiago Sousa
-* Created by Tiago Sousa
-
-   =============================================================================*/
-
 #include "StdAfx.h"
-#include "DriverD3D.h"
-#include <Cry3DEngine/I3DEngine.h>
+#include "GraphicsPipeline/PostEffects.h"
+
 #include "D3DPostProcess.h"
 #include "D3DStereo.h"
+#include "DriverD3D.h"
 
-#include "GraphicsPipeline/PostEffects.h"
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+#include <Cry3DEngine/I3DEngine.h>
 
 void CSharpening::Render()
 {
@@ -48,7 +38,7 @@ void CSharpening::Render()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// todo: handle diferent blurring filters, add wavelength based blur
+// todo: handle different blurring filters, add wavelength based blur
 
 void CBlurring::Render()
 {
@@ -63,7 +53,7 @@ void CBlurring::Render()
 	// maximum blur amount to have nice results
 	const float fMaxBlurAmount = 5.0f;
 
-	// this is uber expensive - and barely no need for this - adjusting gaussian distribution already looks quite good
+	// this is uber expensive - and barely no need for this - adjusting Gaussian distribution already looks quite good
 	//GetUtils().TexBlurGaussian(CRendererResources::s_ptexBackBuffer, 1, 1.0f, LERP(0.0f, fMaxBlurAmount, sqrtf(fAmount) ), false);
 
 	GetUtils().StretchRect(CRendererResources::s_ptexBackBuffer, CRendererResources::s_ptexBackBufferScaled[0]);
@@ -90,7 +80,7 @@ void CBlurring::Render()
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CColorGrading::UpdateParams(SColorGradingMergeParams& pMergeParams, bool bUpdateChart)
+void CColorGrading::UpdateParams(SColorGradingMergeParams& pMergeParams)
 {
 	float fSharpenAmount = max(m_pSharpenAmount->GetParam(), 0.0f);
 
@@ -99,7 +89,7 @@ bool CColorGrading::UpdateParams(SColorGradingMergeParams& pMergeParams, bool bU
 	// Clamp to same Photoshop min/max values
 	float fMinInput = clamp_tpl<float>(m_pMinInput->GetParam(), 0.0f, 255.0f);
 	float fGammaInput = clamp_tpl<float>(m_pGammaInput->GetParam(), 0.0f, 10.0f);
-	;
+
 	float fMaxInput = clamp_tpl<float>(m_pMaxInput->GetParam(), 0.0f, 255.0f);
 	float fMinOutput = clamp_tpl<float>(m_pMinOutput->GetParam(), 0.0f, 255.0f);
 
@@ -203,24 +193,11 @@ bool CColorGrading::UpdateParams(SColorGradingMergeParams& pMergeParams, bool bU
 	pMergeParams.pFilterColor = pParams2;
 	pMergeParams.pSelectiveColor[0] = pParams3;
 	pMergeParams.pSelectiveColor[1] = pParams4;
-
-	// Always using color charts
-	if (bUpdateChart)
-	{
-		if (gcpRendD3D->m_pColorGradingControllerD3D && (gEnv->IsCutscenePlaying() || (gRenDev->GetRenderFrameID() % max(1, CRenderer::CV_r_ColorgradingChartsCache)) == 0))
-		{
-			if (!gcpRendD3D->m_pColorGradingControllerD3D->Update(&pMergeParams))
-				return false;
-		}
-
-	}
-
-	return true;
 }
 
 void CColorGrading::Render()
 {
-	// Depreceated: to be removed / replaced by UberPostProcess shader
+	// Deprecated: to be removed / replaced by UberPostProcess shader
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -228,7 +205,9 @@ void CColorGrading::Render()
 
 void CPostAA::Render()
 {
-	gcpRendD3D->GetGraphicsPipeline().ExecutePostAA();
+	CGraphicsPipeline* pGraphicsPipeline = m_pCurrentContext->GetRenderView()->GetGraphicsPipeline().get();
+	CRY_ASSERT(pGraphicsPipeline);
+	pGraphicsPipeline->ExecutePostAA();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

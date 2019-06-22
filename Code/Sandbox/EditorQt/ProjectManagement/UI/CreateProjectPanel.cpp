@@ -31,6 +31,8 @@ CCreateProjectPanel::CCreateProjectPanel(CSelectProjectDialog* pParent, bool run
 	, m_pOutputRootEdit(new QLineEdit(this))
 	, m_pNewProjectNameEdit(new QLineEdit(this))
 {
+	m_pMainLayout->setMargin(0);
+	m_pMainLayout->setSpacing(0);
 	setLayout(m_pMainLayout);
 
 	m_pSortedModel->setSourceModel(m_pModel);
@@ -42,21 +44,30 @@ CCreateProjectPanel::CCreateProjectPanel(CSelectProjectDialog* pParent, bool run
 	CreateProjectNameEditBox();
 	CreateDialogButtons(runOnSandboxInit);
 
-	SetViewMode(false);
+	SetViewMode(true);
 
 	UpdateCreateProjectBtn();
 }
 
 void CCreateProjectPanel::CreateSearchPanel()
 {
+	QWidget* pSearchBoxContainer = new QWidget();
+	pSearchBoxContainer->setObjectName("SearchBoxContainer");
+
+	QHBoxLayout* pSearchBoxLayout = new QHBoxLayout();
+	pSearchBoxLayout->setAlignment(Qt::AlignTop);
+	pSearchBoxLayout->setMargin(0);
+	pSearchBoxLayout->setSpacing(0);
+
 	QSearchBox* pSearchBox = new QSearchBox(this);
 	pSearchBox->EnableContinuousSearch(true);
 	pSearchBox->SetModel(m_pSortedModel);
 
-	QHBoxLayout* pLayout = new QHBoxLayout;
-	pLayout->addWidget(pSearchBox);
 
-	m_pMainLayout->addLayout(pLayout);
+	pSearchBoxLayout->addWidget(pSearchBox);
+	pSearchBoxContainer->setLayout(pSearchBoxLayout);
+
+	m_pMainLayout->addWidget(pSearchBoxContainer);
 }
 
 void CCreateProjectPanel::CreateViews()
@@ -85,11 +96,14 @@ void CCreateProjectPanel::CreateViews()
 	connect(pView, &QAdvancedTreeView::doubleClicked, this, &CCreateProjectPanel::OnItemDoubleClicked);
 
 	QHBoxLayout* pLayout = new QHBoxLayout;
+	pLayout->setMargin(0);
+	pLayout->setSpacing(0);
 	pLayout->addWidget(m_pTreeView);
 	pLayout->addWidget(m_pThumbnailView);
 
 	QVBoxLayout* pButtonsLayout = new QVBoxLayout;
 	pButtonsLayout->setMargin(0);
+	pButtonsLayout->setSpacing(0);
 	pButtonsLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
 
 	QButtonGroup* pGroup = new QButtonGroup(this);
@@ -146,6 +160,8 @@ void CCreateProjectPanel::CreateOutputRootFolderEditBox()
 	connect(pSelectFolderBtn, &QPushButton::clicked, this, &CCreateProjectPanel::OnChangeOutputRootFolder);
 
 	QHBoxLayout* pLayout = new QHBoxLayout;
+	pLayout->setMargin(0);
+	pLayout->setSpacing(0);
 	pLayout->addWidget(pLabel);
 	pLayout->addWidget(m_pOutputRootEdit);
 	pLayout->addWidget(pSelectFolderBtn);
@@ -164,6 +180,8 @@ void CCreateProjectPanel::CreateProjectNameEditBox()
 	connect(m_pNewProjectNameEdit, &QLineEdit::textChanged, this, &CCreateProjectPanel::OnNewProjectNameChanged);
 
 	QHBoxLayout* pLayout = new QHBoxLayout;
+	pLayout->setMargin(0);
+	pLayout->setSpacing(0);
 	pLayout->addWidget(pLabel);
 	pLayout->addWidget(m_pNewProjectNameEdit);
 
@@ -179,6 +197,8 @@ void CCreateProjectPanel::CreateDialogButtons(bool runOnSandboxInit)
 
 	QHBoxLayout* pButtonsLayout = new QHBoxLayout;
 	pButtonsLayout->setAlignment(Qt::AlignRight | Qt::AlignBottom);
+	pButtonsLayout->setMargin(0);
+	pButtonsLayout->setSpacing(0);
 	pButtonsLayout->addWidget(m_pCreateProjectBtn);
 	pButtonsLayout->addWidget(pQuitBtn);
 
@@ -203,6 +223,11 @@ void CCreateProjectPanel::OnCreateProjectPressed()
 
 void CCreateProjectPanel::OnItemDoubleClicked(const QModelIndex& index)
 {
+	if (!m_pCreateProjectBtn->isEnabled())
+	{
+		return;
+	}
+
 	if (!index.isValid())
 	{
 		CRY_ASSERT(false);
@@ -263,4 +288,12 @@ void CCreateProjectPanel::UpdateCreateProjectBtn()
 	}
 
 	m_pCreateProjectBtn->setEnabled(enabled);
+}
+
+void CCreateProjectPanel::paintEvent(QPaintEvent*)
+{
+	QStyleOption styleOption;
+	styleOption.init(this);
+	QPainter painter(this);
+	style()->drawPrimitive(QStyle::PE_Widget, &styleOption, &painter, this);
 }

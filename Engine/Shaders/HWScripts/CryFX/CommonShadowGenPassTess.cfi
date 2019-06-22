@@ -6,7 +6,7 @@ struct HS_CONTROL_POINT_OUTPUT_SHADOWGEN
 {
 	hsControlPointShared controlPoint;
 
-#if !%_RT_HW_PCF_COMPARE || %_RT_CUBEMAP0 || %_RT_SAMPLE0
+#if !%_RT_HW_PCF_COMPARE || %_RT_CUBEMAP0 || %_RT_SAMPLE0 && %_RT_SHADOW_DEPTH_OUTPUT_LINEAR
 	float Depth  : TEXCOORDN;
 #endif
 };
@@ -40,7 +40,7 @@ HS_CONTROL_POINT_OUTPUT_SHADOWGEN Common_ShadowGenHS(InputPatch<v2f_sh, 3> input
 	output.controlPoint.vView      = inputPatch[uCPID].vView;
 	output.controlPoint.vNormal    = inputPatch[uCPID].vNormal;
 	output.controlPoint.vBaseTC.xy = inputPatch[uCPID].baseTC;
-#if !%_RT_HW_PCF_COMPARE || %_RT_CUBEMAP0 || %_RT_SAMPLE0
+#if !%_RT_HW_PCF_COMPARE || %_RT_CUBEMAP0 || %_RT_SAMPLE0 && %_RT_SHADOW_DEPTH_OUTPUT_LINEAR
 	output.Depth                   = inputPatch[uCPID].Depth ;
 #endif
 
@@ -76,7 +76,7 @@ v2f_sh Common_ShadowGenDS( HS_CONSTANT_DATA_OUTPUT hsConstData, float3 vBaryCoor
 	Evaluate(evalInput, evalOutput);
 	ProcessEvalOutput_SG(evalOutput, output);
 
-#if !%_RT_HW_PCF_COMPARE || %_RT_CUBEMAP0 || %_RT_SAMPLE0
+#if !%_RT_HW_PCF_COMPARE || %_RT_CUBEMAP0 || %_RT_SAMPLE0 && %_RT_SHADOW_DEPTH_OUTPUT_LINEAR
 	output.Depth = EvalVec(TrianglePatch[0].Depth, TrianglePatch[1].Depth, TrianglePatch[2].Depth, vBaryCoords);
 #endif
 

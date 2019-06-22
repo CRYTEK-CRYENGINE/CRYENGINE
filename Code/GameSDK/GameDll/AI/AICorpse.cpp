@@ -516,7 +516,7 @@ EntityId CAICorpseManager::SpawnAICorpseFromEntity( IEntity& sourceEntity, const
 		assert((uint32)m_corpsesArray.size() < m_maxCorpses);
 	}
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, EMemStatContextFlags::MSF_None, "AICorpseManager::SpawnCorpse");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "AICorpseManager::SpawnCorpse");
 
 	EntityId corpseId = 0;
 	IPhysicalEntity* pSourcePhysics = sourceEntity.GetPhysics();

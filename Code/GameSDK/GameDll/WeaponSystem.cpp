@@ -295,9 +295,9 @@ void CWeaponSystem::Reload()
 
 void CWeaponSystem::LoadItemParams(IItemSystem* pItemSystem)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "WeaponSystem: Load Item Params" );
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "WeaponSystem: Load Item Params" );
 
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 	
 	int numItems = pItemSystem->GetItemParamsCount();
 
@@ -803,8 +803,8 @@ void CWeaponSystem::Scan(const char *folderName)
 //------------------------------------------------------------------------
 bool CWeaponSystem::ScanXML(XmlNodeRef &root, const char *xmlFile)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "WeaponSystem");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Weapon xml (%s)", xmlFile);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "WeaponSystem");
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "Weapon xml (%s)", xmlFile);
 
 	if (strcmpi(root->getTag(), "ammo"))
 		return false;

@@ -6,7 +6,7 @@
 #include <QObject>
 #include <CrySerialization/Forward.h>
 using Serialization::IArchive;
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class CMFCPropertyTree;
 
 class CMFCPropertyTreeSignalHandler : public QObject
@@ -63,7 +63,7 @@ protected:
 
 private:
 	friend class CMFCPropertyTreeSignalHandler;
-	QPropertyTree*                 m_propertyTree;
+	QPropertyTreeLegacy*                 m_propertyTree;
 	CMFCPropertyTreeSignalHandler* m_signalHandler;
 	Functor0                       m_sizeChangeCallback;
 	Functor0                       m_propertyChangeCallback;

@@ -4,7 +4,7 @@
 
 #include "ModeCharacter.h"
 #include "ManipScene.h"
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <QApplication>
 #include <QToolBar>
 #include <QAction>
@@ -245,7 +245,7 @@ void ModeCharacter::HandleSceneChange(int layerBits, bool continuous)
 	{
 		if (layer >= m_layerPropertyTrees.size())
 			break;
-		QPropertyTree* tree = m_layerPropertyTrees[layer];
+		QPropertyTreeLegacy* tree = m_layerPropertyTrees[layer];
 		if (bitsLeft & 1)
 		{
 			if (tree)
@@ -345,11 +345,11 @@ void ModeCharacter::OnViewportRender(const SRenderContext& rc)
 	{
 		bool applyPhys = cdf->m_physNeedsApply;
 		int mode = m_window->ProxyMakingMode();
-		if (mode && (!cdf->m_physEdit || mode-1 != cdf->m_physLod))
+		DisplayOptions* opt = m_document->GetDisplayOptions().get();
+		int changed = 0;
+		if (mode && !m_editProxies)
 		{
-			cdf->m_physLod = mode - 1;
-			DisplayOptions* opt = m_document->GetDisplayOptions().get();
-			int changed = 0;
+			m_tempProxyRender = opt->physics.showPhysicalProxies == DisplayPhysicsOptions::DISABLED && opt->physics.showRagdollJointLimits == DisplayPhysicsOptions::NONE;
 			if (opt->physics.showPhysicalProxies == DisplayPhysicsOptions::DISABLED)
 			{
 				opt->physics.showPhysicalProxies = DisplayPhysicsOptions::SOLID;
@@ -360,8 +360,18 @@ void ModeCharacter::OnViewportRender(const SRenderContext& rc)
 				opt->physics.showRagdollJointLimits = DisplayPhysicsOptions::ALL;
 				++changed;
 			}
-			if (changed)
-				m_document->DisplayOptionsChanged();
+		}
+		if (!mode && m_tempProxyRender)
+		{
+			m_tempProxyRender = false;
+			opt->physics.showPhysicalProxies = DisplayPhysicsOptions::DISABLED;
+			opt->physics.showRagdollJointLimits = DisplayPhysicsOptions::NONE;
+			++changed;
+		}
+		m_editProxies = !!mode;
+		if (mode && (!cdf->m_physEdit || mode-1 != cdf->m_physLod))
+		{
+			cdf->m_physLod = mode - 1;
 			m_character->GetISkeletonAnim()->StopAnimationsAllLayers();
 			m_document->SetBindPoseEnabled(m_system->scene->layers.bindPose = true);
 			cdf->LoadPhysProxiesFromCharacter(m_character);
@@ -369,6 +379,8 @@ void ModeCharacter::OnViewportRender(const SRenderContext& rc)
 			m_window->GetPropertiesPanel()->OnChanged();
 			applyPhys = true;
 		}
+		if (changed)
+			m_document->DisplayOptionsChanged();
 		if (applyPhys)
 		{
 			EntryModifiedEvent ev;

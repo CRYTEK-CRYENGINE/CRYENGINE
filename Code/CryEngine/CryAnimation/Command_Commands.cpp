@@ -228,7 +228,7 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 
 	if (rCAF.IsAssetAdditive())
 	{
-		CRY_PROFILE_REGION(PROFILE_ANIMATION, "SampleAddAnimFull::Execute:UpdatePoseAdd");
+		CRY_PROFILE_SECTION(PROFILE_ANIMATION, "SampleAddAnimFull::Execute:UpdatePoseAdd");
 
 		for (uint32 j = startingJointIndex; j < state.m_jointCount; ++j)
 		{
@@ -263,7 +263,7 @@ void SampleAddAnimFull::Execute(const CState& state, CEvaluationContext& context
 	}
 	else
 	{
-		CRY_PROFILE_REGION(PROFILE_ANIMATION, "SampleAddAnimFull::Execute:UpdatePose");
+		CRY_PROFILE_SECTION(PROFILE_ANIMATION, "SampleAddAnimFull::Execute:UpdatePose");
 
 		const QuatT* parrHemispherePose = Console::GetInst().ca_SampleQuatHemisphereFromCurrentPose ? outputRelPose : pDefaultPose; // joints to compare with in quaternion dot product
 		for (uint32 j = startingJointIndex; j < state.m_jointCount; ++j)

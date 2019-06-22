@@ -69,7 +69,7 @@ static bool SampleAnimation(BoneSampleMap* framesPerChannel, float* animationLen
 	{
 		const float fNormalizedTime = float(frame) * fInvNbFrames;
 
-		character->SetCharEditMode(CA_CharacterTool);
+		character->SetCharEditMode(CA_CharacterAuxEditor);
 		skeletonPose.SetForceSkeletonUpdate(1);
 
 		skeletonAnimation.SetLayerNormalizedTime(0, fNormalizedTime);

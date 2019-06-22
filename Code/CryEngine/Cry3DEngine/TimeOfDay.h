@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include <Cry3DEngine/ITimeOfDay.h>
 #include "EnvironmentPreset.h"
-#include <CryAudio/IAudioInterfacesCommonData.h>
+#include <Cry3DEngine/ITimeOfDay.h>
 
 class CTimeOfDay : public ITimeOfDay
 {

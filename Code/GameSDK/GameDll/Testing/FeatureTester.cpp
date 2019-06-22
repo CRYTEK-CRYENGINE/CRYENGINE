@@ -13,6 +13,7 @@
 #include "Testing/AutoTester.h"
 #include "IWorldQuery.h"
 #include "Weapon.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if ENABLE_FEATURE_TESTER
 

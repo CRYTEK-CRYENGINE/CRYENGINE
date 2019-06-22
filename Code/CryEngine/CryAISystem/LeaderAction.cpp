@@ -162,7 +162,7 @@ void CLeaderAction::CheckNavType(CAIActor* pMember, bool bSignal)
 		AISignals::IAISignalExtraData* pData = GetAISystem()->CreateSignalExtraData();
 		pData->iValue = navType;
 
-		const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNavTypeChanged_DEPRECATED(), pMember->GetAIObjectID(), pData);
+		const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNavTypeChanged_DEPRECATED(), pMember->GetEntityID(), pData);
 		GetAISystem()->SendSignal(AISignals::SIGNALFILTER_SENDER, pSignal);
 
 		CCCPOINT(CLeaderAction_CheckNavType);
@@ -229,7 +229,7 @@ void CLeaderAction::CheckLeaderDistance() const
 				float dist2 = Distance::Point_PointSq(pUnitActor->GetPos(), pAILeader->GetPos());
 				if (dist2 > maxdist2 && !unitItr->IsFar())
 				{
-					pUnitActor->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderTooFar_DEPRECATED(), pAILeader->GetAssociation().GetAIObject()->GetAIObjectID()));
+					pUnitActor->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderTooFar_DEPRECATED(), pAILeader->GetAssociation().GetAIObject()->GetEntityID()));
 					unitItr->SetFar();
 				}
 				else
@@ -596,7 +596,7 @@ CLeaderAction_Attack::CLeaderAction_Attack()
 
 CLeaderAction_Attack::~CLeaderAction_Attack()
 {
-	const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnFireDisabled_DEPRECATED(), m_pLeader->GetAIObjectID());
+	const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnFireDisabled_DEPRECATED(), m_pLeader->GetEntityID());
 	GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_GROUPONLY, pSignal);
 }
 
@@ -720,7 +720,7 @@ void CLeaderAction_Attack_SwitchPositions::CheckNavType(CUnitImg& unit)
 			AISignals::IAISignalExtraData* pData = GetAISystem()->CreateSignalExtraData();
 			pData->iValue = navType;
 			pData->iValue2 = targetNavType;
-			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNavTypeChanged_DEPRECATED(), pMember->GetAIObjectID(), pData);
+			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNavTypeChanged_DEPRECATED(), pMember->GetEntityID(), pData);
 			GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 		}
 		tData.navType = navType;
@@ -736,7 +736,7 @@ void CLeaderAction_Attack_SwitchPositions::CheckNavType(CUnitImg& unit)
 			AISignals::IAISignalExtraData* pData = GetAISystem()->CreateSignalExtraData();
 			pData->iValue = navType;
 			pData->iValue2 = targetNavType;
-			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNavTypeChanged_DEPRECATED(), pMember->GetAIObjectID(), pData);
+			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNavTypeChanged_DEPRECATED(), pMember->GetEntityID(), pData);
 			GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 		}
 		tData.targetNavType = targetNavType;
@@ -1074,7 +1074,7 @@ bool CLeaderAction_Attack_SwitchPositions::ProcessSignal(const AISignals::Signal
 
 					AISignals::IAISignalExtraData* pData = GetAISystem()->CreateSignalExtraData();
 					pData->nID = pTarget->GetEntityID();
-					pInvestigator->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnCheckDeadBody_DEPRECATED(), pInvestigator->GetAIObjectID(), pData));
+					pInvestigator->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnCheckDeadBody_DEPRECATED(), pInvestigator->GetEntityID(), pData));
 				}
 				else
 					pPiper->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNoGroupTarget_DEPRECATED()));
@@ -1330,7 +1330,7 @@ void CLeaderAction_Attack_SwitchPositions::UpdateSpecialActions()
 				action.refOwner = itUnitSelected->m_refUnit;
 
 				CAIActor* pUnit = itUnitSelected->m_refUnit.GetAIObject();
-				pUnit->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnSpecialAction_DEPRECATED(),  pUnit->GetAIObjectID()));
+				pUnit->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnSpecialAction_DEPRECATED(),  pUnit->GetEntityID()));
 				itUnitSelected->SetSpecial();
 				size--;
 
@@ -1470,7 +1470,7 @@ CLeaderAction::eActionUpdateResult CLeaderAction_Attack_SwitchPositions::Update(
 
 			if (curUnit.IsBehind() && !pUnitObstructing)
 			{
-				pUnit->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNotBehind_DEPRECATED(), pUnit->GetAIObjectID()));
+				pUnit->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnNotBehind_DEPRECATED(), pUnit->GetEntityID()));
 				curUnit.ClearBehind();
 			}
 			else if (!curUnit.IsBehind() && pUnitObstructing)
@@ -1482,7 +1482,7 @@ CLeaderAction::eActionUpdateResult CLeaderAction_Attack_SwitchPositions::Update(
 					pData = GetAISystem()->CreateSignalExtraData();
 					pData->nID = pOtherEntity->GetId();
 				}
-				pUnit->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnBehind_DEPRECATED(), pUnit->GetAIObjectID(), pData));
+				pUnit->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnBehind_DEPRECATED(), pUnit->GetEntityID(), pData));
 				curUnit.SetBehind();
 			}
 		}
@@ -1673,7 +1673,7 @@ CLeaderAction::eActionUpdateResult CLeaderAction_Attack_SwitchPositions::Update(
 								AssignNewShootSpot(pUnit, iPointIndex);
 								CPipeUser* pPiper = pUnit->CastToCPipeUser();
 								pPiper->SetRefPointPos(pData->point);
-								pPiper->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnAttackShootSpot_DEPRECATED(), pUnit->GetAIObjectID(), pData));
+								pPiper->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnAttackShootSpot_DEPRECATED(), pUnit->GetEntityID(), pData));
 								curUnit.ClearFollowing();
 							}
 						}

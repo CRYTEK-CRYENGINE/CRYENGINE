@@ -127,10 +127,10 @@ static thread_local int tls_workerSpins = 0;
 		{
 			if (m_workIndicator <= 0)
 			{
-				//CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Wait - Wait Start");
+				//CRY_PROFILE_SECTION(PROFILE_SYSTEM, "JobWorkerThread: Wait - Wait Start");
 				AUTO_LOCK_T(CryMutexFast, m_hasWorkLock);
 				{
-					//CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Wait - Wait End");
+					//CRY_PROFILE_SECTION(PROFILE_SYSTEM, "JobWorkerThread: Wait - Wait End");
 					while (m_workIndicator <= 0)
 					{
 						m_hasWorkCnd.Wait(m_hasWorkLock);
@@ -144,7 +144,7 @@ static thread_local int tls_workerSpins = 0;
 #endif
 				if (tls_workerSpins++ < 10) // Worker failed more than 10 times to get work from the queue
 				{
-					//CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Wait - Sleep");
+					//CRY_PROFILE_SECTION(PROFILE_SYSTEM, "JobWorkerThread: Wait - Sleep");
 					// Deep OS call (10k+ cycles on Win)
 					// Allow switching to another thread 
 					CrySleep(0);
@@ -166,10 +166,10 @@ static thread_local int tls_workerSpins = 0;
 			// Note: count can be negative
 			if (count == 0)
 			{
-				//CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Aquire - Wait Start");
+				//CRY_PROFILE_SECTION(PROFILE_SYSTEM, "JobWorkerThread: Aquire - Wait Start");
 				AUTO_LOCK_T(CryMutexFast, m_hasWorkLock);
 				{
-					//CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Aquire - Wait End");
+					//CRY_PROFILE_SECTION(PROFILE_SYSTEM, "JobWorkerThread: Aquire - Wait End");
 					--m_workIndicator;
 				}
 			}
@@ -188,10 +188,10 @@ static thread_local int tls_workerSpins = 0;
 			// Note: count can be negative
 			if (count == 1)
 			{
-				//CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Release - Wait Start");
+				//CRY_PROFILE_SECTION(PROFILE_SYSTEM, "JobWorkerThread: Release - Wait Start");
 				AUTO_LOCK_T(CryMutexFast, m_hasWorkLock);
 				{
-					//CRY_PROFILE_REGION(PROFILE_SYSTEM, "JobWorkerThread: Release - Wait End");
+					//CRY_PROFILE_SECTION(PROFILE_SYSTEM, "JobWorkerThread: Release - Wait End");
 					m_workIndicator++;
 
 					// Need to wake up all workers as we don't want to end up with a single worker active when "count" > 2
@@ -278,7 +278,7 @@ public:
 	// returns the index to use for the frame profiler
 	uint32 GetCurrentFrameBufferIndex() const;
 
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	JobManager::IWorkerBackEndProfiler* GetBackEndWorkerProfiler() const { return m_pBackEndWorkerProfiler; }
 #endif
 
@@ -291,7 +291,7 @@ private:
 	uint8 m_nNumWorkerThreads;                                        // number of worker threads
 
 	// members required for profiling jobs in the frame profiler
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	JobManager::IWorkerBackEndProfiler* m_pBackEndWorkerProfiler;
 #endif
 };

@@ -1,13 +1,14 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#if !defined(SHADOWRENDERER_H)
-#define SHADOWRENDERER_H
+#pragma once
 
+#include <CryThreading/IJobManager.h>
 #include "ShadowUtils.h"
 
 #include "Textures/PowerOf2BlockPacker.h" // CPowerOf2BlockPacker
 
 #include <CryCore/Containers/VectorSet.h>
+#include <CryRenderer/IRenderAuxGeom.h>
 
 #include <array>
 #include <bitset>
@@ -63,13 +64,17 @@ struct ShadowMapFrustum : public CMultiThreadRefCount
 			memset(mOctreePathNodeProcessed, 0x0, sizeof(mOctreePathNodeProcessed));
 			mGeneration = cacheGeneration;
 			mObjectsRendered = 0;
+			mTraverseOctreeJobState.Wait();
 		}
+		
 		uint32                           mObjectsRendered;
 		uint8                            mGeneration;
 
 		static const int                 MAX_TRAVERSAL_PATH_LENGTH = 32;
 		uint8                            mOctreePath[MAX_TRAVERSAL_PATH_LENGTH];
 		uint8                            mOctreePathNodeProcessed[MAX_TRAVERSAL_PATH_LENGTH];
+
+		JobManager::SJobState            mTraverseOctreeJobState;
 	};
 
 public:
@@ -510,42 +515,18 @@ struct SShadowRenderer
 	static void FinishRenderFrustumsToView(CRenderView* pRenderView);
 };
 
-struct ShadowFrustumMGPUCache : public ISyncMainWithRenderListener
+struct SShadowCacheUpdateMasks : public ISyncMainWithRenderListener
 {
-	StaticArray<ShadowMapFrustumPtr, MAX_GSM_LODS_NUM> m_staticShadowMapFrustums;
-	ShadowMapFrustumPtr                                m_pHeightMapAOFrustum;
-
 	uint32 nUpdateMaskMT;
 	uint32 nUpdateMaskRT;
 
-	ShadowFrustumMGPUCache()
+	SShadowCacheUpdateMasks()
 		: nUpdateMaskMT(0), nUpdateMaskRT(0)
-	{
-		m_pHeightMapAOFrustum = NULL;
-		m_staticShadowMapFrustums.fill(NULL);
-	};
+	{}
 
 	void Init()
 	{
-		m_pHeightMapAOFrustum = new ShadowMapFrustum;
-		m_pHeightMapAOFrustum->pShadowCacheData = std::make_shared<ShadowMapFrustum::ShadowCacheData>();
-
-		for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
-		{
-			m_staticShadowMapFrustums[i] = new ShadowMapFrustum;
-			m_staticShadowMapFrustums[i]->pShadowCacheData = std::make_shared<ShadowMapFrustum::ShadowCacheData>();
-		}
-
 		nUpdateMaskMT = nUpdateMaskRT = 0;
-	}
-
-	void Release()
-	{
-		m_pHeightMapAOFrustum = 0;
-		for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
-		{
-			m_staticShadowMapFrustums[i] = 0;
-		}
 	}
 
 	virtual void SyncMainWithRender()
@@ -588,5 +569,3 @@ struct SShadowFrustumToRender
 		CRY_ASSERT(pFrustum->pDepthTex == nullptr);
 	}
 };
-
-#endif

@@ -24,7 +24,7 @@
 
 #include <QtUtil.h>
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <Controls/QuestionDialog.h>
 #include <EditorFramework/Events.h>
 
@@ -606,7 +606,7 @@ CMainEditorWindow::CMainEditorWindow()
 	m_pTextItemDetails = new QTextEdit(this);
 	m_pTextItemDetails->setText("(Item details will go here)");
 
-	m_pPropertyTree = new QPropertyTree;
+	m_pPropertyTree = new QPropertyTreeLegacy;
 
 	QSplitter* pDetailsSplitter = new QSplitter(this);
 	pDetailsSplitter->setOrientation(Qt::Vertical);

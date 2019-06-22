@@ -603,10 +603,7 @@ template<typename F>
 struct TContainerCountsBase
 {
 	TElementCounts<F> components;
-	struct SubEmitterCounts
-	{
-		F updated = 0;
-	} subemitters;
+	TElementCounts<F> spawners;
 	struct ParticleCounts : TElementCounts<F>
 	{
 		F reiterate = 0, reject = 0, clip = 0, collideTest = 0, collideHit = 0;

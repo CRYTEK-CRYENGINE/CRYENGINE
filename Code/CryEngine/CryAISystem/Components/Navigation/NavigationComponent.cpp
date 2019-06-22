@@ -171,7 +171,8 @@ void CEntityAINavigationComponent::Start()
 	callbacks.getPathFollowerFunction = functor(*this, &CEntityAINavigationComponent::GetPathfollower);
 
 	gEnv->pAISystem->GetMovementSystem()->RegisterEntity(GetEntity()->GetId(), callbacks, m_movementAdapter);
-	m_collisionAgent.Initialize((m_collisionAvoidanceProperties.type == SCollisionAvoidanceProperties::EType::None) ? nullptr : GetEntity());
+
+	RegisterEntityIfRequired();
 }
 
 void CEntityAINavigationComponent::Stop()
@@ -184,7 +185,7 @@ void CEntityAINavigationComponent::Stop()
 	CancelCurrentMovementRequest();
 	
 	gEnv->pAISystem->GetMovementSystem()->UnregisterEntity(GetEntity()->GetId());
-	m_collisionAgent.Release();
+	m_collisionAgent.Unregister();
 
 	m_pNavigationPath = nullptr;
 }
@@ -232,7 +233,7 @@ void CEntityAINavigationComponent::ProcessEvent(const SEntityEvent& event)
 		{
 			if (IsGameOrSimulation())
 			{
-				m_collisionAgent.Initialize((m_collisionAvoidanceProperties.type == SCollisionAvoidanceProperties::EType::None) ? nullptr : GetEntity());
+				RegisterEntityIfRequired();
 			}
 			GetEntity()->UpdateComponentEventMask(this);
 			break;
@@ -392,7 +393,7 @@ void CEntityAINavigationComponent::SetCollisionAvoidanceProperties(const SCollis
 {
 	if (IsGameOrSimulation() && properties.type != m_collisionAvoidanceProperties.type)
 	{
-		m_collisionAgent.Initialize((m_collisionAvoidanceProperties.type == SCollisionAvoidanceProperties::EType::None) ? nullptr : GetEntity());
+		RegisterEntityIfRequired();
 	}
 	m_collisionAvoidanceProperties = properties;
 }
@@ -621,4 +622,26 @@ Vec3 CEntityAINavigationComponent::GetVelocity() const
 		}
 	}
 	return velocity;
+}
+
+void CEntityAINavigationComponent::RegisterEntityIfRequired()
+{
+	if (m_collisionAvoidanceProperties.type == SCollisionAvoidanceProperties::EType::None)
+	{
+		const bool agentSucessfullyUnregistered = m_collisionAgent.Unregister();
+		if (!agentSucessfullyUnregistered)
+		{
+			CRY_ASSERT_MESSAGE(agentSucessfullyUnregistered, "Entity '%s' could not be unregistered from the Collision Avoidance System.", GetEntity()->GetName());
+			gEnv->pLog->LogWarning("Entity '%s' could not be unregistered from the Collision Avoidance System.", GetEntity()->GetName());
+		}
+	}
+	else
+	{
+		const bool agentSucessfullyRegistered = m_collisionAgent.Register(GetEntity());
+		if (!agentSucessfullyRegistered)
+		{
+			CRY_ASSERT_MESSAGE(agentSucessfullyRegistered, "Entity '%s' could not be registered to the Collision Avoidance System.", GetEntity()->GetName());
+			gEnv->pLog->LogWarning("Entity '%s' could not be registered to the Collision Avoidance System.", GetEntity()->GetName());
+		}
+	}
 }

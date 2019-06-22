@@ -2,15 +2,15 @@
 
 #include "stdafx.h"
 #include "EventInstance.h"
-#include "BaseObject.h"
+#include "Object.h"
 #include "CVars.h"
 #include "Return.h"
 #include "Event.h"
 #include <CryAudio/IAudioSystem.h>
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	#include <Logger.h>
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -29,20 +29,13 @@ CEventInstance::~CEventInstance()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEventInstance::SetInternalParameters()
-{
-	m_pInstance->getParameter(g_szOcclusionParameterName, &m_pOcclusionParameter);
-	m_pInstance->getParameter(g_szAbsoluteVelocityParameterName, &m_pAbsoluteVelocityParameter);
-}
-
-//////////////////////////////////////////////////////////////////////////
 bool CEventInstance::PrepareForOcclusion()
 {
 	m_pMasterTrack = nullptr;
 	FMOD_RESULT const fmodResult = m_pInstance->getChannelGroup(&m_pMasterTrack);
 	CRY_AUDIO_IMPL_FMOD_ASSERT_OK_OR_NOT_LOADED;
 
-	if ((m_pMasterTrack != nullptr) && (m_pOcclusionParameter == nullptr))
+	if ((m_pMasterTrack != nullptr) && ((m_event.GetFlags() & EEventFlags::HasOcclusionParameter) == 0))
 	{
 		m_pLowpass = nullptr;
 		int numDSPs = 0;
@@ -80,11 +73,7 @@ bool CEventInstance::PrepareForOcclusion()
 //////////////////////////////////////////////////////////////////////////
 void CEventInstance::SetOcclusion(float const occlusion)
 {
-	if (m_pOcclusionParameter != nullptr)
-	{
-		CRY_VERIFY(m_pOcclusionParameter->setValue(occlusion) == FMOD_OK);
-	}
-	else if (m_pLowpass != nullptr)
+	if (((m_event.GetFlags() & EEventFlags::HasOcclusionParameter) == 0) && (m_pLowpass != nullptr))
 	{
 		float const range = m_lowpassFrequencyMax - std::max(m_lowpassFrequencyMin, g_cvars.m_lowpassMinCutoffFrequency);
 		float const value = m_lowpassFrequencyMax - (occlusion * range);
@@ -95,7 +84,7 @@ void CEventInstance::SetOcclusion(float const occlusion)
 //////////////////////////////////////////////////////////////////////////
 void CEventInstance::SetReturnSend(CReturn const* const pReturn, float const value)
 {
-	if ((m_pInstance != nullptr) && (m_pMasterTrack != nullptr))
+	if (m_pMasterTrack != nullptr)
 	{
 		FMOD::ChannelGroup* pChannelGroup = nullptr;
 		CRY_VERIFY(pReturn->GetBus()->getChannelGroup(&pChannelGroup) == FMOD_OK);
@@ -139,12 +128,6 @@ void CEventInstance::SetReturnSend(CReturn const* const pReturn, float const val
 			}
 		}
 	}
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
-	else
-	{
-		Cry::Audio::Log(ELogType::Error, "Event instance or master track of %s does not exist during %s", m_event.GetName(), __FUNCTION__);
-	}
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -165,20 +148,11 @@ void CEventInstance::UpdateVirtualState()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEventInstance::SetAbsoluteVelocity(float const velocity)
-{
-	if (m_pAbsoluteVelocityParameter != nullptr)
-	{
-		CRY_VERIFY(m_pAbsoluteVelocityParameter->setValue(velocity) == FMOD_OK);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
 void CEventInstance::StopAllowFadeOut()
 {
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	m_isFadingOut = true;
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 	CRY_VERIFY(m_pInstance->stop(FMOD_STUDIO_STOP_ALLOWFADEOUT) == FMOD_OK);
 }

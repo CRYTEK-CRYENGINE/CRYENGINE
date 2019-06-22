@@ -31,6 +31,7 @@ public:
 	int   EnableTFRC;
 #if CRY_PLATFORM_DURANGO
 	int   networkThreadAffinity;
+	const char* net_xboxAssociationTemplateName;
 #endif
 
 #if LOCK_NETWORK_FREQUENCY == 0

@@ -4,6 +4,7 @@
 #include "SensorSystem.h"
 
 #include <Cry3DEngine/I3DEngine.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "SchematycEntitySensorVolumeComponent.h"
 #include "SensorMap.h"
@@ -100,7 +101,7 @@ namespace Cry
 				}
 				case ESYSTEM_EVENT_LEVEL_LOAD_END:
 				{
-					LOADING_TIME_PROFILE_SECTION_NAMED("CSensorSystem::OnSystemEvent() ESYSTEM_EVENT_LEVEL_LOAD_END");
+					CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CSensorSystem::OnSystemEvent() ESYSTEM_EVENT_LEVEL_LOAD_END");
 					const float terrainSize = static_cast<float>(gEnv->p3DEngine->GetTerrainSize());
 					const AABB worldBounds(Vec3(0.0f, 0.0f, -200.0f), Vec3(terrainSize, terrainSize, 200.0f));
 					m_pMap->SetOctreeBounds(worldBounds);

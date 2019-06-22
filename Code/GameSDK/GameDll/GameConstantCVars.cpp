@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "GameConstantCVars.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 SGameReleaseConstantCVars* SGameReleaseConstantCVars::m_pThis = NULL;
 

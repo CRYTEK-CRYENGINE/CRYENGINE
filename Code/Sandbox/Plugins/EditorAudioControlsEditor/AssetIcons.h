@@ -17,6 +17,7 @@ static CryIcon s_settingIcon;
 static CryIcon s_stateIcon;
 static CryIcon s_switchIcon;
 static CryIcon s_triggerIcon;
+static CryIcon s_listenerIcon;
 
 //////////////////////////////////////////////////////////////////////////
 inline void InitAssetIcons()
@@ -31,6 +32,7 @@ inline void InitAssetIcons()
 	s_stateIcon = CryIcon("icons:audio/assets/state.ico");
 	s_switchIcon = CryIcon("icons:audio/assets/switch.ico");
 	s_triggerIcon = CryIcon("icons:audio/assets/trigger.ico");
+	s_listenerIcon = CryIcon("icons:audio/assets/listener.ico");
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -39,35 +41,45 @@ inline CryIcon const& GetAssetIcon(EAssetType const type)
 	switch (type)
 	{
 	case EAssetType::Trigger:
-		return s_triggerIcon;
-		break;
+		{
+			return s_triggerIcon;
+		}
 	case EAssetType::Parameter:
-		return s_parameterIcon;
-		break;
+		{
+			return s_parameterIcon;
+		}
 	case EAssetType::Switch:
-		return s_switchIcon;
-		break;
+		{
+			return s_switchIcon;
+		}
 	case EAssetType::State:
-		return s_stateIcon;
-		break;
+		{
+			return s_stateIcon;
+		}
 	case EAssetType::Environment:
-		return s_environmentIcon;
-		break;
+		{
+			return s_environmentIcon;
+		}
 	case EAssetType::Preload:
-		return s_preloadIcon;
-		break;
+		{
+			return s_preloadIcon;
+		}
 	case EAssetType::Setting:
-		return s_settingIcon;
-		break;
+		{
+			return s_settingIcon;
+		}
 	case EAssetType::Folder:
-		return s_folderIcon;
-		break;
+		{
+			return s_folderIcon;
+		}
 	case EAssetType::Library:
-		return s_libraryIcon;
-		break;
+		{
+			return s_libraryIcon;
+		}
 	default:
-		return s_errorIcon;
-		break;
+		{
+			return s_errorIcon;
+		}
 	}
 }
 } // namespace ACE

@@ -8,7 +8,22 @@
 class CPostAAStage : public CGraphicsPipelineStage
 {
 public:
-	// Width and height should be the actual dimensions of the texture to be antialiased, 
+	static const EGraphicsPipelineStage StageID = eStage_PostAA;
+
+	CPostAAStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+		, m_passSMAAEdgeDetection(&graphicsPipeline)
+		, m_passSMAABlendWeights(&graphicsPipeline)
+		, m_passSMAANeighborhoodBlending(&graphicsPipeline)
+		, m_passTemporalAA(&graphicsPipeline)
+		, m_passComposition(&graphicsPipeline)
+		, m_passCopySRGB(&graphicsPipeline)
+	{
+		m_pPrevBackBuffersLeftEye[0] = m_pPrevBackBuffersLeftEye[1] = nullptr;
+		m_pPrevBackBuffersRightEye[0] = m_pPrevBackBuffersRightEye[1] = nullptr;
+	}
+
+	// Width and height should be the actual dimensions of the texture to be antialiased,
 	// which might be different than the provided renderview's output resolution (e.g. VR).
 	void CalculateJitterOffsets(int targetWidth, int targetHeight, CRenderView* pTargetRenderView);
 	void CalculateJitterOffsets(CRenderView* pRenderView)
@@ -26,10 +41,10 @@ public:
 	void Execute();
 
 private:
-	void ApplySMAA(CTexture*& pCurrRT);
-	void ApplySRGB(CTexture*& pCurrRT);
-	void ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint32 aaMode);
-	void DoFinalComposition(CTexture*& pCurrRT, CTexture* pDestRT, uint32 aaMode);
+	void      ApplySMAA(CTexture*& pCurrRT);
+	void      ApplySRGB(CTexture*& pCurrRT);
+	void      ApplyTemporalAA(CTexture*& pCurrRT, CTexture*& pMgpuRT, uint32 aaMode);
+	void      DoFinalComposition(CTexture*& pCurrRT, CTexture* pDestRT, uint32 aaMode);
 
 	CTexture* GetAARenderTarget(const CRenderView* pRenderView, bool bCurrentFrame) const;
 
@@ -47,6 +62,6 @@ private:
 	CFullscreenPass      m_passComposition;
 	CStretchRectPass     m_passCopySRGB;
 
-	bool oldStereoEnabledState{ false };
-	int  oldAAState{ 0 };
+	bool                 oldStereoEnabledState{ false };
+	int                  oldAAState{ 0 };
 };

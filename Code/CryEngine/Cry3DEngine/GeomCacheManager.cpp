@@ -42,7 +42,7 @@ CGeomCacheManager::CGeomCacheManager()
 	, m_numReadStreamAborts(0)
 	, m_numFailedAllocs(0)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_GeomCache, 0, "Geometry cache streaming pool");
+	MEMSTAT_CONTEXT(EMemStatContextType::GeomCache, "Geometry cache streaming pool");
 
 	ChangeBufferSize(GetCVars()->e_GeomCacheBufferSize);
 
@@ -100,8 +100,8 @@ CGeomCache* CGeomCacheManager::FindGeomCacheByFilename(const char* filename)
 
 CGeomCache* CGeomCacheManager::LoadGeomCache(const char* szFileName)
 {
-	LOADING_TIME_PROFILE_SECTION;
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Geometry Caches");
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Geometry Caches");
 
 	// Normalize file name
 	char sFilename[_MAX_PATH];
@@ -309,7 +309,7 @@ void CGeomCacheManager::StreamingUpdate()
 
 		if (streamInfo.m_fillRenderNodeJobState.IsRunning())
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::StreamingUpdate_WaitForLastFillJob");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CGeomCacheManager::StreamingUpdate_WaitForLastFillJob");
 			gEnv->pJobManager->WaitForJob(streamInfo.m_fillRenderNodeJobState);
 		}
 
@@ -463,7 +463,7 @@ void CGeomCacheManager::RetireRemovedStreams()
 	for (TGeomCacheMap::iterator iter = m_nameToGeomCacheMap.begin(); iter != m_nameToGeomCacheMap.end(); ++iter)
 	{
 		CGeomCache* pGeomCache = iter->second;
-		if (pGeomCache->GetNumStreams() == 0)
+		if (pGeomCache->GetNumStreams() == 0 && !pGeomCache->m_pStaticDataReadStream)
 		{
 			pGeomCache->UnloadData();
 		}
@@ -540,13 +540,13 @@ void CGeomCacheManager::AbortStream(SGeomCacheStreamInfo& streamInfo)
 	streamInfo.m_bAbort = true;
 
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_LockFillRenderNode");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_LockFillRenderNode");
 		streamInfo.m_abortCS.Lock();
 	}
 
 	if (streamInfo.m_pNewestReadRequestHandle)
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_AbortReads");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_AbortReads");
 
 		assert(streamInfo.m_pOldestReadRequestHandle != NULL);
 
@@ -572,7 +572,7 @@ void CGeomCacheManager::AbortStream(SGeomCacheStreamInfo& streamInfo)
 
 	if (streamInfo.m_pOldestDecompressHandle)
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_AbortDecompress");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CGeomCacheManager::AbortStream_AbortDecompress");
 
 		assert(streamInfo.m_pOldestDecompressHandle != NULL);
 

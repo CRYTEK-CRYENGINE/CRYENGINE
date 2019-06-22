@@ -3,17 +3,12 @@
 #include "StdAfx.h"
 #include "MiddlewareDataWidget.h"
 
-#include "Common.h"
-#include "AudioControlsEditorPlugin.h"
-#include "ImplementationManager.h"
+#include "AssetsManager.h"
+#include "ImplManager.h"
 #include "SystemControlsWidget.h"
 #include "AssetIcons.h"
-#include "FileImporterDialog.h"
+#include "FileImporterUtils.h"
 #include "Common/IImpl.h"
-
-#include <PathUtils.h>
-#include <QtUtil.h>
-#include <FileDialogs/SystemFileDialog.h>
 
 #include <QDir>
 #include <QVBoxLayout>
@@ -29,12 +24,12 @@ CMiddlewareDataWidget::CMiddlewareDataWidget(QWidget* const pParent)
 	m_pLayout->setContentsMargins(0, 0, 0, 0);
 	InitImplDataWidget();
 
-	g_implementationManager.SignalOnBeforeImplementationChange.Connect([this]()
+	g_implManager.SignalOnBeforeImplChange.Connect([this]()
 		{
 			ClearImplDataWidget();
 		}, reinterpret_cast<uintptr_t>(this));
 
-	g_implementationManager.SignalOnAfterImplementationChange.Connect([this]()
+	g_implManager.SignalOnAfterImplChange.Connect([this]()
 		{
 			InitImplDataWidget();
 		}, reinterpret_cast<uintptr_t>(this));
@@ -43,8 +38,8 @@ CMiddlewareDataWidget::CMiddlewareDataWidget(QWidget* const pParent)
 //////////////////////////////////////////////////////////////////////////
 CMiddlewareDataWidget::~CMiddlewareDataWidget()
 {
-	g_implementationManager.SignalOnBeforeImplementationChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
-	g_implementationManager.SignalOnAfterImplementationChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	g_implManager.SignalOnBeforeImplChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	g_implManager.SignalOnAfterImplChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
 
 	ClearImplDataWidget();
 }
@@ -71,14 +66,14 @@ void CMiddlewareDataWidget::InitImplDataWidget()
 
 			}, reinterpret_cast<uintptr_t>(this));
 
-		g_pIImpl->SignalImportFiles.Connect([&](ExtensionFilterVector const& extensionFilters, QStringList const& supportedType, QString const& targetFolderName, bool const isLocalized)
+		g_pIImpl->SignalImportFiles.Connect([&](QString const& targetFolderName, bool const isLocalized)
 			{
-				OnImportFiles(extensionFilters, supportedType, targetFolderName, isLocalized);
+				OpenFileSelectorFromImpl(targetFolderName, isLocalized);
 			}, reinterpret_cast<uintptr_t>(this));
 
 		g_pIImpl->SignalFilesDropped.Connect([&](FileImportInfos const& fileImportInfos, QString const& targetFolderName, bool const isLocalized)
 			{
-				OpenFileImporter(fileImportInfos, targetFolderName, isLocalized);
+				OpenFileImporter(fileImportInfos, targetFolderName, isLocalized, EImportTargetType::Middleware, nullptr);
 			}, reinterpret_cast<uintptr_t>(this));
 	}
 }
@@ -111,84 +106,5 @@ void CMiddlewareDataWidget::GetConnectedControls(ControlId const implItemId, SCo
 			controlInfos.emplace_back(info);
 		}
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CMiddlewareDataWidget::OnImportFiles(
-	ExtensionFilterVector const& extensionFilters,
-	QStringList const& supportedTypes,
-	QString const& targetFolderName,
-	bool const isLocalized)
-{
-	g_pIImpl->OnFileImporterOpened();
-	CSystemFileDialog::RunParams runParams;
-	runParams.extensionFilters = extensionFilters;
-	runParams.title = tr("Import Audio Files");
-	runParams.buttonLabel = tr("Import");
-	std::vector<QString> const importedFiles = CSystemFileDialog::RunImportMultipleFiles(runParams, this);
-	g_pIImpl->OnFileImporterClosed();
-
-	if (!importedFiles.empty())
-	{
-		FileImportInfos fileInfos;
-
-		for (auto const& filePath : importedFiles)
-		{
-			QFileInfo const& fileInfo(filePath);
-
-			if (fileInfo.isFile())
-			{
-				fileInfos.emplace_back(fileInfo, supportedTypes.contains(fileInfo.suffix(), Qt::CaseInsensitive));
-			}
-		}
-
-		OpenFileImporter(fileInfos, targetFolderName, isLocalized);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CMiddlewareDataWidget::OpenFileImporter(FileImportInfos const& fileImportInfos, QString const& targetFolderName, bool const isLocalized)
-{
-	FileImportInfos fileInfos = fileImportInfos;
-
-	QString assetsPath = QtUtil::ToQString(PathUtil::GetGameFolder() + "/" + g_implInfo.assetsPath.c_str());
-	QString localizedAssetsPath = QtUtil::ToQString(PathUtil::GetGameFolder() + "/" + g_implInfo.localizedAssetsPath.c_str());
-	QString const targetFolderPath = (isLocalized ? localizedAssetsPath : assetsPath) + "/" + targetFolderName;
-
-	QDir const targetFolder(targetFolderPath);
-	QString const fullTargetPath = targetFolder.absolutePath() + "/";
-
-	for (auto& fileInfo : fileInfos)
-	{
-		if (fileInfo.isTypeSupported && fileInfo.sourceInfo.isFile())
-		{
-			QString const targetPath = fullTargetPath + fileInfo.parentFolderName + fileInfo.sourceInfo.fileName();
-			QFileInfo const targetFile(targetPath);
-
-			fileInfo.targetInfo = targetFile;
-
-			if (fileInfo.sourceInfo == fileInfo.targetInfo)
-			{
-				fileInfo.actionType = SFileImportInfo::EActionType::SameFile;
-			}
-			else
-			{
-				fileInfo.actionType = (targetFile.isFile() ? SFileImportInfo::EActionType::Replace : SFileImportInfo::EActionType::New);
-			}
-		}
-	}
-
-	assetsPath = QDir(assetsPath).absolutePath();
-	localizedAssetsPath = QDir(localizedAssetsPath).absolutePath();
-
-	auto const pFileImporterDialog = new CFileImporterDialog(fileInfos, assetsPath, localizedAssetsPath, fullTargetPath, targetFolderName, isLocalized, this);
-	g_pIImpl->OnFileImporterOpened();
-
-	QObject::connect(pFileImporterDialog, &CFileImporterDialog::destroyed, [&]()
-		{
-			g_pIImpl->OnFileImporterClosed();
-		});
-
-	pFileImporterDialog->exec();
 }
 } // namespace ACE

@@ -14,7 +14,7 @@ bool CTexture::StreamPrepare_Platform()
 	const SPixFormat* pPF;
 	ETEX_TileMode srcTileMode = m_eSrcTileMode;
 	bool isBlockCompressed = IsBlockCompressed(m_eSrcFormat);
-	ETEX_Format eSrcFormat = CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
+	CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
 
 	if (srcTileMode == eTM_Optimal)
 	{
@@ -166,19 +166,17 @@ void CTexture::StreamUploadMip_Durango(const void* pSrcBaseAddress,
 	FUNCTION_PROFILER_RENDERER();
 
 	CDeviceTexture* pDeviceTexture = pNewPoolItem->m_pDevTexture;
-	bool bStreamInPlace = mipState.m_bStreamInPlace;
 
 	// Determine optimal layout, and size/alignment for texture
 	const D3D11_TEXTURE2D_DESC& Desc = pDeviceTexture->GetTDesc()->d3dDesc;
 	const XG_RESOURCE_LAYOUT* pLayout = &pDeviceTexture->GetTDesc()->layout;
-	XG_TILE_MODE dstNativeTileMode = pLayout->Plane[0].MipLayout[0].TileMode;
 
 	if (pDeviceTexture->IsInPool())
 	{
 		const SPixFormat* pPF;
 		ETEX_TileMode srcTileMode = m_eSrcTileMode;
 		bool isBlockCompressed = IsBlockCompressed(m_eSrcFormat);
-		ETEX_Format eSrcFormat = CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
+		CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
 
 		// If any of the sub resources are in a linear general format, we'll need a computer to tile on the CPU.
 		bool bNeedsComputer = (srcTileMode == eTM_None) || (srcTileMode == eTM_LinearPadded && isBlockCompressed);
@@ -361,7 +359,7 @@ void CTexture::StreamUploadMips_Durango(int8 nBaseMip, int8 nMipCount, STexPoolI
 		const SPixFormat* pPF;
 		ETEX_TileMode srcTileMode = m_eSrcTileMode;
 		bool isBlockCompressed = IsBlockCompressed(m_eSrcFormat);
-		ETEX_Format eSrcFormat = CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
+		CTexture::GetClosestFormatSupported(m_eSrcFormat, pPF);
 
 		// If any of the sub resources are in a linear general format, we'll need a computer to tile on the CPU.
 		bool bNeedsComputer = (srcTileMode == eTM_None) || (srcTileMode == eTM_LinearPadded && isBlockCompressed);
@@ -429,7 +427,6 @@ void CTexture::StreamUploadMips_Durango(int8 nBaseMip, int8 nMipCount, STexPoolI
 						if (mipState.m_bStreamInPlace)
 						{
 							void* pSrcDataAddress = pDstBaseAddress + pDeviceTexture->GetSurfaceOffset(nDstMip, nSide);
-							size_t nSubResourceSize = pDeviceTexture->GetSurfaceSize(nDstMip);
 
 #if defined(TEXTURES_IN_CACHED_MEM)
 							D3DFlushCpuCache((void*)pSrcDataAddress, nSubResourceSize);
@@ -488,32 +485,17 @@ void CDeviceTexture::InitD3DTexture()
 
 	if (!m_pNativeResource)
 	{
-		if (!m_gpuHdl.IsValid()) __debugbreak();
-			
-		XG_TILE_MODE tileMode = m_pLayout->xgTileMode;
-		SGPUMemHdl texHdl = m_gpuHdl;
+#ifndef _RELEASE
+		if (!m_gpuHdl.IsValid())
+			__debugbreak();
+#endif
 
 		CDeviceTexturePin pin(this);
 
-		HRESULT hr = gcpRendD3D->GetPerformanceDevice().CreatePlacementTexture2D(&m_pLayout->d3dDesc, tileMode, 0, pin.GetBaseAddress(), (ID3D11Texture2D**)&m_pNativeResource);
-	#ifndef _RELEASE
+		HRESULT hr = gcpRendD3D->GetPerformanceDevice().CreatePlacementTexture2D(
+			&m_pLayout->d3dDesc, m_pLayout->xgTileMode, 0, pin.GetBaseAddress(), (ID3D11Texture2D**)&m_pNativeResource);
 		if (FAILED(hr))
-		{
-			__debugbreak();
-		}
-#endif
-
-	//	m_pRenderTargetData = pRenderTargetData;
-	//	m_eNativeFormat = D3DFmt;
-	//	m_resourceElements = CTexture::TextureDataSize(nWdt, nHgt, nDepth, nMips, nArraySize, eTF_A8);
-	//	m_subResources[eSubResource_Mips] = nMips;
-	//	m_subResources[eSubResource_Slices] = nArraySize;
-	//	m_eTT = pLayout.m_eTT;
-	//	m_bFilterable = true;
-	//	m_bIsSrgb = bIsSRGB;
-	//	m_bAllowSrgb = !!(pLayout.m_eFlags & FT_USAGE_ALLOWREADSRGB);
-	//	m_bIsMSAA = false;
-	//	m_eFlags = eFlags | stagingFlags;
+			return;
 
 		// Same as CDeviceTexture::SubstituteUsedResource
 		ReleaseResourceViews();
@@ -530,49 +512,78 @@ void CDeviceTexture::ReplaceTexture(ID3D11Texture2D* pReplacement)
 	ReleaseResourceViews();
 	AllocatePredefinedResourceViews();
 
-	++m_nBaseAddressInvalidated;
+	if (m_pOwner)
+	{
+#ifdef _DEBUG
+		int references = 0;
+
+		SResourceContainer* pRL = CBaseResource::GetResourcesForClass(CTexture::mfGetClassName());
+		ResourcesMapItor it;
+		for (it = pRL->m_RMap.begin(); it != pRL->m_RMap.end(); ++it)
+		{
+			CTexture* tp = (CTexture*)it->second;
+			if (tp && (tp->GetDevTexture() == this))
+			{
+				references++;
+			}
+		}
+
+		if (references > 1)
+		{
+			CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_ERROR, "Substituting Resource referenced by more than one texture! Might crash in a short while.");
+		}
+#endif
+
+		m_pOwner->InvalidateDeviceResource(m_pOwner, eDeviceResourceDirty | eDeviceResourceViewDirty);
+	}
+#ifdef _DEBUG
+	else
+	{
+		SResourceContainer* pRL = CBaseResource::GetResourcesForClass(CTexture::mfGetClassName());
+		ResourcesMapItor it;
+		for (it = pRL->m_RMap.begin(); it != pRL->m_RMap.end(); ++it)
+		{
+			CTexture* tp = (CTexture*)it->second;
+			if (tp && (tp->GetDevTexture() == this))
+			{
+				CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_ERROR, "Substituting Resource without marked but existing owner! Might crash in a short while.");
+			}
+		}
+	}
+#endif
 }
 
 void* CDeviceTexture::WeakPin()
 {
+	void* pAddress = nullptr;
+
 	// Can only pin pinnable resources
-	assert(m_gpuHdl.IsValid());
+	CRY_ASSERT(m_gpuHdl.IsValid());
 	if (m_gpuHdl.IsValid())
-	{
-		return GetDeviceObjectFactory().m_texturePool.WeakPin(m_gpuHdl);
-	}
-	else
-		__debugbreak();
-	
-	return NULL;
+		pAddress = GetDeviceObjectFactory().m_texturePool.WeakPin(m_gpuHdl);
+
+	return pAddress;
 }
 
 void* CDeviceTexture::Pin()
 {
+	void* pAddress = nullptr;
 	m_Pinned = true;
 
 	// Can only pin pinnable resources
-	assert(m_gpuHdl.IsValid());
+	CRY_ASSERT(m_gpuHdl.IsValid());
 	if (m_gpuHdl.IsValid())
-	{
-		return GetDeviceObjectFactory().m_texturePool.Pin(m_gpuHdl);
-	}
-	else
-		__debugbreak();
+		pAddress = GetDeviceObjectFactory().m_texturePool.Pin(m_gpuHdl);
 
-	return NULL;
+	return pAddress;
 }
 
 void CDeviceTexture::Unpin()
 {
 	// Can only pin pinnable resources
-	assert(m_gpuHdl.IsValid());
+	CRY_ASSERT(m_gpuHdl.IsValid());
 	if (m_gpuHdl.IsValid())
-	{
 		GetDeviceObjectFactory().m_texturePool.Unpin(m_gpuHdl);
-	}
-	else
-		__debugbreak();
 
 	m_Pinned = false;
 }
@@ -580,37 +591,25 @@ void CDeviceTexture::Unpin()
 void CDeviceTexture::GpuPin()
 {
 	// Can only pin pinnable resources
-	assert(m_gpuHdl.IsValid());
+	CRY_ASSERT(m_gpuHdl.IsValid());
 	if (m_gpuHdl.IsValid())
-	{
 		GetDeviceObjectFactory().m_texturePool.GpuPin(m_gpuHdl);
-	}
-	else
-		__debugbreak();
 }
 
 void CDeviceTexture::GpuUnpin(ID3DXboxPerformanceContext* pCtx)
 {
 	// Can only pin pinnable resources
-	assert(m_gpuHdl.IsValid());
+	CRY_ASSERT(m_gpuHdl.IsValid());
 	if (m_gpuHdl.IsValid())
-	{
 		GetDeviceObjectFactory().m_texturePool.GpuUnpin(m_gpuHdl, pCtx);
-	}
-	else
-		__debugbreak();
 }
 
 void CDeviceTexture::GpuUnpin(ID3D11DmaEngineContextX* pCtx)
 {
 	// Can only pin pinnable resources
-	assert(m_gpuHdl.IsValid());
+	CRY_ASSERT(m_gpuHdl.IsValid());
 	if (m_gpuHdl.IsValid())
-	{
 		GetDeviceObjectFactory().m_texturePool.GpuUnpin(m_gpuHdl, pCtx);
-	}
-	else
-		__debugbreak();
 }
 
 void CDeviceTexture::GPUFlush()

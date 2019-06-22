@@ -10,6 +10,7 @@
 #include <Controls/QuestionDialog.h>
 #include <PathUtils.h>
 #include <Util/FileUtil.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define UI_ACTIONS_FOLDER "UIActions"
 #define GRAPH_FILE_FILTER "Graph XML Files (*.xml)|*.xml"

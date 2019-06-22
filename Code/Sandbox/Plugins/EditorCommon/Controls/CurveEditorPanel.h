@@ -51,7 +51,6 @@ protected:
 	void Disconnect();
 
 private:
-	QLabel*                     m_pTitle;
 	CCurveEditor*               m_pEditor;
 	QPointer<CBroadcastManager> m_broadcastManager;
 };

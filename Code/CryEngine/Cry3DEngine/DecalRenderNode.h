@@ -1,8 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _DECAL_RENDERNODE_
-#define _DECAL_RENDERNODE_
-
 #pragma once
 
 #include "DecalManager.h"
@@ -86,5 +83,3 @@ private:
 public:
 	static int m_nFillBigDecalIndicesCounter;
 };
-
-#endif // #ifndef _DECAL_RENDERNODE_

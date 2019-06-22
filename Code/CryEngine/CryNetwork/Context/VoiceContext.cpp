@@ -5,6 +5,7 @@
 #include "NetContext.h"
 #include "Network.h"
 #include "VOIP/VoiceManager.h"
+#include <CrySystem/ConsoleRegistration.h>
 #include <iterator>
 
 #ifndef OLD_VOICE_SYSTEM_DEPRECATED

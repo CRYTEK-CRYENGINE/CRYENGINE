@@ -445,7 +445,7 @@ void CVisibleObjectsHelper::CheckVisibilityToAI(const TActiveVisibleObjects &act
 							{
 								pSignalData->nID = visibleObject->entityId;
 							}
-							const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnSawObjectMove(), pAIObjectSender->GetAIObjectID(), pSignalData);
+							const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnSawObjectMove(), pAIObjectSender->GetEntityID(), pSignalData);
 							gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 						}
 					}

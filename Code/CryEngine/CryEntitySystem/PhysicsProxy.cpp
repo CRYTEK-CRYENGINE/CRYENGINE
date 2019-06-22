@@ -202,7 +202,7 @@ CEntity* GetAdam(CEntity* pAdam, Matrix34& mtx)
 {
 	CEntity* pParent;
 	mtx.SetIdentity();
-	while (pParent = static_cast<CEntity*>(pAdam->GetParent()))
+	while ((pParent = static_cast<CEntity*>(pAdam->GetParent())) && (pParent != pAdam->GetLocalSimParent()))
 	{
 		mtx = Matrix34::CreateScale(pParent->GetScale()) * pAdam->GetLocalTM() * mtx;
 		pAdam = pParent;
@@ -429,6 +429,11 @@ void CEntityPhysics::AwakeOnRender(bool bRender)
 				GetEntity()->SetInternalFlag(CEntity::EInternalFlag::PhysicsAwakeOnRender, false);
 			}
 		}
+		if (GetEntity()->HasInternalFlag(CEntity::EInternalFlag::PhysicsAttachClothOnRender))
+		{
+			OnTimer(0);
+			GetEntity()->SetFlags(GetEntity()->GetFlags() & ~ENTITY_FLAG_SEND_RENDER_EVENT);
+		}
 	}
 }
 
@@ -443,14 +448,13 @@ void CEntityPhysics::OnTimer(int id)
 				continue;
 			pe_params_foreign_data pfd;
 			m_pPhysicalEntity->GetParams(&pfd);
-			if (pfd.iForeignData == PHYS_FOREIGN_ID_USER)
+			if (pfd.iForeignData != PHYS_FOREIGN_ID_ENTITY)
 			{
-				IPhysicalEntity* pAttachTo = static_cast<IPhysicalEntity*>(pfd.pForeignData);
+				IPhysicalEntity* pAttachTo = gEnv->pPhysicalWorld->GetPhysicalEntityById(pfd.iForeignData - PHYS_FOREIGN_ID_USER);
 				if (pAttachTo)
 				{
 					pe_status_pos sp;
 					pAttachTo->GetStatus(&sp);
-					pAttachTo->Release();
 					if (1 << sp.iSimClass > ent_independent)
 						pAttachTo = 0;
 				}
@@ -468,7 +472,7 @@ void CEntityPhysics::OnTimer(int id)
 			return;
 		}
 		// Re-create timer, re-use same id
-		GetEntity()->SetTimer(this, GetEntity()->GetId(), CryGUID(), 0, 50);
+		GetEntity()->SetTimer(this, GetEntity()->GetId(), CryGUID(), 0, 200);
 	}
 }
 
@@ -1454,18 +1458,15 @@ void CEntityPhysics::PhysicalizeSoft(SEntityPhysicalizeParams& params)
 	if (!bReady && m_pPhysicalEntity)
 	{
 		pe_params_foreign_data pfd;
-		pfd.iForeignData = PHYS_FOREIGN_ID_USER;
-		pfd.pForeignData = params.pAttachToEntity;
-		if (params.pAttachToEntity)
-			params.pAttachToEntity->AddRef();
+		pfd.iForeignData = params.pAttachToEntity ? PHYS_FOREIGN_ID_USER + gEnv->pPhysicalWorld->GetPhysicalEntityId(params.pAttachToEntity) : PHYS_FOREIGN_ID_ENTITY;
 		pfd.iForeignFlags = params.nAttachToPart;
 		m_pPhysicalEntity->SetParams(&pfd);
 		pe_params_flags pf;
 		pf.flagsOR = pef_disabled;
-		pf.flagsAND = pef_log_poststep;
+		pf.flagsAND = ~pef_log_poststep;
 		m_pPhysicalEntity->SetParams(&pf);
 		GetEntity()->SetInternalFlag(CEntity::EInternalFlag::PhysicsAttachClothOnRender, true);
-		GetEntity()->SetTimer(this, GetEntity()->GetId(), CryGUID(), 0, 50);
+		GetEntity()->SetFlags(GetEntity()->GetFlags() | ENTITY_FLAG_SEND_RENDER_EVENT);
 	}
 }
 
@@ -1759,9 +1760,12 @@ bool CEntityPhysics::ConvertCharacterToRagdoll(SEntityPhysicalizeParams& params,
 	GetEntity()->SetInternalFlag(CEntity::EInternalFlag::PhysicsHasCharacter, true);
 	GetEntity()->SetInternalFlag(CEntity::EInternalFlag::PhysicsSyncCharacter, true);
 
+	Matrix34 mtxloc = GetEntity()->GetSlotLocalTM(params.nSlot, false);
+	mtxloc.ScaleColumn(GetEntity()->GetScale());
+	GetEntity()->SetSlotLocalTM(params.nSlot, Matrix34(IDENTITY));
+
 	// This is special case when converting living character into the rag-doll
-	IPhysicalEntity* pPhysEntity = pCharacter->GetISkeletonPose()->RelinquishCharacterPhysics(//GetEntity()->GetSlotWorldTM(params.nSlot),
-		GetEntity()->GetWorldTM(), params.fStiffnessScale, params.bCopyJointVelocities, velInitial);
+	IPhysicalEntity* pPhysEntity = pCharacter->GetISkeletonPose()->RelinquishCharacterPhysics(mtxloc,	params.fStiffnessScale, params.bCopyJointVelocities, velInitial);
 	if (pPhysEntity)
 	{
 		// Store current velocity.
@@ -2045,6 +2049,7 @@ void CEntityPhysics::OnPhysicsPostStep(EventPhysPostStep* pEvent)
 			pSlot->GetLocalBounds(bboxLoc);
 			bbox.SetTransformedAABB(pSlot->GetWorldTM(), bboxLoc);
 			pRenderNode->SetBBox(bbox);
+			pRenderNode->SetEntityStatObj(pStatObjNew);	// forces permanent render object invalidation
 		}
 	}
 

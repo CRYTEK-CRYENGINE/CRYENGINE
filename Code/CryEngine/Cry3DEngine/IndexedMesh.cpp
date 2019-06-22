@@ -1,24 +1,11 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IndexedMesh.cpp
-//  Created:     28/5/2001 by Vladimir Kajalin
-////////////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 
 #include "IndexedMesh.h"
 #include "MeshCompiler/MeshCompiler.h"
 
 DEFINE_INTRUSIVE_LINKED_LIST(CIndexedMesh)
-
-CIndexedMesh::CIndexedMesh()
-{
-}
-
-CIndexedMesh::~CIndexedMesh()
-{
-}
 
 void CIndexedMesh::GetMemoryUsage(ICrySizer* pSizer) const
 {

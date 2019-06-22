@@ -197,7 +197,7 @@ private:
 
 	CryAudio::IObject* MakeAudioObject(const Vec3& position)
 	{
-		const CryAudio::SCreateObjectData data(m_proxyName, m_occlusionType, position, INVALID_ENTITYID, true);
+		const CryAudio::SCreateObjectData data(m_proxyName, m_occlusionType, position, true);
 		return gEnv->pAudioSystem->CreateObject(data);
 	}
 
@@ -260,7 +260,7 @@ public:
 	void Serialize(Serialization::IArchive& ar) override
 	{
 		CParticleFeature::Serialize(ar);
-		ar(Serialization::AudioRTPC(m_parameterName), "Name", "Name");
+		ar(Serialization::AudioParameter(m_parameterName), "Name", "Name");
 		ar(m_value, "Value", "Value");
 	}
 

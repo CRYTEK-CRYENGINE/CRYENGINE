@@ -17,6 +17,7 @@
 #include "Utility/CryWatch.h"
 #include "Network/Lobby/GameLobbyData.h"
 #include <CrySystem/ZLib/IZLibCompressor.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include "UI/UIManager.h"
 #include "UI/WarningsManager.h"
 

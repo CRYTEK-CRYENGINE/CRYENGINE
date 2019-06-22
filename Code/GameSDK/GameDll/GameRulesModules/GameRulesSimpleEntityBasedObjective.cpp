@@ -17,6 +17,7 @@
 #include "StdAfx.h"
 #include "GameRulesSimpleEntityBasedObjective.h"
 #include <CrySystem/XML/IXml.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include "GameRules.h"
 #include "Utility/CryWatch.h"
 

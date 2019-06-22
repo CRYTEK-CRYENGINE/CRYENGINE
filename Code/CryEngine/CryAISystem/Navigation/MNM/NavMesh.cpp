@@ -3,14 +3,17 @@
 #include "StdAfx.h"
 #include "NavMesh.h"
 #include "NavMeshQuery.h"
+#include "NavMeshQueryManager.h"
+#include "NavMeshQueryProcessing.h"
+#include "MNMUtils.h"
 #include "OffGridLinks.h"
 #include "Tile.h"
 #include "TileConnectivity.h"
 #include "WayQuery.h"
+
 #include "../NavigationSystem/OffMeshNavigationManager.h"
 #include "../NavigationSystem/NavigationSystem.h"
-#include "../MNM//NavMeshQueryManager.h"
-#include "../MNM/NavMeshQueryProcessing.h"
+
 
 #if defined(min)
 	#undef min
@@ -452,9 +455,9 @@ bool CNavMesh::SnapPosition(
 	const vector3_t& localPosition, const SOrderedSnappingMetrics& snappingMetrics, const INavMeshQueryFilter* pFilter,
 	vector3_t* pSnappedLocalPosition, TriangleID* pTriangleId) const
 {
-	const MNM::real_t verticalDefaultDownRange = MNMUtils::CalculateMinVerticalRange(m_agentSettings.height, m_params.voxelSize.z);
-	const MNM::real_t verticalDefaultUpRange = MNM::real_t(min(2u, m_agentSettings.height) * m_params.voxelSize.z);
-	const MNM::real_t horizontalDefaultRange = MNMUtils::CalculateMinHorizontalRange(m_agentSettings.radius, m_params.voxelSize.x);
+	const MNM::real_t verticalDefaultDownRange = MNM::Utils::CalculateMinVerticalRange(m_agentSettings.height, m_params.voxelSize.z);
+	const MNM::real_t verticalDefaultUpRange = MNM::real_t(min(2u, uint32(m_agentSettings.height)) * m_params.voxelSize.z);
+	const MNM::real_t horizontalDefaultRange = MNM::Utils::CalculateMinHorizontalRange(m_agentSettings.radius, m_params.voxelSize.x);
 
 	for (const SSnappingMetric& snappingMetric : snappingMetrics.metricsArray)
 	{
@@ -474,7 +477,7 @@ bool CNavMesh::SnapPosition(
 				{
 					MNM::vector3_t vertices[3];
 					GetVertices(closestId, vertices);
-					if (!ProjectPointOnTriangleVertical(localPosition, vertices[0], vertices[1], vertices[2], *pSnappedLocalPosition))
+					if (!Utils::ProjectPointOnTriangleVertical(localPosition, vertices[0], vertices[1], vertices[2], *pSnappedLocalPosition))
 					{
 						break;
 					}
@@ -512,9 +515,9 @@ bool CNavMesh::SnapPosition(
 	const vector3_t& localPosition, const SSnappingMetric& snappingMetric, const INavMeshQueryFilter* pFilter,
 	vector3_t* pSnappedLocalPosition, TriangleID* pTriangleId) const
 {
-	const MNM::real_t verticalDefaultDownRange = MNMUtils::CalculateMinVerticalRange(m_agentSettings.height, m_params.voxelSize.z);
-	const MNM::real_t verticalDefaultUpRange = MNM::real_t(min(2u, m_agentSettings.height) * m_params.voxelSize.z);
-	const MNM::real_t horizontalDefaultRange = MNMUtils::CalculateMinHorizontalRange(m_agentSettings.radius, m_params.voxelSize.x);
+	const MNM::real_t verticalDefaultDownRange = MNM::Utils::CalculateMinVerticalRange(m_agentSettings.height, m_params.voxelSize.z);
+	const MNM::real_t verticalDefaultUpRange = MNM::real_t(min(2u, uint32(m_agentSettings.height)) * m_params.voxelSize.z);
+	const MNM::real_t horizontalDefaultRange = MNM::Utils::CalculateMinHorizontalRange(m_agentSettings.radius, m_params.voxelSize.x);
 
 	const MNM::real_t verticalDownRange = snappingMetric.verticalDownRange == -FLT_MAX ? verticalDefaultDownRange : MNM::real_t(snappingMetric.verticalDownRange);
 	const MNM::real_t verticalUpRange = snappingMetric.verticalUpRange == -FLT_MAX ? verticalDefaultUpRange : MNM::real_t(snappingMetric.verticalUpRange);
@@ -533,7 +536,7 @@ bool CNavMesh::SnapPosition(
 			{
 				MNM::vector3_t vertices[3];
 				GetVertices(closestId, vertices);
-				if (!ProjectPointOnTriangleVertical(localPosition, vertices[0], vertices[1], vertices[2], *pSnappedLocalPosition))
+				if (!Utils::ProjectPointOnTriangleVertical(localPosition, vertices[0], vertices[1], vertices[2], *pSnappedLocalPosition))
 				{
 					break;
 				}
@@ -629,9 +632,9 @@ void CNavMesh::PredictNextTriangleEntryPosition(const TriangleID bestNodeTriangl
 
 		assert(edgeIndex < 3);
 		const vector3_t v0 = tileOrigin + vector3_t(currentTile.vertices[triangle.vertex[edgeIndex]]);
-		const vector3_t v1 = tileOrigin + vector3_t(currentTile.vertices[triangle.vertex[next_mod3(edgeIndex)]]);
+		const vector3_t v1 = tileOrigin + vector3_t(currentTile.vertices[triangle.vertex[Utils::next_mod3(edgeIndex)]]);
 
-		switch (gAIEnv.CVars.MNMPathfinderPositionInTrianglePredictionType)
+		switch (gAIEnv.CVars.pathfinder.MNMPathfinderPositionInTrianglePredictionType)
 		{
 		case ePredictionType_TriangleCenter:
 			{
@@ -644,11 +647,11 @@ void CNavMesh::PredictNextTriangleEntryPosition(const TriangleID bestNodeTriangl
 			{
 				const vector3_t v0v1 = v1 - v0;
 				real_t s, t;
-				if (IntersectSegmentSegment(v0, v1, bestNodeLocalPosition, finalLocalPosition, s, t))
+				if (Utils::IntersectSegmentSegment(v0, v1, bestNodeLocalPosition, finalLocalPosition, s, t))
 				{
 					// If the two segments intersect,
 					// let's choose the point that goes in the direction we want to go
-					s = clamp(s, kMinPullingThreshold, kMaxPullingThreshold);
+					s = Utils::clamp(s, kMinPullingThreshold, kMaxPullingThreshold);
 					outLocalPosition = v0 + v0v1 * s;
 				}
 				else
@@ -983,7 +986,7 @@ void CNavMesh::PullString(const vector3_t& fromLocalPosition, const TriangleID f
 				if (newTriangleID == toTriID)
 				{
 					vi0 = link.edge;
-					vi1 = next_mod3(link.edge);
+					vi1 = Utils::next_mod3(link.edge);
 					assert(vi0 < 3);
 					assert(vi1 < 3);
 					break;
@@ -999,7 +1002,7 @@ void CNavMesh::PullString(const vector3_t& fromLocalPosition, const TriangleID f
 					if (newTriangleID == toTriID)
 					{
 						vi0 = link.edge;
-						vi1 = next_mod3(link.edge);
+						vi1 = Utils::next_mod3(link.edge);
 						assert(vi0 < 3);
 						assert(vi1 < 3);
 						break;
@@ -1016,14 +1019,14 @@ void CNavMesh::PullString(const vector3_t& fromLocalPosition, const TriangleID f
 			PREFAST_ASSUME(vi0 < 3 && vi1 < 3);
 
 			real_t s, t;
-			if (!IntersectSegmentSegment(vector2_t(fromVertices[vi0]),
+			if (!Utils::IntersectSegmentSegment(vector2_t(fromVertices[vi0]),
 			                             vector2_t(fromVertices[vi1]), vector2_t(fromLocalPosition), vector2_t(toLocalPosition), s, t))
 			{
 				s = 0;
 			}
 
 			// Even if segments don't intersect, s = 0 and is clamped to the pulling threshold range
-			s = clamp(s, kMinPullingThreshold, kMaxPullingThreshold);
+			s = Utils::clamp(s, kMinPullingThreshold, kMaxPullingThreshold);
 
 			middleLocalPosition = Lerp(fromVertices[vi0], fromVertices[vi1], s);
 		}
@@ -1197,17 +1200,12 @@ void CNavMesh::RemoveOffMeshLinkFromTile(const TileID tileID, const TriangleID t
 	m_profiler.AddStat(LinkCount, tile.linkCount);
 }
 
-inline size_t OppositeSide(size_t side)
-{
-	return (side + 7) % 14;
-}
-
 MNM::ERayCastResult CNavMesh::RayCast(const vector3_t& fromLocalPosition, TriangleID fromTri, const vector3_t& toLocalPosition, TriangleID toTri,
                                            RaycastRequestBase& raycastRequest, const INavMeshQueryFilter* pFilter) const
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	switch (gAIEnv.CVars.MNMRaycastImplementation)
+	switch (gAIEnv.CVars.navigation.MNMRaycastImplementation)
 	{
 	case 0:
 		return RayCast_v1(fromLocalPosition, fromTri, toLocalPosition, toTri, raycastRequest);
@@ -1333,7 +1331,7 @@ MNM::ERayCastResult CNavMesh::RayCast_v2(const vector3_t& fromLocalPosition, Tri
 				const vector3_t b = tileOrigin + vector3_t(tile->vertices[triangle.vertex[inc_mod3[edgeIndex]]]);
 
 				real_t s, t;
-				if (IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(a), vector2_t(b), s, t))
+				if (Utils::IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(a), vector2_t(b), s, t))
 				{
 					if (s < currentNode.percentageOfTotalDistance)
 						continue;
@@ -1389,7 +1387,7 @@ MNM::ERayCastResult CNavMesh::RayCast_v2(const vector3_t& fromLocalPosition, Tri
 							const Tile::STriangle& opposite = neighbourContainer.tile.triangles[link.triangle];
 
 							const uint16 currentTriangleIndex = ComputeTriangleIndex(currentNode.triangleID);
-							const uint16 currentOppositeSide = static_cast<uint16>(OppositeSide(side));
+							const uint16 currentOppositeSide = NavMesh::GetOppositeSide(side);
 
 							for (size_t reciprocalLinkIndex = 0; reciprocalLinkIndex < opposite.linkCount; ++reciprocalLinkIndex)
 							{
@@ -1413,7 +1411,7 @@ MNM::ERayCastResult CNavMesh::RayCast_v2(const vector3_t& fromLocalPosition, Tri
 									const vector3_t d = neighbourTileOrigin + vector3_t(neighbourContainer.tile.vertices[opposite.vertex[i1]]);
 
 									real_t p, q;
-									if (IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(c), vector2_t(d), p, q))
+									if (Utils::IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(c), vector2_t(d), p, q))
 									{
 										cameFrom[possibleNextID] = currentNode.triangleID;
 
@@ -1470,9 +1468,6 @@ MNM::ERayCastResult CNavMesh::RayCast_v3(const vector3_t& fromLocalPosition, Tri
 
 	if (!IsLocationInTriangle(fromLocalPosition, fromTriangleID))
 		return ERayCastResult::InvalidStart;
-
-	if (toTriangleID.IsValid() && !IsLocationInTriangle(toLocalPosition, toTriangleID))
-		return ERayCastResult::InvalidEnd;
 
 	RaycastCameFromMap cameFrom;
 	cameFrom.reserve(raycastRequest.maxWayTriCount);
@@ -1602,7 +1597,7 @@ TriangleID CNavMesh::StepOverEdgeToNeighbourTriangle(const vector3_t& rayStart, 
 		if(!filter.PassFilter(neighbourTriangle))
 			continue;
 
-		const uint16 currentOppositeSide = static_cast<uint16>(OppositeSide(side));
+		const uint16 currentOppositeSide = NavMesh::GetOppositeSide(side);
 
 		for (size_t reciprocalLinkIndex = 0; reciprocalLinkIndex < neighbourTriangle.linkCount; ++reciprocalLinkIndex)
 		{
@@ -1624,7 +1619,7 @@ TriangleID CNavMesh::StepOverEdgeToNeighbourTriangle(const vector3_t& rayStart, 
 				// which doesn't compute intersection parameters since we are not interested in them in this case
 				// Moreover we probably only need to check whether the intersection is lying on the edge (ray segment was checked in previous parts of the code).
 				real_t rayParameter, edgeParameter;
-				if (IntersectSegmentSegment(vector2_t(rayStart), vector2_t(rayEnd), vector2_t(edgeStart), vector2_t(edgeEnd), rayParameter, edgeParameter))
+				if (MNM::Utils::IntersectSegmentSegment(vector2_t(rayStart), vector2_t(rayEnd), vector2_t(edgeStart), vector2_t(edgeEnd), rayParameter, edgeParameter))
 				{
 					return ComputeTriangleID(neighbourTileID, link.triangle);
 				}
@@ -1685,7 +1680,7 @@ bool CNavMesh::IsLocationInTriangle(const vector3_t& localPosition, const Triang
 		const vector2_t b = vector2_t(tileOrigin) + vector2_t(tile->vertices[triangle.vertex[1]]);
 		const vector2_t c = vector2_t(tileOrigin) + vector2_t(tile->vertices[triangle.vertex[2]]);
 
-		return PointInTriangle(vector2_t(localPosition), a, b, c);
+		return Utils::PointInTriangle(vector2_t(localPosition), a, b, c);
 	}
 
 	return false;
@@ -1710,7 +1705,7 @@ MNM::ERayCastResult CNavMesh::RayCast_v1(const vector3_t& fromLocalPosition, Tri
 			const vector2_t b = vector2_t(tileOrigin) + vector2_t(tile->vertices[triangle.vertex[1]]);
 			const vector2_t c = vector2_t(tileOrigin) + vector2_t(tile->vertices[triangle.vertex[2]]);
 
-			if (!PointInTriangle(vector2_t(fromLocalPosition), a, b, c))
+			if (!Utils::PointInTriangle(vector2_t(fromLocalPosition), a, b, c))
 				fromTri = TriangleID();
 		}
 
@@ -1762,10 +1757,10 @@ MNM::ERayCastResult CNavMesh::RayCast_v1(const vector3_t& fromLocalPosition, Tri
 					continue;
 
 				const vector3_t a = tileOrigin + vector3_t(tile->vertices[triangle.vertex[e]]);
-				const vector3_t b = tileOrigin + vector3_t(tile->vertices[triangle.vertex[next_mod3(e)]]);
+				const vector3_t b = tileOrigin + vector3_t(tile->vertices[triangle.vertex[Utils::next_mod3(e)]]);
 
 				real_t s, t;
-				if (IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(a), vector2_t(b), s, t))
+				if (Utils::IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(a), vector2_t(b), s, t))
 				{
 					if (s < distance)
 						continue;
@@ -1808,7 +1803,7 @@ MNM::ERayCastResult CNavMesh::RayCast_v1(const vector3_t& fromLocalPosition, Tri
 							const Tile::STriangle& opposite = neighbourContainer.tile.triangles[link.triangle];
 
 							const uint16 currentTriangleIndex = ComputeTriangleIndex(currentID);
-							const uint16 currentOppositeSide = static_cast<uint16>(OppositeSide(side));
+							const uint16 currentOppositeSide = static_cast<uint16>(NavMesh::GetOppositeSide(side));
 
 							for (size_t rl = 0; rl < opposite.linkCount; ++rl)
 							{
@@ -1818,7 +1813,7 @@ MNM::ERayCastResult CNavMesh::RayCast_v1(const vector3_t& fromLocalPosition, Tri
 									const vector3_t neighbourTileOrigin = GetTileOrigin(neighbourContainer.x, neighbourContainer.y, neighbourContainer.z);
 
 									const uint16 i0 = reciprocal.edge;
-									const uint16 i1 = next_mod3(reciprocal.edge);
+									const uint16 i1 = Utils::next_mod3(reciprocal.edge);
 
 									assert(i0 < 3);
 									assert(i1 < 3);
@@ -1830,7 +1825,7 @@ MNM::ERayCastResult CNavMesh::RayCast_v1(const vector3_t& fromLocalPosition, Tri
 
 									const TriangleID possibleNextID = ComputeTriangleID(neighbourTileID, link.triangle);
 									real_t p, q;
-									if (IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(c), vector2_t(d), p, q))
+									if (Utils::IntersectSegmentSegment(vector2_t(fromLocalPosition), vector2_t(toLocalPosition), vector2_t(c), vector2_t(d), p, q))
 									{
 										distance = p;
 										nextID = possibleNextID;
@@ -2095,7 +2090,7 @@ void CNavMesh::ClearTile(TileID tileID, bool clearNetwork)
 
 		if (clearNetwork)
 		{
-			for (size_t side = 0; side < SideCount; ++side)
+			for (size_t side = 0; side < NavMesh::SideCount; ++side)
 			{
 				size_t nx = container.x + NavMesh::GetNeighbourTileOffset(side)[0];
 				size_t ny = container.y + NavMesh::GetNeighbourTileOffset(side)[1];
@@ -2106,7 +2101,7 @@ void CNavMesh::ClearTile(TileID tileID, bool clearNetwork)
 					TileContainer& ncontainer = m_tiles[neighbourID - 1];
 
 					ReComputeAdjacency(ncontainer.x, ncontainer.y, ncontainer.z, kAdjecencyCalculationToleranceSq, ncontainer.tile,
-					                   OppositeSide(side), container.x, container.y, container.z, tileID);
+						NavMesh::GetOppositeSide(side), container.x, container.y, container.z, tileID);
 				}
 			}
 		}
@@ -2144,7 +2139,7 @@ void CNavMesh::ConnectToNetwork(const TileID tileID, const CTileConnectivityData
 
 	ComputeAdjacency(container.x, container.y, container.z, kAdjecencyCalculationToleranceSq, container.tile, pConnectivityData);
 
-	for (size_t side = 0; side < SideCount; ++side)
+	for (size_t side = 0; side < NavMesh::SideCount; ++side)
 	{
 		const size_t nx = container.x + NavMesh::GetNeighbourTileOffset(side)[0];
 		const size_t ny = container.y + NavMesh::GetNeighbourTileOffset(side)[1];
@@ -2155,7 +2150,7 @@ void CNavMesh::ConnectToNetwork(const TileID tileID, const CTileConnectivityData
 			TileContainer& ncontainer = m_tiles[neighbourID - 1];
 
 			ReComputeAdjacency(ncontainer.x, ncontainer.y, ncontainer.z, kAdjecencyCalculationToleranceSq, ncontainer.tile,
-				OppositeSide(side), container.x, container.y, container.z, tileID);
+				NavMesh::GetOppositeSide(side), container.x, container.y, container.z, tileID);
 		}
 	}
 }
@@ -2206,7 +2201,7 @@ void CNavMesh::Draw(size_t drawFlags, const ITriangleColorSelector& colorSelecto
 
 	const CCamera& camera = gEnv->pSystem->GetViewCamera();
 	const Vec3 cameraPos = camera.GetPosition();
-	const float maxDistanceToRenderSqr = sqr(gAIEnv.CVars.NavmeshTileDistanceDraw);
+	const float maxDistanceToRenderSqr = sqr(gAIEnv.CVars.navigation.NavmeshTileDistanceDraw);
 
 	// collect areas
 	// TODO: Clean this up! Temporary to get up and running.
@@ -2328,7 +2323,7 @@ size_t CreateEdgeLinksWithNeighbors(const SideTileInfo* pSides, const uint16 sid
 {
 	size_t addedLinks = 0;
 	
-	for (size_t sideIdx = 0; sideIdx < MNM::CNavMesh::SideCount; ++sideIdx)
+	for (size_t sideIdx = 0; sideIdx < NavMesh::SideCount; ++sideIdx)
 	{
 		if((sidesMask & BIT16(sideIdx)) == 0)
 			continue;
@@ -2350,7 +2345,7 @@ size_t CreateEdgeLinksWithNeighbors(const SideTileInfo* pSides, const uint16 sid
 			for (size_t neiEdgeIdx = 0; neiEdgeIdx < 3; ++neiEdgeIdx)
 			{
 				const vector3_t neiEdgeVertex0 = offset + vector3_t(pNeighborVertices[neighborTriangle.vertex[neiEdgeIdx]]);
-				const vector3_t neiEdgeVertex1 = offset + vector3_t(pNeighborVertices[neighborTriangle.vertex[next_mod3(neiEdgeIdx)]]);
+				const vector3_t neiEdgeVertex1 = offset + vector3_t(pNeighborVertices[neighborTriangle.vertex[Utils::next_mod3(neiEdgeIdx)]]);
 
 				if (TestEdgeOverlap(sideIdx, toleranceSq, edgeVertex0, edgeVertex1, neiEdgeVertex0, neiEdgeVertex1))
 				{
@@ -2394,8 +2389,8 @@ void CNavMesh::ComputeAdjacency(size_t x, size_t y, size_t z, const real_t& tole
 	Tile::SLink links[MaxLinkCount];
 	size_t linkCount = 0;
 
-	SideTileInfo sides[SideCount];
-	for (size_t s = 0; s < SideCount; ++s)
+	SideTileInfo sides[NavMesh::SideCount];
+	for (size_t s = 0; s < NavMesh::SideCount; ++s)
 	{
 		SideTileInfo& side = sides[s];
 
@@ -2568,7 +2563,7 @@ void CNavMesh::ReComputeAdjacency(size_t x, size_t y, size_t z, const real_t& to
 			for (size_t e = 0; e < 3; ++e)
 			{
 				const vector3_t a0 = vector3_t(vertices[originTriangle.vertex[e]]);
-				const vector3_t a1 = vector3_t(vertices[originTriangle.vertex[next_mod3(e)]]);
+				const vector3_t a1 = vector3_t(vertices[originTriangle.vertex[Utils::next_mod3(e)]]);
 
 				for (size_t k = 0; k < targetTriangleCount; ++k)
 				{
@@ -2577,7 +2572,7 @@ void CNavMesh::ReComputeAdjacency(size_t x, size_t y, size_t z, const real_t& to
 					for (size_t ne = 0; ne < 3; ++ne)
 					{
 						const vector3_t b0 = noffset + vector3_t(targetVertices[ttriangle.vertex[ne]]);
-						const vector3_t b1 = noffset + vector3_t(targetVertices[ttriangle.vertex[next_mod3(ne)]]);
+						const vector3_t b1 = noffset + vector3_t(targetVertices[ttriangle.vertex[Utils::next_mod3(ne)]]);
 
 						if (TestEdgeOverlap(side, toleranceSq, a0, a1, b0, b1))
 						{

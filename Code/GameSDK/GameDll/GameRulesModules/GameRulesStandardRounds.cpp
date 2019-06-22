@@ -38,6 +38,7 @@
 
 #include "Utility/CryWatch.h"
 #include <CryGame/GameUtils.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 static TKeyValuePair<EGameOverReason,const char*>
 g_gameOverReasons[] = {
@@ -609,7 +610,7 @@ void CGameRulesStandardRounds::ClDisplayEndOfRoundMessage()
 	const char* victoryDescMessage = "";
 	int winner = 0;
 	EAnnouncementID announcement = INVALID_ANNOUNCEMENT_ID;
-	CAnnouncer* pAnnouncer = CAnnouncer::GetInstance();
+	CRY_ASSERT(CAnnouncer::GetInstance() != nullptr);
 	bool clientScoreIsTop = false;
 	const bool bIndividualScore = pGameRules->IndividualScore();
 	const bool bShowRoundsAsDraw = pGameRules->ShowRoundsAsDraw();
@@ -632,7 +633,7 @@ void CGameRulesStandardRounds::ClDisplayEndOfRoundMessage()
 			{
 				victoryDescMessage = CHUDUtils::LocalizeString(strings.m_roundWinMessage.c_str(), strWinTeamName.c_str(), NULL);
 			}
-			announcement = pAnnouncer->NameToID("RoundWin");
+			announcement = CAnnouncer::NameToID("RoundWin");
 		}
 		else
 		{
@@ -643,7 +644,7 @@ void CGameRulesStandardRounds::ClDisplayEndOfRoundMessage()
 			{
 				victoryDescMessage = CHUDUtils::LocalizeString(strings.m_roundLoseMessage.c_str(), strWinTeamName.c_str(), NULL);
 			}
-			announcement = pAnnouncer->NameToID("RoundLose");
+			announcement = CAnnouncer::NameToID("RoundLose");
 		}
 	}
 	else if (!bShowRoundsAsDraw && m_previousRoundWinnerEntityId)
@@ -662,7 +663,7 @@ void CGameRulesStandardRounds::ClDisplayEndOfRoundMessage()
 			{
 				victoryDescMessage = CHUDUtils::LocalizeString( strings.m_roundWinMessage.c_str(), pPlayer ? pPlayer->GetName() : "" );
 			}
-			announcement = pAnnouncer->NameToID("RoundWon");
+			announcement = CAnnouncer::NameToID("RoundWon");
 		}
 		else
 		{
@@ -673,7 +674,7 @@ void CGameRulesStandardRounds::ClDisplayEndOfRoundMessage()
 			{
 				victoryDescMessage = CHUDUtils::LocalizeString( strings.m_roundLoseMessage.c_str(), pPlayer ? pPlayer->GetName() : "" );
 			}
-			announcement = pAnnouncer->NameToID("RoundLose");
+			announcement = CAnnouncer::NameToID("RoundLose");
 		}
 	}
 	else
@@ -720,17 +721,17 @@ void CGameRulesStandardRounds::ClDisplayEndOfRoundMessage()
 
 		if (pGameRules->GetGameMode() != eGM_Gladiator)
 		{
-			announcement = pAnnouncer->NameToID("RoundDraw");
+			announcement = CAnnouncer::NameToID("RoundDraw");
 		}
 		else
 		{
 			if (localTeam == m_previousRoundWinnerTeamId)
 			{
-				announcement = pAnnouncer->NameToID((localTeam == 1) ? "Marine_RoundWin" : "Hunter_WinRound");
+				announcement = CAnnouncer::NameToID((localTeam == 1) ? "Marine_RoundWin" : "Hunter_WinRound");
 			}
 			else
 			{
-				announcement = pAnnouncer->NameToID((localTeam == 1) ? "Marine_RoundLose" : "Hunter_LoseRound");
+				announcement = CAnnouncer::NameToID((localTeam == 1) ? "Marine_RoundLose" : "Hunter_LoseRound");
 			}
 		}
 	}

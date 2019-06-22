@@ -19,7 +19,7 @@
 #include "GameActions.h"
 #include "NetPlayerInput.h"
 #include "ActorManager.h"
-
+#include <CrySystem/ConsoleRegistration.h>
 
 #ifndef _RELEASE
 static int		g_spectate_follow_debug_enable;

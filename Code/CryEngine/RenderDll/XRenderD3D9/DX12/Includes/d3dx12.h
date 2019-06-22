@@ -2084,7 +2084,7 @@ inline UINT64 UpdateSubresources(
 	const D3D12_RANGE NoRead = { 0U, 0U };
 	const D3D12_RANGE FullWrite = { 0U, SIZE_T(RequiredSize) };
 
-	HRESULT hr = pIntermediate->Map(0, &NoRead, reinterpret_cast<void**>(&pData));
+	pIntermediate->Map(0, &NoRead, reinterpret_cast<void**>(&pData));
 
 	if (DestinationDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
 	{

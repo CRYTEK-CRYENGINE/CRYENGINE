@@ -81,10 +81,10 @@ void CFeatureCollision::PostInitParticles(CParticleComponentRuntime& runtime)
 		return;
 
 	CParticleContainer& container = runtime.GetContainer();
-	container.FillData(EPDT_ContactPoint, SContactPoint(), container.GetSpawnedRange());
-	container.FillData(EPDT_ContactNext, SContactPredict(), container.GetSpawnedRange());
-	container.FillData(EPDT_CollisionCount, 0u, container.GetSpawnedRange());
-	container.FillData(EPDT_CollideSpeed, 0.0f, container.GetSpawnedRange());
+	container.FillData(EPDT_ContactPoint, SContactPoint(), container.SpawnedRange());
+	container.FillData(EPDT_ContactNext, SContactPredict(), container.SpawnedRange());
+	container.FillData(EPDT_CollisionCount, 0u, container.SpawnedRange());
+	container.FillData(EPDT_CollideSpeed, 0.0f, container.SpawnedRange());
 }
 
 void CFeatureCollision::PastUpdateParticles(CParticleComponentRuntime& runtime)
@@ -446,6 +446,8 @@ bool CFeatureCollision::DoCollision(SContactPredict& contactNext, SContactPoint&
 		path.SlideAdjust(contact, m_friction);
 		if (wasStopped && contact.m_stopped)
 			return false;
+		if (!contact.m_sliding)
+			contactNext.m_time = 0;
 	}
 
 	if (m_doPrediction)

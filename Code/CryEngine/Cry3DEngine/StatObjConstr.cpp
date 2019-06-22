@@ -177,9 +177,10 @@ void CStatObj::ShutDown()
 		}
 	m_arrPhysGeomInfo.m_array.clear();
 
-	m_pStreamedRenderMesh = 0;
-	m_pMergedRenderMesh = 0;
-	SetRenderMesh(0);
+	_smart_ptr<IRenderMesh> pNullMesh = nullptr;
+	m_pStreamedRenderMesh = pNullMesh;
+	m_pMergedRenderMesh = pNullMesh;
+	SetRenderMesh(pNullMesh);
 
 	//	assert (IsHeapValid());
 
@@ -333,7 +334,8 @@ void CStatObj::MakeRenderMesh()
 
 	FUNCTION_PROFILER_3DENGINE;
 
-	SetRenderMesh(0);
+	_smart_ptr<IRenderMesh> pNullMesh = nullptr;
+	SetRenderMesh(pNullMesh);
 
 	if (!m_pIndexedMesh || m_pIndexedMesh->GetSubSetCount() == 0)
 		return;
@@ -969,9 +971,9 @@ void CStatObj::TryMergeSubObjects(bool bFromStreaming)
 
 					CStatObj* pStatObj = new CStatObj();
 					pStatObj->m_szFileName = m_szFileName;
-					char lodName[32];
-					cry_strcpy(lodName, "-mlod");
-					ltoa(i, lodName + 5, 10);
+					static_assert(MAX_STATOBJ_LODS_NUM < 10, "Increase size of lodName buffer");
+					char lodName[] = "-mlod?"; // '?' is a placeholder for the number
+					ltoa(i, &lodName[5], 10);
 					pStatObj->m_szFileName.append(lodName);
 					pStatObj->m_szGeomName = m_szGeomName;
 					pStatObj->m_bSubObject = true;
@@ -1001,7 +1003,7 @@ void CStatObj::MergeSubObjectsRenderMeshes(bool bFromStreaming, CStatObj* pLod0,
 	if (m_bUnmergable)
 		return;
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Merged StatObj");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Merged StatObj");
 	FUNCTION_PROFILER_3DENGINE;
 
 	m_bMerged = false;
@@ -1208,11 +1210,12 @@ bool CStatObj::CanMergeSubObjects()
 //////////////////////////////////////////////////////////////////////////
 void CStatObj::UnMergeSubObjectsRenderMeshes()
 {
+	_smart_ptr<IRenderMesh> pNullMesh = nullptr;
 	if (m_bMerged)
 	{
 		m_bMerged = false;
 		m_pMergedRenderMesh = 0;
-		SetRenderMesh(0);
+		SetRenderMesh(pNullMesh);
 	}
 	if (m_bMergedLODs)
 	{
@@ -1421,18 +1424,20 @@ bool CStatObj::RayIntersection(SRayHitInfo& hitInfo, IMaterial* pCustomMtl)
 				hit.inRay.origin = invertedTM.TransformPoint(hit.inRay.origin);
 				hit.inRay.direction = invertedTM.TransformVector(hit.inRay.direction);
 
+#if defined(FEATURE_SVO_GI)
 				int nFirstTriangleId = hit.pHitTris ? hit.pHitTris->Count() : 0;
+#endif
 
 				if (((CStatObj*)m_subObjects[i].pStatObj)->RayIntersection(hit, pCustomMtl))
 				{
 					if (hit.fDistance < fMinDistance)
 					{
-						hitInfo.pStatObj = m_subObjects[i].pStatObj;
 						bAnyHit = true;
 						hitOut = hit;
 					}
 				}
 
+#if defined(FEATURE_SVO_GI)
 				// transform collected triangles from sub-object space into object space
 				if (hit.pHitTris)
 				{
@@ -1443,6 +1448,7 @@ bool CStatObj::RayIntersection(SRayHitInfo& hitInfo, IMaterial* pCustomMtl)
 							ht.v[c] = m_subObjects[i].tm.TransformPoint(ht.v[c]);
 					}
 				}
+#endif
 			}
 		}
 		if (bAnyHit)
@@ -1460,11 +1466,6 @@ bool CStatObj::RayIntersection(SRayHitInfo& hitInfo, IMaterial* pCustomMtl)
 		if (pRenderMesh)
 		{
 			bool bRes = CRenderMeshUtils::RayIntersection(pRenderMesh, hitInfo, pCustomMtl);
-			if (bRes)
-			{
-				hitInfo.pStatObj = this;
-				hitInfo.pRenderMesh = pRenderMesh;
-			}
 			return bRes;
 		}
 	}
@@ -1518,11 +1519,11 @@ bool CStatObj::LineSegIntersection(const Lineseg& lineSeg, Vec3& hitPos, int& su
 	return intersects;
 }
 
-void CStatObj::SetRenderMesh(IRenderMesh* pRM)
+void CStatObj::SetRenderMesh(_smart_ptr<IRenderMesh>& pRM)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
-	if (pRM == m_pRenderMesh)
+	if (pRM.get() == m_pRenderMesh.get())
 		return;
 
 	{
@@ -1663,7 +1664,7 @@ void CStatObj::GetStatisticsNonRecursive(SStatistics& si)
 
 	for (int j = 0; j < pStatObj->m_arrPhysGeomInfo.GetGeomCount(); j++)
 	{
-		if (pStatObj->GetPhysGeom(j))
+		if (pStatObj->GetPhysGeom(j) && pStatObj->GetPhysGeom(j)->pGeom)
 		{
 			ICrySizer* pPhysSizer = GetISystem()->CreateSizer();
 			pStatObj->GetPhysGeom(j)->pGeom->GetMemoryStatistics(pPhysSizer);

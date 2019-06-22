@@ -1,0 +1,10 @@
+<AssetMetadata version="0" type="Texture" guid="92642078-d611-381d-a04c-a6b31ae7af10" source="white_rectangle_areatex.tif">
+ <Files>
+  <File path="white_rectangle_areatex.dds"/>
+ </Files>
+ <Details>
+  <Detail name="width">512</Detail>
+  <Detail name="height">512</Detail>
+  <Detail name="mipCount">8</Detail>
+ </Details>
+</AssetMetadata>

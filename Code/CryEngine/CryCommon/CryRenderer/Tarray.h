@@ -42,14 +42,14 @@ public:
 	//! Empty array.
 	TArray()
 	{
-		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::MSC_Vector, T);
+		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::Vector, T);
 		ClearArr();
 	}
 
 	//! Create a new array, delete it on destruction.
 	TArray(int Count)
 	{
-		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::MSC_Vector, T);
+		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::Vector, T);
 		m_nCount = Count;
 		m_nAllocatedCount = Count;
 		MEMSTAT_USAGE(begin(), MemSize());
@@ -58,7 +58,7 @@ public:
 	}
 	TArray(int Use, int Max)
 	{
-		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::MSC_Vector, T);
+		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::Vector, T);
 		m_nCount = Use;
 		m_nAllocatedCount = Max;
 		MEMSTAT_USAGE(begin(), MemSize());
@@ -69,7 +69,7 @@ public:
 	//! References pre-existing memory. Does not delete it.
 	TArray(T* Elems, int Count)
 	{
-		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::MSC_Vector, T);
+		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::Vector, T);
 		m_pElements = Elems;
 		m_nCount = Count;
 		m_nAllocatedCount = 0;

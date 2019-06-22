@@ -51,11 +51,10 @@ public:
 	// finds the file; you don't have to close the returned handle
 	Handle FindFile(const char* szRelativePath)
 	{
-		char szFullPath[CCryPak::g_nMaxPath];
-		const char* pPath = AdjustPath(szRelativePath, szFullPath);
-		if (!pPath)
+		CryPathString fullPath;
+		if (!AdjustPath(szRelativePath, fullPath))
 			return NULL;
-		return m_pCache->FindFile(pPath);
+		return m_pCache->FindFile(fullPath);
 	}
 
 	// returns the size of the file (unpacked) by the handle
@@ -128,34 +127,36 @@ public:
 	Cache* GetCache() { return m_pCache; }
 protected:
 	// returns the pointer to the relative file path to be passed
-	// to the underlying Cache pointer. Uses the given buffer to construct the path.
-	// returns NULL if the file path is invalid
-	const char* AdjustPath(const char* szRelativePath, char szFullPathBuf[CCryPak::g_nMaxPath])
+	// to the underlying Cache pointer in the given buffer string
+	// returns false if the file path is invalid
+	bool AdjustPath(const char* szRelativePath, CryPathString& fullPath)
 	{
 		if (!szRelativePath[0])
-			return NULL;
+			return false;
 
+		fullPath.assign(szRelativePath);
 		if (m_nFlags & FLAGS_RELATIVE_PATHS_ONLY)
-			return szRelativePath;
+			return true;
 
 		if (szRelativePath[1] == ':' || (m_nFlags & FLAGS_ABSOLUTE_PATHS))
 		{
 			// make the normalized full path and try to match it against the binding root of this object
-			const char* szFullPath = m_pPak->AdjustFileName(szRelativePath, szFullPathBuf, ICryPak::FLAGS_PATH_REAL);
-			size_t nPathLen = strlen(szFullPath);
-			if (nPathLen <= m_strBindRoot.length())
-				return NULL;
-
+			m_pPak->AdjustFileName(szRelativePath, fullPath, ICryPak::FLAGS_PATH_REAL);
+			if (fullPath.length() <= m_strBindRoot.length())
+				return false;
+			
 			// you should access exactly the file under the directly in which the zip is situated
-			if (szFullPath[m_strBindRoot.length()] != '/' && szFullPath[m_strBindRoot.length()] != '\\')
-				return NULL;
-			if (memicmp(szFullPath, m_strBindRoot.c_str(), m_strBindRoot.length()))
-				return NULL; // the roots don't match
+			if (fullPath[m_strBindRoot.length()] != '/' && fullPath[m_strBindRoot.length()] != '\\')
+				return false;
+			if (memicmp(fullPath.c_str(), m_strBindRoot.c_str(), m_strBindRoot.length()))
+				return false; // the roots don't match
 
-			return szFullPath + m_strBindRoot.length() + 1;
+			// remove bind root part from path
+			fullPath.erase(0, m_strBindRoot.length() + 1);
+			return true;
 		}
 
-		return szRelativePath;
+		return true;
 	}
 protected:
 	_smart_ptr<Cache> m_pCache;

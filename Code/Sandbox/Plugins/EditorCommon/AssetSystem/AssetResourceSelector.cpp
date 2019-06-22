@@ -122,10 +122,16 @@ void EditAsset(const SResourceSelectorContext& selectorContext, const char* valu
 	}
 }
 
-dll_string ValidateAsset(const SResourceSelectorContext& selectorContext, const char* newValue, const char* previousValue)
+SResourceValidationResult ValidateAsset(const SResourceSelectorContext& selectorContext, const char* newValue, const char* previousValue)
 {
+
+	SResourceValidationResult result{ false, previousValue };
+
 	if (!newValue || !*newValue)
-		return dll_string();
+	{
+		result.validatedResource = "";
+		return result;
+	}
 
 	CRY_ASSERT(selectorContext.resourceSelectorEntry->IsAssetSelector());
 	const SStaticAssetSelectorEntry* selector = static_cast<const SStaticAssetSelectorEntry*>(selectorContext.resourceSelectorEntry);
@@ -139,12 +145,12 @@ dll_string ValidateAsset(const SResourceSelectorContext& selectorContext, const 
 		if (selector->GetAssetTypes().size() == 1)
 		{
 			assetPath += ".";
-			assetPath += selector->GetAssetTypes()[0]->GetFileExtension();
+			assetPath += selector->GetAssetTypes()[0] -> GetFileExtension();
 		}
 		else
 		{
 			//cannot auto complete, invalid
-			return previousValue;
+			return result;
 		}
 	}
 
@@ -165,18 +171,22 @@ dll_string ValidateAsset(const SResourceSelectorContext& selectorContext, const 
 		const auto pickerState = (EAssetResourcePickerState)GetIEditor()->GetSystem()->GetIConsole()->GetCVar("ed_enableAssetPickers")->GetIVal();
 		if (pickerState == EAssetResourcePickerState::Disable)
 		{
-			return assetPath.toStdString().c_str();
+			result.isValid = true;
+			result.validatedResource = assetPath.toStdString().c_str();
 		}
 		else
 		{
 			//Finally check if there is a valid asset for this path
 			CAsset* asset = CAssetManager::GetInstance()->FindAssetForFile(assetPath.toStdString().c_str());
 			if (asset)
-				return assetPath.toStdString().c_str();
+			{
+				result.isValid = true;
+				result.validatedResource = assetPath.toStdString().c_str();
+			}
 		}
 	}
 
-	return previousValue;
+	return result;
 }
 }
 

@@ -122,7 +122,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptGroup> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitGroups(ScriptGroupVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -133,7 +133,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptGroup> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitGroups(ScriptGroupConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -144,7 +144,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptSignal> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitSignals(ScriptSignalVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), SGUID(), true);
@@ -155,7 +155,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptSignal> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitSignals(ScriptSignalConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), SGUID(), true);
@@ -166,7 +166,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptAbstractInterface> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitAbstractInterfaces(ScriptAbstractInterfaceVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -177,7 +177,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptAbstractInterface> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitAbstractInterfaces(ScriptAbstractInterfaceConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -188,7 +188,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptAbstractInterfaceFunction> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitAbstractInterfaceFunctions(ScriptAbstractInterfaceFunctionVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -199,7 +199,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptAbstractInterfaceFunction> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitAbstractInterfaceFunctions(ScriptAbstractInterfaceFunctionConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -210,7 +210,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptClass> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitClasses(ScriptClassVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), SGUID(), true);
@@ -221,7 +221,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptClass> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitClasses(ScriptClassConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), SGUID(), true);
@@ -232,7 +232,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptStateMachine> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitStateMachines(ScriptStateMachineVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -243,7 +243,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptStateMachine> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitStateMachines(ScriptStateMachineConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -254,7 +254,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptState> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitStates(ScriptStateVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -265,7 +265,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptState> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitStates(ScriptStateConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -276,7 +276,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptVariable> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitVariables(ScriptVariableVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -287,7 +287,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptVariable> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitVariables(ScriptVariableConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -298,7 +298,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptProperty> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitProperties(ScriptPropertyVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -309,7 +309,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptProperty> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitProperties(ScriptPropertyConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -320,7 +320,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptContainer> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitContainers(ScriptContainerVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -331,7 +331,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptContainer> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitContainers(ScriptContainerConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -342,7 +342,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptTimer> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitTimers(ScriptTimerVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -353,7 +353,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptTimer> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitTimers(ScriptTimerConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -364,7 +364,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptAbstractInterfaceImplementation> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitAbstractInterfaceImplementations(ScriptAbstractInterfaceImplementationVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -375,7 +375,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptAbstractInterfaceImplementation> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitAbstractInterfaceImplementations(ScriptAbstractInterfaceImplementationConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -386,7 +386,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptComponentInstance> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitComponentInstances(ScriptComponentInstanceVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -397,7 +397,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptComponentInstance> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitComponentInstances(ScriptComponentInstanceConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -408,7 +408,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptActionInstance> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitActionInstances(ScriptActionInstanceVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -419,7 +419,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptActionInstance> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitActionInstances(ScriptActionInstanceConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -430,7 +430,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IDocGraph> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitGraphs(DocGraphVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -441,7 +441,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IDocGraph> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			file.VisitGraphs(DocGraphConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector), scopeGUID, bRecurseHierarchy);
@@ -452,7 +452,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, IScriptGraphNode> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			graph.VisitNodes(ScriptGraphNodeVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector));
@@ -463,7 +463,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptFile, const IScriptGraphNode> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			Collector collector(results);
 			graph.VisitNodes(ScriptGraphNodeConstVisitor::FromMemberFunction<Collector, &Collector::Collect>(collector));
@@ -494,7 +494,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, IScriptGraphNode, SGraphNodeClassFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			const SGraphNodeClassFilter filter(type);
 			Collector                   collector(results, filter);
@@ -506,7 +506,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, const IScriptGraphNode, SGraphNodeClassFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			const SGraphNodeClassFilter filter(type);
 			Collector                   collector(results, filter);
@@ -538,7 +538,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, IScriptGraphLink, SGraphNodeInputLinkFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			const SGraphNodeInputLinkFilter filter(dstNodeGUID);
 			Collector                       collector(results, filter);
@@ -550,7 +550,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, const IScriptGraphLink, SGraphNodeInputLinkFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			const SGraphNodeInputLinkFilter filter(dstNodeGUID);
 			Collector                       collector(results, filter);
@@ -584,7 +584,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, IScriptGraphLink, SGraphNodeInputLinkNameFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			SCHEMATYC2_SYSTEM_ASSERT(szDstInputName);
 			if(szDstInputName)
@@ -600,7 +600,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, const IScriptGraphLink, SGraphNodeInputLinkNameFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			SCHEMATYC2_SYSTEM_ASSERT(szDstInputName);
 			if(szDstInputName)
@@ -638,7 +638,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, IScriptGraphLink, SGraphNodeOutputLinkNameFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			SCHEMATYC2_SYSTEM_ASSERT(szSrcOutputName);
 			if(szSrcOutputName)
@@ -654,7 +654,7 @@ namespace Schematyc2
 		{
 			typedef CElementCollector<IScriptGraph, const IScriptGraphLink, SGraphNodeOutputLinkNameFilter> Collector;
 
-			LOADING_TIME_PROFILE_SECTION;
+			CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 			SCHEMATYC2_SYSTEM_ASSERT(szSrcOutputName);
 			if(szSrcOutputName)

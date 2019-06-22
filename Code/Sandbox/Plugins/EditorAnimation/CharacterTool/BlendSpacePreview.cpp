@@ -55,7 +55,12 @@ BlendSpacePreview::BlendSpacePreview(QWidget* parent, CharacterDocument* documen
 		m_layout->addWidget(toolbar, 0);
 	}
 	m_layout->setContentsMargins(0, 0, 0, 0);
-	m_viewport = new QViewport(gEnv, this);
+
+	IRenderer::SGraphicsPipelineDescription graphicsPipelineDesc;
+	graphicsPipelineDesc.type = EGraphicsPipelineType::Minimum;
+	graphicsPipelineDesc.shaderFlags = SHDF_SECONDARY_VIEWPORT | SHDF_ALLOWHDR | SHDF_FORWARD_MINIMAL;
+
+	m_viewport = new QViewport(gEnv, graphicsPipelineDesc, this);
 	SViewportSettings settings = m_viewport->GetSettings();
 	settings.grid.showGrid = false;
 	m_viewport->SetSettings(settings);

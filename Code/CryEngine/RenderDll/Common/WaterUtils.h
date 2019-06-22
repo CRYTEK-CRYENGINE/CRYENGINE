@@ -1,14 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   ShadowUtils.h :
-
-   Revision history:
-* Created by Tiago Sousa
-   =============================================================================*/
-
-#ifndef __WATERUTILS_H__
-#define __WATERUTILS_H__
+#pragma once
 
 class CWaterSim;
 
@@ -54,5 +46,3 @@ static CWater* WaterSimMgr()
 {
 	return gRenDev->m_pWaterSimMgr;
 }
-
-#endif

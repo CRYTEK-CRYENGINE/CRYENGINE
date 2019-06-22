@@ -13,10 +13,10 @@ namespace Impl
 {
 namespace Adx2
 {
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 constexpr char const* g_debugNoneSnapshot = "<none>";
 extern CryFixedStringT<MaxControlNameLength> g_debugActiveSnapShotName;
-#endif  // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 class CSnapshot final : public CBaseTriggerConnection, public CPoolObject<CSnapshot, stl::PSyncNone>
 {

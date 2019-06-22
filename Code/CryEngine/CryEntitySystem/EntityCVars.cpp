@@ -9,6 +9,7 @@
 #include <CryEntitySystem/IEntityComponent.h>
 #include <CryAISystem/IAISystem.h>
 #include <CryAnimation/IAttachment.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 ICVar* CVar::pUpdateScript = nullptr;
 ICVar* CVar::pUpdateEntities = nullptr;
@@ -49,6 +50,7 @@ int CVar::es_SaveLoadUseLUANoSaveFlag = 1;
 float CVar::es_EntityUpdatePosDelta = 0.0f;
 int CVar::es_debugDrawEntityIDs = 0;
 int CVar::es_MaxJointFx = 8;
+int CVar::es_UseProximityTriggerSystem = 1;
 
 int CVar::es_profileComponentUpdates = 0;
 
@@ -256,6 +258,12 @@ void CVar::Init()
 	              "Toggles flowgraph components. Requires restart of the engine.\n"
 	              "Usage: es_UpdateEntities [0/1]\n"
 	              "Default is 0 (off). Set to 1 to enable flowgraph components.");
+
+	REGISTER_CVAR(es_UseProximityTriggerSystem, 1, 
+		VF_CHEAT | VF_REQUIRE_LEVEL_RELOAD, 
+		"Whether to register entities in the partition grid used for the proximity trigger system.\n"
+	    "0 - Entities will not be registered in the partition grid and can not be found by proximity queries."
+	    "1 - Entities can be registered in the partition grid and could then be found by proximity queries.");
 
 	// Call mapping in case the cvar was already set
 	MapEntityBBoxesCVar(pEntityBBoxes);

@@ -222,7 +222,7 @@ namespace BehaviorTree
 			AISignals::IAISignalExtraData*	pData = gEnv->pAISystem->CreateSignalExtraData();
 			const int goalPipeId = gEnv->pAISystem->AllocGoalPipeId();
 			pData->iValue = goalPipeId;
-			pIAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, signalDescription, pSender ? pSender->GetAIObjectID() : 0, pData));
+			pIAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, signalDescription, pSender ? pSender->GetId() : INVALID_ENTITYID, pData));
 		}
 	};
 
@@ -493,7 +493,7 @@ namespace BehaviorTree
 				Agent agent(entityId);
 				if(agent.IsValid())
 				{
-					agent.GetAIActor()->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnMeleeKnockedDownTarget(),  agent.GetAIObjectID()));
+					agent.GetAIActor()->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnMeleeKnockedDownTarget(), entityId));
 				}
 			}
 

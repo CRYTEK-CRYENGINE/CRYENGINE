@@ -95,10 +95,14 @@ protected:
 
 CTrackViewCore::CTrackViewCore()
 	: m_currentProperties(0)
-	, m_keyMoveMode(eKeyMoveMode_Slide)
+	, m_keyMoveMode(eKeyMoveMode_Move)
+	, m_keySlideMode(eKeySlideMode_Both)
 	, m_bLockProperties(false)
 {
 	m_pTrackViewComponentsManager = new CTrackViewComponentsManager();
+
+	m_animEntityDefaultTracks.push_back(eAnimParamType_Position);
+	m_animEntityDefaultTracks.push_back(eAnimParamType_Rotation);
 }
 
 CTrackViewCore::~CTrackViewCore()
@@ -113,7 +117,7 @@ void CTrackViewCore::Init()
 	SetFramerate(SAnimTime::eFrameRate_30fps);
 	SetDisplayMode(SAnimTime::EDisplayMode::Time);
 	SetSnapMode(eSnapMode_NoSnapping);
-	SetKeysMoveMode(eKeyMoveMode_Slide);
+	SetKeysMoveMode(eKeyMoveMode_Move);
 	SetPlaybackSpeed(1.0f);
 }
 
@@ -140,6 +144,46 @@ void CTrackViewCore::UpdateProperties(EPropertyDataSource dataSource)
 void CTrackViewCore::UnlockProperties()
 {
 	m_bLockProperties = false;
+}
+
+size_t CTrackViewCore::GetAnimEntityDefaultTrackCount() const
+{
+	return m_animEntityDefaultTracks.size();
+}
+
+CAnimParamType CTrackViewCore::GetAnimEntityDefaultTrackByIndex(size_t index) const
+{
+	if (index < GetAnimEntityDefaultTrackCount())
+	{
+		return m_animEntityDefaultTracks[index];
+	}
+
+	static CAnimParamType stub;
+	return stub;
+}
+
+void CTrackViewCore::AddAnimEntityDefaultTrackType(CAnimParamType paramType)
+{
+	auto it = std::find(m_animEntityDefaultTracks.begin(), m_animEntityDefaultTracks.end(), paramType);
+	if (it == m_animEntityDefaultTracks.end())
+	{
+		m_animEntityDefaultTracks.push_back(paramType);
+	}
+}
+
+void CTrackViewCore::RemoveAnimEntityDefaultTrackType(CAnimParamType paramType)
+{
+	auto it = std::find(m_animEntityDefaultTracks.begin(), m_animEntityDefaultTracks.end(), paramType);
+	if (it != m_animEntityDefaultTracks.end())
+	{
+		m_animEntityDefaultTracks.erase(it);
+	}
+}
+
+bool CTrackViewCore::IsContainsAnimEntityDefaultTrackType(CAnimParamType paramType) const
+{
+	auto it = std::find(m_animEntityDefaultTracks.begin(), m_animEntityDefaultTracks.end(), paramType);
+	return it != m_animEntityDefaultTracks.end();
 }
 
 void CTrackViewCore::NewSequence()
@@ -280,15 +324,18 @@ void CTrackViewCore::OnAddSelectedEntities()
 		CTrackViewNode* pSelectedNode = pSequence->GetFirstSelectedNode();
 		pSelectedNode = pSelectedNode ? pSelectedNode : pSequence;
 
+		CTrackViewAnimNodeBundle bundle;
 		if (pSelectedNode->IsGroupNode())
 		{
 			CTrackViewAnimNode* pSelectedAnimNode = static_cast<CTrackViewAnimNode*>(pSelectedNode);
-			pSelectedAnimNode->AddSelectedEntities();
+			bundle = pSelectedAnimNode->AddSelectedEntities();
 		}
 		else
 		{
-			pSequence->AddSelectedEntities();
+			bundle = pSequence->AddSelectedEntities();
 		}
+
+		SpawnDefaultTracksForBundle(bundle);
 	}
 }
 
@@ -340,6 +387,11 @@ void CTrackViewCore::OnGoToNextKey()
 	}
 }
 
+void CTrackViewCore::OnMoveKeys()
+{
+	SetKeysMoveMode(eKeyMoveMode_Move);
+}
+
 void CTrackViewCore::OnSlideKeys()
 {
 	SetKeysMoveMode(eKeyMoveMode_Slide);
@@ -353,6 +405,12 @@ void CTrackViewCore::OnScaleKeys()
 void CTrackViewCore::SetKeysMoveMode(ETrackViewKeyMoveMode mode)
 {
 	m_keyMoveMode = mode;
+	GetComponentsManager()->BroadcastTrackViewEditorEvent(eTrackViewEditorEvent_OnKeyMoveModeChanged);
+}
+
+void CTrackViewCore::SetKeysSlideMode(ETrackViewKeySlideMode slideMode)
+{
+	m_keySlideMode = slideMode;
 	GetComponentsManager()->BroadcastTrackViewEditorEvent(eTrackViewEditorEvent_OnKeyMoveModeChanged);
 }
 
@@ -382,6 +440,25 @@ void CTrackViewCore::SetDisplayMode(SAnimTime::EDisplayMode newDisplayMode)
 	m_animTimeSettings.displayMode = newDisplayMode;
 	GetComponentsManager()->BroadcastTrackViewEditorEvent(eTrackViewEditorEvent_OnDisplayModeChanged);
 	// TODO: timeline and curveeditor support for different time units
+}
+
+void CTrackViewCore::SpawnDefaultTracksForBundle(const CTrackViewAnimNodeBundle& bundle)
+{
+	QTimer::singleShot(1, [this, bundle]()
+	{
+		size_t animNodeCount = bundle.GetCount();
+		size_t defaultTrackCount = GetAnimEntityDefaultTrackCount();
+
+		for (size_t i = 0; i < animNodeCount; i++)
+		{
+			CTrackViewAnimNode* pAnimNode = const_cast<CTrackViewAnimNode*>(bundle.GetNode(i));
+			for (size_t j = 0; j < defaultTrackCount; j++)
+			{
+				CAnimParamType paramType = GetAnimEntityDefaultTrackByIndex(j);
+				pAnimNode->CreateTrack(paramType);
+			}
+		}
+	});
 }
 
 void CTrackViewCore::SetProperties(Serialization::SStructs& structs, EPropertyDataSource source)

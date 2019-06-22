@@ -13,7 +13,6 @@ struct CSimulation : public SimulationParams
 	{
 		m_crcProcFunction = 0;
 		m_idxDirTransJoint = -1;
-		m_nAnimOverrideJoint = -1;
 		m_fHRotationHCosX = DEG2HCOS(m_vDiskRotation.x);
 		m_fHRotationHCosZ = DEG2HCOS(m_vDiskRotation.y);
 		m_fMaxAngleCos = DEG2COS(m_fMaxAngle);
@@ -44,9 +43,11 @@ struct CSimulation : public SimulationParams
 	DynArray<int16>       m_arrProxyIndex;        // the indices to the proxies (atm only lozenges)
 	DynArray<JointIdType> m_arrChildren;
 	uint32                m_crcProcFunction;
-	int16                 m_nAnimOverrideJoint;
 
 private:
+
+	//! Determine blend weight for blending between simulation and animation according to helper joint with id m_blendControlJointId
+	f32 GetBlendWeight(Skeleton::CPoseData& rPoseData) const;
 
 	int16 m_idxDirTransJoint;
 	f32   m_fMaxAngleCos, m_fMaxAngleHCos;        // cosine and half-cosine for the angle

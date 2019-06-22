@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _3DENGINE_BRUSH_H_
-#define _3DENGINE_BRUSH_H_
+#pragma once
 
 #include "ObjMan.h"
 #include "DeformableNode.h"
@@ -54,7 +53,7 @@ public:
 	//! Assign final material to this entity.
 	virtual void       SetMaterial(IMaterial* pMat) final;
 	virtual IMaterial* GetMaterial(Vec3* pHitPos = NULL) const final;
-	virtual IMaterial* GetMaterialOverride() const final { return m_pMaterial; };
+	virtual IMaterial* GetMaterialOverride() const final { return m_pMaterial; }
 	virtual void       CheckPhysicalized() final;
 
 	virtual float      GetMaxViewDist() const final;
@@ -77,7 +76,9 @@ public:
 	virtual void       FillBBox(AABB& aabb) const final { aabb = GetBBox(); }
 	virtual void       OffsetPosition(const Vec3& delta) final;
 
-	virtual void SetCameraSpacePos( Vec3* pCameraSpacePos ) final;
+	virtual void SetCameraSpaceParams(stl::optional<SCameraSpaceParams> cameraSpaceParams) override;
+	virtual stl::optional<SCameraSpaceParams> GetCameraSpaceParams() const override;
+
 	virtual void SetSubObjectHideMask( hidemask subObjHideMask ) final;
 
 	virtual bool       CanExecuteRenderAsJob() const final;
@@ -128,7 +129,7 @@ public:
 	// Hide mask disable individual sub-objects rendering in the compound static objects
 	hidemask m_nSubObjHideMask;
 
-	Vec3*    m_pCameraSpacePos = nullptr;
+	stl::optional<SCameraSpaceParams> m_cameraSpaceParams = stl::nullopt;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -149,5 +150,3 @@ private:
 	// When render node is created by the entity, pointer to the owner entity.
 	IEntity* m_pOwnerEntity = 0;
 };
-
-#endif // _3DENGINE_BRUSH_H_

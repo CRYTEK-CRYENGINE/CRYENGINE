@@ -223,7 +223,7 @@ CCryDX12Texture2D* CCryDX12Texture2D::Create(CCryDX12Device* pDevice, const FLOA
 
 	if ((hresult != S_OK) || !resource)
 	{
-		DX12_ASSERT(0, "Could not create texture 2D resource!");
+		DX12_ERROR("Could not create texture 2D resource!");
 		return NULL;
 	}
 

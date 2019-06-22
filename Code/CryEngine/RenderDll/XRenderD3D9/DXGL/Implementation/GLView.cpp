@@ -1,15 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   GLResource.cpp
-//  Version:     v1.00
-//  Created:     26/03/2015 by Valerio Guagliumi.
-//  Description: Implements the resource view related functions
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include <StdAfx.h>
 
 #include "GLView.hpp"

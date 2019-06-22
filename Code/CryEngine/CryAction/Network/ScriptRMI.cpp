@@ -20,7 +20,7 @@
 #include "GameClientChannel.h"
 #include "GameServerChannel.h"
 #include "CryAction.h"
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define FLAGS_FIELD           "__sendto"
 #define ID_FIELD              "__id"

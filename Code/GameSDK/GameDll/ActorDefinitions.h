@@ -258,7 +258,6 @@ struct SActorParams
 
 	float proceduralLeaningFactor;
 
-	char animationAppendix[32];
 	string footstepEffectName;
 	string remoteFootstepEffectName;
 	string foleyEffectName;
@@ -337,9 +336,6 @@ struct SActorParams
 	{
 		for (int smr = 0; smr < eSMR_COUNT; ++smr)
 			speedMultiplier[smr] = 1.0f;
-
-		memset(animationAppendix, 0, sizeof(animationAppendix));
-		cry_strcpy(animationAppendix,"nw");
 	}
 };
 
@@ -612,9 +608,8 @@ struct SStanceInfo
 		, normalSpeed(0.0f)
 		, maxSpeed(0.0f)
 		, modelOffset(ZERO)
-	{
-		cry_strcpy(name, "null");
-	}
+		, name("null")
+	{}
 };
 
 #define IKLIMB_RIGHTHAND (1<<0)

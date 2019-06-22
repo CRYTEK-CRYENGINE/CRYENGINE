@@ -5,8 +5,8 @@
 #include "QCustomWindowFrame.h"
 
 #include <QApplication>
+#include <QBoxLayout>
 #include <QDesktopWidget>
-#include <QGridLayout>
 #include <QLabel>
 #include <QLayout>
 #include <QMouseEvent>
@@ -45,7 +45,7 @@ QCustomTitleBar::QCustomTitleBar(QWidget* parent)
 	}
 
 	QHBoxLayout* myLayout = new QHBoxLayout(this);
-	myLayout->setContentsMargins(4, 4, 4, 0);
+	myLayout->setContentsMargins(0, 0, 0, 0);
 	myLayout->setSpacing(0);
 	m_caption = new QLabel(this);
 	
@@ -84,15 +84,6 @@ QCustomTitleBar::QCustomTitleBar(QWidget* parent)
 
 void QCustomTitleBar::updateWindowStateButtons()
 {
-	if (parentWidget()->windowState() & Qt::WindowMaximized)
-	{
-		layout()->setContentsMargins(0, 0, 0, 0);
-	}
-	else
-	{
-		layout()->setContentsMargins(4, 4, 4, 0);
-	}
-
 	if (m_maximizeButton)
 	{
 		if (parentWidget()->windowState() & Qt::WindowMaximized)
@@ -274,20 +265,20 @@ void QCustomTitleBar::mouseReleaseEvent(QMouseEvent* event)
 	QFrame::mouseReleaseEvent(event);
 }
 
-bool QCustomTitleBar::eventFilter(QObject* o, QEvent* e)
+bool QCustomTitleBar::eventFilter(QObject* pObject, QEvent* pEvent)
 {
-	if (o == m_sysMenuButton)
+	if (pObject == m_sysMenuButton)
 	{
-		switch (e->type())
+		switch (pEvent->type())
 		{
 		case QEvent::MouseButtonPress:
-			if (static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton && qApp->widgetAt(QCursor::pos()) == m_sysMenuButton)
+			if (static_cast<QMouseEvent*>(pEvent)->button() == Qt::LeftButton && qApp->widgetAt(QCursor::pos()) == m_sysMenuButton)
 			{
 				showSystemMenu(mapToGlobal(rect().bottomLeft()));
 				return true;
 			}
 		case QEvent::MouseButtonDblClick:
-			if (static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton && qApp->widgetAt(QCursor::pos()) == m_sysMenuButton)
+			if (static_cast<QMouseEvent*>(pEvent)->button() == Qt::LeftButton && qApp->widgetAt(QCursor::pos()) == m_sysMenuButton)
 			{
 				parentWidget()->close();
 				return true;
@@ -295,7 +286,7 @@ bool QCustomTitleBar::eventFilter(QObject* o, QEvent* e)
 		}
 	}
 
-	return QFrame::eventFilter(o, e);
+	return QFrame::eventFilter(pObject, pEvent);
 }
 
 bool QCustomTitleBar::nativeEvent(const QByteArray &eventType, void *message, long *result)
@@ -354,16 +345,15 @@ QCustomWindowFrame::QCustomWindowFrame()
 	: QFrame(nullptr)
 	, m_titleBar(nullptr)
 	, m_contents(nullptr)
+	, m_resizeMargin(4)
 {
+	// To provide resizing functionality we must enable mouse tracking. Mouse tracking enables us to pick up
+	// mouse move events without requiring to have mouse buttons pressed
 	setMouseTracking(true);
-	m_grid = new QGridLayout(this);
-	m_grid->setSpacing(0);		
-	m_grid->setMargin(0);
-	m_grid->setRowMinimumHeight(0, 4);
-	m_grid->setRowMinimumHeight(2, 4);
-	m_grid->setColumnMinimumWidth(0, 4);
-	m_grid->setColumnMinimumWidth(2, 4);
-	setLayout(m_grid);
+	m_layout = new QBoxLayout(QBoxLayout::TopToBottom);
+	m_layout->setSpacing(0);
+	m_layout->setMargin(0);
+	setLayout(m_layout);
 
 #if defined(WIN32) || defined(WIN64)
 	SetWindowLong((HWND)winId(), GWL_STYLE, WS_OVERLAPPED | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_SYSMENU);
@@ -399,8 +389,8 @@ void QCustomWindowFrame::internalSetContents(QWidget* widget, bool useContentsGe
 		if (m_contents->parentWidget() == this)
 			m_contents->setParent(nullptr);
 
-		m_grid->removeWidget(m_contents);
-		m_grid->removeWidget(m_titleBar);
+		m_layout->removeWidget(m_contents);
+		m_layout->removeWidget(m_titleBar);
 		m_contents->removeEventFilter(this);
 
 		disconnect(m_contents, SIGNAL(windowTitleChanged(const QString &)), this, SLOT(setWindowTitle(const QString &)));
@@ -444,8 +434,8 @@ void QCustomWindowFrame::internalSetContents(QWidget* widget, bool useContentsGe
 		updateWindowFlags();
 		ensureTitleBar();
 
-		m_grid->addWidget(m_titleBar, 0, 0, 1, 3);
-		m_grid->addWidget(m_contents, 1, 1);
+		m_layout->addWidget(m_titleBar);
+		m_layout->addWidget(m_contents);
 	}
 	
 	contentsChanged(m_contents);
@@ -479,14 +469,12 @@ bool QCustomWindowFrame::winEvent(MSG *msg, long *result)
 		return false;
 
 	QRect r = rect();
-	static const int SIZE_MARGIN = 4;
-	QPoint newPos = QCursor::pos();
-	r.moveTo(pos());
+	QPoint newPos = mapFromGlobal(QCursor::pos());
 
-	bool topEdge = qAbs(newPos.y() - r.top()) <= SIZE_MARGIN;
-	bool leftEdge = qAbs(newPos.x() - r.left()) <= SIZE_MARGIN;
-	bool rightEdge = qAbs(newPos.x() - r.right()) <= SIZE_MARGIN;
-	bool bottomEdge = qAbs(newPos.y() - r.bottom()) <= SIZE_MARGIN;
+	bool topEdge = qAbs(newPos.y() - r.top()) <= m_resizeMargin;
+	bool leftEdge = qAbs(newPos.x() - r.left()) <= m_resizeMargin;
+	bool rightEdge = qAbs(newPos.x() - r.right()) <= m_resizeMargin;
+	bool bottomEdge = qAbs(newPos.y() - r.bottom()) <= m_resizeMargin;
 	bool hor = leftEdge || rightEdge;
 	bool ver = topEdge || bottomEdge;
 	switch (msg->message)
@@ -594,7 +582,7 @@ bool QCustomWindowFrame::winEvent(MSG *msg, long *result)
 	case WM_ACTIVATE:
 	{
 		// Enable shadow
-		MARGINS shadow_on = { 1, 1, 1, 1 };
+		MARGINS shadow_on = { 0,0,0,0 };
 		if (dwmExtendFrameIntoClientArea)
 		{
 			auto pFunc = (dwmExtendFrameIntoClientArea_t)dwmExtendFrameIntoClientArea;
@@ -610,9 +598,9 @@ bool QCustomWindowFrame::winEvent(MSG *msg, long *result)
 }
 #endif
 
-bool QCustomWindowFrame::event(QEvent* e)
+bool QCustomWindowFrame::event(QEvent* pEvent)
 {
-	switch (e->type())
+	switch (pEvent->type())
 	{
 	case QEvent::Show:
 		if (!m_contents->isVisibleTo(this))
@@ -623,7 +611,7 @@ bool QCustomWindowFrame::event(QEvent* e)
 			m_contents->hide();
 		break;
 	}
-	return QFrame::event(e);
+	return QFrame::event(pEvent);
 }
 
 void QCustomWindowFrame::closeEvent(QCloseEvent* e)
@@ -641,23 +629,7 @@ void QCustomWindowFrame::changeEvent(QEvent* e)
 	{
 		getMainWindow()->setWindowState(Qt::WindowNoState);
 	}
-	if (isWindow() && e->type() == QEvent::WindowStateChange)
-	{
-		if (windowState() == Qt::WindowMaximized)
-		{
-			m_grid->setRowMinimumHeight(0, 0);
-			m_grid->setRowMinimumHeight(2, 0);
-			m_grid->setColumnMinimumWidth(0, 0);
-			m_grid->setColumnMinimumWidth(2, 0);
-		}
-		else
-		{
-			m_grid->setRowMinimumHeight(0, 4);
-			m_grid->setRowMinimumHeight(2, 4);
-			m_grid->setColumnMinimumWidth(0, 4);
-			m_grid->setColumnMinimumWidth(2, 4);
-		}
-	}
+
 	if (m_titleBar)
 	{
 		m_titleBar->updateWindowStateButtons();
@@ -672,22 +644,9 @@ bool QCustomWindowFrame::eventFilter(QObject* o, QEvent* e)
 	{
 		if (m_contents->parentWidget() == this)
 		{
-
 			// Respond to some events from our contents.
 			switch (e->type())
 			{
-				//case QEvent::ParentChange:
-				//	if (!m_contents->parentWidget())
-				//	{
-				//		m_contents->setParent(this);
-				//		m_grid->addWidget(m_contents, 1, 1);
-				//		setVisible(m_contents->isVisible());
-				//	}
-				//	else if (m_contents->parentWidget() != this)
-				//	{
-				//		hide(); // Hide if contents gets assigned to another parent.
-				//	}
-				//	break;
 			case QEvent::Close:
 				close();
 				break;
@@ -699,10 +658,6 @@ bool QCustomWindowFrame::eventFilter(QObject* o, QEvent* e)
 				if (!isVisible())
 					show();
 				break;
-				//case QEvent::StyleChange:
-				//	if (m_contents->styleSheet() != styleSheet())
-				//		setStyleSheet(m_contents->styleSheet());
-				//	break;
 			}
 		}
 	}
@@ -779,7 +734,7 @@ void QCustomWindowFrame::updateWindowFlags()
 
 	if (dwmExtendFrameIntoClientArea)
 	{
-		MARGINS shadow_on = { 1, 1, 1, 1 };
+		MARGINS shadow_on = { 0, 0, 0, 0 };
 		auto pFunc = (dwmExtendFrameIntoClientArea_t)dwmExtendFrameIntoClientArea;
 		pFunc((HWND)winId(), &shadow_on);
 	}

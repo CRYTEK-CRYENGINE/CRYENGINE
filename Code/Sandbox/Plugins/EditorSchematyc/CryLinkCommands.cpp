@@ -4,6 +4,7 @@
 #include "CryLinkCommands.h"
 
 #include "MainWindow.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace Schematyc
 {

@@ -6,27 +6,27 @@ namespace Schematyc2
 {
 	struct CVars
 	{
-		static ICVar* sc_FileFormat;
-		static ICVar* sc_RootFolder;
-		static int    sc_IgnorePAKFiles;
-		static int    sc_IgnoreUnderscoredFolders;
-		static int    sc_DiscardOnSave;
+		static ICVar* sc2_FileFormat;
+		static ICVar* sc2_RootFolder;
+		static int    sc2_IgnorePAKFiles;
+		static int    sc2_IgnoreUnderscoredFolders;
+		static int    sc2_DiscardOnSave;
 
-		static ICVar* sc_LogToFile;
-		static ICVar* sc_LogFileStreams;
-		static ICVar* sc_LogFileMessageTypes;
-		static int    sc_DisplayCriticalErrors;
+		static ICVar* sc2_LogToFile;
+		static ICVar* sc2_LogFileStreams;
+		static ICVar* sc2_LogFileMessageTypes;
+		static int    sc2_DisplayCriticalErrors;
 
-		static int    sc_LegacyMode;
-		static int    sc_RunUnitTests;
-		static int    sc_MaxRecursionDepth;
-		static ICVar* sc_ExperimentalFeatures;
+		static int    sc2_LegacyMode;
+		static int    sc2_RunUnitTests;
+		static int    sc2_MaxRecursionDepth;
+		static ICVar* sc2_ExperimentalFeatures;
 		
-		static float  sc_FunctionTimeLimit;
-		static int    sc_UseNewGraphPipeline;
+		static float  sc2_FunctionTimeLimit;
+		static int    sc2_UseNewGraphPipeline;
 
-		static float  sc_RelevanceGridCellSize;
-		static int    sc_RelevanceGridDebugStatic;
+		static float  sc2_RelevanceGridCellSize;
+		static int    sc2_RelevanceGridDebugStatic;
 
 		static void Register();
 		static void Unregister();

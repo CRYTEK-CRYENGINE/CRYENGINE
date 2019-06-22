@@ -9,6 +9,7 @@
 #include <CryString/CryName.h>
 #include <CryExtension/CryGUID.h>
 
+// forward declaration.
 struct IAnimTrack;
 struct IAnimNode;
 struct IAnimSequence;
@@ -432,6 +433,8 @@ struct IMovieCallback
 	virtual void OnSetCamera(const SCameraParams& Params) = 0;
 };
 
+using AnimTrackKeysIndices = std::vector<size_t>;
+
 /**	Interface of Animation Track.
  */
 struct IAnimTrack : public _i_reference_target_t
@@ -541,7 +544,7 @@ struct IAnimTrack : public _i_reference_target_t
 	virtual bool Serialize(XmlNodeRef& xmlNode, bool bLoading, bool bLoadEmptyTracks = true) = 0;
 
 	//! Serialize the keys on this track to XML
-	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) = 0;
+	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, AnimTrackKeysIndices& keysIndices, const SAnimTime time = SAnimTime(0)) = 0;
 
 	//! For custom track animate parameters.
 	virtual void Animate(SAnimContext& animContext) {}
@@ -570,7 +573,7 @@ struct IAnimNodeOwner
 	virtual ~IAnimNodeOwner() {}
 	virtual void OnNodeAnimated(IAnimNode* pNode) = 0;
 	virtual void OnNodeVisibilityChanged(IAnimNode* pNode, const bool bHidden) = 0;
-	virtual void OnNodeReset(IAnimNode* pNode) {}
+	virtual bool OnNodeReset(IAnimNode* pNode) { return true; }
 	// </interfuscator:shuffle>
 };
 

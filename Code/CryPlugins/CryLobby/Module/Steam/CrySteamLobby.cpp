@@ -12,6 +12,7 @@
 #include "StdAfx.h"
 
 #include "Steam/CrySteamLobby.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if USE_STEAM
 

@@ -1208,10 +1208,11 @@ public:
 	}
 	virtual void GetMemoryStatistics(ICrySizer* pSizer) {}
 
-	void         SetGlobalName(const char* sGlobalName)
+	void SetGlobalName(const char* sGlobalName)
 	{
-		assert(strlen(sGlobalName) < sizeof(m_sGlobalName));
-		cry_strcpy(m_sGlobalName, sGlobalName);
+		const size_t length = strlen(sGlobalName);
+		CRY_ASSERT(length < sizeof(m_sGlobalName));
+		cry_strcpy(m_sGlobalName, sGlobalName, length + 1);
 		if (m_pMethodsTable)
 			m_pSS->SetGlobalValue(sGlobalName, m_pMethodsTable);
 	}
@@ -1636,7 +1637,7 @@ struct Script
 	//! \param pTable Must not be 0.
 	static bool CallMethod(IScriptTable* pTable, const char* sMethod)
 	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ScriptCall, 0, "LUA call (%s)", sMethod);
+		MEMSTAT_CONTEXT_FMT(EMemStatContextType::ScriptCall, "LUA call (%s)", sMethod);
 
 		assert(pTable);
 		IScriptSystem* pSS = pTable->GetScriptSystem();
@@ -1648,7 +1649,7 @@ struct Script
 	template<class P1>
 	static bool CallMethod(IScriptTable* pTable, const char* sMethod, const P1& p1)
 	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ScriptCall, 0, "LUA call (%s)", sMethod);
+		MEMSTAT_CONTEXT_FMT(EMemStatContextType::ScriptCall, "LUA call (%s)", sMethod);
 
 		assert(pTable);
 		IScriptSystem* pSS = pTable->GetScriptSystem();
@@ -1660,7 +1661,7 @@ struct Script
 	template<class P1, class P2>
 	static bool CallMethod(IScriptTable* pTable, const char* sMethod, const P1& p1, const P2& p2)
 	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ScriptCall, 0, "LUA call (%s)", sMethod);
+		MEMSTAT_CONTEXT_FMT(EMemStatContextType::ScriptCall, "LUA call (%s)", sMethod);
 
 		IScriptSystem* pSS = pTable->GetScriptSystem();
 		if (!pSS->BeginCall(pTable, sMethod)) return false;
@@ -1671,7 +1672,7 @@ struct Script
 	template<class P1, class P2, class P3>
 	static bool CallMethod(IScriptTable* pTable, const char* sMethod, const P1& p1, const P2& p2, const P3& p3)
 	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ScriptCall, 0, "LUA call (%s)", sMethod);
+		MEMSTAT_CONTEXT_FMT(EMemStatContextType::ScriptCall, "LUA call (%s)", sMethod);
 
 		IScriptSystem* pSS = pTable->GetScriptSystem();
 		if (!pSS->BeginCall(pTable, sMethod)) return false;
@@ -1682,7 +1683,7 @@ struct Script
 	template<class P1, class P2, class P3, class P4>
 	static bool CallMethod(IScriptTable* pTable, const char* sMethod, const P1& p1, const P2& p2, const P3& p3, const P4& p4)
 	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ScriptCall, 0, "LUA call (%s)", sMethod);
+		MEMSTAT_CONTEXT_FMT(EMemStatContextType::ScriptCall, "LUA call (%s)", sMethod);
 
 		IScriptSystem* pSS = pTable->GetScriptSystem();
 		if (!pSS->BeginCall(pTable, sMethod)) return false;
@@ -1694,7 +1695,7 @@ struct Script
 	static bool CallMethod(IScriptTable* pTable, const char* sMethod, const P1& p1, const P2& p2, const P3& p3, const P4& p4,
 		const P5& p5)
 	{
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ScriptCall, 0, "LUA call (%s)", sMethod);
+		MEMSTAT_CONTEXT_FMT(EMemStatContextType::ScriptCall, "LUA call (%s)", sMethod);
 
 		IScriptSystem* pSS = pTable->GetScriptSystem();
 		if (!pSS->BeginCall(pTable, sMethod)) return false;

@@ -50,6 +50,7 @@ void SetStep(float dt);
 float GetStep();
 int GetNumThreads(int &numMax);
 void SetNumThreads(int n);
+void NotifyStartSim();
 
 BOOL SetupPixelFormat(HDC hDC)
 {
@@ -266,9 +267,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			// Parse the menu selections:
 			switch (wmId) {
 				case ID_ANIMATE: g_bAnimate^=1; UpdateMenuItems(hWnd); RenderWorld(hWnd,g_hDC); 
-						 if (g_bAnimate) 
+						 if (g_bAnimate) {
+							 NotifyStartSim();
 							 ReleaseMutex(g_hThreadActive);
-						 else
+						 } else
 							 WaitForSingleObject(g_hThreadActive,INFINITE);
 						 break;
 				case ID_SYNC_RENDERING: g_sync^=1; UpdateMenuItems(hWnd); break;
@@ -421,7 +423,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					SetCursorPos(rect.left,rect.top);
 				}	else break;
 				InvalidateRect(hWnd,0,0);
-			}
+			}	else
+				OnMouseEvent(message, lParam&0xffff, lParam>>16, wParam);
 			break;
 
 		case WM_KEYDOWN:

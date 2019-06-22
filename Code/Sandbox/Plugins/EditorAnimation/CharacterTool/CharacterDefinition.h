@@ -151,6 +151,16 @@ struct CharacterAttachment
 	void       ChangeProxyType();
 	void       GenerateMesh();
 	void       UpdateMirrorInfo(int idBone, const IDefaultSkeleton& skel);
+
+private:
+
+	void SerializeBone(Serialization::IArchive& ar);
+	void SerializeFace(Serialization::IArchive& ar);
+	void SerializeSkin(Serialization::IArchive& ar);
+	void SerializeProxy(Serialization::IArchive& ar);
+	void SerializePRow(Serialization::IArchive& ar);
+	void SerializeVCloth(Serialization::IArchive& ar);
+
 };
 
 struct ICryAnimation;

@@ -78,46 +78,46 @@ public:
 
 	//! This will be called after most of the other systems have initialized. If something depends on something else being initialized,
 	//! move the dependent code into Init()
-	void                           Init();
+	void                         Init();
 
-	IEditorClassFactory*           GetClassFactory();
-	CPersonalizationManager*       GetPersonalizationManager() { return m_pPersonalizationManager; }
-	virtual CPreferences*          GetPreferences() override   { return m_pPreferences; }
-	CEditorCommandManager*         GetCommandManager()         { return m_pCommandManager; }
-	ICommandManager*               GetICommandManager();
-	static bool                    OnFilterInputEvent(SInputEvent* pInput);
-	virtual CTrayArea*             GetTrayArea() override             { return m_pTrayArea; }
+	IEditorClassFactory*         GetClassFactory();
+	CPersonalizationManager*     GetPersonalizationManager() { return m_pPersonalizationManager; }
+	virtual CPreferences*        GetPreferences() override   { return m_pPreferences; }
+	CEditorCommandManager*       GetCommandManager()         { return m_pCommandManager; }
+	ICommandManager*             GetICommandManager();
+	static bool                  OnFilterInputEvent(SInputEvent* pInput);
+	virtual CTrayArea*           GetTrayArea() override             { return m_pTrayArea; }
 	//! Access to toolbar service for loading and storing editor specific toolbars
-	virtual CEditorToolBarService* GetEditorToolBarService() override { return m_pEditorToolBarService; }
-	virtual ILevelEditor*          GetLevelEditor() override;
-	virtual INotificationCenter*   GetNotificationCenter() override { return m_pNotificationCenter; }
-	void                           ExecuteCommand(const char* sCommand, ...);
-	CAssetManager*                 GetAssetManager()                  { return m_pAssetManager; }
-	IPythonManager*                GetIPythonManager();
-	CEditorPythonManager*          GetPythonManager()                 { return m_pPythonManager; }
-	void                           SetDocument(CCryEditDoc* pDoc);
-	void                           CloseDocument();
-	CCryEditDoc*                   GetDocument() const;
-	bool                           IsDocumentReady() const;
-	virtual bool                   IsMainFrameClosing() const;
-	bool                           IsLevelExported() const;
-	bool                           SetLevelExported(bool boExported = true);
-	void                           InitFinished();
-	bool                           IsInitialized() const { return m_bInitialized; }
-	bool                           SaveDocument();
-	bool                           SaveDocumentBackup();
-	ISystem*                       GetSystem() override;
-	I3DEngine*                     Get3DEngine() override;
-	IRenderer*                     GetRenderer() override;
-	void                           WriteToConsole(const char* pszString);
+	virtual CToolBarService*     GetToolBarService() override { return m_pToolBarService; }
+	virtual ILevelEditor*        GetLevelEditor() override;
+	virtual INotificationCenter* GetNotificationCenter() override   { return m_pNotificationCenter; }
+	void                         ExecuteCommand(const char* sCommand, ...);
+	CAssetManager*               GetAssetManager()                  { return m_pAssetManager; }
+	IPythonManager*              GetIPythonManager();
+	CEditorPythonManager*        GetPythonManager()                 { return m_pPythonManager; }
+	void                         SetDocument(CCryEditDoc* pDoc);
+	void                         CloseDocument();
+	CCryEditDoc*                 GetDocument() const;
+	bool                         IsDocumentReady() const;
+	virtual bool                 IsMainFrameClosing() const;
+	bool                         IsLevelExported() const;
+	bool                         SetLevelExported(bool boExported = true);
+	void                         InitFinished();
+	bool                         IsInitialized() const { return m_bInitialized; }
+	bool                         SaveDocument();
+	bool                         SaveDocumentBackup();
+	ISystem*                     GetSystem() override;
+	I3DEngine*                   Get3DEngine() override;
+	IRenderer*                   GetRenderer() override;
+	void                         WriteToConsole(const char* pszString);
 
-	void                           SetConsoleVar(const char* var, const int value);
-	void                           SetConsoleVar(const char* var, const float value);
-	void                           SetConsoleStringVar(const char* var, const char* value);
+	void                         SetConsoleVar(const char* var, const int value);
+	void                         SetConsoleVar(const char* var, const float value);
+	void                         SetConsoleStringVar(const char* var, const char* value);
 
-	float                          GetConsoleVar(const char* var);
+	float                        GetConsoleVar(const char* var);
 	//! Query main window of the editor
-	HWND                           GetEditorMainWnd()
+	HWND                         GetEditorMainWnd()
 	{
 		if (AfxGetMainWnd())
 		{
@@ -205,44 +205,45 @@ public:
 		return NULL;
 	}
 
-	CPluginManager*           GetPluginManager()  { return m_pPluginManager; }
-	CTerrainManager*          GetTerrainManager() { return m_pTerrainManager; }
-	CViewManager*             GetViewManager() override;
-	virtual IViewportManager* GetViewportManager() override;
-	CViewport*                GetActiveView();
-	IDisplayViewport*         GetActiveDisplayViewport();
-	void                      SetActiveView(CViewport* viewport);
+	CPluginManager*             GetPluginManager()  { return m_pPluginManager; }
+	CTerrainManager*            GetTerrainManager() { return m_pTerrainManager; }
+	CViewManager*               GetViewManager() override;
+	virtual IViewportManager*   GetViewportManager() override;
+	CViewport*                  GetActiveView();
+	IDisplayViewport*           GetActiveDisplayViewport();
+	void                        SetActiveView(CViewport* viewport);
 
-	CLevelIndependentFileMan* GetLevelIndependentFileMan() { return m_pLevelIndependentFileMan; }
-	CLevelEditorSharedState*  GetLevelEditorSharedState();
+	CLevelIndependentFileMan*   GetLevelIndependentFileMan() { return m_pLevelIndependentFileMan; }
+	CLevelEditorSharedState*    GetLevelEditorSharedState();
 
-	void                      UpdateViews(int flags = 0xFFFFFFFF, AABB* updateRegion = NULL);
-	void                      ResetViews();
-	void                      UpdateSequencer(bool bOnlyKeys = false);
-	CRuler*                   GetRuler() override { return m_pRuler; }
-	void                      SetDataModified();
-	XmlNodeRef                FindTemplate(const string& templateName);
-	void                      AddTemplate(const string& templateName, XmlNodeRef& tmpl);
-	virtual void              OpenAndFocusDataBase(EDataBaseItemType type, IDataBaseItem* pItem) override;
-	CBaseLibraryDialog*       OpenDataBaseLibrary(EDataBaseItemType type, IDataBaseItem* pItem = NULL);
-	CWnd*                     OpenView(const char* szViewClassName) override;
-	CWnd*                     FindView(const char* szViewClassName) override;
-	virtual IPane*            CreateDockable(const char* szClassName) override;
-	virtual IPane*            FindDockable(const char* szClassName) override;
-	virtual IPane*            FindDockableIf(const std::function<bool(IPane*, const string& /*className*/)>& predicate) override;
-	void                      RaiseDockable(IPane* pPane) override;
-	QWidget*                  CreatePreviewWidget(const QString& file, QWidget* pParent = nullptr) override;
-	virtual void              PostOnMainThread(std::function<void()> task) override;
-	bool                      SelectColor(COLORREF& color, CWnd* parent = 0);
-	void                      Update();
-	Version                   GetFileVersion()    { return m_fileVersion; }
-	Version                   GetProductVersion() { return m_productVersion; }
+	void                        UpdateViews(int flags = 0xFFFFFFFF, AABB* updateRegion = NULL);
+	void                        ResetViews();
+	void                        UpdateSequencer(bool bOnlyKeys = false);
+	CRuler*                     GetRuler() override { return m_pRuler; }
+	void                        SetDataModified();
+	XmlNodeRef                  FindTemplate(const string& templateName);
+	void                        AddTemplate(const string& templateName, XmlNodeRef& tmpl);
+	virtual void                OpenAndFocusDataBase(EDataBaseItemType type, IDataBaseItem* pItem) override;
+	CBaseLibraryDialog*         OpenDataBaseLibrary(EDataBaseItemType type, IDataBaseItem* pItem = NULL);
+	CWnd*                       OpenView(const char* szViewClassName) override;
+	CWnd*                       FindView(const char* szViewClassName) override;
+	virtual IPane*              CreateDockable(const char* szClassName) override;
+	virtual IPane*              FindDockable(const char* szClassName) override;
+	virtual IPane*              FindDockableIf(const std::function<bool(IPane*, const string& /*className*/)>& predicate) override;
+	virtual std::vector<IPane*> FindAllDockables(const char* szClassName) override;
+	void                        RaiseDockable(IPane* pPane) override;
+	QWidget*                    CreatePreviewWidget(const QString& file, QWidget* pParent = nullptr) override;
+	virtual void                PostOnMainThread(std::function<void()> task) override;
+	bool                        SelectColor(COLORREF& color, CWnd* parent = 0);
+	void                        Update();
+	Version                     GetFileVersion()    { return m_fileVersion; }
+	Version                     GetProductVersion() { return m_productVersion; }
 	//! Get shader enumerator.
-	IUndoManager*             GetIUndoManager()   { return m_pUndoManager; }
+	IUndoManager*               GetIUndoManager()   { return m_pUndoManager; }
 	//! Retrieve current animation context.
-	void                      Notify(EEditorNotifyEvent event);
-	void                      RegisterNotifyListener(IEditorNotifyListener* listener);
-	void                      UnregisterNotifyListener(IEditorNotifyListener* listener);
+	void                        Notify(EEditorNotifyEvent event);
+	void                        RegisterNotifyListener(IEditorNotifyListener* listener);
+	void                        UnregisterNotifyListener(IEditorNotifyListener* listener);
 
 	// Register Object Mode sub tools. Needed for tools defined within Sandbox project
 	void RegisterAllObjectModeSubTools() override;
@@ -345,7 +346,7 @@ protected:
 	CEditorCommandManager*                   m_pCommandManager;
 	CAssetManager*                           m_pAssetManager;
 	CTrayArea*                               m_pTrayArea;
-	CEditorToolBarService*                   m_pEditorToolBarService;
+	CToolBarService*                         m_pToolBarService;
 	INotificationCenter*                     m_pNotificationCenter;
 	CPersonalizationManager*                 m_pPersonalizationManager;
 	CPreferences*                            m_pPreferences;

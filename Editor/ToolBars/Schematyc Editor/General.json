@@ -1,0 +1,33 @@
+{
+    "toolBar": [
+        {
+            "command": "general.save",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "save",
+            "type": 0
+        },
+        {
+            "command": "schematyc.clear_log",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "clear_log",
+            "type": 0
+        },
+        {
+            "command": "schematyc.show_log_settings",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "show_log_settings",
+            "type": 0
+        },
+        {
+            "command": "schematyc.show_preview_settings",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "show_preview_settings",
+            "type": 0
+        }
+    ],
+    "version": 2
+}

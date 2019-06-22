@@ -92,6 +92,18 @@ public:
 		return *ptr(wrap(m_begin + m_count - 1));
 	}
 
+	reference operator[](size_t idx)
+	{
+		CRY_ASSERT_MESSAGE(idx < m_count, "Out of bounds!");
+		return *ptr(wrap(m_begin + idx));
+	}
+	
+	const_reference operator[](size_t idx) const
+	{
+		CRY_ASSERT_MESSAGE(idx < m_count, "Out of bounds!");
+		return *ptr(wrap(m_begin + idx));
+	}
+
 	// Adds an item to the front of the collection.
 	// In case the collection is full, the function returns false and the collection remains unmodified.
 	template<typename X>

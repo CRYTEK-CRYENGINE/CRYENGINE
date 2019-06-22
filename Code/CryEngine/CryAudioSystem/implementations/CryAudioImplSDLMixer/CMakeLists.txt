@@ -15,7 +15,6 @@ add_sources("CryAudioImpl_uber_0.cpp"
 		"Listener.h"
 		"Object.h"
 		"resource.h"
-		"SoundEngine.h"
 		"VolumeParameter.h"
 		"VolumeState.h"
 	SOURCE_GROUP "Source Files"
@@ -27,7 +26,6 @@ add_sources("CryAudioImpl_uber_0.cpp"
 		"Impl.cpp"
 		"Listener.cpp"
 		"Object.cpp"
-		"SoundEngine.cpp"
 		"VolumeParameter.cpp"
 		"VolumeState.cpp"
 )
@@ -48,7 +46,6 @@ if(AUDIO_SDL_MIXER)
 		sdl_mixer_static
 		timidity
 		native_midi
-		flac_static
 		libogg_static
 		libmikmod_static
 		libvorbis_static
@@ -59,7 +56,7 @@ if(AUDIO_SDL_MIXER)
 		target_link_libraries(${THIS_PROJECT} PRIVATE libmodplug_static)
 	endif()
 
-	target_compile_definitions(${THIS_PROJECT} PRIVATE $<$<NOT:$<CONFIG:Release>>:CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE>)
+	target_compile_definitions(${THIS_PROJECT} PRIVATE $<$<NOT:$<CONFIG:Release>>:CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE>)
 	target_include_directories(${THIS_PROJECT} PRIVATE ../../Common)
 else()
 	CryFileContainer(CryAudioImplSDLMixer SOLUTION_FOLDER "CryEngine/Audio/Implementations")

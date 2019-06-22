@@ -482,8 +482,6 @@ bool CShaderSerialize::ExportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 	pOpenDir->nSize = de.GetSize();
 
 	//Preserve modification time
-	uint64 modTime = pSR->m_pRes[static_cast<int>(cacheSource::user)]->mfGetModifTime();
-
 	pSR->m_pRes[static_cast<int>(cacheSource::user)]->mfFlush();
 
 	return bRes;
@@ -581,7 +579,7 @@ bool CShaderSerialize::ImportShader(CShader* pSH, CShaderManBin& binShaderMgr)
 
 	assert(pSH != nullptr);
 
-	int nSize = pRes->mfFileRead(pDE);
+	pRes->mfFileRead(pDE);
 	byte* pData = (byte*)pRes->mfFileGetBuf(pDE);
 	if (!pData)
 	{

@@ -275,9 +275,8 @@ class CMockConsole : public IConsole
 class CMockCryPak : public ICryPak
 {
 	// Inherited via ICryPak
-	virtual const char * AdjustFileName(const char * src, char dst[g_nMaxPath], unsigned nFlags) override
+	virtual void AdjustFileName(const char * src, CryPathString& dst, unsigned nFlags) override
 	{
-		return nullptr;
 	}
 	virtual bool Init(const char * szBasePath) override
 	{
@@ -290,11 +289,11 @@ class CMockCryPak : public ICryPak
 	{
 		return false;
 	}
-	virtual bool OpenPack(const char * pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock * pData = 0, CryFixedStringT<ICryPak::g_nMaxPath>* pFullPath = 0) override
+	virtual bool OpenPack(const char * pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock * pData = 0, CryPathString* pFullPath = 0) override
 	{
 		return false;
 	}
-	virtual bool OpenPack(const char * pBindingRoot, const char * pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock * pData = 0, CryFixedStringT<ICryPak::g_nMaxPath>* pFullPath = 0) override
+	virtual bool OpenPack(const char * pBindingRoot, const char * pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock * pData = 0, CryPathString* pFullPath = 0) override
 	{
 		return false;
 	}
@@ -302,11 +301,11 @@ class CMockCryPak : public ICryPak
 	{
 		return false;
 	}
-	virtual bool OpenPacks(const char * pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryFixedStringT<ICryPak::g_nMaxPath>>* pFullPaths = NULL) override
+	virtual bool OpenPacks(const char * pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryPathString>* pFullPaths = NULL) override
 	{
 		return false;
 	}
-	virtual bool OpenPacks(const char * pBindingRoot, const char * pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryFixedStringT<ICryPak::g_nMaxPath>>* pFullPaths = NULL) override
+	virtual bool OpenPacks(const char * pBindingRoot, const char * pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryPathString>* pFullPaths = NULL) override
 	{
 		return false;
 	}
@@ -752,12 +751,6 @@ protected:
 		gEnv->pCryPak = &m_mockCryPak;
 		gEnv->pTimer = &m_mockTimer;
 		
-
-#if defined(USE_CRY_ASSERT)
-		gEnv->ignoreAllAsserts = true;
-		gEnv->noAssertDialog = true;
-#endif
-
 		gEnv->pCryPak = &m_mockCryPak;
 
 		EXPECT_CALL(m_mockCryPak, IsFileExist(_, _))

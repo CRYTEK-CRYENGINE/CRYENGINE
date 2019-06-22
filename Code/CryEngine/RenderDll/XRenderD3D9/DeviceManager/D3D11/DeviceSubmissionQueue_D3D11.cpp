@@ -1,13 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   DeviceManager.cpp : Device manager
-
-   Revision history:
-* Created by Khonich Andrey
-
-   =============================================================================*/
-
 #include "StdAfx.h"
 #include "../../DriverD3D.h"
 
@@ -353,7 +345,7 @@ void CSubmissionQueue_DX11::BindConstantBuffers(SHADER_TYPE type, CCryDeviceCont
 			break;
 		}
 		#endif
-		;
+
 		const signed mask = iszero(32 - (signed)hbit) - 1;
 		m_CB[type].dirty &= (~((1 << hbit) - (1 << lbit)) & mask);
 	}
@@ -389,7 +381,7 @@ void CSubmissionQueue_DX11::BindConstantBuffers(SHADER_TYPE type, CCryDeviceCont
 				break;
 			}
 			#endif
-			;
+
 			m_CB[type].dirty &= ~(1 << i);
 		}
 	}
@@ -433,7 +425,7 @@ void CSubmissionQueue_DX11::BindOffsetConstantBuffers(SHADER_TYPE type, CCryDevi
 			break;
 		}
 		#endif
-		;
+
 		const signed mask = iszero(32 - (signed)hbit) - 1;
 		m_CB[type].dirty1 &= (~((1 << hbit) - (1 << lbit)) & mask);
 	}
@@ -469,7 +461,7 @@ void CSubmissionQueue_DX11::BindOffsetConstantBuffers(SHADER_TYPE type, CCryDevi
 				break;
 			}
 			#endif
-			;
+
 			m_CB[type].dirty1 &= ~(1 << i);
 		}
 	}
@@ -513,7 +505,7 @@ void CSubmissionQueue_DX11::BindSamplers(SHADER_TYPE type, CCryDeviceContextWrap
 			break;
 		}
 		#endif
-		;
+
 		const signed mask = iszero(32 - (signed)hbit) - 1;
 		m_Samplers[type].dirty &= (~((1 << hbit) - (1 << lbit)) & mask);
 	}
@@ -549,7 +541,7 @@ void CSubmissionQueue_DX11::BindSamplers(SHADER_TYPE type, CCryDeviceContextWrap
 				break;
 			}
 			#endif
-			;
+
 			m_Samplers[type].dirty &= ~(1 << i);
 		}
 	}
@@ -652,19 +644,19 @@ void CSubmissionQueue_DX11::BindUAVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 			switch (type)
 			{
 			case TYPE_VS:
-				assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+				CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 				break;
 			case TYPE_PS:
 				rDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL, base, count, &m_UAV[TYPE_PS].views[base], &m_UAV[TYPE_PS].counts[base]);
 				break;
 			case TYPE_GS:
-				assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+				CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 				break;
 			case TYPE_DS:
-				assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+				CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 				break;
 			case TYPE_HS:
-				assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+				CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 				break;
 			case TYPE_CS:
 				rDeviceContext.CSSetUnorderedAccessViews(base, count, &m_UAV[TYPE_CS].views[base], &m_UAV[TYPE_CS].counts[base]);
@@ -683,19 +675,19 @@ void CSubmissionQueue_DX11::BindUAVs(SHADER_TYPE type, CCryDeviceContextWrapper&
 				switch (type)
 				{
 				case TYPE_VS:
-					assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+					CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 					break;
 				case TYPE_PS:
 					rDeviceContext.OMSetRenderTargetsAndUnorderedAccessViews(D3D11_KEEP_RENDER_TARGETS_AND_DEPTH_STENCIL, NULL, NULL, base, count, &m_UAV[TYPE_PS].views[base], &m_UAV[TYPE_PS].counts[base]);
 					break;
 				case TYPE_GS:
-					assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+					CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 					break;
 				case TYPE_DS:
-					assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+					CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 					break;
 				case TYPE_HS:
-					assert(0 && "NOT IMPLEMENTED ON D3D11.0");
+					CRY_ASSERT_MESSAGE(false, "NOT IMPLEMENTED ON D3D11.0");
 					break;
 				case TYPE_CS:
 					rDeviceContext.CSSetUnorderedAccessViews(base, count, &m_UAV[TYPE_CS].views[base], &m_UAV[TYPE_CS].counts[base]);

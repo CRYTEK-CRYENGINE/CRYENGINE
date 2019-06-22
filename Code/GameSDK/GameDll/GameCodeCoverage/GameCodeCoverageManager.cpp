@@ -49,6 +49,7 @@
 #include "GameCodeCoverage/GameCodeCoverageGUI.h"
 #include "GameCodeCoverage/IGameCodeCoverageListener.h"
 #include <CryString/StringUtils.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include "IGameRulesSystem.h"
 #include "IItemSystem.h"
 #include "ITelemetryCollector.h"

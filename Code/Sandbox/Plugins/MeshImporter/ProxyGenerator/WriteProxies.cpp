@@ -36,9 +36,9 @@ static IStatObj* SaveProxies(IStatObj* pStatObj, const SProxyTree* pProxyTree, c
 			meshDummy.SetVertexCount(3);
 			for (int i = 0; i < 3; i++)
 			{
-				meshDummy.m_bbox.Add(meshDummy.m_pPositions[i] = Vec3(1, 0, 0).GetRotated(Vec3(1, 1, 1) * (1 / sqrt3), i * gf_PI * 0.5f));
+				meshDummy.m_bbox.Add(meshDummy.m_pPositions[i] = Vec3(1.0f, 0.0f, 0.0f).GetRotated(Vec3(1.0f, 1.0f, 1.0f) * static_cast<float>(1.0 / sqrt3), i * gf_PI * 0.5f));
 				meshDummy.m_pIndices[i] = i;
-				meshDummy.m_pNorms[i] = SMeshNormal(Vec3(1, 1, 1) * (1 / sqrt3));
+				meshDummy.m_pNorms[i] = SMeshNormal(Vec3(1.0f, 1.0f, 1.0f) * static_cast<float>(1.0 / sqrt3));
 			}
 			meshDummy.m_subsets.resize(1);
 			SMeshSubset& ss = meshDummy.m_subsets[0];

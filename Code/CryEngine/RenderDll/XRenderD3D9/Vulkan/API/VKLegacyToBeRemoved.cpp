@@ -63,7 +63,7 @@ void CBufferResource::GetDesc(D3D11_BUFFER_DESC* pDesc)
 
 void CImageResource::GetDesc(D3D11_TEXTURE1D_DESC* pDesc)
 {
-	VK_ASSERT((m_flags & kImageFlag1D) != 0 && "Invalid cast to 1D texture");
+	VK_ASSERT((m_flags & kImageFlag1D) != 0, "Invalid cast to 1D texture");
 
 	pDesc->Width = GetWidth();
 	pDesc->MipLevels = GetMipCount();
@@ -93,7 +93,7 @@ void CImageResource::GetDesc(D3D11_TEXTURE1D_DESC* pDesc)
 
 void CImageResource::GetDesc(D3D11_TEXTURE2D_DESC* pDesc)
 {
-	VK_ASSERT((m_flags & kImageFlag2D) != 0 && "Invalid cast to 2D texture");
+	VK_ASSERT((m_flags & kImageFlag2D) != 0, "Invalid cast to 2D texture");
 
 	pDesc->Width = GetWidth();
 	pDesc->Height = GetHeight();
@@ -126,7 +126,7 @@ void CImageResource::GetDesc(D3D11_TEXTURE2D_DESC* pDesc)
 
 void CImageResource::GetDesc(D3D11_TEXTURE3D_DESC* pDesc)
 {
-	VK_ASSERT((m_flags & kImageFlag3D) != 0 && "Invalid cast to 3D texture");
+	VK_ASSERT((m_flags & kImageFlag3D) != 0, "Invalid cast to 3D texture");
 
 	pDesc->Width = GetWidth();
 	pDesc->Height = GetHeight();
@@ -166,7 +166,7 @@ void CImageView::GetDesc(D3D11_RENDER_TARGET_VIEW_DESC* pDesc)
 {
 	CImageResource* const pImage = GetResource();
 	const bool bMultiSampled = pImage->GetFlag(kImageFlagMultiSampled);
-	VK_ASSERT(m_numMips == 1 && "Invalid view for RTV description");
+	VK_ASSERT(m_numMips == 1, "Invalid view for RTV description");
 	
 	pDesc->Format = ConvertFormat(m_format);
 	switch (m_type)
@@ -214,7 +214,7 @@ void CImageView::GetDesc(D3D11_RENDER_TARGET_VIEW_DESC* pDesc)
 		pDesc->Texture3D.WSize = m_numSlices;
 		break;
 	default:
-		VK_ASSERT(false && "Unsupported RTV description type");
+		VK_ASSERT(false, "Unsupported RTV description type");
 		break;
 	}
 }

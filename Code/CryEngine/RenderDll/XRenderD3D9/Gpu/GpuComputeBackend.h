@@ -4,7 +4,6 @@
 
 #include "Common/TypedConstantBuffer.h"
 
-// forward declarations
 class CShader;
 
 namespace gpu
@@ -40,13 +39,13 @@ private:
 
 struct DataReadbackEmpty
 {
-	DataReadbackEmpty(int size, int stride){};
+	DataReadbackEmpty(int size, int stride){}
 	const void* Map()
 	{
 		assert(0);
 		return NULL;
 	};
-	void Unmap() { assert(0); };
+	void Unmap() { assert(0); }
 };
 
 struct DataReadbackUsed
@@ -73,7 +72,7 @@ private:
 
 struct HostDataEmpty
 {
-	void   Resize(size_t size) {};
+	void   Resize(size_t size) {}
 	uint8* Get()               { return nullptr; }
 };
 
@@ -138,20 +137,20 @@ public:
 		m_buffer.Create(size, stride, DXGI_FORMAT_UNKNOWN, BFlags::flags, NULL);
 	}
 #if 0
-	ID3D11UnorderedAccessView* GetUAV()    { return m_buffer.GetDeviceUAV(); };
-	ID3D11ShaderResourceView*  GetSRV()    { return m_buffer.GetSRV(); };
-	ID3D11Buffer*              GetBuffer() { return m_buffer.GetBuffer(); };
+	ID3D11UnorderedAccessView* GetUAV()    { return m_buffer.GetDeviceUAV(); }
+	ID3D11ShaderResourceView*  GetSRV()    { return m_buffer.GetSRV(); }
+	ID3D11Buffer*              GetBuffer() { return m_buffer.GetBuffer(); }
 #endif
 
 	void                       UpdateBufferContent(void* pData, size_t nSize)
 	{
 		m_buffer.UpdateBufferContent(pData, m_stride * nSize);
 	};
-	void        ReadbackCounter() { return m_counterReadback.Readback(m_buffer.GetDevBuffer()); };
-	int         RetrieveCounter() { return m_counterReadback.Retrieve(); };
-	void        Readback()        { return m_dataReadback.Readback(m_buffer.GetDevBuffer()); };
-	const void* Map()             { return (const void*)m_dataReadback.Map(); };
-	void        Unmap()           { return m_dataReadback.Unmap(); };
+	void        ReadbackCounter() { return m_counterReadback.Readback(m_buffer.GetDevBuffer()); }
+	int         RetrieveCounter() { return m_counterReadback.Retrieve(); }
+	void        Readback()        { return m_dataReadback.Readback(m_buffer.GetDevBuffer()); }
+	const void* Map()             { return (const void*)m_dataReadback.Map(); }
+	void        Unmap()           { return m_dataReadback.Unmap(); }
 
 private:
 	const int  m_size;
@@ -190,7 +189,7 @@ public:
 	{
 		m_buffer.Release();
 	}
-	CGpuBuffer& GetBuffer() { return m_buffer; };
+	CGpuBuffer& GetBuffer() { return m_buffer; }
 
 	T&          operator[](size_t i)
 	{
@@ -209,11 +208,11 @@ public:
 	{
 		m_buffer.UpdateBufferContent(pData, Align(sizeof(T) * nSize, CRY_PLATFORM_ALIGNMENT));
 	};
-	void     ReadbackCounter() { return m_counterReadback.Readback(m_buffer.GetDevBuffer()); };
-	int      RetrieveCounter() { return m_counterReadback.Retrieve(); };
-	void     Readback(uint32 readLength) { return m_dataReadback.Readback(&m_buffer, readLength); };
-	const T* Map(uint32 readLength) { return (const T*)m_dataReadback.Map(readLength); };
-	void     Unmap() { return m_dataReadback.Unmap(); };
+	void     ReadbackCounter() { return m_counterReadback.Readback(m_buffer.GetDevBuffer()); }
+	int      RetrieveCounter() { return m_counterReadback.Retrieve(); }
+	void     Readback(uint32 readLength) { return m_dataReadback.Readback(&m_buffer, readLength); }
+	const T* Map(uint32 readLength) { return (const T*)m_dataReadback.Map(readLength); }
+	void     Unmap() { return m_dataReadback.Unmap(); }
 	bool     IsDeviceBufferAllocated() { return m_buffer.GetDevBuffer() != nullptr; }
 private:
 	const int  m_size;

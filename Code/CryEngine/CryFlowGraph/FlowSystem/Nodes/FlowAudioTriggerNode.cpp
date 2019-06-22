@@ -240,7 +240,7 @@ private:
 				{
 					CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::DoneCallbackOnExternalThread, this, reinterpret_cast<void*>(static_cast<UINT_PTR>(m_playActivationInfo.pGraph->GetGraphId())), this);
 					pIEntityAudioComponent->SetCurrentEnvironments();
-					pIEntityAudioComponent->ExecuteTrigger(audioTriggerId, CryAudio::DefaultAuxObjectId, userData);
+					pIEntityAudioComponent->ExecuteTrigger(audioTriggerId, CryAudio::DefaultAuxObjectId, INVALID_ENTITYID, userData);
 
 					break;
 				}

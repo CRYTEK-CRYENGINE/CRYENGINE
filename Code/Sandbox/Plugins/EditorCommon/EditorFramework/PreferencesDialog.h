@@ -6,7 +6,7 @@
 
 #include <QAbstractItemModel>
 
-class QAdvancedPropertyTree;
+class QAdvancedPropertyTreeLegacy;
 class QContainer;
 class QObjectTreeWidget;
 class QSplitter;
@@ -32,7 +32,7 @@ private slots:
 	void OnResetToDefault();
 
 private:
-	QAdvancedPropertyTree* m_pPropertyTree;
+	QAdvancedPropertyTreeLegacy* m_pPropertyTree;
 	std::vector<SPreferencePage*> m_preferencePages;
 	const string m_path;
 };

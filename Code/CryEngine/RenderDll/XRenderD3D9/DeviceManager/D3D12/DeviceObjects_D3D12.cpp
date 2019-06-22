@@ -217,8 +217,6 @@ void CDeviceObjectFactory::ReleaseResourcesImpl()
 ////////////////////////////////////////////////////////////////////////////
 UINT64 CDeviceObjectFactory::QueryFormatSupport(D3DFormat Format)
 {
-	CD3D9Renderer* rd = gcpRendD3D;
-
 	D3D12_FEATURE_DATA_FORMAT_SUPPORT data = { Format };
 	HRESULT hr = GetDX12Device()->GetD3D12Device()->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &data, sizeof(D3D12_FEATURE_DATA_FORMAT_SUPPORT));
 	if (SUCCEEDED(hr))
@@ -446,8 +444,7 @@ void CDeviceObjectFactory::ReleaseNullResources()
 	{
 		if (auto pNullResource = m_NullResources[eType])
 		{
-			ULONG refCount = pNullResource->Release();
-			assert(refCount == 0);
+			CRY_VERIFY(pNullResource->Release() == 0);
 		}
 	}
 }
@@ -703,7 +700,7 @@ HRESULT CDeviceObjectFactory::CreateBuffer(
 	, const void* pData)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CreateBuffer");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CreateBuffer");
 	HRESULT hr = S_OK;
 
 #ifndef _RELEASE
@@ -774,14 +771,13 @@ uint8* CDeviceObjectFactory::Map(D3DBuffer* buffer, uint32 subresource, buffer_s
 {
 	D3D11_MAPPED_SUBRESOURCE mapped_resource = { 0 };
 	SIZE_T BeginEndR[2] = { offset, offset + size };
-	HRESULT hr = gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(
+	CRY_VERIFY(gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(
 		buffer
 		, subresource
 		, BeginEndR
 		, mode
 		, 0
-		, &mapped_resource);
-	assert(hr == S_OK);
+		, &mapped_resource) == S_OK);
 	return reinterpret_cast<uint8*>(mapped_resource.pData);
 }
 

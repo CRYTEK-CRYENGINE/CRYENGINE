@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BaseConnection.h"
+#include "../Common/IConnection.h"
 
 #include <PoolObject.h>
 
@@ -12,7 +12,7 @@ namespace Impl
 {
 namespace Fmod
 {
-class CGenericConnection final : public CBaseConnection, public CryAudio::CPoolObject<CGenericConnection, stl::PSyncNone>
+class CGenericConnection final : public IConnection, public CryAudio::CPoolObject<CGenericConnection, stl::PSyncNone>
 {
 public:
 
@@ -23,10 +23,20 @@ public:
 	CGenericConnection& operator=(CGenericConnection&&) = delete;
 
 	explicit CGenericConnection(ControlId const id)
-		: CBaseConnection(id)
+		: m_id(id)
 	{}
 
 	virtual ~CGenericConnection() override = default;
+
+	// IConnection
+	virtual ControlId GetID() const override final                    { return m_id; }
+	virtual bool      HasProperties() const override                  { return false; }
+	virtual void      Serialize(Serialization::IArchive& ar) override {}
+	// ~IConnection
+
+private:
+
+	ControlId const m_id;
 };
 } // namespace Fmod
 } // namespace Impl

@@ -176,7 +176,7 @@ void CAudioTriggerSpotEntity::Play()
 			pAudioProxy->SetAudioAuxObjectOffset(Matrix34(IDENTITY, GenerateOffset()));
 
 			CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::None, this);
-			pAudioProxy->ExecuteTrigger(m_playTriggerId, CryAudio::DefaultAuxObjectId, userData);
+			pAudioProxy->ExecuteTrigger(m_playTriggerId, CryAudio::DefaultAuxObjectId, INVALID_ENTITYID, userData);
 		}
 
 		m_currentlyPlayingTriggerId = m_playTriggerId;

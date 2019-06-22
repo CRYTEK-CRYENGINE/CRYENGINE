@@ -22,7 +22,8 @@ CCreateFolderDialog::CCreateFolderDialog(QWidget* pParent)
 	setWindowTitle("Add Folder");
 
 	auto const pLineEdit = new QLineEdit(m_folderName, this);
-	auto const pValidator = new CNameValidator(s_regexInvalidFileName, pLineEdit);
+	auto const pValidator = new CNameValidator(pLineEdit);
+	pValidator->Initialize(s_regexInvalidFileName);
 	pLineEdit->setValidator(pValidator);
 	pLineEdit->setMaxLength(64);
 	pLineEdit->setMinimumWidth(150);

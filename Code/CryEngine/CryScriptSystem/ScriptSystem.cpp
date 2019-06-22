@@ -7,7 +7,7 @@
 	#include <CryEntitySystem/IEntitySystem.h>
 #endif
 
-#include <string.h>
+#include <cstring>
 #include <stdio.h>
 #include "ScriptSystem.h"
 #include "ScriptTable.h"
@@ -23,6 +23,7 @@
 #include <CrySystem/ITimer.h>
 #include <CryAISystem/IAISystem.h>
 #include <CryMath/Random.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include <CryNetwork/ISerialize.h>
 
@@ -220,7 +221,7 @@ extern "C"
 #if USE_RAW_LUA_ALLOCS
 		return _LuaRealloc(ptr, nsize);
 #else
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_LUA, 0, "Lua");
+		MEMSTAT_CONTEXT(EMemStatContextType::LUA, "Lua");
 
 		if (g_dumpStackOnAlloc)
 			DumpCallStack(g_LStack);
@@ -1052,10 +1053,10 @@ bool CScriptSystem::_ExecuteFile(const char* sFileName, bool bRaiseError, IScrip
 		return false;
 
 	// Translate pak alias filenames
-	char translatedBuf[_MAX_PATH + 1];
-	const char* translated = gEnv->pCryPak->AdjustFileName(sFileName, translatedBuf, ICryPak::FLAGS_NO_FULL_PATH);
+	CryPathString translated;
+	gEnv->pCryPak->AdjustFileName(sFileName, translated, ICryPak::FLAGS_NO_FULL_PATH);
 
-	stack_string fileName("@");
+	CryPathString fileName("@");
 	fileName.append(translated);
 	fileName.replace('\\', '/');
 
@@ -1071,7 +1072,7 @@ bool CScriptSystem::ExecuteFile(const char* sFileName, bool bRaiseError, bool bF
 	if (strlen(sFileName) <= 0)
 		return false;
 
-	LOADING_TIME_PROFILE_SECTION_ARGS(sFileName);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, sFileName);
 
 	INDENT_LOG_DURING_SCOPE(true, "Executing file '%s' (raiseErrors=%d%s)", sFileName, bRaiseError, bForceReload ? ", force reload" : "");
 
@@ -1270,8 +1271,8 @@ bool CScriptSystem::ExecuteBuffer(const char* sBuffer, size_t nSize, const char*
 {
 	int status;
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Lua LoadScript");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ScriptCall, 0, "%s", sBufferDescription);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Lua LoadScript");
+	MEMSTAT_CONTEXT(EMemStatContextType::ScriptCall, sBufferDescription);
 
 	{
 		status = luaL_loadbuffer(L, sBuffer, nSize, sBufferDescription);
@@ -2137,8 +2138,8 @@ void CScriptSystem::ShowDebugger(const char* pszSourceFile, int iLine, const cha
 //////////////////////////////////////////////////////////////////////////
 void CScriptSystem::Update()
 {
-	CRY_PROFILE_REGION(PROFILE_SCRIPT, "ScriptSystem: Update");
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+	CRY_PROFILE_SECTION(PROFILE_SCRIPT, "ScriptSystem: Update");
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 	
 	ITimer* pTimer = gEnv->pTimer;
 	CTimeValue nCurTime = pTimer->GetFrameStartTime();
@@ -2186,7 +2187,7 @@ void CScriptSystem::Update()
 
 	//if(bKickIn)
 	{
-		CRY_PROFILE_REGION(PROFILE_SCRIPT, "Lua GC");
+		CRY_PROFILE_SECTION(PROFILE_SCRIPT, "Lua GC");
 
 		//CryLog( "Lua GC=%d",GetCGCount() );
 

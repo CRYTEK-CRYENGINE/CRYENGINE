@@ -12,6 +12,8 @@
 class CSceneForwardStage : public CGraphicsPipelineStage
 {
 public:
+	static const EGraphicsPipelineStage StageID = eStage_SceneForward;
+
 	struct SCloudShadingParams
 	{
 		Vec4 CloudShadingColorSun;
@@ -31,17 +33,22 @@ public:
 	};
 
 public:
-	enum EPass
+	enum EPass : uint8
 	{
 		// limit: MAX_PIPELINE_SCENE_STAGE_PASSES
 		ePass_Forward          = 0,
 		ePass_ForwardPrepassed = 1,
 		ePass_ForwardRecursive = 2,
-		ePass_ForwardMobile    = 3
+		ePass_ForwardMobile    = 3,
+
+		ePass_Count
 	};
 
+	static_assert(ePass_Count <= MAX_PIPELINE_SCENE_STAGE_PASSES,
+		"The pipeline-state array is unable to carry as much pass-permutation as defined here!");
+
 public:
-	CSceneForwardStage();
+	CSceneForwardStage(CGraphicsPipeline& graphicsPipeline);
 
 	void Init() final;
 	void Update() final;
@@ -50,7 +57,7 @@ public:
 	bool         CreatePipelineState(const SGraphicsPipelineStateDescription& desc,
 	                                 CDeviceGraphicsPSOPtr& outPSO,
 	                                 EPass passId = ePass_Forward,
-	                                 const std::function<void(CDeviceGraphicsPSODesc& psoDesc, const SGraphicsPipelineStateDescription& desc)> &customState = nullptr);
+	                                 const std::function<void(CDeviceGraphicsPSODesc& psoDesc, const SGraphicsPipelineStateDescription& desc)>&customState = nullptr);
 
 	void         ExecuteOpaque();
 	void         ExecuteTransparentBelowWater();
@@ -62,13 +69,13 @@ public:
 	void         ExecuteMobile();
 	void         ExecuteMinimum(CTexture* pColorTex, CTexture* pDepthTex);
 
-	bool IsTransparentLoResEnabled() const { return CRendererCVars::CV_r_ParticlesHalfRes > 0; }
+	bool IsTransparentLoResEnabled()      const { return CRendererCVars::CV_r_ParticlesHalfRes > 0; }
 	bool IsTransparentDepthFixupEnabled() const { return CRendererCVars::CV_r_TranspDepthFixup > 0; }
 
 	void FillCloudShadingParams(SCloudShadingParams& cloudParams, bool enable = true) const;
 
 private:
-	bool PreparePerPassResources(bool bOnInit, bool bShadowMask = true, bool bFog = true);
+	bool UpdatePerPassResources(bool bOnInit, bool bShadowMask = true, bool bFog = true);
 	void ExecuteTransparent(bool bBelowWater);
 
 private:

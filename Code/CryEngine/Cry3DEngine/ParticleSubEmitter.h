@@ -1,17 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ParticleSubEmitter.h
-//  Version:     v1.00
-//  Created:     20/04/2010 by Corey.
-//  Description: Split out from ParticleEmitter.h
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __particlesubemitter_h__
-#define __particlesubemitter_h__
 #pragma once
 
 #include "ParticleEffect.h"
@@ -139,5 +127,3 @@ private:
 	Matrix34 GetEmitTM() const;
 
 };
-
-#endif // __particlesubemitter_h__

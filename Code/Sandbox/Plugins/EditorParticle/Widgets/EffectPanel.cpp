@@ -8,7 +8,7 @@
 #include "IUndoObject.h"
 #include <EditorFramework/InspectorLegacy.h>
 #include <EditorFramework/BroadcastManager.h>
-#include <QAdvancedPropertyTree.h>
+#include <QAdvancedPropertyTreeLegacy.h>
 #include <QCollapsibleFrame.h>
 #include <QTreeWidget.h>
 #include <QListWidget.h>
@@ -287,7 +287,7 @@ public:
 	{
 		if (CBroadcastManager* pBroadcastManager = CBroadcastManager::Get(this))
 		{
-			auto* propertyTree = new QAdvancedPropertyTree(title, this);
+			auto* propertyTree = new QAdvancedPropertyTreeLegacy(title, this);
 
 			propertyTree->setSizeToContent(true);
 			auto style = propertyTree->treeStyle();
@@ -301,7 +301,7 @@ public:
 			auto callback = [propertyTree](CInspectorLegacy& inspector) { inspector.AddWidget(propertyTree); };
 			pBroadcastManager->Broadcast(PopulateLegacyInspectorEvent(callback, title));
 
-			QObject::connect(propertyTree, &QPropertyTree::signalChanged, [this]()
+			QObject::connect(propertyTree, &QPropertyTreeLegacy::signalChanged, [this]()
 			{
 				signalEdited(m_pComponent->GetIndex());
 			});

@@ -123,7 +123,7 @@ struct SAudioParams : public IProceduralParams
 	{
 		ar(Serialization::AudioTrigger<TProcClipString>(startTrigger), "StartTrigger", "Start Trigger");
 		ar(Serialization::AudioTrigger<TProcClipString>(stopTrigger), "StopTrigger", "Stop Trigger");
-		ar(Serialization::AudioRTPC<TProcClipString>(audioParameter), "AudioParameter", "Audio Parameter");
+		ar(Serialization::AudioParameter<TProcClipString>(audioParameter), "AudioParameter", "Audio Parameter");
 		ar(audioParameterValue, "AudioParameterValue", "Audio Parameter Value");
 		ar(audioOcclusionType, "OcclusionType", "Occlusion Type");
 		ar(Serialization::Decorators::JointName<SProcDataCRC>(attachmentJoint), "AttachmentJoint", "Joint Name");

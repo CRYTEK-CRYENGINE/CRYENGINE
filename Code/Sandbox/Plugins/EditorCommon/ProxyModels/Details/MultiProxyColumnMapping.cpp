@@ -42,6 +42,8 @@ void CMultiProxyColumnMapping::Reset(const ColumnValues& columnValues, int value
 	m_proxyColumns.clear();
 	m_proxyColumns.reserve(proxyColumnCount);
 
+	m_valueColumn.clear();
+
 	for (auto proxyColumn = 0; proxyColumn < proxyColumnCount; ++proxyColumn)
 	{
 		auto value = columnValues[proxyColumn];

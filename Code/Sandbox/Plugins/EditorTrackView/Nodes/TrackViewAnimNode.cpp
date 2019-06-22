@@ -222,7 +222,11 @@ CTrackViewAnimNode* CTrackViewAnimNode::CreateSubNode(const string& name, const 
 	}
 
 	pNewAnimNode->SetName(name);
-	pNewAnimNode->CreateDefaultTracks();
+	if (animNodeType != eAnimNodeType_Entity)
+	{
+		pNewAnimNode->CreateDefaultTracks();
+	}
+
 	pNewAnimNode->SetParent(m_pAnimNode);
 
 	CTrackViewAnimNodeFactory animNodeFactory;

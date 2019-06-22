@@ -4,9 +4,9 @@
 #include "Snapshot.h"
 #include "Common.h"
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	#include <Logger.h>
-#endif // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -33,16 +33,16 @@ ETriggerResult CSnapshot::Execute(IObject* const pIObject, TriggerInstanceId con
 
 				g_activeSnapshots[m_id] = pFmodEventInstance;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 				g_activeSnapshotNames.push_back(m_name);
-#endif        // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif        // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 			}
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 			else
 			{
 				Cry::Audio::Log(ELogType::Warning, "Snapshot %s is already active during %s", m_name.c_str(), __FUNCTION__);
 			}
-#endif        // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif        // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 			result = ETriggerResult::DoNotTrack;
 
@@ -75,9 +75,9 @@ void CSnapshot::Stop(IObject* const pIObject)
 			// snaphotInstancePair.second->stop(FMOD_STUDIO_STOP_IMMEDIATE);
 			g_activeSnapshots.erase(m_id);
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 			g_activeSnapshotNames.erase(std::remove(g_activeSnapshotNames.begin(), g_activeSnapshotNames.end(), m_name), g_activeSnapshotNames.end());
-#endif      // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif      // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 			break;
 		}

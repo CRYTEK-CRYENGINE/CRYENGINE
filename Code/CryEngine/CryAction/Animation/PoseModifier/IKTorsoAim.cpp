@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include <Cry3DEngine/I3DEngine.h>
 #include <CryRenderer/IRenderAuxGeom.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "IKTorsoAim.h"
 

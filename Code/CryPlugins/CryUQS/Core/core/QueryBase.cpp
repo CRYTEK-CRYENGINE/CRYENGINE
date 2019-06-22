@@ -108,24 +108,24 @@ namespace UQS
 		//
 		//===================================================================================
 
+		CQueryID CQueryBase::s_queryIDProvider(CQueryID::CreateInvalid());
 		const CDebugRenderWorldImmediate CQueryBase::s_debugRenderWorldImmediate;
 
-		CQueryBase::CQueryBase(const SCtorContext& ctorContext, bool bRequiresSomeTimeBudgetForExecution)
+		CQueryBase::CQueryBase(const SCtorContext& ctorContext)
 			: m_querierName(ctorContext.szQuerierName)
 			, m_pHistory(ctorContext.pOptionalHistoryToWriteTo)
-			, m_bAlreadyInstantiated(false)
+			, m_bAlreadyStarted(false)
 			, m_queryID(ctorContext.queryID)
 			, m_pQueryBlueprint(ctorContext.pQueryBlueprint)
 			, m_pOptionalShuttledItems(ctorContext.pOptionalResultingItemsFromPreviousQuery)
 			, m_queryCreatedFrame(gEnv->nMainFrameID)
 			, m_queryCreatedTimestamp(gEnv->pTimer->GetAsyncTime())
 			, m_totalConsumedFrames(0)
-			, m_bRequiresSomeTimeBudgetForExecution(bRequiresSomeTimeBudgetForExecution)
 			, m_queryContext(*m_pQueryBlueprint.get(), m_querierName.c_str(), m_queryID, m_globalParams, m_pOptionalShuttledItems.get(), m_timeBudgetForCurrentUpdate, ctorContext.pOptionalHistoryToWriteTo ? &ctorContext.pOptionalHistoryToWriteTo->GetDebugRenderWorldPersistent() : nullptr, ctorContext.pOptionalHistoryToWriteTo ? &ctorContext.pOptionalHistoryToWriteTo->GetDebugMessageCollection() : nullptr)
 		{
 			if (m_pHistory)
 			{
-				m_pHistory->OnQueryCreated(m_queryCreatedFrame, m_queryCreatedTimestamp);
+				m_pHistory->OnQueryCreated(m_queryCreatedFrame, m_queryCreatedTimestamp, m_pQueryBlueprint->GetName());
 			}
 		}
 
@@ -137,23 +137,31 @@ namespace UQS
 			}
 		}
 
-		bool CQueryBase::RequiresSomeTimeBudgetForExecution() const
+		QueryBaseUniquePtr CQueryBase::CreateQuery(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> pQueryBlueprint, const char* szQuerierName, const std::shared_ptr<CItemList>& pPotentialResultingItemsFromPreviousQuery, int priority)
 		{
-			return m_bRequiresSomeTimeBudgetForExecution;
+			// generate a new query ID (even if the query fails to start later on)
+			const CQueryID id = ++s_queryIDProvider;
+
+			// enable history-logging for this query according to a cvar
+			HistoricQuerySharedPtr pOptionalHistoryEntry;
+			if (SCvars::logQueryHistory)
+			{
+				pOptionalHistoryEntry = g_pHub->GetQueryHistoryManager().AddNewLiveHistoricQuery(id, szQuerierName, parentQueryID, priority);
+			}
+
+			// create a new query instance through the query-blueprint
+			const SCtorContext queryCtorContext(id, pQueryBlueprint, priority, szQuerierName, pOptionalHistoryEntry, pPotentialResultingItemsFromPreviousQuery);
+			QueryBaseUniquePtr q = pQueryBlueprint->CreateQuery(queryCtorContext);
+			return q;
 		}
 
-		bool CQueryBase::InstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error)
+		bool CQueryBase::Start(const Shared::IVariantDict& runtimeParams, Shared::IUqsString& error)
 		{
 			CRY_PROFILE_FUNCTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, m_pQueryBlueprint->GetName());
 
-			CRY_ASSERT(!m_bAlreadyInstantiated);	// we don't support recycling the query
+			CRY_ASSERT(!m_bAlreadyStarted);	// we don't support recycling the query
 
-			m_bAlreadyInstantiated = true;
-
-			if (m_pHistory)
-			{
-				m_pHistory->OnQueryBlueprintInstantiationStarted(m_pQueryBlueprint->GetName());
-			}
+			m_bAlreadyStarted = true;
 
 			//
 			// ensure that the max. number of instant- and deferred-evaluators is not exceeded
@@ -196,7 +204,7 @@ namespace UQS
 
 			if (!m_pQueryBlueprint->GetParent())
 			{
-				CRY_PROFILE_REGION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, "UQS::Core::CQueryBase::InstantiateFromQueryBlueprint: check global runtime parameters", m_pQueryBlueprint->GetName());
+				CRY_PROFILE_SECTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, "UQS::Core::CQueryBase::Start: check global runtime parameters", m_pQueryBlueprint->GetName());
 
 				if (!m_pQueryBlueprint->CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(runtimeParams, error))
 				{
@@ -225,20 +233,19 @@ namespace UQS
 			AddItemsFromGlobalParametersToDebugRenderWorld();
 
 			//
-			// allow the derived class to do further custom instantiation
+			// allow the derived class to do further custom start logic
 			//
 
-			const bool bFurtherInstantiationInDerivedClassSucceeded = OnInstantiateFromQueryBlueprint(runtimeParams, error);
+			const bool bFurtherStartingInDerivedClassSucceeded = OnStart(runtimeParams, error);
 
-			if (!bFurtherInstantiationInDerivedClassSucceeded && m_pHistory)
+			if (!bFurtherStartingInDerivedClassSucceeded && m_pHistory)
 			{
 				SStatistics stats;
 				GetStatistics(stats);
 				m_pHistory->OnExceptionOccurred(error.c_str(), stats);
 			}
 
-			return bFurtherInstantiationInDerivedClassSucceeded;
-
+			return bFurtherStartingInDerivedClassSucceeded;
 		}
 
 		void CQueryBase::AddItemMonitor(Client::ItemMonitorUniquePtr&& pItemMonitor)
@@ -287,7 +294,7 @@ namespace UQS
 
 			if (!m_itemMonitors.empty())
 			{
-				CRY_PROFILE_REGION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, "UQS::Core::CQueryBase::Update: item monitors", m_pQueryBlueprint->GetName());
+				CRY_PROFILE_SECTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, "UQS::Core::CQueryBase::Update: item monitors", m_pQueryBlueprint->GetName());
 
 				for (const Client::ItemMonitorUniquePtr& pItemMonitor : m_itemMonitors)
 				{
@@ -307,7 +314,7 @@ namespace UQS
 			// allow the derived class to update itself if no item corruption has occurred yet
 			//
 
-			const EUpdateState state = bCorruptionOccurred ? EUpdateState::ExceptionOccurred : OnUpdate(error);
+			const EUpdateState state = bCorruptionOccurred ? EUpdateState::ExceptionOccurred : OnUpdate(amountOfGrantedTime, error);
 
 			//
 			// finish timings
@@ -381,6 +388,11 @@ namespace UQS
 		QueryResultSetUniquePtr CQueryBase::ClaimResultSet()
 		{
 			return std::move(m_pResultSet);
+		}
+
+		const CQueryID& CQueryBase::GetQueryID() const
+		{
+			return m_queryID;
 		}
 
 		const char* CQueryBase::GetQuerierName() const

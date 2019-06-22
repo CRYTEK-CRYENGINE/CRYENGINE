@@ -20,6 +20,13 @@ struct MoonImpl : public ITimeOfDay::Moon
 	void Serialize(Serialization::IArchive& ar);
 };
 
+struct SkyImpl : public ITimeOfDay::Sky
+{
+	SkyImpl();
+	void ResetVariables();
+	void Serialize(Serialization::IArchive& ar);
+};
+
 struct WindImpl : public ITimeOfDay::Wind
 {
 	WindImpl();
@@ -30,6 +37,13 @@ struct WindImpl : public ITimeOfDay::Wind
 struct CloudShadowsImpl : public ITimeOfDay::CloudShadows
 {
 	CloudShadowsImpl();
+	void ResetVariables();
+	void Serialize(Serialization::IArchive& ar);
+};
+
+struct ColorGradingImpl : public ITimeOfDay::ColorGrading
+{
+	ColorGradingImpl();
 	void ResetVariables();
 	void Serialize(Serialization::IArchive& ar);
 };
@@ -54,8 +68,10 @@ struct STimeOfDayConstants : public ITimeOfDay::IConstants
 
 	virtual ITimeOfDay::Sun& GetSunParams() override;
 	virtual ITimeOfDay::Moon& GetMoonParams() override;
+	virtual ITimeOfDay::Sky& GetSkyParams() override;
 	virtual ITimeOfDay::Wind& GetWindParams() override;
 	virtual ITimeOfDay::CloudShadows& GetCloudShadowsParams() override;
+	virtual ITimeOfDay::ColorGrading& GetColorGradingParams() override;
 	virtual ITimeOfDay::TotalIllum& GetTotalIlluminationParams() override;
 	virtual ITimeOfDay::TotalIllumAdv& GetTotalIlluminationAdvParams() override;
 
@@ -64,8 +80,10 @@ struct STimeOfDayConstants : public ITimeOfDay::IConstants
 
 	SunImpl           sun;
 	MoonImpl          moon;
+	SkyImpl           sky;
 	WindImpl          wind;
 	CloudShadowsImpl  cloudShadows;
+	ColorGradingImpl  colorGrading;
 	TotalIllumImpl    totalIllumination;
 	TotalIllumAdvImpl totalIlluminationAdvanced;
 };

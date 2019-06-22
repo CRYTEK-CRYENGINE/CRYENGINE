@@ -1,10 +1,8 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _GRENDERER_XRENDER_H_
-#define _GRENDERER_XRENDER_H_
-
 #pragma once
 #include <CryRenderer/IScaleform.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if RENDERER_SUPPORT_SCALEFORM
 
@@ -15,16 +13,16 @@
 
 #define ENABLE_FLASH_FILTERS
 
-struct IRenderer;
-class ITexture;
-class ITexture;
-class CConstantBuffer;
-class CScaleformPlayback;
-struct SSF_GlobalDrawParams;
-struct GRendererCommandBuffer;
-class CD3D9Renderer;
 class CCachedData;
+class CConstantBuffer;
+class CD3D9Renderer;
 class CRenderOutput;
+class CScaleformPlayback;
+
+struct GRendererCommandBuffer;
+struct IRenderer;
+struct ITexture;
+struct SSF_GlobalDrawParams;
 
 //////////////////////////////////////////////////////////////////////
 struct SSF_GlobalDrawParams
@@ -64,24 +62,24 @@ struct SSF_GlobalDrawParams
 
 	enum ETexState
 	{
-		TS_Clamp = 0x01,
+		TS_Clamp        = 0x01,
 
-		TS_FilterLin = 0x02,
+		TS_FilterLin    = 0x02,
 		TS_FilterTriLin = 0x04
 	};
 
 	struct STextureInfo
 	{
 		CTexture* pTex;
-		uint32 texState;
+		uint32    texState;
 	};
 	STextureInfo texture[4];
 
-	uint32 blendModeStates;
-	uint32 renderMaskedStates;
+	uint32       blendModeStates;
+	uint32       renderMaskedStates;
 
-	bool isMultiplyDarkBlendMode;
-	bool premultipliedAlpha;
+	bool         isMultiplyDarkBlendMode;
+	bool         premultipliedAlpha;
 
 	enum ESFMaskOp
 	{
@@ -94,7 +92,7 @@ struct SSF_GlobalDrawParams
 
 	struct
 	{
-		int func;
+		int    func;
 		uint32 ref;
 	}
 	m_stencil;
@@ -112,7 +110,7 @@ struct SSF_GlobalDrawParams
 	enum EBlurType
 	{
 		BlurNone = 0,
-		
+
 		// start_shadows,
 		Box2InnerShadow,
 		Box2InnerShadowHighlight,
@@ -147,15 +145,15 @@ struct SSF_GlobalDrawParams
 		//      CMatrix = 25,
 		//      CMatrixMul,
 		// end_cmatrix = 26,
-		
+
 		BlurCount,
 
 		shadows_Highlight = 0x00000001,
-		shadows_Mul = 0x00000002,
-		shadows_Knockout = 0x00000004,
-		blurs_Box2 = 0x00000001,
-		blurs_Mul = 0x00000002,
-		
+		shadows_Mul       = 0x00000002,
+		shadows_Knockout  = 0x00000004,
+		blurs_Box2        = 0x00000001,
+		blurs_Mul         = 0x00000002,
+
 		//      cmatrix_Mul                  = 0x00000001,
 	};
 
@@ -171,29 +169,34 @@ struct SSF_GlobalDrawParams
 		// Backups for GraphicsPipeline = 0
 		TexSmartPtr pRenderTarget;
 		TexSmartPtr pStencilTarget;
-		Matrix44 oldViewMat;
-		int oldViewportWidth;
-		int oldViewportHeight;
+		Matrix44    oldViewMat;
+		D3DViewPort oldViewport;
 
 		// Pass for GraphicsPipeline > 0
-		CPrimitiveRenderPass renderPass;
+		CPrimitiveRenderPass     renderPass;
 		mutable CClearRegionPass clearPass;
 
 		// Handling clears
 		mutable bool bRenderTargetClear;
 		mutable bool bStencilTargetClear;
+
+		OutputParams(CGraphicsPipeline* pGraphicsPipeline) : clearPass(pGraphicsPipeline) {}
 	};
 
 	bool scissorEnabled;
 
-	struct _D3DRectangle : public ::D3DRectangle {
-		_D3DRectangle() {}
+	struct _D3DRectangle : public ::D3DRectangle
+	{
+		_D3DRectangle() : ::D3DRectangle({ 0, 0, 0, 0 }) {}
 		_D3DRectangle(int l, int t, int r, int b) { left = l; top = t; right = r; bottom = b; }
+		_D3DRectangle operator=(const ::D3DRectangle& rc) noexcept { ::D3DRectangle::operator=(rc);  return *this; }
 	} scissor;
 
-	struct _D3DViewPort : public ::D3DViewPort {
-		_D3DViewPort() {}
+	struct _D3DViewPort : public ::D3DViewPort
+	{
+		_D3DViewPort() : ::D3DViewPort({ 0, 0, 0, 0, 0.0f, 1.0f }) {}
 		_D3DViewPort(float l, float t, float w, float h) { TopLeftX = l; TopLeftY = t; Width = w; Height = h; MinDepth = 0.0f; MaxDepth = 1.0f; }
+		_D3DViewPort operator=(const ::D3DViewPort& vp) noexcept { ::D3DViewPort::operator=(vp);  return *this; }
 	} viewport;
 
 	OutputParams* pRenderOutput;
@@ -202,30 +205,30 @@ struct SSF_GlobalDrawParams
 	struct SScaleformMeshAttributes
 	{
 		// VS
-		Matrix44 cCompositeMat;          // Float4x4
-		Vec4 cTexGenMat[2][2];           // Float2x4[2]
-		Vec2 cStereoVideoFrameSelect;    // Vec4
-		Vec2 cPad;
+		Matrix44 cCompositeMat;           // Float4x4
+		Vec4     cTexGenMat[2][2];        // Float2x4[2]
+		Vec2     cStereoVideoFrameSelect; // Vec4
+		Vec2     cPad;
 	}
-	*m_pScaleformMeshAttributes;
-	size_t m_ScaleformMeshAttributesSize;
+	*            m_pScaleformMeshAttributes;
+	size_t       m_ScaleformMeshAttributesSize;
 	mutable bool m_bScaleformMeshAttributesDirty;
 
 	struct SScaleformRenderParameters
 	{
 		// PS
-		ColorF cBitmapColorTransform[2]; // Float2x4
-		Matrix44 cColorTransformMat;     // Float4x4
-		ColorF cBlurFilterColor1;        // Float4
-		ColorF cBlurFilterColor2;        // Float4
-		Vec2 cBlurFilterBias;            // Vec2
-		Vec2 cBlurFilterScale;           // Vec2
-		Vec3 cBlurFilterSize;            // Float3
-		float bPremultiplyAlpha;         // Float
+		ColorF   cBitmapColorTransform[2]; // Float2x4
+		Matrix44 cColorTransformMat;       // Float4x4
+		ColorF   cBlurFilterColor1;        // Float4
+		ColorF   cBlurFilterColor2;        // Float4
+		Vec2     cBlurFilterBias;          // Vec2
+		Vec2     cBlurFilterScale;         // Vec2
+		Vec3     cBlurFilterSize;          // Float3
+		float    bPremultiplyAlpha;        // Float
 	}
-	*m_pScaleformRenderParameters;
-	size_t m_ScaleformRenderParametersSize;
-	mutable bool m_bScaleformRenderParametersDirty;
+	*                        m_pScaleformRenderParameters;
+	size_t                   m_ScaleformRenderParametersSize;
+	mutable bool             m_bScaleformRenderParametersDirty;
 
 	mutable CConstantBuffer* m_vsBuffer;
 	mutable CConstantBuffer* m_psBuffer;
@@ -294,49 +297,49 @@ class CScaleformPlayback final : public IScaleformPlayback
 	// GRenderer interface
 public:
 	virtual ITexture* CreateRenderTarget() override;
-	virtual void SetDisplayRenderTarget(ITexture* pRT, bool setState = 1) override;
-	virtual void PushRenderTarget(const RectF& frameRect, ITexture* pRT) override;
-	virtual void PopRenderTarget() override;
-	virtual int32 PushTempRenderTarget(const RectF& frameRect, uint32 targetW, uint32 targetH, bool wantClear = false, bool wantStencil = false) override;
+	virtual void      SetDisplayRenderTarget(ITexture* pRT, bool setState = 1) override;
+	virtual void      PushRenderTarget(const RectF& frameRect, ITexture* pRT) override;
+	virtual void      PopRenderTarget() override;
+	virtual int32     PushTempRenderTarget(const RectF& frameRect, uint32 targetW, uint32 targetH, bool wantClear = false, bool wantStencil = false) override;
 
-	virtual void BeginDisplay(ColorF backgroundColor, const Viewport& viewport, bool bScissor, const Viewport& scissor, const RectF& x0x1y0y1) override;
-	virtual void EndDisplay() override;
+	virtual void      BeginDisplay(ColorF backgroundColor, const Viewport& viewport, bool bScissor, const Viewport& scissor, const RectF& x0x1y0y1) override;
+	virtual void      EndDisplay() override;
 
-	virtual void SetMatrix(const Matrix23& m) override;
-	virtual void SetUserMatrix(const Matrix23& m) override;
-	virtual void SetCxform(const ColorF& cx0, const ColorF& cx1) override;
+	virtual void      SetMatrix(const Matrix23& m) override;
+	virtual void      SetUserMatrix(const Matrix23& m) override;
+	virtual void      SetCxform(const ColorF& cx0, const ColorF& cx1) override;
 
-	virtual void PushBlendMode(BlendType mode) override;
-	virtual void PopBlendMode() override;
+	virtual void      PushBlendMode(BlendType mode) override;
+	virtual void      PopBlendMode() override;
 
-	virtual void SetPerspective3D(const Matrix44& projMatIn) override;
-	virtual void SetView3D(const Matrix44& viewMatIn) override;
-	virtual void SetWorld3D(const Matrix44f* pWorldMatIn) override;
+	virtual void      SetPerspective3D(const Matrix44& projMatIn) override;
+	virtual void      SetView3D(const Matrix44& viewMatIn) override;
+	virtual void      SetWorld3D(const Matrix44f* pWorldMatIn) override;
 
-	virtual void SetVertexData(const DeviceData* pVertices) override;
-	virtual void SetIndexData(const DeviceData* pIndices) override;
+	virtual void      SetVertexData(const DeviceData* pVertices) override;
+	virtual void      SetIndexData(const DeviceData* pIndices) override;
 
-	virtual void DrawIndexedTriList(int baseVertexIndex, int minVertexIndex, int numVertices, int startIndex, int triangleCount) override;
-	virtual void DrawLineStrip(int baseVertexIndex, int lineCount) override;
+	virtual void      DrawIndexedTriList(int baseVertexIndex, int minVertexIndex, int numVertices, int startIndex, int triangleCount) override;
+	virtual void      DrawLineStrip(int baseVertexIndex, int lineCount) override;
 
-	virtual void LineStyleDisable() override;
-	virtual void LineStyleColor(ColorF color) override;
+	virtual void      LineStyleDisable() override;
+	virtual void      LineStyleColor(ColorF color) override;
 
-	virtual void FillStyleDisable() override;
-	virtual void FillStyleColor(ColorF color) override;
-	virtual void FillStyleBitmap(const FillTexture& Fill) override;
-	virtual void FillStyleGouraud(GouraudFillType fillType, const FillTexture& Texture0, const FillTexture& Texture1, const FillTexture& Texture2) override;
+	virtual void      FillStyleDisable() override;
+	virtual void      FillStyleColor(ColorF color) override;
+	virtual void      FillStyleBitmap(const FillTexture& Fill) override;
+	virtual void      FillStyleGouraud(GouraudFillType fillType, const FillTexture& Texture0, const FillTexture& Texture1, const FillTexture& Texture2) override;
 
-	virtual void DrawBitmaps(const DeviceData* pBitmaps, int startIndex, int count, ITexture* pTi, const Matrix23& m) override;
+	virtual void      DrawBitmaps(const DeviceData* pBitmaps, int startIndex, int count, ITexture* pTi, const Matrix23& m) override;
 
-	virtual void BeginSubmitMask(SubmitMaskMode maskMode) override;
-	virtual void EndSubmitMask() override;
-	virtual void DisableMask() override;
+	virtual void      BeginSubmitMask(SubmitMaskMode maskMode) override;
+	virtual void      EndSubmitMask() override;
+	virtual void      DisableMask() override;
 
-	virtual void DrawBlurRect(ITexture* pSrcIn, const RectF& inSrcRect, const RectF& inDestRect, const BlurFilterParams& params, bool isLast = false) override;
-	virtual void DrawColorMatrixRect(ITexture* pSrcIn, const RectF& inSrcRect, const RectF& inDestRect, const float* pMatrix, bool isLast = false) override;
+	virtual void      DrawBlurRect(ITexture* pSrcIn, const RectF& inSrcRect, const RectF& inDestRect, const BlurFilterParams& params, bool isLast = false) override;
+	virtual void      DrawColorMatrixRect(ITexture* pSrcIn, const RectF& inSrcRect, const RectF& inDestRect, const float* pMatrix, bool isLast = false) override;
 
-	virtual void ReleaseResources() override;
+	virtual void      ReleaseResources() override;
 
 public:
 	static void InitCVars();
@@ -349,7 +352,7 @@ public:
 	virtual DeviceData* CreateDeviceData(const void* pVertices, int numVertices, VertexFormat vf, bool bTemp = false) override;
 	virtual DeviceData* CreateDeviceData(const void* pIndices, int numIndices, IndexFormat idxf, bool bTemp = false) override;
 	virtual DeviceData* CreateDeviceData(const BitmapDesc* pBitmapList, int numBitmaps, bool bTemp = false) override;
-	virtual void ReleaseDeviceData(DeviceData* pData) override;
+	virtual void        ReleaseDeviceData(DeviceData* pData) override;
 
 	// IFlashPlayer
 	virtual void SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) override;
@@ -376,10 +379,10 @@ public:
 
 	// Helper functions
 	static void RenderFlashPlayerToTexture(IFlashPlayer* pFlashPlayer, CTexture* pOutput);
-	static void RenderFlashPlayerToOutput(IFlashPlayer* pFlashPlayer, const std::shared_ptr<CRenderOutput> &output);
+	static void RenderFlashPlayerToOutput(IFlashPlayer* pFlashPlayer, const std::shared_ptr<CRenderOutput>& output);
 
-	void SetRenderOutput(std::shared_ptr<CRenderOutput> pRenderOutput);
-	
+	void        SetRenderOutput(std::shared_ptr<CRenderOutput> pRenderOutput);
+
 private:
 	std::shared_ptr<CRenderOutput> GetRenderOutput() const;
 
@@ -414,36 +417,36 @@ private:
 private:
 	CD3D9Renderer* m_pRenderer;
 
-	bool m_stencilAvail;
-	bool m_renderMasked;
-	int  m_stencilCounter;
-	bool m_avoidStencilClear;
-	bool m_maskedRendering;
-	bool m_extendCanvasToVP;
+	bool           m_stencilAvail;
+	bool           m_renderMasked;
+	int            m_stencilCounter;
+	bool           m_avoidStencilClear;
+	bool           m_maskedRendering;
+	bool           m_extendCanvasToVP;
 
-	bool m_scissorEnabled;
-	bool m_applyHalfPixelOffset;
+	bool           m_scissorEnabled;
+	bool           m_applyHalfPixelOffset;
 
-	int m_maxVertices;
-	int m_maxIndices;
+	int            m_maxVertices;
+	int            m_maxIndices;
 
 	// transformation matrices
-	Matrix44 m_matViewport;
-	Matrix44 m_matViewport3D;
-	Matrix44 m_matUncached;
-	Matrix44 m_matCached2D;
-	Matrix44 m_matCached3D;
-	Matrix44 m_matCachedWVP;
+	Matrix44         m_matViewport;
+	Matrix44         m_matViewport3D;
+	Matrix44         m_matUncached;
+	Matrix44         m_matCached2D;
+	Matrix44         m_matCached3D;
+	Matrix44         m_matCachedWVP;
 
-	Matrix23 m_mat;
+	Matrix23         m_mat;
 
 	const Matrix44f* m_pMatWorld3D;
-	Matrix44 m_matView3D;
-	Matrix44 m_matProj3D;
+	Matrix44         m_matView3D;
+	Matrix44         m_matProj3D;
 
-	bool m_matCached2DDirty;
-	bool m_matCached3DDirty;
-	bool m_matCachedWVPDirty;
+	bool             m_matCached2DDirty;
+	bool             m_matCached3DDirty;
+	bool             m_matCachedWVPDirty;
 
 	// current color transform for all draw modes
 	ColorF m_cxform[2];
@@ -458,20 +461,20 @@ private:
 
 	// blend mode support
 	std::vector<BlendType> m_blendOpStack;
-	BlendType m_curBlendMode;
+	BlendType              m_curBlendMode;
 
 	// render stats
 	threadID m_rsIdx;
-	Stats m_renderStats[2];
+	Stats    m_renderStats[2];
 
 	// draw parameters
 	SSF_GlobalDrawParams m_drawParams;
 
-	RectF m_canvasRect;
+	RectF                m_canvasRect;
 
-	uint32 m_clearFlags;
-	ColorF m_clearColor;
-	float m_compDepth;
+	uint32               m_clearFlags;
+	ColorF               m_clearColor;
+	float                m_compDepth;
 
 	// stereo support
 	float m_stereo3DiBaseDepth;
@@ -481,9 +484,9 @@ private:
 	float m_maxParallaxScene;
 	float m_screenDepthScene;
 
-	bool m_stereoFixedProjDepth;
-	bool m_isStereo;
-	bool m_isLeft;
+	bool  m_stereoFixedProjDepth;
+	bool  m_isStereo;
+	bool  m_isLeft;
 
 	// lockless rendering
 	threadID m_mainThreadID;
@@ -502,78 +505,78 @@ class CScaleformSink final : public IScaleformPlayback
 {
 	// GRenderer interface
 public:
-	virtual ITexture* CreateRenderTarget() override { return 0; }
-	virtual void SetDisplayRenderTarget(ITexture*, bool) override {}
-	virtual void PushRenderTarget(const RectF&, ITexture*) override {}
-	virtual void PopRenderTarget() override {}
-	virtual int32 PushTempRenderTarget(const RectF&, uint32, uint32, bool, bool) override { return 0; }
+	virtual ITexture* CreateRenderTarget() override                                                                          { return 0; }
+	virtual void      SetDisplayRenderTarget(ITexture*, bool) override                                                       {}
+	virtual void      PushRenderTarget(const RectF&, ITexture*) override                                                     {}
+	virtual void      PopRenderTarget() override                                                                             {}
+	virtual int32     PushTempRenderTarget(const RectF&, uint32, uint32, bool, bool) override                                { return 0; }
 
-	virtual void BeginDisplay(ColorF, const Viewport&, bool, const Viewport&, const RectF&) override {}
-	virtual void EndDisplay() override {}
+	virtual void      BeginDisplay(ColorF, const Viewport&, bool, const Viewport&, const RectF&) override                    {}
+	virtual void      EndDisplay() override                                                                                  {}
 
-	virtual void SetMatrix(const Matrix23&) override {}
-	virtual void SetUserMatrix(const Matrix23&) override {}
-	virtual void SetCxform(const ColorF&, const ColorF&) override {}
+	virtual void      SetMatrix(const Matrix23&) override                                                                    {}
+	virtual void      SetUserMatrix(const Matrix23&) override                                                                {}
+	virtual void      SetCxform(const ColorF&, const ColorF&) override                                                       {}
 
-	virtual void PushBlendMode(BlendType) override {}
-	virtual void PopBlendMode() override {}
+	virtual void      PushBlendMode(BlendType) override                                                                      {}
+	virtual void      PopBlendMode() override                                                                                {}
 
-	virtual void SetPerspective3D(const Matrix44&) override {}
-	virtual void SetView3D(const Matrix44&) override {}
-	virtual void SetWorld3D(const Matrix44f*) override {}
+	virtual void      SetPerspective3D(const Matrix44&) override                                                             {}
+	virtual void      SetView3D(const Matrix44&) override                                                                    {}
+	virtual void      SetWorld3D(const Matrix44f*) override                                                                  {}
 
-	virtual void SetVertexData(const DeviceData*) override {}
-	virtual void SetIndexData(const DeviceData*) override {}
+	virtual void      SetVertexData(const DeviceData*) override                                                              {}
+	virtual void      SetIndexData(const DeviceData*) override                                                               {}
 
-	virtual void DrawIndexedTriList(int, int, int, int, int) override {}
-	virtual void DrawLineStrip(int, int) override {}
+	virtual void      DrawIndexedTriList(int, int, int, int, int) override                                                   {}
+	virtual void      DrawLineStrip(int, int) override                                                                       {}
 
-	virtual void LineStyleDisable() override {}
-	virtual void LineStyleColor(ColorF color) override {}
+	virtual void      LineStyleDisable() override                                                                            {}
+	virtual void      LineStyleColor(ColorF color) override                                                                  {}
 
-	virtual void FillStyleDisable() override {}
-	virtual void FillStyleColor(ColorF) override {}
-	virtual void FillStyleBitmap(const FillTexture&) override {}
-	virtual void FillStyleGouraud(GouraudFillType, const FillTexture&, const FillTexture&, const FillTexture&) override {}
+	virtual void      FillStyleDisable() override                                                                            {}
+	virtual void      FillStyleColor(ColorF) override                                                                        {}
+	virtual void      FillStyleBitmap(const FillTexture&) override                                                           {}
+	virtual void      FillStyleGouraud(GouraudFillType, const FillTexture&, const FillTexture&, const FillTexture&) override {}
 
-	virtual void DrawBitmaps(const DeviceData*, int, int, ITexture*, const Matrix23&) override {}
+	virtual void      DrawBitmaps(const DeviceData*, int, int, ITexture*, const Matrix23&) override                          {}
 
-	virtual void BeginSubmitMask(SubmitMaskMode) override {}
-	virtual void EndSubmitMask() override {}
-	virtual void DisableMask() override {}
+	virtual void      BeginSubmitMask(SubmitMaskMode) override                                                               {}
+	virtual void      EndSubmitMask() override                                                                               {}
+	virtual void      DisableMask() override                                                                                 {}
 
-	virtual void DrawBlurRect(ITexture*, const RectF&, const RectF&, const BlurFilterParams&, bool) override {}
-	virtual void DrawColorMatrixRect(ITexture*, const RectF&, const RectF&, const float*, bool) override {}
+	virtual void      DrawBlurRect(ITexture*, const RectF&, const RectF&, const BlurFilterParams&, bool) override            {}
+	virtual void      DrawColorMatrixRect(ITexture*, const RectF&, const RectF&, const float*, bool) override                {}
 
-	virtual void ReleaseResources() override {}
+	virtual void      ReleaseResources() override                                                                            {}
 
 	// IScaleformPlayback interface
 public:
 	virtual ~CScaleformSink() {}
 
-	virtual DeviceData* CreateDeviceData(const void* pVertices, int numVertices, VertexFormat vf, bool bTemp = false) override { return nullptr; }
-	virtual DeviceData* CreateDeviceData(const void* pIndices, int numIndices, IndexFormat idxf, bool bTemp = false) override { return nullptr; }
-	virtual DeviceData* CreateDeviceData(const BitmapDesc* pBitmapList, int numBitmaps, bool bTemp = false) override { return nullptr; }
-	virtual void ReleaseDeviceData(DeviceData* pData) override {}
+	virtual DeviceData*            CreateDeviceData(const void* pVertices, int numVertices, VertexFormat vf, bool bTemp = false) override { return nullptr; }
+	virtual DeviceData*            CreateDeviceData(const void* pIndices, int numIndices, IndexFormat idxf, bool bTemp = false) override  { return nullptr; }
+	virtual DeviceData*            CreateDeviceData(const BitmapDesc* pBitmapList, int numBitmaps, bool bTemp = false) override           { return nullptr; }
+	virtual void                   ReleaseDeviceData(DeviceData* pData) override                                                          {}
 
-	virtual void SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) override {}
-	virtual void SetCompositingDepth(float depth) override {}
+	virtual void                   SetClearFlags(uint32 clearFlags, ColorF clearColor = Clr_Transparent) override                         {}
+	virtual void                   SetCompositingDepth(float depth) override                                                              {}
 
-	virtual void SetStereoMode(bool stereo, bool isLeft) override {}
-	virtual void StereoEnforceFixedProjectionDepth(bool enforce) override {}
-	virtual void StereoSetCustomMaxParallax(float maxParallax) override {}
+	virtual void                   SetStereoMode(bool stereo, bool isLeft) override                                                       {}
+	virtual void                   StereoEnforceFixedProjectionDepth(bool enforce) override                                               {}
+	virtual void                   StereoSetCustomMaxParallax(float maxParallax) override                                                 {}
 
-	virtual void AvoidStencilClear(bool avoid) override {}
-	virtual void EnableMaskedRendering(bool enable) override {}
-	virtual void ExtendCanvasToViewport(bool extend) override {}
+	virtual void                   AvoidStencilClear(bool avoid) override                                                                 {}
+	virtual void                   EnableMaskedRendering(bool enable) override                                                            {}
+	virtual void                   ExtendCanvasToViewport(bool extend) override                                                           {}
 
-	virtual void SetThreadIDs(threadID mainThreadID, threadID renderThreadID) override {}
-	virtual bool IsMainThread() const override { return false; }
-	virtual bool IsRenderThread() const override { return false; }
+	virtual void                   SetThreadIDs(threadID mainThreadID, threadID renderThreadID) override                                  {}
+	virtual bool                   IsMainThread() const override                                                                          { return false; }
+	virtual bool                   IsRenderThread() const override                                                                        { return false; }
 
-	virtual void GetMemoryUsage(ICrySizer* pSizer) const override {}
+	virtual void                   GetMemoryUsage(ICrySizer* pSizer) const override                                                       {}
 
-	virtual std::vector<ITexture*> GetTempRenderTargets() const override { return std::vector<ITexture*>(); }
+	virtual std::vector<ITexture*> GetTempRenderTargets() const override                                                                  { return std::vector<ITexture*>(); }
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -623,15 +626,15 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 		{
 			const EGRendererCommandBufferCmds curCmd = pBuffer->Read<EGRendererCommandBufferCmds>();
 			_PLAYBACK_CMD_SUFFIX
-				switch (curCmd)
-				{
-				case GRCBA_PopRenderTarget:
+			switch (curCmd)
+			{
+			case GRCBA_PopRenderTarget:
 				{
 					pRenderer->T::PopRenderTarget();
 					break;
 				}
 
-				case GRCBA_PushTempRenderTarget:
+			case GRCBA_PushTempRenderTarget:
 				{
 					const IScaleformPlayback::RectF& frameRect = pBuffer->ReadRef<IScaleformPlayback::RectF>();
 					uint32 targetW = pBuffer->Read<uint32>();
@@ -643,7 +646,7 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					break;
 				}
 
-				case GRCBA_BeginDisplay:
+			case GRCBA_BeginDisplay:
 				{
 					ColorF backgroundColor = pBuffer->Read<ColorF>();
 					const IScaleformPlayback::Viewport& viewport = pBuffer->ReadRef<IScaleformPlayback::Viewport>();
@@ -653,64 +656,64 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					pRenderer->T::BeginDisplay(backgroundColor, viewport, bS, scissor, x0x1y0y1);
 					break;
 				}
-				case GRCBA_EndDisplay:
+			case GRCBA_EndDisplay:
 				{
 					pRenderer->T::EndDisplay();
 					break;
 				}
-				case GRCBA_SetMatrix:
+			case GRCBA_SetMatrix:
 				{
 					const IScaleformPlayback::Matrix23& m = pBuffer->ReadRef<IScaleformPlayback::Matrix23>();
 					pRenderer->T::SetMatrix(m);
 					break;
 				}
-				case GRCBA_SetUserMatrix:
+			case GRCBA_SetUserMatrix:
 				{
 					assert(0);
 					break;
 				}
-				case GRCBA_SetCxform:
+			case GRCBA_SetCxform:
 				{
 					const ColorF& cx0 = pBuffer->ReadRef<ColorF>();
 					const ColorF& cx1 = pBuffer->ReadRef<ColorF>();
 					pRenderer->T::SetCxform(cx0, cx1);
 					break;
 				}
-				case GRCBA_PushBlendMode:
+			case GRCBA_PushBlendMode:
 				{
 					IScaleformPlayback::BlendType mode = pBuffer->Read<IScaleformPlayback::BlendType>();
 					pRenderer->T::PushBlendMode(mode);
 					break;
 				}
-				case GRCBA_PopBlendMode:
+			case GRCBA_PopBlendMode:
 				{
 					pRenderer->T::PopBlendMode();
 					break;
 				}
-				case GRCBA_SetPerspective3D:
+			case GRCBA_SetPerspective3D:
 				{
 					Matrix44 projMatIn = pBuffer->ReadRef<Matrix44f>();
 					pRenderer->T::SetPerspective3D(projMatIn);
 					break;
 				}
-				case GRCBA_SetView3D:
+			case GRCBA_SetView3D:
 				{
 					Matrix44 viewMatIn = pBuffer->ReadRef<Matrix44f>();
 					pRenderer->T::SetView3D(viewMatIn);
 					break;
 				}
-				case GRCBA_SetWorld3D:
+			case GRCBA_SetWorld3D:
 				{
 					const Matrix44f& worldMatIn = pBuffer->ReadRef<Matrix44f>();
 					pRenderer->T::SetWorld3D(&worldMatIn);
 					break;
 				}
-				case GRCBA_SetWorld3D_NullPtr:
+			case GRCBA_SetWorld3D_NullPtr:
 				{
 					pRenderer->T::SetWorld3D(0);
 					break;
 				}
-				case GRCBA_SetVertexData:
+			case GRCBA_SetVertexData:
 				{
 					Unlock(pLastVertexStore);
 					CCachedData* pStore = pBuffer->Read<CCachedData*>();
@@ -721,7 +724,7 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					pRenderer->T::SetVertexData(pDeviceData);
 					break;
 				}
-				case GRCBA_SetIndexData:
+			case GRCBA_SetIndexData:
 				{
 					Unlock(pLastIndexStore);
 					CCachedData* pStore = pBuffer->Read<CCachedData*>();
@@ -732,7 +735,7 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					pRenderer->T::SetIndexData(pDeviceData);
 					break;
 				}
-				case GRCBA_DrawIndexedTriList:
+			case GRCBA_DrawIndexedTriList:
 				{
 					int baseVertexIndex = pBuffer->Read<int>();
 					int minVertexIndex = pBuffer->Read<int>();
@@ -746,7 +749,7 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					pLastIndexStore = 0;
 					break;
 				}
-				case GRCBA_DrawLineStrip:
+			case GRCBA_DrawLineStrip:
 				{
 					int baseVertexIndex = pBuffer->Read<int>();
 					int lineCount = pBuffer->Read<int>();
@@ -755,35 +758,35 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					pLastVertexStore = 0;
 					break;
 				}
-				case GRCBA_LineStyleDisable:
+			case GRCBA_LineStyleDisable:
 				{
 					pRenderer->T::LineStyleDisable();
 					break;
 				}
-				case GRCBA_LineStyleColor:
+			case GRCBA_LineStyleColor:
 				{
 					const ColorF& color = pBuffer->Read<ColorF>();
 					pRenderer->T::LineStyleColor(color);
 					break;
 				}
-				case GRCBA_FillStyleDisable:
+			case GRCBA_FillStyleDisable:
 				{
 					pRenderer->T::FillStyleDisable();
 					break;
 				}
-				case GRCBA_FillStyleColor:
+			case GRCBA_FillStyleColor:
 				{
 					const ColorF& color = pBuffer->Read<ColorF>();
 					pRenderer->T::FillStyleColor(color);
 					break;
 				}
-				case GRCBA_FillStyleBitmap:
+			case GRCBA_FillStyleBitmap:
 				{
 					const IScaleformPlayback::FillTexture& fill = pBuffer->ReadRef<IScaleformPlayback::FillTexture>();
 					pRenderer->T::FillStyleBitmap(fill);
 					break;
 				}
-				case GRCBA_FillStyleGouraud:
+			case GRCBA_FillStyleGouraud:
 				{
 					IScaleformPlayback::GouraudFillType fillType = pBuffer->Read<IScaleformPlayback::GouraudFillType>();
 					const IScaleformPlayback::FillTexture& texture0 = pBuffer->ReadRef<IScaleformPlayback::FillTexture>();
@@ -792,7 +795,7 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					pRenderer->T::FillStyleGouraud(fillType, texture0, texture1, texture2);
 					break;
 				}
-				case GRCBA_DrawBitmaps:
+			case GRCBA_DrawBitmaps:
 				{
 					CCachedData* pStore = pBuffer->Read<CCachedData*>();
 					const IScaleformPlayback::DeviceData* pDeviceData = 0;
@@ -806,24 +809,24 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					Unlock(pStore);
 					break;
 				}
-				case GRCBA_BeginSubmitMask:
+			case GRCBA_BeginSubmitMask:
 				{
 					IScaleformPlayback::SubmitMaskMode maskMode = pBuffer->Read<IScaleformPlayback::SubmitMaskMode>();
 					pRenderer->T::BeginSubmitMask(maskMode);
 					break;
 				}
-				case GRCBA_EndSubmitMask:
+			case GRCBA_EndSubmitMask:
 				{
 					pRenderer->T::EndSubmitMask();
 					break;
 				}
-				case GRCBA_DisableMask:
+			case GRCBA_DisableMask:
 				{
 					pRenderer->T::DisableMask();
 					break;
 				}
 
-				case GRCBA_DrawBlurRect:
+			case GRCBA_DrawBlurRect:
 				{
 					ITexture* pSrcIn = pBuffer->Read<ITexture*>();
 					const IScaleformPlayback::RectF& inSrcRect = pBuffer->ReadRef<IScaleformPlayback::RectF>();
@@ -834,7 +837,7 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					break;
 				}
 
-				case GRCBA_DrawColorMatrixRect:
+			case GRCBA_DrawColorMatrixRect:
 				{
 					ITexture* pSrcIn = pBuffer->Read<ITexture*>();
 					const IScaleformPlayback::RectF& inSrcRect = pBuffer->ReadRef<IScaleformPlayback::RectF>();
@@ -847,7 +850,7 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 					break;
 				}
 
-				default:
+			default:
 				{
 					assert(0);
 					break;
@@ -861,5 +864,3 @@ void SF_Playback(T* pRenderer, GRendererCommandBufferReadOnly* pBuffer)
 	Unlock(pLastVertexStore);
 	Unlock(pLastIndexStore);
 };
-
-#endif // #ifndef _GRENDERER_XRENDER_H_

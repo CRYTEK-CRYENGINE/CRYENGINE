@@ -8,13 +8,10 @@
 #include "GraphicsPipeline/TiledLightVolumes.h"
 #include "GraphicsPipeline/TiledShading.h"
 #include "GraphicsPipeline/SceneGBuffer.h"
+#include "GraphicsPipeline/ShadowMap.h"
 #include "Common/ReverseDepth.h"
 
 //////////////////////////////////////////////////////////////////////////
-
-#if !CRY_PLATFORM_ORBIS
-	#define FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
-#endif
 
 namespace
 {
@@ -145,8 +142,9 @@ bool CVolumetricFogStage::IsEnabledInFrame()
 	return v;
 }
 
-CVolumetricFogStage::CVolumetricFogStage()
-	: m_pVolFogBufDensityColor(nullptr)
+CVolumetricFogStage::CVolumetricFogStage(CGraphicsPipeline& graphicsPipeline)
+	: CGraphicsPipelineStage(graphicsPipeline)
+	, m_pVolFogBufDensityColor(nullptr)
 	, m_pVolFogBufDensity(nullptr)
 	, m_pVolFogBufEmissive(nullptr)
 	, m_pInscatteringVolume(nullptr)
@@ -156,11 +154,11 @@ CVolumetricFogStage::CVolumetricFogStage()
 	, m_pDownscaledShadowTemp(nullptr)
 	, m_globalEnvProveTex0(nullptr)
 	, m_globalEnvProveTex1(nullptr)
-	, m_passBuildLightListGrid(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
-	, m_passDownscaleDepthHorizontal(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
-	, m_passDownscaleDepthVertical(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
-	, m_passInjectFogDensity(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
-	, m_passInjectInscattering(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
+	, m_passBuildLightListGrid(&graphicsPipeline, CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
+	, m_passDownscaleDepthHorizontal(&graphicsPipeline, CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
+	, m_passDownscaleDepthVertical(&graphicsPipeline, CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
+	, m_passInjectFogDensity(&graphicsPipeline, CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
+	, m_passInjectInscattering(&graphicsPipeline, CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader)
 	, m_globalEnvProbeParam0(0.0f)
 	, m_globalEnvProbeParam1(0.0f)
 	, m_sceneRenderPassResources()
@@ -180,6 +178,22 @@ CVolumetricFogStage::CVolumetricFogStage()
 		pass.SetFlags(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader);
 	for (auto& pass : m_passRaymarch)
 		pass.SetFlags(CComputeRenderPass::eFlags_ReflectConstantBuffersFromShader);
+	for (auto& pass : m_passDownscaleShadowmap)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
+	for (auto& pass : m_passDownscaleShadowmap2)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
+	for (auto& pass : m_passBlurDensityHorizontal)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
+	for (auto& pass : m_passBlurDensityVertical)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
+	for (auto& pass : m_passBlurInscatteringHorizontal)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
+	for (auto& pass : m_passBlurInscatteringVertical)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
+	for (auto& pass : m_passTemporalReprojection)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
+	for (auto& pass : m_passRaymarch)
+		pass.SetGraphicsPipeline(&graphicsPipeline);
 
 	std::fill(std::begin(m_pFogInscatteringVolume), std::end(m_pFogInscatteringVolume), nullptr);
 	std::fill(std::begin(m_pFogDensityVolume), std::end(m_pFogDensityVolume), nullptr);
@@ -193,10 +207,6 @@ CVolumetricFogStage::CVolumetricFogStage()
 
 CVolumetricFogStage::~CVolumetricFogStage()
 {
-	if (CRendererResources::s_ptexVolumetricFog)
-	{
-		CRendererResources::s_ptexVolumetricFog->ReleaseDeviceTexture(false);
-	}
 }
 
 void CVolumetricFogStage::Init()
@@ -231,7 +241,6 @@ void CVolumetricFogStage::Init()
 
 	const uint32 commonFlags = FT_NOMIPS | FT_DONT_STREAM;
 	const uint32 uavFlags = commonFlags | FT_USAGE_UNORDERED_ACCESS;
-	const uint32 rtFlags = commonFlags | FT_USAGE_RENDERTARGET;
 	const uint32 uavRtFlags = commonFlags | FT_USAGE_UNORDERED_ACCESS | FT_USAGE_RENDERTARGET;
 	const uint32 dsFlags = commonFlags | FT_USAGE_DEPTHSTENCIL;
 	const ETEX_Format fmtDensityColor = eTF_R11G11B10F;
@@ -239,77 +248,59 @@ void CVolumetricFogStage::Init()
 	const ETEX_Format fmtEmissive = eTF_R11G11B10F;
 
 	CRY_ASSERT(m_pVolFogBufDensityColor == nullptr);
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
-	m_pVolFogBufDensityColor = CTexture::GetOrCreateTextureObjectPtr("$VolFogBufDensityColor", 0, 0, 0, eTT_3D, uavRtFlags, fmtDensityColor);
-#else
-	m_pVolFogBufDensityColor = CTexture::GetOrCreateTextureObjectPtr("$VolFogBufDensityColor", 0, 0, 0, eTT_3D, uavFlags, fmtDensityColor);
-#endif
+	std::string texName = "$VolFogBufDensityColor" + m_graphicsPipeline.GetUniqueIdentifierName();
+	m_pVolFogBufDensityColor = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_3D, uavRtFlags, fmtDensityColor);
 
 	CRY_ASSERT(m_pVolFogBufDensity == nullptr);
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
-	m_pVolFogBufDensity = CTexture::GetOrCreateTextureObjectPtr("$VolFogBufDensity", 0, 0, 0, eTT_3D, uavRtFlags, fmtDensity);
-#else
-	m_pVolFogBufDensity = CTexture::GetOrCreateTextureObjectPtr("$VolFogBufDensity", 0, 0, 0, eTT_3D, uavFlags, fmtDensity);
-#endif
+	texName = "$VolFogBufDensity" + m_graphicsPipeline.GetUniqueIdentifierName();
+	m_pVolFogBufDensity = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_3D, uavRtFlags, fmtDensity);
 
 	CRY_ASSERT(m_pVolFogBufEmissive == nullptr);
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
-	m_pVolFogBufEmissive = CTexture::GetOrCreateTextureObjectPtr("$VolFogBufEmissive", 0, 0, 0, eTT_3D, uavRtFlags, fmtEmissive);
-#else
-	m_pVolFogBufEmissive = CTexture::GetOrCreateTextureObjectPtr("$VolFogBufEmissive", 0, 0, 0, eTT_3D, uavFlags, fmtEmissive);
-#endif
+	texName = "$VolFogBufEmissive" + m_graphicsPipeline.GetUniqueIdentifierName();
+	m_pVolFogBufEmissive = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_3D, uavRtFlags, fmtEmissive);
 
 	CRY_ASSERT(m_pInscatteringVolume == nullptr);
-	m_pInscatteringVolume = CTexture::GetOrCreateTextureObjectPtr("$VolFogBufInscattering", 0, 0, 0, eTT_3D, uavFlags, eTF_Unknown);
+	texName = "$VolFogBufInscattering" + m_graphicsPipeline.GetUniqueIdentifierName();
+	m_pInscatteringVolume = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_3D, uavFlags, eTF_Unknown);
 
 	{
-		const char* texName[2] =
-		{
-			"$VolFogInscatteringVolume0",
-			"$VolFogInscatteringVolume1",
-		};
 		for (int32 i = 0; i < 2; ++i)
 		{
-			m_pFogInscatteringVolume[i] = CTexture::GetOrCreateTextureObjectPtr(texName[i], 0, 0, 0, eTT_3D, uavFlags, eTF_Unknown);
+			texName = "$VolFogInscatteringVolume" + std::to_string(i) + m_graphicsPipeline.GetUniqueIdentifierName();
+			m_pFogInscatteringVolume[i] = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_3D, uavFlags, eTF_Unknown);
 		}
 	}
 
 	{
-		const char* texName[2] =
-		{
-			"$VolFogDensityVolume0",
-			"$VolFogDensityVolume1",
-		};
 		for (int32 i = 0; i < 2; ++i)
 		{
-			m_pFogDensityVolume[i] = CTexture::GetOrCreateTextureObjectPtr(texName[i], 0, 0, 0, eTT_3D, uavFlags, eTF_Unknown);
+			texName = "$VolFogDensityVolume" + std::to_string(i) + m_graphicsPipeline.GetUniqueIdentifierName();
+			m_pFogDensityVolume[i] = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_3D, uavFlags, eTF_Unknown);
 		}
 	}
 
 	CRY_ASSERT(m_pMaxDepth == nullptr);
-	m_pMaxDepth = CTexture::GetOrCreateTextureObjectPtr("$VolFogMaxDepth", 0, 0, 0, eTT_2D, uavFlags, eTF_Unknown);
+	texName = "$VolFogMaxDepth" + m_graphicsPipeline.GetUniqueIdentifierName();
+	m_pMaxDepth = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_2D, uavFlags, eTF_Unknown);
 
 	CRY_ASSERT(m_pMaxDepthTemp == nullptr);
-	m_pMaxDepthTemp = CTexture::GetOrCreateTextureObjectPtr("$VolFogMaxDepthTemp", 0, 0, 0, eTT_2D, uavFlags, eTF_Unknown);
+	texName = "$VolFogMaxDepthTemp" + m_graphicsPipeline.GetUniqueIdentifierName();
+	m_pMaxDepthTemp = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_2D, uavFlags, eTF_Unknown);
 
 	CRY_ASSERT(m_pNoiseTexture == nullptr);
 	m_pNoiseTexture = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/rotrandomcm.dds", FT_DONT_STREAM, eTF_Unknown);
 
 	{
-		const char* texName[CVolumetricFogStage::ShadowCascadeNum] =
-		{
-			"$VolFogDownscaledShadow0",
-			"$VolFogDownscaledShadow1",
-			"$VolFogDownscaledShadow2",
-		};
 		for (int32 i = 0; i < CVolumetricFogStage::ShadowCascadeNum; ++i)
 		{
 			CRY_ASSERT(m_pDownscaledShadow[i] == nullptr);
-			m_pDownscaledShadow[i] = CTexture::GetOrCreateTextureObjectPtr(texName[i], 0, 0, 0, eTT_2D, dsFlags, eTF_Unknown);
+			texName = "$VolFogDownscaledShadow" + std::to_string(i) + m_graphicsPipeline.GetUniqueIdentifierName();
+			m_pDownscaledShadow[i] = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_2D, dsFlags, eTF_Unknown);
 		}
 
 		CRY_ASSERT(m_pDownscaledShadowTemp == nullptr);
-		m_pDownscaledShadowTemp = CTexture::GetOrCreateTextureObjectPtr("$VolFogDownscaledShadowTemp", 0, 0, 0, eTT_2D, dsFlags, eTF_Unknown);
+		texName = "$VolFogDownscaledShadowTemp" + m_graphicsPipeline.GetUniqueIdentifierName();
+		m_pDownscaledShadowTemp = CTexture::GetOrCreateTextureObjectPtr(texName.c_str(), 0, 0, 0, eTT_2D, dsFlags, eTF_Unknown);
 	}
 
 	// create scene render pass and resources.
@@ -318,11 +309,10 @@ void CVolumetricFogStage::Init()
 		m_pSceneRenderPassCB = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SVolFogSceneRenderPassConstantBuffer));
 		if (m_pSceneRenderPassCB) m_pSceneRenderPassCB->SetDebugName("VolumetricFogStage Per-Pass CB");
 
-		bool bSuccess = PreparePerPassResources(true);
-		CRY_ASSERT(bSuccess);
+		CRY_VERIFY(PreparePerPassResources(true));
 
 		// NOTE: use the resource layout of forward pass because CREParticle expects that layout in scene render pass.
-		m_pSceneRenderResourceLayout = gcpRendD3D->GetGraphicsPipeline().CreateScenePassLayout(m_sceneRenderPassResources);
+		m_pSceneRenderResourceLayout = m_graphicsPipeline.CreateScenePassLayout(m_sceneRenderPassResources);
 		CRY_ASSERT(m_pSceneRenderResourceLayout);
 
 		// Freeze resource-set layout (assert will fire when violating the constraint)
@@ -336,8 +326,6 @@ void CVolumetricFogStage::Init()
 
 void CVolumetricFogStage::ResizeResource(int volumeWidth, int volumeHeight, int volumeDepth)
 {
-	const CRenderView* pRenderView = RenderView();
-
 	const ETEX_Format fmtInscattering = CRendererResources::GetHDRFormat(false, false);
 	const ETEX_Format fmtDensityColor = eTF_R11G11B10F;
 	const ETEX_Format fmtDensity = eTF_R16F;
@@ -346,7 +334,7 @@ void CVolumetricFogStage::ResizeResource(int volumeWidth, int volumeHeight, int 
 
 	// downscaled depth buffer.
 	const int32 depthTempWidth = (volumeWidth << 1);
-	const int32 depthTempHeight = (CRendererResources::s_ptexLinearDepthScaled[0]->GetHeight() >> 1);
+	const int32 depthTempHeight = (m_graphicsPipelineResources.m_pTexLinearDepthScaled[0]->GetHeight() >> 1);
 	const ETEX_Format fmtDepth = eTF_R16F;
 
 	// downscaled shadow maps.
@@ -439,7 +427,6 @@ void CVolumetricFogStage::ResizeResource(int volumeWidth, int volumeHeight, int 
 
 	const uint32 commonFlags = FT_NOMIPS | FT_DONT_STREAM;
 	const uint32 uavFlags = commonFlags | FT_USAGE_UNORDERED_ACCESS;
-	const uint32 rtFlags = commonFlags | FT_USAGE_RENDERTARGET;
 	const uint32 uavRtFlags = commonFlags | FT_USAGE_UNORDERED_ACCESS | FT_USAGE_RENDERTARGET;
 	const uint32 dsFlags = commonFlags | FT_USAGE_DEPTHSTENCIL;
 
@@ -452,27 +439,15 @@ void CVolumetricFogStage::ResizeResource(int volumeWidth, int volumeHeight, int 
 
 	CRY_ASSERT(m_pVolFogBufDensityColor);
 	CRY_ASSERT(m_pVolFogBufDensityColor->GetDstFormat() == fmtDensityColor);
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
 	createTexture3D(m_pVolFogBufDensityColor, uavRtFlags, fmtDensityColor);
-#else
-	createTexture3D(m_pVolFogBufDensityColor, uavFlags, fmtDensityColor);
-#endif
 
 	CRY_ASSERT(m_pVolFogBufDensity);
 	CRY_ASSERT(m_pVolFogBufDensity->GetDstFormat() == fmtDensity);
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
 	createTexture3D(m_pVolFogBufDensity, uavRtFlags, fmtDensity);
-#else
-	createTexture3D(m_pVolFogBufDensity, uavFlags, fmtDensity);
-#endif
 
 	CRY_ASSERT(m_pVolFogBufEmissive);
 	CRY_ASSERT(m_pVolFogBufEmissive->GetDstFormat() == fmtEmissive);
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
 	createTexture3D(m_pVolFogBufEmissive, uavRtFlags, fmtEmissive);
-#else
-	createTexture3D(m_pVolFogBufEmissive, uavFlags, fmtEmissive);
-#endif
 
 	CRY_ASSERT(m_pInscatteringVolume);
 	createTexture3D(m_pInscatteringVolume, uavFlags, fmtInscattering);
@@ -591,7 +566,7 @@ void CVolumetricFogStage::Resize(int renderWidth, int renderHeight)
 
 void CVolumetricFogStage::OnCVarsChanged(const CCVarUpdateRecorder& cvarUpdater)
 {
-	bool  hasChanged = false;
+	bool hasChanged = false;
 	int32 resolutionScale = CRendererCVars::CV_r_VolumetricFogTexScale;
 	int32 depthScale      = CRendererCVars::CV_r_VolumetricFogTexDepth;
 
@@ -625,8 +600,6 @@ void CVolumetricFogStage::Update()
 {
 	const CRenderView* pRenderView = RenderView();
 	const SRenderViewport& viewport = pRenderView->GetViewport();
-
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
 	m_passInjectParticleDensity.SetViewport(viewport);
 	m_passInjectParticleDensity.SetRenderTargets(
 		// Depth
@@ -637,7 +610,6 @@ void CVolumetricFogStage::Update()
 		m_pVolFogBufDensity,
 		// Color 2
 		m_pVolFogBufEmissive);
-#endif
 }
 
 void CVolumetricFogStage::Execute()
@@ -664,14 +636,12 @@ void CVolumetricFogStage::Execute()
 
 	ExecuteBuildLightListGrid(commandList);
 	ExecuteDownscaledDepth(commandList);
-	ExecuteInjectParticipatingMedia( commandList);
+	ExecuteInjectParticipatingMedia(commandList);
 	ExecuteVolumetricFog(commandList);
 }
 
 bool CVolumetricFogStage::CreatePipelineState(const SGraphicsPipelineStateDescription& desc, CDeviceGraphicsPSOPtr& outPSO) const
 {
-	CD3D9Renderer* pRenderer = gcpRendD3D;
-
 	outPSO = nullptr;
 
 	CDeviceGraphicsPSODesc psoDesc(m_pSceneRenderResourceLayout, desc);
@@ -745,7 +715,7 @@ bool CVolumetricFogStage::PreparePerPassResources(bool bOnInit)
 
 	// Samplers
 	{
-		auto materialSamplers = gcpRendD3D->GetGraphicsPipeline().GetDefaultMaterialSamplers();
+		auto materialSamplers = m_graphicsPipeline.GetDefaultMaterialSamplers();
 		for (int i = 0; i < materialSamplers.size(); ++i)
 		{
 			m_sceneRenderPassResources.SetSampler(EEfResSamplers(i), materialSamplers[i], EShaderStage_AllWithoutCompute);
@@ -776,7 +746,7 @@ bool CVolumetricFogStage::PreparePerPassResources(bool bOnInit)
 		else
 		{
 			pPerPassCB = m_pSceneRenderPassCB;
-			pPerViewCB = gcpRendD3D->GetGraphicsPipeline().GetMainViewConstantBuffer();
+			pPerViewCB = m_graphicsPipeline.GetMainViewConstantBuffer();
 		}
 
 		m_sceneRenderPassResources.SetConstantBuffer(eConstantBufferShaderSlot_PerPass, pPerPassCB, EShaderStage_AllWithoutCompute);
@@ -792,31 +762,18 @@ bool CVolumetricFogStage::PreparePerPassResources(bool bOnInit)
 
 void CVolumetricFogStage::ExecuteInjectParticipatingMedia(const SScopedComputeCommandList& commandList)
 {
-	CRenderView* pRenderView = RenderView();
-	CRY_ASSERT(pRenderView);
-
 	PROFILE_LABEL_SCOPE("INJECT_PARTICIPATING_MEDIA");
 
 	GenerateFogVolumeList();
 	ExecuteInjectFogDensity(commandList);
 
-#ifdef FEATURE_RENDER_VOLUMETRIC_FOG_GEOMETRY_SHADER
+	CRenderView* pRenderView = RenderView();
+	CRY_ASSERT(pRenderView);
+
 	// inject particle's density and albedo into volume texture.
 	auto& rendItems = pRenderView->GetRenderItems(EFSLIST_FOG_VOLUME);
 	if (!rendItems.empty())
 	{
-		CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-
-		D3DViewPort viewport =
-		{
-			0.0f,
-			0.0f,
-			float(m_pVolFogBufDensityColor->GetWidth()),
-			float(m_pVolFogBufDensityColor->GetHeight()),
-			0.0f,
-			1.0f
-		};
-
 		PreparePerPassResources(false);
 
 		auto& pass = m_passInjectParticleDensity;
@@ -831,8 +788,8 @@ void CVolumetricFogStage::ExecuteInjectParticipatingMedia(const SScopedComputeCo
 		auto& renderItemDrawer = pRenderView->GetDrawer();
 		renderItemDrawer.InitDrawSubmission();
 
-		pass.BeginExecution();
-		pass.SetupDrawContext(m_stageID, 0, TTYPE_GENERAL, FB_GENERAL);
+		pass.BeginExecution(m_graphicsPipeline);
+		pass.SetupDrawContext(StageID, 0, TTYPE_GENERAL, FB_GENERAL);
 		pass.DrawRenderItems(pRenderView, EFSLIST_FOG_VOLUME);
 		pass.EndExecution();
 
@@ -841,7 +798,6 @@ void CVolumetricFogStage::ExecuteInjectParticipatingMedia(const SScopedComputeCo
 
 		ClearDeviceOutputState();
 	}
-#endif
 }
 
 void CVolumetricFogStage::ExecuteVolumetricFog(const SScopedComputeCommandList& commandList)
@@ -960,8 +916,6 @@ void CVolumetricFogStage::ExecuteDownscaleShadowmap()
 
 	//PROFILE_LABEL_SCOPE("DOWNSCALE_SHADOWMAP");
 
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
 	CShader* pShader = CShaderMan::s_shDeferredShading;
 
 	CShadowUtils::SShadowCascades cascades;
@@ -989,8 +943,8 @@ void CVolumetricFogStage::ExecuteDownscaleShadowmap()
 			}
 
 			if (pass.IsDirty(inputFlag,
-				CRendererCVars::CV_r_VolumetricFogDownscaledSunShadowRatio,
-				target->GetDstFormat()))
+			                 CRendererCVars::CV_r_VolumetricFogDownscaledSunShadowRatio,
+			                 target->GetDstFormat()))
 			{
 				uint64 rtMask = 0;
 				const uint64 lv0 = g_HWSR_MaskBit[HWSR_LIGHTVOLUME0];
@@ -1032,7 +986,7 @@ void CVolumetricFogStage::ExecuteDownscaleShadowmap()
 			auto& pass = m_passDownscaleShadowmap2[i];
 
 			if (pass.IsDirty(CRendererCVars::CV_r_VolumetricFogDownscaledSunShadowRatio,
-				m_pDownscaledShadow[i]->GetDstFormat()))
+			                 m_pDownscaledShadow[i]->GetDstFormat()))
 			{
 				static CCryNameTSCRC shaderName0("DownscaleShadowMap2");
 				static CCryNameTSCRC shaderName1("DownscaleShadowMap4");
@@ -1067,7 +1021,7 @@ void CVolumetricFogStage::GenerateLightList()
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
 
 	const SRenderViewInfo& viewInfo = GetCurrentViewInfo();
-	auto* tiledLights = GetStdGraphicsPipeline().GetTiledLightVolumesStage();
+	auto* tiledLights = m_graphicsPipeline.GetStage<CTiledLightVolumesStage>();
 
 	// Prepare view matrix with flipped z-axis
 	Matrix44A matView = viewInfo.viewMatrix;
@@ -1092,7 +1046,6 @@ void CVolumetricFogStage::GenerateLightList()
 	const Vec3 worldViewPos = viewInfo.cameraOrigin;
 	const Vec3 cameraPosition = pRenderView->GetCamera(CCamera::eEye_Left).GetPosition();
 
-	const bool areaLights = (CRendererCVars::CV_r_DeferredShadingAreaLights > 0);
 	const float minBulbSize = max(0.001f, min(2.0f, CRendererCVars::CV_r_VolumetricFogMinimumLightBulbSize));// limit the minimum bulb size to reduce the light flicker.
 
 	// NOTE: Get aligned stack-space (pointer and size aligned to manager's alignment requirement)
@@ -1127,10 +1080,6 @@ void CVolumetricFogStage::GenerateLightList()
 			if ((renderLight.m_Flags & DLF_FAKE) || !(renderLight.m_Flags & DLF_VOLUMETRIC_FOG))
 				continue;
 
-			// Skip non-ambient area light if support is disabled
-			if ((renderLight.m_Flags & DLF_AREA_LIGHT) && !(renderLight.m_Flags & DLF_AMBIENT) && !areaLights)
-				continue;
-
 			++numRenderLights;
 
 			if (numTileLights == MaxNumTileLights)
@@ -1138,13 +1087,13 @@ void CVolumetricFogStage::GenerateLightList()
 
 			// Setup standard parameters
 			float mipFactor = (cameraPosition - renderLight.m_Origin).GetLengthSquared() / max(0.001f, renderLight.m_fRadius * renderLight.m_fRadius);
-			bool areaLightRect = (renderLight.m_Flags & DLF_AREA_LIGHT) && renderLight.m_fAreaWidth && renderLight.m_fAreaHeight && renderLight.m_fLightFrustumAngle;
+			bool isAreaLight = (renderLight.m_Flags & DLF_AREA) != 0;
 			float volumeSize = (lightListIdx == 0) ? renderLight.m_ProbeExtents.len() : renderLight.m_fRadius;
 			Vec3 pos = renderLight.GetPosition();
 			lightShadeInfo.posRad = Vec4(pos.x - worldViewPos.x, pos.y - worldViewPos.y, pos.z - worldViewPos.z, volumeSize);
 			Vec4 posVS = Vec4(pos, 1) * matView;
 			lightCullInfo.posRad = Vec4(posVS.x, posVS.y, posVS.z, volumeSize);
-			lightShadeInfo.attenuationParams = Vec2(areaLightRect ? (renderLight.m_fAreaWidth + renderLight.m_fAreaHeight) * 0.25f : renderLight.m_fAttenuationBulbSize, renderLight.m_fAreaHeight * 0.5f);
+			lightShadeInfo.attenuationParams = Vec2(renderLight.m_fAttenuationBulbSize, minBulbSize);
 			lightCullInfo.depthBounds = Vec2(posVS.z - volumeSize, posVS.z + volumeSize);
 			lightShadeInfo.color = Vec4(renderLight.m_Color.r * itensityScale,
 			                            renderLight.m_Color.g * itensityScale,
@@ -1306,8 +1255,7 @@ void CVolumetricFogStage::GenerateLightList()
 							continue;  // Skip light
 
 						lightShadeInfo.resIndex = arrayIndex;
-						lightShadeInfo.resMipClamp0 =
-						lightShadeInfo.resMipClamp1 = tiledLights->m_spotTexAtlas.items[arrayIndex].lowestRenderableMip;
+						lightShadeInfo.resMipClamp0 = lightShadeInfo.resMipClamp1 = tiledLights->m_spotTexAtlas.items[arrayIndex].lowestRenderableMip;
 					}
 
 					// Prevent culling errors for frustums with large FOVs by slightly enlarging the frustum
@@ -1340,37 +1288,59 @@ void CVolumetricFogStage::GenerateLightList()
 				}
 
 				// Handle rectangular area lights
-				if (areaLightRect)
+				if (isAreaLight)
 				{
-					lightCullInfo.volumeType = CTiledLightVolumesStage::tlVolumeOBB;
 					lightShadeInfo.lightType = ambientLight ? CTiledLightVolumesStage::tlTypeAmbientArea : CTiledLightVolumesStage::tlTypeRegularArea;
 					lightCullInfo.miscFlag = 0;
 
-					float expensionRadius = renderLight.m_fRadius * 1.08f;
-					Vec3 scale(expensionRadius, expensionRadius, expensionRadius);
-					Matrix34 areaLightMat = CShadowUtils::GetAreaLightMatrix(&renderLight, scale);
-
-					Vec4 u0 = Vec4(areaLightMat.GetColumn0().GetNormalized(), 0) * matView;
-					Vec4 u1 = Vec4(areaLightMat.GetColumn1().GetNormalized(), 0) * matView;
-					Vec4 u2 = Vec4(areaLightMat.GetColumn2().GetNormalized(), 0) * matView;
-					lightCullInfo.volumeParams0 = Vec4(u0.x, u0.y, u0.z, areaLightMat.GetColumn0().GetLength() * 0.5f);
-					lightCullInfo.volumeParams1 = Vec4(u1.x, u1.y, u1.z, areaLightMat.GetColumn1().GetLength() * 0.5f);
-					lightCullInfo.volumeParams2 = Vec4(u2.x, u2.y, u2.z, areaLightMat.GetColumn2().GetLength() * 0.5f);
+					// Pre-transform polygonal shape vertices
+					Matrix33 rotationMat;
+					rotationMat.SetColumn0(renderLight.m_ObjMatrix.GetColumn0().GetNormalized());
+					rotationMat.SetColumn1(renderLight.m_ObjMatrix.GetColumn1().GetNormalized());
+					rotationMat.SetColumn2(renderLight.m_ObjMatrix.GetColumn2().GetNormalized());
 
 					float volumeSize = renderLight.m_fRadius + max(renderLight.m_fAreaWidth, renderLight.m_fAreaHeight);
 					lightCullInfo.depthBounds = Vec2(posVS.z - volumeSize, posVS.z + volumeSize);
+					
+					Vec3 lightPos = renderLight.GetPosition() - viewInfo.cameraOrigin;
+					Vec3 polygonPos[4];
+					float areaWidth = renderLight.m_fAreaWidth * 0.5f;
+					float areaHeight = renderLight.m_fAreaHeight * 0.5f;
 
-					float areaFov = renderLight.m_fLightFrustumAngle * 2.0f;
-					if (renderLight.m_Flags & DLF_CASTSHADOW_MAPS)
-						areaFov = min(areaFov, 135.0f); // Shadow can only cover ~135 degree FOV without looking bad, so we clamp the FOV to hide shadow clipping
-
-					const float cosAngle = cosf(areaFov * (gf_PI / 360.0f));
+					if (renderLight.m_nAreaShape == 1) // Rectangular light source
+					{
+						polygonPos[0] = rotationMat.TransformVector(Vec3(-areaWidth, 0, -areaHeight)) + lightPos;
+						polygonPos[1] = rotationMat.TransformVector(Vec3(areaWidth, 0, -areaHeight)) + lightPos;
+						polygonPos[2] = rotationMat.TransformVector(Vec3(areaWidth, 0, areaHeight)) + lightPos;
+						polygonPos[3] = rotationMat.TransformVector(Vec3(-areaWidth, 0, areaHeight)) + lightPos;
+					}
+					else
+					{
+						Vec3 ex = rotationMat.TransformVector(Vec3(1, 0, 0) * areaWidth  * 0.5f);
+						Vec3 ey = rotationMat.TransformVector(Vec3(0, 0, 1) * areaHeight * 0.5f);
+						polygonPos[0] = lightPos - ex - ey;
+						polygonPos[1] = lightPos + ex - ey;
+						polygonPos[2] = lightPos + ex + ey;
+						polygonPos[3] = lightPos - ex + ey;
+					}
 
 					Matrix44 areaLightParams;
-					areaLightParams.SetRow4(0, Vec4(renderLight.m_ObjMatrix.GetColumn0().GetNormalized(), 1.0f));
-					areaLightParams.SetRow4(1, Vec4(renderLight.m_ObjMatrix.GetColumn1().GetNormalized(), 1.0f));
-					areaLightParams.SetRow4(2, Vec4(renderLight.m_ObjMatrix.GetColumn2().GetNormalized(), 1.0f));
-					areaLightParams.SetRow4(3, Vec4(renderLight.m_fAreaWidth * 0.5f, renderLight.m_fAreaHeight * 0.5f, 0, cosAngle));
+					areaLightParams.SetRow4(0, Vec4(polygonPos[0].x, polygonPos[0].y, polygonPos[0].z, renderLight.m_nAreaShape));
+					areaLightParams.SetRow4(1, Vec4(polygonPos[1].x, polygonPos[1].y, polygonPos[1].z, renderLight.m_bAreaTwoSided));
+					areaLightParams.SetRow4(2, Vec4(polygonPos[2].x, polygonPos[2].y, polygonPos[2].z, renderLight.m_bAreaTextured));
+					areaLightParams.SetRow4(3, Vec4(polygonPos[3].x, polygonPos[3].y, polygonPos[3].z, 0));
+
+					lightShadeInfo.resIndex = lightShadeInfo.resNoIndex;
+					{
+						CTexture* pAreaTexture = (CTexture*)renderLight.m_pLightImage;
+
+						int arrayIndex = tiledLights->InsertTexture(pAreaTexture, mipFactor, tiledLights->m_spotTexAtlas, -1);
+						if (arrayIndex < 0)
+							continue;  // Skip light
+
+						lightShadeInfo.resIndex = arrayIndex;
+						lightShadeInfo.resMipClamp0 = lightShadeInfo.resMipClamp1 = tiledLights->m_spotTexAtlas.items[arrayIndex].lowestRenderableMip;
+					}
 
 					lightShadeInfo.projectorMatrix = areaLightParams;
 				}
@@ -1542,7 +1512,7 @@ void CVolumetricFogStage::ExecuteBuildLightListGrid(const SScopedComputeCommandL
 	const Vec4 vParamScreenSize(fScreenWidth, fScreenHeight, 1.0f / fScreenWidth, 1.0f / fScreenHeight);
 	pass.SetConstant(paramScreenSize, vParamScreenSize);
 
-	SD3DPostEffectsUtils::UpdateFrustumCorners();
+	SD3DPostEffectsUtils::UpdateFrustumCorners(m_graphicsPipeline);
 	static CCryNameR paramFrustumTL("FrustumTL");
 	const Vec4 vParamFrustumTL(SD3DPostEffectsUtils::m_vLT.x, SD3DPostEffectsUtils::m_vLT.y, SD3DPostEffectsUtils::m_vLT.z, 0);
 	pass.SetConstant(paramFrustumTL, vParamFrustumTL);
@@ -1581,15 +1551,12 @@ void CVolumetricFogStage::ExecuteDownscaledDepth(const SScopedComputeCommandList
 {
 	//PROFILE_LABEL_SCOPE("DOWNSCALE_DEPTH");
 
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
 	CShader* pShader = CShaderMan::s_shDeferredShading;
 
 	{
 		const int32 nScreenWidth = m_pMaxDepthTemp->GetWidth();
 		const int32 nScreenHeight = m_pMaxDepthTemp->GetHeight();
-		const int32 nSrcTexWidth = CRendererResources::s_ptexLinearDepthScaled[0]->GetWidth();
-		const int32 nSrcTexHeight = CRendererResources::s_ptexLinearDepthScaled[0]->GetHeight();
+		const int32 nSrcTexWidth = m_graphicsPipelineResources.m_pTexLinearDepthScaled[0]->GetWidth();
 
 		auto& pass = m_passDownscaleDepthHorizontal;
 
@@ -1600,7 +1567,7 @@ void CVolumetricFogStage::ExecuteDownscaledDepth(const SScopedComputeCommandList
 
 			pass.SetOutputUAV(0, m_pMaxDepthTemp);
 
-			pass.SetTexture(0, CRendererResources::s_ptexLinearDepthScaled[0]);
+			pass.SetTexture(0, m_graphicsPipelineResources.m_pTexLinearDepthScaled[0]);
 
 			pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 		}
@@ -1632,7 +1599,6 @@ void CVolumetricFogStage::ExecuteDownscaledDepth(const SScopedComputeCommandList
 		const int32 nScreenWidth = m_pMaxDepth->GetWidth();
 		const int32 nScreenHeight = m_pMaxDepth->GetHeight();
 		const int32 nSrcTexWidth = m_pMaxDepthTemp->GetWidth();
-		const int32 nSrcTexHeight = m_pMaxDepthTemp->GetHeight();
 
 		auto& pass = m_passDownscaleDepthVertical;
 
@@ -1677,7 +1643,7 @@ void CVolumetricFogStage::GenerateFogVolumeList()
 	const CRenderView* pRenderView = RenderView();
 	CRY_ASSERT(pRenderView);
 
-	const auto &viewInfo = GetCurrentViewInfo();
+	const auto& viewInfo = GetCurrentViewInfo();
 
 	// Prepare view matrix with flipped z-axis
 	Matrix44A matView = viewInfo.viewMatrix;
@@ -1690,7 +1656,6 @@ void CVolumetricFogStage::GenerateFogVolumeList()
 	gEnv->p3DEngine->GetGlobalParameter(E3DPARAM_VOLFOG2_CTRL_PARAMS, volumetricFogRaymarchEnd);
 
 	const Vec3 cameraFront = viewInfo.cameraVZ.GetNormalized();
-	const Vec3 worldViewPos = viewInfo.cameraOrigin;
 	const AABB aabbInObj(1.0f);
 
 	// NOTE: Get aligned stack-space (pointer and size aligned to manager's alignment requirement)
@@ -1802,13 +1767,9 @@ void CVolumetricFogStage::GenerateFogVolumeList()
 
 void CVolumetricFogStage::ExecuteInjectFogDensity(const SScopedComputeCommandList& commandList)
 {
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
-	auto* clipVolumes = GetStdGraphicsPipeline().GetClipVolumesStage();
+	auto* pClipVolumes = m_graphicsPipeline.GetStage<CClipVolumesStage>();
 
 	const auto& projMat = GetCurrentViewInfo().projMatrix;
-
-	const auto* pClipVolumes = rd->GetGraphicsPipeline().GetClipVolumesStage();
 	auto* pClipVolumeStencilTex = pClipVolumes->GetClipVolumeStencilVolumeTexture();
 
 	const float numFogVolumes = static_cast<float>(m_numFogVolumes);
@@ -1837,9 +1798,9 @@ void CVolumetricFogStage::ExecuteInjectFogDensity(const SScopedComputeCommandLis
 
 		pass.SetSampler(0, EDefaultSamplerStates::BilinearWrap);
 
-		pass.SetBuffer(23, clipVolumes->GetClipVolumeInfoBuffer());
+		pass.SetBuffer(23, pClipVolumes->GetClipVolumeInfoBuffer());
 
-		pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, gcpRendD3D->GetGraphicsPipeline().GetMainViewConstantBuffer());
+		pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, m_graphicsPipeline.GetMainViewConstantBuffer());
 	}
 
 	pass.BeginConstantUpdate();
@@ -1850,7 +1811,7 @@ void CVolumetricFogStage::ExecuteInjectFogDensity(const SScopedComputeCommandLis
 	const Vec4 vParamScreenSize(fScreenWidth, fScreenHeight, 1.0f / fScreenWidth, 1.0f / fScreenHeight);
 	pass.SetConstant(paramScreenSize, vParamScreenSize);
 
-	SD3DPostEffectsUtils::UpdateFrustumCorners();
+	SD3DPostEffectsUtils::UpdateFrustumCorners(m_graphicsPipeline);
 	static CCryNameR paramFrustumTL("FrustumTL");
 	const Vec4 vParamFrustumTL(SD3DPostEffectsUtils::m_vLT.x, SD3DPostEffectsUtils::m_vLT.y, SD3DPostEffectsUtils::m_vLT.z, 0);
 	pass.SetConstant(paramFrustumTL, vParamFrustumTL);
@@ -1891,8 +1852,6 @@ bool CVolumetricFogStage::ReplaceShadowMapWithStaticShadowMap(CShadowUtils::SSha
 		return false;
 	}
 
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
 	const int32 nSunFrustumID = 0;
 	auto& SMFrustums = pRenderView->GetShadowFrustumsForLight(nSunFrustumID);
 
@@ -1904,7 +1863,7 @@ bool CVolumetricFogStage::ReplaceShadowMapWithStaticShadowMap(CShadowUtils::SSha
 		    && pFrustumToRender->pFrustum->pDepthTex
 		    && pFrustumToRender->pFrustum->pDepthTex != CRendererResources::s_ptexFarPlane)
 		{
-			//CShadowUtils::SShadowsSetupInfo shadowsSetup = rd->ConfigShadowTexgen(pRenderView, pFrustumToRender->pFrustum, -1, true);
+			//CShadowUtils::SShadowsSetupInfo shadowsSetup = gcpRendD3D->ConfigShadowTexgen(pRenderView, pFrustumToRender->pFrustum, -1, true);
 			shadowCascades.pShadowMap[shadowCascadeSlot] = pFrustumToRender->pFrustum->pDepthTex;
 
 			return true;
@@ -1922,11 +1881,10 @@ void CVolumetricFogStage::ExecuteInjectInscatteringLight(const SScopedComputeCom
 	// calculate fog density and accumulate in-scattering lighting along view ray.
 	//PROFILE_LABEL_SCOPE("INJECT_VOLUMETRIC_FOG_INSCATTERING");
 
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
-	auto* tiledLights = GetStdGraphicsPipeline().GetTiledLightVolumesStage();
-	auto* clipVolumes = rd->GetGraphicsPipeline().GetClipVolumesStage();
+	auto* tiledLights = m_graphicsPipeline.GetStage<CTiledLightVolumesStage>();
+	auto* clipVolumes = m_graphicsPipeline.GetStage<CClipVolumesStage>();
 	auto* pClipVolumeStencilTex = clipVolumes->GetClipVolumeStencilVolumeTexture();
+	auto* pShadowMapStage = m_graphicsPipeline.GetStage<CShadowMapStage>();
 
 	const uint32 nScreenWidth = m_pInscatteringVolume->GetWidth();
 	const uint32 nScreenHeight = m_pInscatteringVolume->GetHeight();
@@ -1968,12 +1926,6 @@ void CVolumetricFogStage::ExecuteInjectInscatteringLight(const SScopedComputeCom
 		break;
 	default:
 		break;
-	}
-
-	// set area light support.
-	if (CRendererCVars::CV_r_DeferredShadingAreaLights > 0)
-	{
-		rtMask |= g_HWSR_MaskBit[HWSR_SAMPLE2];
 	}
 
 	// set texture format toggle
@@ -2023,7 +1975,8 @@ void CVolumetricFogStage::ExecuteInjectInscatteringLight(const SScopedComputeCom
 	inputFlag |= bSunShadow ? BIT(0) : 0;
 	inputFlag |= bStaticShadowMap ? BIT(1) : 0;
 
-	if (pass.IsDirty(inputFlag, rtMask))
+	int spotLightAtlasID = tiledLights->GetProjectedLightAtlas()->GetID();
+	if (pass.IsDirty(inputFlag, rtMask, spotLightAtlasID))
 	{
 		static CCryNameTSCRC techName("InjectVolumetricInscattering");
 		pass.SetTechnique(pShader, techName, rtMask);
@@ -2032,8 +1985,9 @@ void CVolumetricFogStage::ExecuteInjectInscatteringLight(const SScopedComputeCom
 
 		CShadowUtils::SetShadowSamplingContextToRenderPass(pass, 0, -1, -1, 1, -1);
 
-		pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, gcpRendD3D->GetGraphicsPipeline().GetMainViewConstantBuffer());
+		pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, m_graphicsPipeline.GetMainViewConstantBuffer());
 		pass.SetSampler(3, EDefaultSamplerStates::TrilinearClamp);
+		pass.SetSampler(15, EDefaultSamplerStates::TrilinearClamp);
 
 		if (!m_seperateDensity)
 		{
@@ -2059,7 +2013,7 @@ void CVolumetricFogStage::ExecuteInjectInscatteringLight(const SScopedComputeCom
 
 		pass.SetTexture(18, tiledLights->GetDiffuseProbeAtlas());
 		pass.SetTexture(19, tiledLights->GetProjectedLightAtlas());
-		pass.SetTexture(20, CRendererResources::s_ptexRT_ShadowPool);
+		pass.SetTexture(20, pShadowMapStage->m_pTexRT_ShadowPool);
 		pass.SetBuffer(23, clipVolumes->GetClipVolumeInfoBuffer());
 	}
 
@@ -2073,7 +2027,7 @@ void CVolumetricFogStage::ExecuteInjectInscatteringLight(const SScopedComputeCom
 	const Vec4 vParamScreenSize(fScreenWidth, fScreenHeight, 1.0f / fScreenWidth, 1.0f / fScreenHeight);
 	pass.SetConstant(paramScreenSize, vParamScreenSize);
 
-	SD3DPostEffectsUtils::UpdateFrustumCorners();
+	SD3DPostEffectsUtils::UpdateFrustumCorners(m_graphicsPipeline);
 	static CCryNameR paramFrustumTL("FrustumTL");
 	const Vec4 vParamFrustumTL(SD3DPostEffectsUtils::m_vLT.x, SD3DPostEffectsUtils::m_vLT.y, SD3DPostEffectsUtils::m_vLT.z, 0);
 	pass.SetConstant(paramFrustumTL, vParamFrustumTL);
@@ -2401,7 +2355,7 @@ void CVolumetricFogStage::ExecuteTemporalReprojection(const SScopedComputeComman
 
 			pass.SetSampler(0, EDefaultSamplerStates::TrilinearClamp);
 
-			pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, gcpRendD3D->GetGraphicsPipeline().GetMainViewConstantBuffer());
+			pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, m_graphicsPipeline.GetMainViewConstantBuffer());
 		}
 
 		pass.BeginConstantUpdate();
@@ -2412,7 +2366,7 @@ void CVolumetricFogStage::ExecuteTemporalReprojection(const SScopedComputeComman
 		const Vec4 vParamScreenSize(fScreenWidth, fScreenHeight, 1.0f / fScreenWidth, 1.0f / fScreenHeight);
 		pass.SetConstant(paramScreenSize, vParamScreenSize);
 
-		SD3DPostEffectsUtils::UpdateFrustumCorners();
+		SD3DPostEffectsUtils::UpdateFrustumCorners(m_graphicsPipeline);
 		static CCryNameR paramFrustumTL("FrustumTL");
 		const Vec4 vParamFrustumTL(SD3DPostEffectsUtils::m_vLT.x, SD3DPostEffectsUtils::m_vLT.y, SD3DPostEffectsUtils::m_vLT.z, 0);
 		pass.SetConstant(paramFrustumTL, vParamFrustumTL);
@@ -2472,8 +2426,8 @@ void CVolumetricFogStage::ExecuteRaymarchVolumetricFog(const SScopedComputeComma
 
 		pass.SetOutputUAV(0, CRendererResources::s_ptexVolumetricFog);
 
-		pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, gcpRendD3D->GetGraphicsPipeline().GetMainViewConstantBuffer());
-		
+		pass.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, m_graphicsPipeline.GetMainViewConstantBuffer());
+
 		pass.SetTexture(0, GetInscatterTex());
 		if (m_seperateDensity)
 			pass.SetTexture(1, GetDensityTex());
@@ -2487,7 +2441,7 @@ void CVolumetricFogStage::ExecuteRaymarchVolumetricFog(const SScopedComputeComma
 	const Vec4 vParamScreenSize(fScreenWidth, fScreenHeight, 1.0f / fScreenWidth, 1.0f / fScreenHeight);
 	pass.SetConstant(paramScreenSize, vParamScreenSize);
 
-	SD3DPostEffectsUtils::UpdateFrustumCorners();
+	SD3DPostEffectsUtils::UpdateFrustumCorners(m_graphicsPipeline);
 	static CCryNameR paramFrustumTL("FrustumTL");
 	const Vec4 vParamFrustumTL(SD3DPostEffectsUtils::m_vLT.x, SD3DPostEffectsUtils::m_vLT.y, SD3DPostEffectsUtils::m_vLT.z, 0);
 	pass.SetConstant(paramFrustumTL, vParamFrustumTL);

@@ -1,0 +1,33 @@
+{
+    "toolBar": [
+        {
+            "command": "level_explorer.show_full_hierarchy",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "show_full_hierarchy",
+            "type": 0
+        },
+        {
+            "command": "level_explorer.show_layers",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "show_layers",
+            "type": 0
+        },
+        {
+            "command": "level_explorer.show_all_objects",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "show_all_objects",
+            "type": 0
+        },
+        {
+            "command": "level_explorer.show_active_layer_contents",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "show_active_layer_contents",
+            "type": 0
+        }
+    ],
+    "version": 2
+}

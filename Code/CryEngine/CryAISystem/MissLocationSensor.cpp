@@ -95,8 +95,8 @@ void CMissLocationSensor::Collect(int types)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	const float boxHalfSize = gAIEnv.CVars.CoolMissesBoxSize * 0.5f;
-	const float boxHeight = gAIEnv.CVars.CoolMissesBoxHeight;
+	const float boxHalfSize = gAIEnv.CVars.legacyFiring.CoolMissesBoxSize * 0.5f;
+	const float boxHeight = gAIEnv.CVars.legacyFiring.CoolMissesBoxHeight;
 
 	const Vec3& feet = m_owner->GetPhysicsPos();
 	const Vec3& dir = m_owner->GetViewDir();
@@ -140,7 +140,7 @@ bool CMissLocationSensor::Filter(float timeLimit)
 	CTimeValue start = now;
 	CTimeValue endTime = now + CTimeValue(timeLimit);
 
-	float MaxMass = gAIEnv.CVars.CoolMissesMaxLightweightEntityMass;
+	float MaxMass = gAIEnv.CVars.legacyFiring.CoolMissesMaxLightweightEntityMass;
 
 	pe_params_part pp;
 	pe_status_dynamics dyn;
@@ -432,7 +432,7 @@ bool CMissLocationSensor::GetLocation(CAIObject* target, const Vec3& shootPos, c
 	const MissLocation& location = m_goodies[cry_random((size_t)0, goodiesCount - 1)];
 
 #ifdef CRYAISYSTEM_DEBUG
-	if (gAIEnv.CVars.DebugDrawCoolMisses)
+	if (gAIEnv.CVars.legacyDebugDraw.DebugDrawCoolMisses)
 	{
 		GetAISystem()->AddDebugCone(location.position + Vec3(0.0f, 0.0f, 0.75f), Vec3(0.0f, 0.0f, -1.0f), 0.225f, 0.35f,
 		                            Col_Green, 0.5f);
@@ -447,7 +447,7 @@ bool CMissLocationSensor::GetLocation(CAIObject* target, const Vec3& shootPos, c
 void CMissLocationSensor::DebugDraw()
 {
 #ifdef CRYAISYSTEM_DEBUG
-	if (gAIEnv.CVars.DebugDrawCoolMisses)
+	if (gAIEnv.CVars.legacyDebugDraw.DebugDrawCoolMisses)
 	{
 		CDebugDrawContext dc;
 

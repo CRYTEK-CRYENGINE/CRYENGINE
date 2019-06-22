@@ -1,8 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _WATERVOLUME_RENDERNODE_
-#define _WATERVOLUME_RENDERNODE_
-
 #pragma once
 
 #include <CryRenderer/VertexFormats.h>
@@ -92,6 +89,7 @@ public:
 	virtual void             SetCausticIntensity(float causticIntensity) override;
 	virtual void             SetCausticTiling(float causticTiling) override;
 	virtual void             SetCausticHeight(float causticHeight) override;
+	virtual void             SetPhysParams(float density, float resistance) override { m_density = density; m_resistance = resistance; }
 	virtual void             SetAuxPhysParams(pe_params_area* pa) override { m_auxPhysParams = *pa; if (m_pPhysArea) m_pPhysArea->SetParams(pa); }
 
 	virtual void             CreateOcean(uint64 volumeID, /* TBD */ bool keepSerializationParams = false) override;
@@ -153,7 +151,7 @@ public:
 	float*                       GetAuxSerializationDataPtr(int& count)
 	{
 		// TODO: 'pe_params_area' members between 'volume' and 'growthReserve' are not float only - a member (bConvexBorder) has int type, this should be investigated.
-		count = (offsetof(pe_params_area, growthReserve) - offsetof(pe_params_area, volume)) / sizeof(float) + 1;
+		count = (int)((&m_resistance + 1) - &m_auxPhysParams.volume);
 		return &m_auxPhysParams.volume;
 	}
 
@@ -226,6 +224,6 @@ private:
 	float                      m_causticShadow;
 	float                      m_causticHeight;
 	pe_params_area             m_auxPhysParams;
+	float                      m_density = 1000;
+	float                      m_resistance = 1000;
 };
-
-#endif // #ifndef _DECAL_RENDERNODE_

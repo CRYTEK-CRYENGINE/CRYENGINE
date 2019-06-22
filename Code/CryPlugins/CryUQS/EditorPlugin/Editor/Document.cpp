@@ -7,7 +7,7 @@
 #include <CrySerialization/IArchive.h>
 #include <CrySerialization/CryStrings.h>
 #include <CrySerialization/StringList.h>
-#include <Serialization/PropertyTree/PropertyTree.h>
+#include <Serialization/PropertyTreeLegacy/PropertyTreeLegacy.h>
 
 #include "Blueprints.h"
 #include "EditorContext.h"
@@ -202,7 +202,7 @@ void CUqsQueryDocument::Serialize(Serialization::IArchive& archive)
 	}
 }
 
-void CUqsQueryDocument::AttachToTree(PropertyTree* pTree)
+void CUqsQueryDocument::AttachToTree(PropertyTreeLegacy* pTree)
 {
 	if (m_pTree != pTree)
 	{

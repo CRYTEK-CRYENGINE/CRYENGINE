@@ -22,6 +22,8 @@ History:
 #include "Player.h"
 #include "Announcer.h"
 
+#include <CrySystem/ConsoleRegistration.h>
+
 
 #define ANNOUNCEMENT_NOT_PLAYING_TIME -1.0f
 

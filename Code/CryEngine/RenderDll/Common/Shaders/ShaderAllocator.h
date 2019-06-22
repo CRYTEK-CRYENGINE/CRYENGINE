@@ -46,7 +46,7 @@ public:
 
 	pointer allocate(size_type n = 1, const void* hint = 0)
 	{
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_STL);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::STL);
 
 		pointer ret = NULL;
 
@@ -68,7 +68,7 @@ public:
 
 	void deallocate(pointer p, size_type n = 1)
 	{
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_STL);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::STL);
 
 		(void)n;
 		if (p)

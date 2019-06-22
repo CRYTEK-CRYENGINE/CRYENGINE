@@ -4,7 +4,7 @@
 #include "GizmoSink.h"
 #include <QObject>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 #include <CrySerialization/Forward.h>
 
 namespace CharacterTool
@@ -23,7 +23,7 @@ class CharacterGizmoManager : public QObject
 public:
 	typedef vector<const void*> SelectionHandles;
 	CharacterGizmoManager(System* system);
-	QPropertyTree*          Tree(GizmoLayer layer);
+	QPropertyTreeLegacy*          Tree(GizmoLayer layer);
 
 	void                    SetSubselection(GizmoLayer layer, const SelectionHandles& handles);
 	const SelectionHandles& Subselection(GizmoLayer layer) const;
@@ -44,7 +44,7 @@ private slots:
 	void OnSceneChanged();
 
 private:
-	vector<unique_ptr<QPropertyTree>>       m_trees;
+	vector<unique_ptr<QPropertyTreeLegacy>>       m_trees;
 	unique_ptr<Serialization::CContextList> m_contextList;
 	vector<SelectionHandles>                m_subselections;
 	ExplorerEntry*                          m_attachedAnimationEntry;

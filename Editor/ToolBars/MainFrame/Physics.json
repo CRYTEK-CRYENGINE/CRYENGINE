@@ -2,21 +2,21 @@
     "toolBar": [
         {
             "command": "physics.reset_state_selection",
-            "iconPath": "icons:General/Reset_Physics.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "reset_state_selection",
             "type": 0
         },
         {
             "command": "physics.get_state_selection",
-            "iconPath": "icons:General/Get_Physics.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "get_state_selection",
             "type": 0
         },
         {
             "command": "physics.simulate_objects",
-            "iconPath": "icons:General/Simulate_Physics.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "simulate_objects",
             "type": 0

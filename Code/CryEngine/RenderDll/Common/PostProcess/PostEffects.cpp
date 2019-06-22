@@ -12,6 +12,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include "PostEffects.h"
 #include "PostProcessUtils.h"
+#include "GraphicsPipeline/PostEffects.h"
 
 #include <DriverD3D.h>
 
@@ -289,8 +290,6 @@ bool CUnderwaterGodRays::Preprocess(const SRenderViewInfo& viewInfo)
 	bool bQualityCheck = CPostEffectsMgr::CheckPostProcessQuality(eRQ_Medium, eSQ_Medium);
 	if (!bQualityCheck)
 		return false;
-
-	static ICVar* pVar = iConsole->GetCVar("e_WaterOcean");
 
 	//bool bOceanVolumeVisible = (gEnv->p3DEngine->GetOceanRenderFlags() & OCR_OCEANVOLUME_VISIBLE) != 0;
 
@@ -615,7 +614,7 @@ bool CHudSilhouettes::Preprocess(const SRenderViewInfo& viewInfo)
 			return false;
 		}
 
-		CRenderView *pRenderView = gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView();
+		CRenderView* pRenderView = m_pCurrentContext->GetRenderView();
 		// no need to proceed
 		float fType = m_pType->GetParam();
 		uint32 nBatchMask = pRenderView->GetBatchFlags(EFSLIST_GENERAL) | pRenderView->GetBatchFlags(EFSLIST_TRANSP_BW) | pRenderView->GetBatchFlags(EFSLIST_TRANSP_AW);
@@ -858,17 +857,6 @@ void CPost3DRenderer::Reset(bool bOnSpecChange)
 	// will get turned off when undesired
 }
 
-bool CPost3DRenderer::HasModelsToRender() const
-{
-	CRenderView* pRenderView = gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView();
-	const uint32 batchMask = 
-		  pRenderView->GetBatchFlags(EFSLIST_GENERAL)
-		| pRenderView->GetBatchFlags(EFSLIST_DECAL)
-		| pRenderView->GetBatchFlags(EFSLIST_TRANSP_BW)
-		| pRenderView->GetBatchFlags(EFSLIST_TRANSP_AW);
-	return (batchMask & FB_POST_3D_RENDER) ? true : false;
-}
-
 //////////////////////////////////////////////////////////////////////////
 void CMotionBlur::SetupObject(CRenderObject* pObj, const SRenderingPassInfo& passInfo)
 {
@@ -892,6 +880,21 @@ void CMotionBlur::SetupObject(CRenderObject* pObj, const SRenderingPassInfo& pas
 	if (pOD->m_pSkinningData && pOD->m_pSkinningData->pAsyncJobs == NULL)
 		return;
 
+	if (pOD->m_pSkinningData)
+	{
+		assert(pOD->m_pSkinningData->pPreviousSkinningRenderData);
+
+		if (pOD->m_pSkinningData->pAsyncJobs)
+		{
+			gEnv->pJobManager->WaitForJob(*pOD->m_pSkinningData->pAsyncJobs);
+		}
+
+		if (pOD->m_pSkinningData->pPreviousSkinningRenderData->pAsyncJobs)
+		{
+			gEnv->pJobManager->WaitForJob(*pOD->m_pSkinningData->pPreviousSkinningRenderData->pAsyncJobs);
+		}
+	}
+
 	if (pOD->m_uniqueObjectId != 0 && pObj->m_fDistance < CRenderer::CV_r_MotionBlurMaxViewDist)
 	{
 		const uint32 nFrameID = passInfo.GetMainFrameID();
@@ -908,7 +911,7 @@ void CMotionBlur::SetupObject(CRenderObject* pObj, const SRenderingPassInfo& pas
 			{
 				SObjMotionBlurParams* pWriteObjMBData = &it->second;
 				SObjMotionBlurParams* pPrevObjMBData = &itPrev->second;
-				pWriteObjMBData->mObjToWorld = pObj->GetMatrix(passInfo);
+				pWriteObjMBData->mObjToWorld = pObj->GetMatrix();
 
 				const float fThreshold = CRenderer::CV_r_MotionBlurThreshold;
 				if (pObj->m_ObjFlags & (FOB_NEAREST | FOB_MOTION_BLUR) || !Matrix34::IsEquivalent(pPrevObjMBData->mObjToWorld, pWriteObjMBData->mObjToWorld, fThreshold))
@@ -921,7 +924,7 @@ void CMotionBlur::SetupObject(CRenderObject* pObj, const SRenderingPassInfo& pas
 			}
 		}
 
-		m_FillData[nThreadID].push_back(OMBParamsMap::value_type(ObjID, SObjMotionBlurParams(pObj, pObj->GetMatrix(passInfo), nFrameID)));
+		m_FillData[nThreadID].push_back(OMBParamsMap::value_type(ObjID, SObjMotionBlurParams(pObj, pObj->GetMatrix(), nFrameID)));
 	}
 }
 //////////////////////////////////////////////////////////////////////////

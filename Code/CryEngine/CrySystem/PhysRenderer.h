@@ -82,7 +82,7 @@ public:
 	virtual void Flush(float dt);
 	// ^^^
 
-	float m_cullDist, m_wireframeDist;
+	float m_cullDist, m_wireframeDist, m_meridianDist;
 	float m_timeRayFadein;
 	float m_rayPeakTime;
 	int   m_maxTris, m_maxTrisRange;

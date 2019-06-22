@@ -179,7 +179,7 @@ COPG4Approach::~COPG4Approach()
 
 void COPG4Approach::Reset(CPipeUser* pOperand)
 {
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPG4Approach::Reset %s", pOperand ? pOperand->GetName() : "");
 
 	delete m_pPathfindDirective;

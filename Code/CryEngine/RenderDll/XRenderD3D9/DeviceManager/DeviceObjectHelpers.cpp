@@ -17,8 +17,9 @@ EShaderStage SDeviceObjectHelpers::GetShaderInstanceInfo(THwShaderInfo& result, 
 		if (pShaderTechnique->m_Passes.empty())
 			return EShaderStage_None;
 
+		CVrProjectionManager* pVRProjectionManager = gcpRendD3D->GetVrProjectionManager();
 		SShaderPass& shaderPass = pShaderTechnique->m_Passes[0];
-		
+
 		// Shader pointers are consecutive
 		CHWShader** pHWShaders = &shaderPass.m_VShader;
 
@@ -44,7 +45,7 @@ EShaderStage SDeviceObjectHelpers::GetShaderInstanceInfo(THwShaderInfo& result, 
 			result[shaderStage].technique = technique;
 
 			// Special case for nvidia multires shading: auto geometry shader requires vertex shader instance
-			if (CVrProjectionManager::IsMultiResEnabledStatic())
+			if (pVRProjectionManager->IsMultiResEnabledStatic())
 			{
 				if (shaderStage == eHWSC_Geometry && pHWShaderD3D)
 				{
@@ -87,7 +88,7 @@ EShaderStage SDeviceObjectHelpers::GetShaderInstanceInfo(THwShaderInfo& result, 
 						isShaderValid = true;
 					}
 				}
-				
+
 				if (!isShaderValid)
 				{
 					return EShaderStage_None;
@@ -139,23 +140,22 @@ void SDeviceObjectHelpers::UpdateBuffer(CConstantBuffer* pBuffer, const void* sr
 	}
 }
 
-SDeviceObjectHelpers::CShaderConstantManager::CShaderConstantManager()
-{
-}
-
 SDeviceObjectHelpers::CShaderConstantManager::CShaderConstantManager(CShaderConstantManager&& other)
 {
 	std::swap(m_constantBuffers, other.m_constantBuffers);
 	std::swap(m_pShaderReflection, other.m_pShaderReflection);
+	m_isConstantUpdateEnabled = other.m_isConstantUpdateEnabled;
 
 	other.m_constantBuffers.clear();
 	other.m_pShaderReflection.reset();
+	other.m_isConstantUpdateEnabled = false;
 }
 
 void SDeviceObjectHelpers::CShaderConstantManager::Reset()
 {
 	m_constantBuffers.clear();
 	m_pShaderReflection.reset();
+	m_isConstantUpdateEnabled = false;
 }
 
 bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CShader* pShader, const CCryNameTSCRC& technique, uint64 rtFlags, EShaderStage shaderStages)
@@ -167,11 +167,11 @@ bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CS
 	{
 		if (!pShaderTechnique->m_Passes.empty())
 		{
-			SShaderPass& shaderPass = pShaderTechnique->m_Passes[0];
-
 			// Shader pointers are consecutive
+#if defined(USE_CRY_ASSERT)
+			SShaderPass& shaderPass = pShaderTechnique->m_Passes[0];
 			CHWShader** pHWShaders = &shaderPass.m_VShader;
-			
+
 			// Compile time evaluable, should produce no code
 			CRY_ASSERT(eHWSC_Vertex   == (&shaderPass.m_VShader - &shaderPass.m_VShader));
 			CRY_ASSERT(eHWSC_Pixel    == (&shaderPass.m_PShader - &shaderPass.m_VShader));
@@ -179,6 +179,7 @@ bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CS
 			CRY_ASSERT(eHWSC_Domain   == (&shaderPass.m_DShader - &shaderPass.m_VShader));
 			CRY_ASSERT(eHWSC_Hull     == (&shaderPass.m_HShader - &shaderPass.m_VShader));
 			CRY_ASSERT(eHWSC_Compute  == (&shaderPass.m_CShader - &shaderPass.m_VShader));
+#endif
 
 			// Shader stages are ordered by usage-frequency and loop exists according to usage-frequency (VS+PS fast, etc.)
 			int validShaderStages = shaderStages;
@@ -189,7 +190,7 @@ bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CS
 					CRY_ASSERT(pHWShaders[shaderClass]);
 					CRY_ASSERT_MESSAGE(m_pShaderReflection->bufferCount < MaxReflectedBuffers, "Maximum reflected buffer count exceeded. Feel free to increase if necessary");
 
-				#ifndef RELEASE
+#ifndef RELEASE
 					// check for overlap with another CB
 					for (auto& cb : m_constantBuffers)
 					{
@@ -199,8 +200,8 @@ bool SDeviceObjectHelpers::CShaderConstantManager::AllocateShaderReflection(::CS
 							                          "to 'ReflectedBufferShaderSlot' when shader reflection is used.");
 						}
 					}
-				#endif
-					
+#endif
+
 					SConstantBufferBindInfo bindInfo;
 					bindInfo.shaderSlot = ReflectedBufferShaderSlot;
 					bindInfo.shaderStages = SHADERSTAGE_FROM_SHADERCLASS(shaderClass);
@@ -241,7 +242,7 @@ void SDeviceObjectHelpers::CShaderConstantManager::InitShaderReflection(CDeviceG
 		auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
 		CRY_ASSERT(updateContext.bufferIndex >= 0);
 		CRY_ASSERT(pipelineState.m_pHwShaderInstances[updateContext.shaderClass]);
-		
+
 		CHWShader_D3D::SHWSInstance* pInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(pipelineState.m_pHwShaderInstances[updateContext.shaderClass]);
 		CRY_ASSERT(pInstance->m_nMaxVecs[eConstantBufferShaderSlot_PerDraw] > 0);           // No per batch shader constants. Shader reflection not required.
 
@@ -362,42 +363,48 @@ void SDeviceObjectHelpers::CShaderConstantManager::BeginNamedConstantUpdate()
 	CRY_ASSERT_MESSAGE(m_pShaderReflection, "Shader reflection not initialized. If you get this on a CRenderPrimitive, please make sure the primitive " \
 	                                        "has eFlags_ReflectShaderConstants and CRenderPrimitive::Compile() has been executed successfully");
 
-	for (int i = 0, end = m_pShaderReflection->bufferCount; i < end; ++i)
+	if (m_isConstantUpdateEnabled)
 	{
-		auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
-		const SConstantBufferBindInfo& cb = m_constantBuffers[updateContext.bufferIndex];
-
-		if (!cb.pBuffer->IsNullBuffer())
+		for (int i = 0, end = m_pShaderReflection->bufferCount; i < end; ++i)
 		{
-			CRY_ASSERT(updateContext.pMappedData == nullptr);
-			updateContext.pMappedData = (Vec4*)cb.pBuffer->BeginWrite();
+			auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
+			const SConstantBufferBindInfo& cb = m_constantBuffers[updateContext.bufferIndex];
+
+			if (!cb.pBuffer->IsNullBuffer())
+			{
+				CRY_ASSERT(updateContext.pMappedData == nullptr);
+				updateContext.pMappedData = (Vec4*)cb.pBuffer->BeginWrite();
+			}
 		}
 	}
 }
 
-void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate(const D3DViewPort* pVP)
+void SDeviceObjectHelpers::CShaderConstantManager::EndNamedConstantUpdate(const D3DViewPort* pVP, CRenderView* pRenderView)
 {
 	CRY_ASSERT(m_pShaderReflection);
 
-	for (int i = 0, end = m_pShaderReflection->bufferCount; i < end; ++i)
+	if (m_isConstantUpdateEnabled)
 	{
-		auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
-		const SConstantBufferBindInfo& cb = m_constantBuffers[updateContext.bufferIndex];
-
-		if (!cb.pBuffer->IsNullBuffer())
+		for (int i = 0, end = m_pShaderReflection->bufferCount; i < end; ++i)
 		{
-			CRY_ASSERT(updateContext.pMappedData != nullptr);
-			auto pShaderInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(updateContext.pShaderInstance);
+			auto& updateContext = m_pShaderReflection->bufferUpdateContexts[i];
+			const SConstantBufferBindInfo& cb = m_constantBuffers[updateContext.bufferIndex];
 
-			// update generic per batch constants
-			if (pShaderInstance->m_nParams[0] >= 0)
+			if (!cb.pBuffer->IsNullBuffer())
 			{
-				SCGParamsGroup& Group = CGParamManager::s_Groups[pShaderInstance->m_nParams[0]];
-				CHWShader_D3D::mfSetParameters(Group.pParams, Group.nParams, eHWSC_Num, -1, (Vec4*)updateContext.pMappedData, cb.pBuffer->m_size, pVP);
-			}
+				CRY_ASSERT(updateContext.pMappedData != nullptr);
+				auto pShaderInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(updateContext.pShaderInstance);
 
-			cb.pBuffer->EndWrite();
-			updateContext.pMappedData = nullptr;
+				// update generic per batch constants
+				if (pShaderInstance->m_nParams[0] >= 0)
+				{
+					SCGParamsGroup& Group = CGParamManager::s_Groups[pShaderInstance->m_nParams[0]];
+					CHWShader_D3D::mfSetParameters(Group.pParams, Group.nParams, eHWSC_Num, -1, (Vec4*)updateContext.pMappedData, cb.pBuffer->m_size, pVP, pRenderView);
+				}
+
+				cb.pBuffer->EndWrite();
+				updateContext.pMappedData = nullptr;
+			}
 		}
 	}
 }
@@ -437,25 +444,26 @@ bool SDeviceObjectHelpers::CShaderConstantManager::SetNamedConstant(const CCryNa
 bool SDeviceObjectHelpers::CShaderConstantManager::SetNamedConstantArray(const CCryNameR& paramName, const Vec4 params[], uint32 numParams, EHWShaderClass shaderClass)
 {
 	CRY_ASSERT_MESSAGE(m_pShaderReflection, "Flag eFlags_ReflectConstantBuffersFromShader might be required for pass");
-	if (!m_pShaderReflection->bValid)
-		return false;
 
-	static_assert(MaxReflectedBuffers == 2, "Fixme: the following statement works for MaxReflectedBuffers==2");
-
-	auto& updateContext = m_pShaderReflection->bufferUpdateContexts[0].shaderClass == shaderClass 
-		? m_pShaderReflection->bufferUpdateContexts[0] 
-		: m_pShaderReflection->bufferUpdateContexts[1];
-
-	CRY_ASSERT(updateContext.pMappedData != nullptr);
-
-	if (auto pShaderInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(updateContext.pShaderInstance))
+	if (m_pShaderReflection->bValid && m_isConstantUpdateEnabled)
 	{
-		for (auto& bindVar : pShaderInstance->m_pBindVars)
+		static_assert(MaxReflectedBuffers == 2, "Fixme: the following statement works for MaxReflectedBuffers==2");
+
+		auto& updateContext = m_pShaderReflection->bufferUpdateContexts[0].shaderClass == shaderClass
+			? m_pShaderReflection->bufferUpdateContexts[0]
+			: m_pShaderReflection->bufferUpdateContexts[1];
+
+		CRY_ASSERT(updateContext.pMappedData != nullptr);
+
+		if (auto pShaderInstance = reinterpret_cast<CHWShader_D3D::SHWSInstance*>(updateContext.pShaderInstance))
 		{
-			if (paramName == bindVar.m_Name)
+			for (auto& bindVar : pShaderInstance->m_pBindVars)
 			{
-				memcpy(&updateContext.pMappedData[bindVar.m_dwBind], params, numParams * sizeof(Vec4));
-				return true;
+				if (paramName == bindVar.m_Name)
+				{
+					memcpy(&updateContext.pMappedData[bindVar.m_dwBind], params, numParams * sizeof(Vec4));
+					return true;
+				}
 			}
 		}
 	}

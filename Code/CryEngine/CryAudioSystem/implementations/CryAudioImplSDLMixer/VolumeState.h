@@ -23,7 +23,7 @@ public:
 	CVolumeState& operator=(CVolumeState const&) = delete;
 	CVolumeState& operator=(CVolumeState&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	explicit CVolumeState(
 		SampleId const sampleId,
 		float const value,
@@ -39,7 +39,7 @@ public:
 		: m_sampleId(sampleId)
 		, m_value(value)
 	{}
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 	virtual ~CVolumeState() override = default;
 
@@ -53,9 +53,9 @@ private:
 	SampleId const m_sampleId;
 	float const    m_value;
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 };
 } // namespace SDL_mixer
 } // namespace Impl

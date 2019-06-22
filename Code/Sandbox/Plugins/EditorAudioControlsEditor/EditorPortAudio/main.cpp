@@ -10,7 +10,7 @@
 ACE::Impl::PortAudio::CImpl* g_pPortAudioInterface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API ACE::Impl::IImpl * GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::Impl::IImpl* GetAudioInterface(ISystem * const pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorPortAudio");
 
@@ -29,15 +29,25 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-		g_hInstance = hinstDLL;
-		break;
-	case DLL_PROCESS_DETACH:
-		if (g_pPortAudioInterface != nullptr)
 		{
-			delete g_pPortAudioInterface;
-			g_pPortAudioInterface = nullptr;
+			g_hInstance = hinstDLL;
+			break;
 		}
-		break;
+	case DLL_PROCESS_DETACH:
+		{
+			if (g_pPortAudioInterface != nullptr)
+			{
+				delete g_pPortAudioInterface;
+				g_pPortAudioInterface = nullptr;
+			}
+
+			break;
+		}
+	default:
+		{
+			break;
+		}
 	}
+
 	return TRUE;
 }

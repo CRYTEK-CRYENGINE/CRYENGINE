@@ -33,6 +33,8 @@ uint32 CAttachmentSKIN::Immediate_AddBinding( IAttachmentObject* pIAttachmentObj
 	if (pISkin==0)
 		CryFatalError("CryAnimation: if you create the binding for a Skin-Attachment, then you have to pass the pointer to an ISkin as well");
 
+	assert(pIAttachmentObject->GetAttachmentType() == IAttachmentObject::eAttachment_SkinMesh);
+
 	uint32 nLogWarnings = (nLoadingFlags&CA_DisableLogWarnings)==0;
 	CSkin* pCSkinModel = (CSkin*)pISkin;
 
@@ -126,7 +128,10 @@ uint32 CAttachmentSKIN::Immediate_AddBinding( IAttachmentObject* pIAttachmentObj
 	}
 	
 	SAFE_RELEASE(m_pIAttachmentObject);
-	m_pIAttachmentObject=pIAttachmentObject;
+	m_pIAttachmentObject = pIAttachmentObject;
+
+	static_cast<CSKINAttachment*>(m_pIAttachmentObject)->m_pIAttachmentSkin = this;
+
 	return 1; 
 }
 
@@ -134,6 +139,7 @@ void CAttachmentSKIN::Immediate_ClearBinding(uint32 nLoadingFlags)
 {
 	if (m_pIAttachmentObject)
 	{
+		assert(static_cast<CSKINAttachment*>(m_pIAttachmentObject)->m_pIAttachmentSkin == this);
 		m_pIAttachmentObject->Release();
 		m_pIAttachmentObject = 0;
 		ReleaseModelSkin();
@@ -414,8 +420,6 @@ _smart_ptr<IRenderMesh> CAttachmentSKIN::CreateVertexAnimationRenderMesh(uint lo
 		, m_sSoftwareMeshName.c_str()
 		, eRMT_Transient);
 
-	m_pRenderMeshsSW[id]->SetMeshLod(lod);
-
 	TRenderChunkArray& chunks = pIStaticRenderMesh->GetChunks();
 	TRenderChunkArray  nchunks;
 	nchunks.resize(chunks.size());
@@ -534,7 +538,7 @@ void CAttachmentSKIN::RenderAttachment(SRendParams& RendParams, const SRendering
 
 	pObj->m_fAlpha = RendParams.fAlpha;
 	pObj->m_fDistance =	RendParams.fDistance;
-	pObj->SetAmbientColor(RendParams.AmbientColor, passInfo);
+	pObj->SetAmbientColor(RendParams.AmbientColor);
 
 	uLocalObjFlags |= RendParams.dwFObjFlags;
 
@@ -554,7 +558,7 @@ void CAttachmentSKIN::RenderAttachment(SRendParams& RendParams, const SRendering
 
 	assert(RendParams.pMatrix);
 	Matrix34 RenderMat34 = (*RendParams.pMatrix);
-	pObj->SetMatrix(RenderMat34, passInfo);
+	pObj->SetMatrix(RenderMat34);
 	pObj->m_nClipVolumeStencilRef = RendParams.nClipVolumeStencilRef;
 	pObj->m_nTextureID = RendParams.nTextureID;
 
@@ -783,7 +787,7 @@ void CAttachmentSKIN::RenderAttachment(SRendParams& RendParams, const SRendering
 				}
 			}
 
-			if ((Console::GetInst().ca_DebugSWSkinning > 0) || (pMaster->m_CharEditMode & CA_CharacterTool))
+			if ((Console::GetInst().ca_DebugSWSkinning > 0) || (pMaster->m_CharEditMode & CA_CharacterAuxEditor))
 			{
 				m_vertexAnimation.DrawVertexDebug(pRenderMesh, QuatT(RenderMat34), pVertexAnimation);
 			}
@@ -809,7 +813,7 @@ void CAttachmentSKIN::RenderAttachment(SRendParams& RendParams, const SRendering
 #if EDITOR_PCDEBUGCODE
 		// Draw debug for vertex/compute skinning shaders.
 		// CPU skinning is handled natively by CVertexAnimation::DrawVertexDebug().
-		if (!bUseCPUDeformation && (pMaster->m_CharEditMode & CA_CharacterTool))
+		if (!bUseCPUDeformation && (pMaster->m_CharEditMode & CA_CharacterAuxEditor))
 		{
 			const Console& rConsole = Console::GetInst();
 
@@ -821,7 +825,7 @@ void CAttachmentSKIN::RenderAttachment(SRendParams& RendParams, const SRendering
 			{
 				CModelMesh* pModelMesh = m_pModelSkin->GetModelMesh(nRenderLOD);
 				gEnv->pJobManager->WaitForJob(*pD->m_pSkinningData->pAsyncJobs);
-				SoftwareSkinningDQ_VS_Emulator(pModelMesh, pObj->GetMatrix(passInfo), tang, bitang, norm, wire, pD->m_pSkinningData->pBoneQuatsS);
+				SoftwareSkinningDQ_VS_Emulator(pModelMesh, pObj->GetMatrix(), tang, bitang, norm, wire, pD->m_pSkinningData->pBoneQuatsS);
 			}
 		}
 #endif

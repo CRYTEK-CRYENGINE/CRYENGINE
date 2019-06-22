@@ -97,51 +97,43 @@ void JobManager::CWorkerBackEndProfiler::Update(const uint32 curTimeSample)
 ///////////////////////////////////////////////////////////////////////////////
 void JobManager::CWorkerBackEndProfiler::GetFrameStats(JobManager::CWorkerFrameStats& rStats) const
 {
-	uint8 nTailIndex = (m_nCurBufIndex + 1);
-	nTailIndex = (nTailIndex > (JobManager::detail::eJOB_FRAME_STATS - 1)) ? 0 : nTailIndex;
-
-	// Get worker stats from tail
-	GetWorkerStats(nTailIndex, rStats);
+	// Get info from previous frame
+	uint8 index = m_nCurBufIndex == 0 ? JobManager::detail::eJOB_FRAME_STATS - 1 : m_nCurBufIndex - 1;
+	GetWorkerStats(index, rStats);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void JobManager::CWorkerBackEndProfiler::GetFrameStats(TJobFrameStatsContainer& rJobStats, IWorkerBackEndProfiler::EJobSortOrder jobSortOrder) const
 {
-	uint8 nTailIndex = (m_nCurBufIndex + 1);
-	nTailIndex = (nTailIndex > (JobManager::detail::eJOB_FRAME_STATS - 1)) ? 0 : nTailIndex;
-
-	// Get job info from tail
-	GetJobStats(nTailIndex, rJobStats, jobSortOrder);
+	// Get info from previous frame
+	uint8 index = m_nCurBufIndex == 0 ? JobManager::detail::eJOB_FRAME_STATS - 1 : m_nCurBufIndex - 1;
+	GetJobStats(index, rJobStats, jobSortOrder);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void JobManager::CWorkerBackEndProfiler::GetFrameStats(JobManager::CWorkerFrameStats& rStats, TJobFrameStatsContainer& rJobStats, IWorkerBackEndProfiler::EJobSortOrder jobSortOrder) const
 {
-	uint8 nTailIndex = (m_nCurBufIndex + 1);
-	nTailIndex = (nTailIndex > (JobManager::detail::eJOB_FRAME_STATS - 1)) ? 0 : nTailIndex;
-
-	// Get worker stats from tail
-	GetWorkerStats(nTailIndex, rStats);
-
-	// Get job info from tail
-	GetJobStats(nTailIndex, rJobStats, jobSortOrder);
+	// Get info from previous frame
+	uint8 index = m_nCurBufIndex == 0 ? JobManager::detail::eJOB_FRAME_STATS - 1 : m_nCurBufIndex - 1;
+	GetWorkerStats(index, rStats);
+	GetJobStats(index, rJobStats, jobSortOrder);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void JobManager::CWorkerBackEndProfiler::GetFrameStatsSummary(SWorkerFrameStatsSummary& rStats) const
 {
-	uint8 nTailIndex = (m_nCurBufIndex + 1);
-	nTailIndex = (nTailIndex > (JobManager::detail::eJOB_FRAME_STATS - 1)) ? 0 : nTailIndex;
-
+	// Get info from previous frame
+	uint8 index = m_nCurBufIndex == 0 ? JobManager::detail::eJOB_FRAME_STATS - 1 : m_nCurBufIndex - 1;
+	
 	// Calculate percentage range multiplier for this frame
 	// Take absolute time delta to handle microsecond time sample counter overfilling
-	int32 nSamplePeriod = abs((int)m_WorkerStatsInfo.m_nEndTime[nTailIndex] - (int)m_WorkerStatsInfo.m_nStartTime[nTailIndex]);
+	int32 nSamplePeriod = abs((int)m_WorkerStatsInfo.m_nEndTime[index] - (int)m_WorkerStatsInfo.m_nStartTime[index]);
 	const float nMultiplier = (1.0f / (float)nSamplePeriod) * 100.0f;
 
 	// Accumulate stats
 	uint32 totalExecutionTime = 0;
 	uint32 totalNumJobsExecuted = 0;
-	const JobManager::SWorkerStats* pWorkerStatsOffset = &m_WorkerStatsInfo.m_pWorkerStats[nTailIndex * m_WorkerStatsInfo.m_nNumWorkers];
+	const JobManager::SWorkerStats* pWorkerStatsOffset = &m_WorkerStatsInfo.m_pWorkerStats[index * m_WorkerStatsInfo.m_nNumWorkers];
 
 	for (uint8 i = 0; i < m_WorkerStatsInfo.m_nNumWorkers; ++i)
 	{
@@ -160,10 +152,10 @@ void JobManager::CWorkerBackEndProfiler::GetFrameStatsSummary(SWorkerFrameStatsS
 ///////////////////////////////////////////////////////////////////////////////
 void JobManager::CWorkerBackEndProfiler::GetFrameStatsSummary(SJobFrameStatsSummary& rStats) const
 {
-	uint8 nTailIndex = (m_nCurBufIndex + 1);
-	nTailIndex = (nTailIndex > (JobManager::detail::eJOB_FRAME_STATS - 1)) ? 0 : nTailIndex;
-
-	const JobManager::SJobFrameStats* pJobStatsToCopyFrom = &m_JobStatsInfo.m_pJobStats[nTailIndex * JobManager::detail::eJOB_FRAME_STATS_MAX_SUPP_JOBS];
+	// Get info from previous frame
+	uint8 index = m_nCurBufIndex == 0 ? JobManager::detail::eJOB_FRAME_STATS - 1 : m_nCurBufIndex - 1;
+	
+	const JobManager::SJobFrameStats* pJobStatsToCopyFrom = &m_JobStatsInfo.m_pJobStats[index * JobManager::detail::eJOB_FRAME_STATS_MAX_SUPP_JOBS];
 
 	// Accumulate job stats
 	uint16 totalIndividualJobCount = 0;
@@ -206,34 +198,11 @@ void JobManager::CWorkerBackEndProfiler::RecordJob(const uint16 profileIndex, co
 	JobManager::SWorkerStats& workerStats = m_WorkerStatsInfo.m_pWorkerStats[profileIndex * m_WorkerStatsInfo.m_nNumWorkers + workerId];
 
 	// Update job stats
-	uint32 nCount = ~0;
-	do
-	{
-		nCount = *const_cast<volatile uint32*>(&jobStats.count);
-	}
-	while (CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&jobStats.count), nCount + 1, nCount) != nCount);
-
-	uint32 nUsec = ~0;
-	do
-	{
-		nUsec = *const_cast<volatile uint32*>(&jobStats.usec);
-	}
-	while (CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&jobStats.usec), nUsec + runTimeMicroSec, nUsec) != nUsec);
-
+	CryInterlockedIncrement(alias_cast<volatile int*>(&jobStats.count));
+	CryInterlockedAdd(alias_cast<volatile int*>(&jobStats.usec), runTimeMicroSec);
 	// Update worker stats
-	uint32 threadExcutionTime = ~0;
-	do
-	{
-		threadExcutionTime = *const_cast<volatile uint32*>(&workerStats.nExecutionPeriod);
-	}
-	while (CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&workerStats.nExecutionPeriod), threadExcutionTime + runTimeMicroSec, threadExcutionTime) != threadExcutionTime);
-
-	uint32 numJobsExecuted = ~0;
-	do
-	{
-		numJobsExecuted = *const_cast<volatile uint32*>(&workerStats.nNumJobsExecuted);
-	}
-	while (CryInterlockedCompareExchange(alias_cast<volatile LONG*>(&workerStats.nNumJobsExecuted), numJobsExecuted + 1, numJobsExecuted) != numJobsExecuted);
+	CryInterlockedIncrement(alias_cast<volatile int*>(&workerStats.nNumJobsExecuted));
+	CryInterlockedAdd(alias_cast<volatile int*>(&workerStats.nExecutionPeriod), runTimeMicroSec);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -533,9 +502,7 @@ const char* JobManager::CJobManager::GetJobName(JobManager::Invoker invoker)
 
 void JobManager::CJobManager::AddJob(JobManager::CJobDelegator& crJob, const JobManager::TJobHandle cJobHandle)
 {
-	char job_info[128];
-	cry_sprintf(job_info, "AddJob_%s", cJobHandle->cpString);
-	CryProfile::detail::SetProfilingEvent(0, job_info);
+	CRY_PROFILE_FUNCTION_ARG(EProfiledSubsystem::PROFILE_SYSTEM, cJobHandle->cpString)
 
 	JobManager::SInfoBlock infoBlock;
 
@@ -567,9 +534,11 @@ void JobManager::CJobManager::AddJob(JobManager::CJobDelegator& crJob, const Job
 	{
 		Invoker delegator = crJob.GetGenericDelegator();
 		const void* pParamMem = crJob.GetJobParamData();
-
-		// execute job function
-		(*delegator)((void*)pParamMem);
+		{
+			MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "Job: %s", cJobHandle->cpString);
+			// execute job function
+			(*delegator)((void*)pParamMem);
+		}
 
 		IF(infoBlock.GetJobState(), 1)
 		{
@@ -624,10 +593,7 @@ bool JobManager::CJobManager::InvokeAsJob(const JobManager::TJobHandle cJobHandl
 
 bool JobManager::CJobManager::InvokeAsJob(const char* cpJobName) const
 {
-#if defined(_RELEASE)
-	return true; // no support for fallback interface in release
-#endif
-
+#if !defined(_RELEASE) // job filtering is only supported in non-release builds
 	// try to find the jobname in the job filter list
 	IF (m_pJobFilter, 0)
 	{
@@ -639,6 +605,7 @@ bool JobManager::CJobManager::InvokeAsJob(const char* cpJobName) const
 					return false;
 			}
 	}
+#endif
 
 	return m_nJobSystemEnabled != 0;
 }
@@ -886,6 +853,11 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 
 		m_bJobSystemProfilerEnabled = nJobSystemProfiler;
 	}
+
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
+	m_pThreadBackEnd->GetBackEndWorkerProfiler()->Update();
+	m_pBlockingBackEnd->GetBackEndWorkerProfiler()->Update();
+#endif
 
 	// profiler disabled
 	if (nJobSystemProfiler == 0)
@@ -1158,7 +1130,7 @@ void JobManager::CJobManager::Update(int nJobSystemProfiler)
 	// draw vertical line every 5ms
 	const int64 tickOf5Ms = CTimeValue(0.005f).GetValue();
 	const int64 markerCount = ((diffTime.GetMilliSecondsAsInt64() - 1) / 5);
-	for(auto i = 1; i <= markerCount; ++i)
+	for(int64 i = 1; i <= markerCount; ++i)
 	{
 		Vec3 markerTop(fInfoBoxSize + fGraphSideOffset + i * tickOf5Ms * pixelPerTime, fTopOffset - fGraphHeight, 0);
 		Vec3 markerBottom(fInfoBoxSize + fGraphSideOffset + i * tickOf5Ms * pixelPerTime, fGraphTopOffset + fGraphHeight, 0);
@@ -1459,5 +1431,5 @@ void JobManager::detail::SetWorkerThreadId(uint32 nWorkerThreadId)
 ///////////////////////////////////////////////////////////////////////////////
 uint32 JobManager::detail::GetWorkerThreadId()
 {
-	return is_marked_worker_thread_id(tls_workerThreadId) ? unmark_worker_thread_id(tls_workerThreadId) : ~0;
+	return is_marked_worker_thread_id(tls_workerThreadId) ? unmark_worker_thread_id(tls_workerThreadId) : s_nonWorkerThreadId;
 }

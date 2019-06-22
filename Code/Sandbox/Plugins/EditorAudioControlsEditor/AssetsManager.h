@@ -5,7 +5,6 @@
 #include "Control.h"
 #include "Folder.h"
 #include "Library.h"
-#include "ScopeInfo.h"
 
 #include <CrySandbox/CrySignal.h>
 
@@ -35,21 +34,14 @@ public:
 	CLibrary*        GetLibrary(size_t const index) const { return m_libraries[index]; }
 	size_t           GetLibraryCount() const              { return m_libraries.size(); }
 
-	CAsset*          CreateFolder(string const& name, CAsset* const pParent = nullptr);
-	CControl*        CreateControl(string const& name, EAssetType const type, CAsset* const pParent = nullptr);
+	CAsset*          CreateFolder(string const& name, CAsset* const pParent);
+	CControl*        CreateControl(string const& name, EAssetType const type, CAsset* const pParent);
 	CControl*        CreateDefaultControl(string const& name, EAssetType const type, CAsset* const pParent, EAssetFlags const flags, string const& description);
 
 	CControl*        FindControl(string const& name, EAssetType const type, CAsset* const pParent = nullptr) const;
 	CControl*        FindControlById(ControlId const id) const;
 
 	Controls const&  GetControls() const { return m_controls; }
-
-	void             ClearScopes();
-	void             AddScope(string const& name, bool const isLocalOnly = false);
-	bool             ScopeExists(string const& name) const;
-	Scope            GetScope(string const& name) const;
-	SScopeInfo       GetScopeInfo(Scope const id) const;
-	void             GetScopeInfos(ScopeInfos& scopeInfos) const;
 
 	void             ClearAllConnections();
 	void             BackupAndClearAllConnections();
@@ -61,16 +53,20 @@ public:
 	bool             IsTypeDirty(EAssetType const type) const;
 	bool             IsDirty() const;
 	void             ClearDirtyFlags();
-	bool             IsLoading() const { return m_isLoading; }
+	bool             IsLoading() const             { return m_isLoading; }
+
+	bool             ShouldReloadAfterSave() const { return m_reloadAfterSave; }
 
 	void             SetAssetModified(CAsset* const pAsset, bool const isModified);
 
 	void             UpdateAllConnectionStates();
 
+	void             ChangeContext(CryAudio::ContextId const oldContextId, CryAudio::ContextId const newContextId);
+
 	void             OnBeforeControlModified(CControl* const pControl);
 	void             OnAfterControlModified(CControl* const pControl);
-	void             OnConnectionAdded(CControl* const pControl, Impl::IItem* const pIItem);
-	void             OnConnectionRemoved(CControl* const pControl, Impl::IItem* const pIItem);
+	void             OnConnectionAdded(CControl* const pControl);
+	void             OnConnectionRemoved(CControl* const pControl);
 	void             OnAssetRenamed(CAsset* const pAsset);
 
 	void             UpdateConfigFolderPath();
@@ -94,24 +90,21 @@ public:
 
 private:
 
-	CAsset*   CreateAndConnectImplItemsRecursively(Impl::IItem* const pIItem, CAsset* const pParent);
-	ControlId GenerateUniqueId() { return m_nextId++; }
+	CAsset* CreateAndConnectImplItemsRecursively(Impl::IItem* const pIItem, CAsset* const pParent);
 
-	void      SetTypeModified(EAssetType const type, bool const isModified);
+	void    SetTypeModified(EAssetType const type, bool const isModified);
 
-	void      UpdateLibraryConnectionStates(CAsset* const pAsset);
-	void      UpdateAssetConnectionStates(CAsset* const pAsset);
+	void    UpdateLibraryConnectionStates(CAsset* const pAsset);
+	void    UpdateAssetConnectionStates(CAsset* const pAsset);
 
-	using ScopesInfo = std::map<Scope, SScopeInfo>;
 	using ModifiedSystemTypes = std::set<EAssetType>;
 
 	Libraries           m_libraries;
-	static ControlId    m_nextId;
 	Controls            m_controls;
-	ScopesInfo          m_scopes;
 	ModifiedSystemTypes m_modifiedTypes;
 	FileNames           m_modifiedLibraryNames;
 	bool                m_isLoading = false;
+	bool                m_reloadAfterSave = false;
 
 	string              m_configFolderPath;
 };

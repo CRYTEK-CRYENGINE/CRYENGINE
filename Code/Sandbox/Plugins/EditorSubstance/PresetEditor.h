@@ -9,7 +9,7 @@ struct ISubstancePreset;
 struct ISubstancePresetSerializer;
 
 class QMenuComboBox;
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class QScrollableBox;
 class QSplitter;
 
@@ -26,13 +26,16 @@ public:
 
 	virtual const char* GetEditorName() const override { return "Substance Instance Editor"; }
 
+	virtual void        OnInitialize();
 	virtual bool        OnOpenAsset(CAsset* pAsset) override;
 	virtual bool        OnSaveAsset(CEditableAsset& editAsset) override;
 	virtual void        OnCloseAsset() override;
 
 protected:
-	void PushPresetToRender();
-	void SetPreviewResolution();
+	virtual bool IsDockingSystemEnabled() const override { return false; }
+	void         PushPresetToRender();
+	void         SetPreviewResolution();
+
 protected slots:
 	void OnEditOutputs();
 	void OnOutputEditorAccepted();
@@ -43,7 +46,7 @@ private:
 	//QSplitter* m_pSplitter;
 	QWidget*                      m_pResolutionWidget;
 	CAbstractMenu*                m_pSubstanceMenu;
-	QPropertyTree*                m_propertyTree;
+	QPropertyTreeLegacy*                m_propertyTree;
 	ISubstancePreset*             m_pPreset;
 	ISubstancePresetSerializer*   m_pSerializer;
 	QScrollableBox*               m_pScrollBox;

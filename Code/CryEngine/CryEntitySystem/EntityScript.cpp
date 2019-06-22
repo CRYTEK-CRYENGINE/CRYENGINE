@@ -215,7 +215,7 @@ bool CEntityScript::LoadScript(bool bForceReload)
 	if (m_pEntityTable && !bForceReload)
 		return true;
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Entity Scripts");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Entity Scripts");
 
 	Clear();
 
@@ -439,7 +439,7 @@ const char* CEntityScript::GetStateName(int nStateId) const
 //////////////////////////////////////////////////////////////////////////
 void CEntityScript::Call_OnInit(IScriptTable* pThis, bool isReload)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	if (m_pOnSpawnFunc)
 		Script::Call(m_pScriptSystem, m_pOnSpawnFunc, pThis, isReload);

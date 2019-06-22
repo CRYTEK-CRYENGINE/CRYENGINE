@@ -6,7 +6,11 @@
 namespace gpu
 {
 
-CBitonicSort::CBitonicSort() : m_data(NUM_ELEMENTS), m_transposeData(NUM_ELEMENTS)
+CBitonicSort::CBitonicSort(CGraphicsPipeline* pGraphicsPipeline)
+	: m_data(NUM_ELEMENTS)
+	, m_transposeData(NUM_ELEMENTS)
+	, m_computePassBitonicSort(pGraphicsPipeline)
+	, m_computePassBitonicTranspose(pGraphicsPipeline)
 {
 	m_params.CreateDeviceBuffer();
 

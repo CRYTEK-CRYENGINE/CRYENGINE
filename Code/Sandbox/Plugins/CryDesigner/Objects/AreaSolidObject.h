@@ -29,6 +29,8 @@ public:
 	virtual void               OnEntityAdded(IEntity const* const pIEntity) override;
 	virtual void               OnEntityRemoved(IEntity const* const pIEntity) override;
 
+	virtual void               ClearArea() override final;
+
 	void                       CreateInspectorWidgets(CInspectorWidgetCreator& creator) override;
 
 	void                       SetMaterial(IEditorMaterial* mtl);

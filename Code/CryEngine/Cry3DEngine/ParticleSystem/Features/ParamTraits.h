@@ -82,7 +82,7 @@ private:
 	static Serialization::RangeDecorator<T> Range(T& value)
 	{
 		return Serialization::Range(value, TTraits::HardMin(), TTraits::HardMax(), TTraits::SoftMin(), TTraits::SoftMax());
-	};
+	}
 
 	S m_value;
 };

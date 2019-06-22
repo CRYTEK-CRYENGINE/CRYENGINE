@@ -32,10 +32,6 @@ public:
 	int g_userNeverAutoSignsIn;
 #endif
 
-#ifdef AI_LOG_SIGNALS
-	int   aiLogSignals;
-	float aiMaxSignalDuration;
-#endif
 	int   aiFlowNodeAlertnessCheck;
 
 	int g_gameplayAnalyst;
@@ -60,8 +56,6 @@ public:
 	int g_XMLCPBUseExtraZLibCompression;
 	int g_XMLCPBBlockQueueLimit;
 	int g_saveLoadExtendedLog;
-
-	int g_debugDialogBuffers;
 
 	int g_allowDisconnectIfUpdateFails;
 

@@ -123,7 +123,7 @@ void CNetDebugObjectsInfo::DrawObjects(uint32 line, const char* pLabel, uint32 c
 
 CNetDebugInfo::CNetDebugInfo()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CNetDebugInfo::CNetDebugInfo");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CNetDebugInfo::CNetDebugInfo");
 
 	m_sections.push_back(new CNetDebugObjectsInfo());
 	m_sections.push_back(new CNetDebugInternetSimulator());

@@ -282,6 +282,7 @@ struct CEngineFileDialog::Implementation
 		auto selectedDirectoryDir = QDir(selectedDirectoryPath.isEmpty() ? "/" : selectedDirectoryPath);
 
 		auto filenames = m_ui.pFilenameLineEdit->GetFileNames();
+		const bool isEmptyInput = filenames.empty();
 		if (filenames.isEmpty() && IsSelectingDirectory())
 		{
 			filenames << selectedDirectoryPath;
@@ -304,7 +305,7 @@ struct CEngineFileDialog::Implementation
 				}
 				filename = validName;
 			}
-			auto absolutePath = selectedDirectoryDir.absoluteFilePath(filename);
+			auto absolutePath = IsSelectingDirectory() && isEmptyInput ? selectedDirectoryPath : selectedDirectoryDir.absoluteFilePath(filename);
 			if (!absolutePath.isEmpty() && absolutePath.startsWith("/"))
 			{
 				absolutePath = absolutePath.mid(1); // remove slash in beginning
@@ -362,7 +363,7 @@ struct CEngineFileDialog::Implementation
 		});
 
 		//do not clear the input field when selection is not relevant (ex: selected directory during file select dialog)
-		if (fileSelection.isEmpty())
+		if (fileSelection.isEmpty() && !IsSelectingDirectory())
 			return;
 
 		auto fileNames = GetSelectionFileNames(fileSelection);

@@ -44,6 +44,10 @@ IDC_PHYS_AIM            CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\
 
 IDC_SCISSORS            CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\\scissors.cur"
 
+IDC_PHYS_PIN            CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\\phys_pin.cur"
+
+IDC_PHYS_FORK           CURSOR                  "..\\..\\Sandbox\\EditorQt\\res\\phys_fork.cur"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

@@ -3,11 +3,10 @@
 #include "stdafx.h"
 #include "EventListenerManager.h"
 #include <CryCore/StlUtils.h>
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include "Common/Logger.h"
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -24,8 +23,9 @@ ERequestStatus CEventListenerManager::AddRequestListener(SSystemRequestData<ESys
 
 	for (auto const& listener : m_listeners)
 	{
-		if (listener.OnEvent == pRequestData->func && listener.pObjectToListenTo == pRequestData->pObjectToListenTo
-		    && listener.eventMask == pRequestData->eventMask)
+		if ((listener.OnEvent == pRequestData->func) &&
+		    (listener.pObjectToListenTo == pRequestData->pObjectToListenTo) &&
+		    (listener.eventMask == pRequestData->eventMask))
 		{
 			result = ERequestStatus::Success;
 			break;
@@ -54,9 +54,9 @@ ERequestStatus CEventListenerManager::RemoveRequestListener(void (*func)(SReques
 
 	for (; Iter != IterEnd; ++Iter)
 	{
-		if ((Iter->OnEvent == func || func == nullptr) && Iter->pObjectToListenTo == pObjectToListenTo)
+		if (((Iter->OnEvent == func) || (func == nullptr)) && (Iter->pObjectToListenTo == pObjectToListenTo))
 		{
-			if (Iter != IterEnd - 1)
+			if (Iter != (IterEnd - 1))
 			{
 				(*Iter) = m_listeners.back();
 			}
@@ -68,12 +68,12 @@ ERequestStatus CEventListenerManager::RemoveRequestListener(void (*func)(SReques
 		}
 	}
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	if (result == ERequestStatus::Failure)
 	{
 		Cry::Audio::Log(ELogType::Warning, "Failed to remove a request listener!");
 	}
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 	return result;
 }
@@ -85,8 +85,8 @@ void CEventListenerManager::NotifyListener(SRequestInfo const* const pResultInfo
 
 	for (auto const& listener : m_listeners)
 	{
-		if (((listener.eventMask & pResultInfo->systemEvent) > 0)                                            //check: is the listener interested in this specific event?
-		    && (listener.pObjectToListenTo == nullptr || listener.pObjectToListenTo == pResultInfo->pOwner)) //check: is the listener interested in events from this sender
+		if (((listener.eventMask & pResultInfo->systemEvent) != 0)                                               //check: is the listener interested in this specific event?
+		    && ((listener.pObjectToListenTo == nullptr) || (listener.pObjectToListenTo == pResultInfo->pOwner))) //check: is the listener interested in events from this sender
 		{
 			listener.OnEvent(pResultInfo);
 		}

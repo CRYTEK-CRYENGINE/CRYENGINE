@@ -4,7 +4,7 @@
 
 #include "Controls/QObjectTreeWidget.h"
 #include "EditorFramework/Preferences.h"
-#include "QAdvancedPropertyTree.h"
+#include "QAdvancedPropertyTreeLegacy.h"
 #include "QControls.h"
 #include <IEditor.h>
 
@@ -68,9 +68,9 @@ void QPreferencePage::InitUI()
 	pMainLayout->setMargin(0);
 	pMainLayout->setSpacing(0);
 
-	m_pPropertyTree = new QAdvancedPropertyTree("Properties", this);
+	m_pPropertyTree = new QAdvancedPropertyTreeLegacy("Properties", this);
 	m_pPropertyTree->setShowContainerIndices(true);
-	connect(m_pPropertyTree, &QPropertyTree::signalChanged, this, &QPreferencePage::OnPropertyChanged);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalChanged, this, &QPreferencePage::OnPropertyChanged);
 	pMainLayout->addWidget(m_pPropertyTree);
 	ConnectPreferences();
 

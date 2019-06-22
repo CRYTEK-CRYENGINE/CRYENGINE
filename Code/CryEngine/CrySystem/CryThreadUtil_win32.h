@@ -108,7 +108,7 @@ threadID CryGetThreadId(TThreadHandle hThreadHandle)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CrySetThreadName(TThreadHandle pThreadHandle, const char* sThreadName)
+void CrySetThreadName_SEH(TThreadHandle pThreadHandle, const char* sThreadName)
 {
 	const DWORD MS_VC_EXCEPTION = 0x406D1388;
 
@@ -138,6 +138,31 @@ void CrySetThreadName(TThreadHandle pThreadHandle, const char* sThreadName)
 	{
 	}
 #pragma warning(pop)
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CrySetThreadName(TThreadHandle pThreadHandle, const char* sThreadName)
+{
+	// legacy method of setting the thread name through an exception, still required for backwards compatibility
+	CrySetThreadName_SEH(pThreadHandle, sThreadName);
+
+#if CRY_PLATFORM_DURANGO
+	int threadNameLen = strlen(sThreadName);
+	std::wstring wc(threadNameLen, L' ');
+	mbstowcs(&wc[0], sThreadName, threadNameLen);
+	::SetThreadName(pThreadHandle, &wc[0]);
+#elif CRY_PLATFORM_WINDOWS
+	// Availabe since Windows 10, version 1607
+	// https://docs.microsoft.com/en-us/windows/desktop/api/processthreadsapi/nf-processthreadsapi-setthreaddescription
+	typedef HRESULT(WINAPI *SetThreadDescriptionFunc)(HANDLE hThread, PCWSTR lpThreadDescription);
+	SetThreadDescriptionFunc pSetThreadDescription = (SetThreadDescriptionFunc)GetProcAddress(GetModuleHandle("Kernel32.dll"), "SetThreadDescription");
+	if (pSetThreadDescription)
+	{
+		CryStackStringT<wchar_t, 64> buf;
+		CryStringUtils::UTF8ToWStr(sThreadName, buf);
+		pSetThreadDescription(GetCurrentThread(), buf.c_str());
+	}
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////

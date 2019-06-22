@@ -12,7 +12,7 @@
 #include <PathUtils.h>
 #include <QtUtil.h>
 
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CrySystem/ISystem.h>
 #include <CryThreading/IThreadManager.h>
 #include <CryThreading/CryThread.h>

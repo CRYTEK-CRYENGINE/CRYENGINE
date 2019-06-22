@@ -1,17 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   RenderMesh.h
-//  Version:     v1.00
-//  Created:     01/07/2009 by Andrey Honich.
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __RENDERMESH_H__
-#define __RENDERMESH_H__
+#pragma once
 
 #include <CryCore/Containers/intrusive_list.hpp>
 #include <CryMemory/CryPool/PoolAlloc.h>
@@ -20,6 +9,7 @@
 #include <CryMath/GeomQuery.h>
 #include <3rdParty/concqueue/concqueue-mpsc.hpp>
 #include <CryThreading/IJobManager.h>
+#include <CryThreading/CryThreadSafePushContainer.h>
 
 #include "ComputeSkinningStorage.h"
 
@@ -31,9 +21,9 @@
 struct SMeshSubSetIndicesJobEntry
 {
 	JobManager::SJobState jobState;
-	_smart_ptr<IRenderMesh> m_pSrcRM;							// source mesh to create a new index mesh from
-	_smart_ptr<IRenderMesh> m_pIndexRM;						// when finished: newly created index mesh for this mask, else NULL
-	hidemask m_nMeshSubSetMask;						// mask to use
+	_smart_ptr<IRenderMesh> m_pSrcRM;   // source mesh to create a new index mesh from
+	_smart_ptr<IRenderMesh> m_pIndexRM; // when finished: newly created index mesh for this mask, else NULL
+	hidemask m_nMeshSubSetMask;         // mask to use
 
 	void CreateSubSetRenderMesh();
 
@@ -63,35 +53,35 @@ public:
 
 struct SMeshStream
 {
-  buffer_handle_t m_nID;   // device buffer handle from device buffer manager 
-  void *m_pUpdateData;     // system buffer for updating (used for async. mesh updates)
-  void *m_pLockedData;     // locked device buffer data (hmm, not a good idea to store)
-  uint32 m_nLockFlags : 16;
-  uint32 m_nLockCount : 16;
-  uint32 m_nElements;
-  int32  m_nFrameAccess;
-  int32  m_nFrameRequest;
-  int32  m_nFrameUpdate;
-  int32  m_nFrameCreate;
+	buffer_handle_t m_nID;   // device buffer handle from device buffer manager 
+	void *m_pUpdateData;     // system buffer for updating (used for async. mesh updates)
+	void *m_pLockedData;     // locked device buffer data (hmm, not a good idea to store)
+	uint32 m_nLockFlags : 16;
+	uint32 m_nLockCount : 16;
+	uint32 m_nElements;
+	int32  m_nFrameAccess;
+	int32  m_nFrameRequest;
+	int32  m_nFrameUpdate;
+	int32  m_nFrameCreate;
 
-  SMeshStream()
-  {
-    m_nID = ~0u;
-    m_pUpdateData = NULL;
-    m_pLockedData = NULL;
+	SMeshStream()
+	{
+		m_nID = ~0u;
+		m_pUpdateData = NULL;
+		m_pLockedData = NULL;
 
 		// m_nFrameRequest MUST be <= m_nFrameUpdate initially to prevent a case where LockIB(FSL_READ) will pull the GPU buffer to the CPU (because FreeIB happened in the past)
 		// In this case, while thread X is halfway through memcpy of the data as part of LockIB, the RenderThread sees m_pUpdateData without FSL_WRITE flag, and re-uploads the incompletely copied data.
-		m_nFrameRequest = -1;
-    m_nFrameUpdate = -1;
-    m_nFrameAccess = -1;
+		m_nFrameRequest = 0x7FFFFFFF;
+		m_nFrameUpdate = -1;
+		m_nFrameAccess = -1;
 		m_nFrameCreate = -1;
-    m_nLockFlags = 0;
-    m_nLockCount = 0;
-    m_nElements = 0;
-  }
+		m_nLockFlags = 0;
+		m_nLockCount = 0;
+		m_nElements = 0;
+	}
 
-  ~SMeshStream() { memset(this, 0x0, sizeof(*this)); }
+	~SMeshStream() { memset(this, 0x0, sizeof(*this)); }
 };
 
 // CRenderMesh::m_nFlags
@@ -192,7 +182,6 @@ private:
 	ERenderPrimitiveType m_nPrimetiveType;
 	ERenderMeshType m_eType;
 	uint16 m_nFlags														: 8;          // FRM_
-  int16  m_nLod                             : 4;          // used for LOD debug visualization
   bool m_keepSysMesh                        : 1;
   bool m_nFlagsCachePos                     : 1;          // only checked for FSL_WRITE, which can be represented as a single bit
 	bool m_nFlagsCacheUVs											: 1;
@@ -208,15 +197,13 @@ public:
 private:
   SMeshStream* GetVertexStream(int nStream, uint32 nFlags = 0);
   SMeshStream* GetVertexStream(int nStream, uint32 nFlags = 0) const { return m_VBStream[nStream]; }
-  bool UpdateVidIndices(SMeshStream& IBStream, bool stall=true);
+
+  bool UpdateVidIndices(SMeshStream& IBStream);
 
   bool CreateVidVertices(int nVerts=0, InputLayoutHandle eVF=InputLayoutHandle::Unspecified, int nStream=VSF_GENERAL);
   bool UpdateVidVertices(int nStream);
 
   bool CopyStreamToSystemForUpdate(SMeshStream& MS, size_t nSize);
-
-  void ReleaseVB(int nStream);
-  void ReleaseIB();
 
   void InitTriHash(IMaterial * pMaterial);
 
@@ -319,39 +306,35 @@ public:
 		return Stride;
 	}
 
-  inline uint32 _GetFlags() const { return m_nFlags; }
-  inline int GetStreamSize(int nStream, int nVerts=0) const { return GetStreamStride(nStream) * (nVerts ? nVerts : m_nVerts); }
-  inline const buffer_handle_t _GetVBStream(int nStream) const { if (!m_VBStream[nStream]) return ~0u; return m_VBStream[nStream]->m_nID; }
-  inline const buffer_handle_t _GetIBStream() const { return m_IBStream.m_nID; }
-  inline bool _NeedsVBStream(int nStream) const { return m_VBStream[nStream] && m_VBStream[nStream]->m_pUpdateData && (m_VBStream[nStream]->m_nFrameRequest > m_VBStream[nStream]->m_nFrameUpdate); }
-  inline bool _NeedsIBStream() const { return m_IBStream.m_pUpdateData && (m_IBStream.m_nFrameRequest > m_IBStream.m_nFrameUpdate); }
-  inline bool _HasVBStream(int nStream) const { return m_VBStream[nStream] && m_VBStream[nStream]->m_nID!=~0u; }
-  inline bool _HasIBStream() const { return m_IBStream.m_nID!=~0u; }
-  inline int _IsVBStreamLocked(int nStream) const { if (!m_VBStream[nStream]) return 0; return (m_VBStream[nStream]->m_nLockFlags & FSL_LOCKED); }
-  inline int _IsIBStreamLocked() const { return m_IBStream.m_nLockFlags & FSL_LOCKED; }
-  inline InputLayoutHandle _GetVertexFormat() const { return m_eVF; }
-  inline void _SetVertexFormat(InputLayoutHandle eVF) { m_eVF = eVF; }
-  inline int _GetNumVerts() const { return m_nVerts; }
-  inline void _SetNumVerts(int nVerts) { m_nVerts = max(nVerts, 0); }
-  inline int _GetNumInds() const { return m_nInds; }
-  inline void _SetNumInds(int nInds) { m_nInds = nInds; }
-	inline const ERenderPrimitiveType _GetPrimitiveType() const                               { return m_nPrimetiveType; }
-	inline void                       _SetPrimitiveType(const ERenderPrimitiveType nPrimType) { m_nPrimetiveType = nPrimType; }
-  inline void _SetRenderMeshType(ERenderMeshType eType) { m_eType = eType; }
-  inline CRenderMesh *_GetVertexContainer()
-  {
-    if (m_pVertexContainer)
-      return m_pVertexContainer;
-    return this;
-  }
+	inline uint32 _GetFlags() const { return m_nFlags; }
+	inline int GetStreamSize(int nStream, int nVerts=0) const { return GetStreamStride(nStream) * (nVerts ? nVerts : m_nVerts); }
 
-  D3DBuffer* _GetD3DVB(int nStream, buffer_size_t* offs) const;
-  D3DBuffer* _GetD3DIB(buffer_size_t* offs) const;
+	inline const buffer_handle_t _GetVBStream(int nStream) const { if (!m_VBStream[nStream]) return ~0u; return m_VBStream[nStream]->m_nID; }
+	inline const buffer_handle_t _GetIBStream(           ) const {                                       return m_IBStream.          m_nID; }
 
-  buffer_size_t Size(uint32 nFlags) const;
-	void Size(uint32 nFlags, ICrySizer *pSizer ) const;
+	inline bool _NeedsVBStream(int32 nFrame, int nStream) const { return m_VBStream[nStream] && m_VBStream[nStream]->m_nFrameRequest <= nFrame && m_VBStream[nStream]->m_pUpdateData && (m_VBStream[nStream]->m_nFrameAccess != nFrame) && (m_VBStream[nStream]->m_nFrameRequest > m_VBStream[nStream]->m_nFrameUpdate); }
+	inline bool _NeedsIBStream(int32 nFrame             ) const { return m_IBStream.                                 m_nFrameRequest <= nFrame && m_IBStream.          m_pUpdateData && (m_IBStream.          m_nFrameAccess != nFrame) && (m_IBStream.          m_nFrameRequest > m_IBStream.          m_nFrameUpdate); }
 
-  void *LockVB(int nStream, uint32 nFlags, int nOffset=0, int nVerts=0, int *nStride=NULL, bool prefetchIB=false, bool inplaceCachePos=false);
+	inline bool _HasVBStream(int nStream) const { return m_VBStream[nStream] && m_VBStream[nStream]->m_nID != ~0u; }
+	inline bool _HasIBStream(           ) const { return m_IBStream.                                 m_nID != ~0u; }
+
+	inline int _IsVBStreamLocked(int nStream) const { if (!m_VBStream[nStream]) return 0; return (m_VBStream[nStream]->m_nLockFlags & FSL_LOCKED); }
+	inline int _IsIBStreamLocked(           ) const {                                     return (m_IBStream.          m_nLockFlags & FSL_LOCKED); }
+
+	D3DBuffer* _GetD3DVB(int nStream, buffer_size_t* offs) const;
+	D3DBuffer* _GetD3DIB(             buffer_size_t* offs) const;
+
+	void*    LockVB(int nStream, uint32 nFlags, int nOffset = 0, int nVerts = 0, int *nStride=NULL, bool prefetchIB=false, bool inplaceCachePos=false);
+	vtx_idx* LockIB(             uint32 nFlags, int nOffset = 0, int nInds  = 0);
+
+	void UnlockVB(int nStream);
+	void UnlockIB();
+
+	void ReleaseVB(int nStream);
+	void ReleaseIB();
+
+	void FreeVB(int nStream);
+	void FreeIB();
 
 	template<class T>
 	T* GetStridedArray(strided_pointer<T>& arr, EStreamIDs stream)
@@ -376,22 +359,32 @@ public:
 		return arr.data;
 	}
 
-  vtx_idx *LockIB(uint32 nFlags, int nOffset=0, int nInds=0);
-  void UnlockVB(int nStream);
-  void UnlockIB();
+	buffer_size_t Size(uint32 nFlags) const;
+	void Size(uint32 nFlags, ICrySizer *pSizer) const;
+	inline InputLayoutHandle _GetVertexFormat() const { return m_eVF; }
+	inline void _SetVertexFormat(InputLayoutHandle eVF) { m_eVF = eVF; }
+	inline int _GetNumVerts() const { return m_nVerts; }
+	inline void _SetNumVerts(int nVerts) { m_nVerts = max(nVerts, 0); }
+	inline int _GetNumInds() const { return m_nInds; }
+	inline void _SetNumInds(int nInds) { m_nInds = nInds; }
+	inline const ERenderPrimitiveType _GetPrimitiveType() const { return m_nPrimetiveType; }
+	inline void                       _SetPrimitiveType(const ERenderPrimitiveType nPrimType) { m_nPrimetiveType = nPrimType; }
+	inline void _SetRenderMeshType(ERenderMeshType eType) { m_eType = eType; }
+	inline CRenderMesh *_GetVertexContainer()
+	{
+		if (m_pVertexContainer)
+			return m_pVertexContainer;
+		return this;
+	}
 
   bool RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF, uint32 nStreamMask, bool bTessellation = false);
-  void RT_SetMeshCleanup();
   void RT_AllocationFailure(const char* sPurpose, uint32 nSize);
 
   void AssignChunk(CRenderChunk *pChunk, class CREMeshImpl *pRE);
   void InitRenderChunk( CRenderChunk &rChunk );
 
-  void FreeVB(int nStream);
-  void FreeIB();
   void FreeDeviceBuffers(bool bRestoreSys);
   void FreeSystemBuffers();
-  void FreePreallocatedData();
 
 	bool SyncAsyncUpdate(int threadId, bool block = true);
 	void MarkRenderElementsDirty();
@@ -487,7 +480,7 @@ public:
 	virtual int GetAllocatedBytes(bool bVideoMem) const final;
 
 	virtual void SetBBox(const Vec3& vBoxMin, const Vec3& vBoxMax) final { m_vBoxMin = vBoxMin; m_vBoxMax = vBoxMax; }
-	virtual void GetBBox(Vec3& vBoxMin, Vec3& vBoxMax) final             { vBoxMin = m_vBoxMin; vBoxMax = m_vBoxMax; };
+	virtual void GetBBox(Vec3& vBoxMin, Vec3& vBoxMax) final             { vBoxMin = m_vBoxMin; vBoxMax = m_vBoxMax; }
 	virtual void UpdateBBoxFromMesh() final;
 
   // Debug draw this render mesh.
@@ -496,8 +489,6 @@ public:
 	virtual void UnKeepSysMesh() final;
 	virtual void LockForThreadAccess() final;
 	virtual void UnLockForThreadAccess() final;
-
-	virtual void SetMeshLod(int nLod) final { m_nLod = nLod; }
 
 	virtual volatile int* SetAsyncUpdateState() final;
 	void CreateRemappedBoneIndicesPair(const uint pairGuid, const TRenderChunkArray& Chunks);
@@ -569,8 +560,8 @@ public:
 	typedef VectorMap<hidemask,_smart_ptr<IRenderMesh> > MeshSubSetIndices;
 	MeshSubSetIndices m_meshSubSetIndices;
 
-	static CThreadSafeRendererContainer<SMeshSubSetIndicesJobEntry> m_meshSubSetRenderMeshJobs[RT_COMMAND_BUF_COUNT];
-	static CThreadSafeRendererContainer<CRenderMesh*> m_deferredSubsetGarbageCollection[RT_COMMAND_BUF_COUNT];
+	static CryMT::CThreadSafePushContainer<SMeshSubSetIndicesJobEntry> m_meshSubSetRenderMeshJobs[RT_COMMAND_BUF_COUNT];
+	static CryMT::CThreadSafePushContainer<CRenderMesh*> m_deferredSubsetGarbageCollection[RT_COMMAND_BUF_COUNT];
 
 #ifdef RENDER_MESH_TRIANGLE_HASH_MAP_SUPPORT
   CryCriticalSection m_getTrisForPositionLock;
@@ -660,5 +651,3 @@ public:
 	void* m_IData;
 	int32 m_nInds;
 };
-
-#endif // __RenderMesh2_h__

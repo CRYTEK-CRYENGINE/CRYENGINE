@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "TreeView.h"
 
+#include "Common/ModelUtils.h"
 #include <CryAudio/IAudioSystem.h>
 
 #include <QHeaderView>
@@ -10,10 +11,16 @@
 namespace ACE
 {
 //////////////////////////////////////////////////////////////////////////
-CTreeView::CTreeView(QWidget* pParent, QAdvancedTreeView::BehaviorFlags flags /*= QAdvancedTreeView::BehaviorFlags(UseItemModelAttribute)*/)
+CTreeView::CTreeView(QWidget* pParent)
+	: QAdvancedTreeView(QAdvancedTreeView::BehaviorFlags(UseItemModelAttribute), pParent)
+	, m_nameColumn(0)
+{
+	QObject::connect(header(), &QHeaderView::sortIndicatorChanged, [this]() { scrollTo(currentIndex()); });
+}
+
+//////////////////////////////////////////////////////////////////////////
+CTreeView::CTreeView(QWidget* pParent, QAdvancedTreeView::BehaviorFlags flags)
 	: QAdvancedTreeView(QAdvancedTreeView::BehaviorFlags(flags), pParent)
-	, m_nameRole(0)
-	, m_typeRole(0)
 	, m_nameColumn(0)
 {
 	QObject::connect(header(), &QHeaderView::sortIndicatorChanged, [this]() { scrollTo(currentIndex()); });
@@ -74,9 +81,9 @@ void CTreeView::CollapseSelectionRecursively(QModelIndexList const& indexList)
 }
 
 //////////////////////////////////////////////////////////////////////////
-uint32 CTreeView::GetItemId(QModelIndex const& index) const
+ControlId CTreeView::GetItemId(QModelIndex const& index) const
 {
-	uint32 itemId = CryAudio::InvalidCRC32;
+	auto itemId = static_cast<ControlId>(CryAudio::InvalidCRC32);
 
 	if (index.isValid())
 	{
@@ -84,16 +91,7 @@ uint32 CTreeView::GetItemId(QModelIndex const& index) const
 
 		if (itemIndex.isValid())
 		{
-			QString itemName = itemIndex.data(m_typeRole).toString() + "/" + itemIndex.data(m_nameRole).toString();
-			QModelIndex parent = itemIndex.parent();
-
-			while (parent.isValid())
-			{
-				itemName.append("/" + (parent.data(m_nameRole).toString()));
-				parent = parent.parent();
-			}
-
-			itemId = CryAudio::StringToId(itemName.toStdString().c_str());
+			itemId = static_cast<ControlId>(itemIndex.data(static_cast<int>(ModelUtils::ERoles::Id)).toInt());
 		}
 	}
 

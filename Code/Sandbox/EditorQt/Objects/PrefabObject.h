@@ -42,7 +42,7 @@ class SANDBOX_API CPrefabObject : public CGroup
 {
 public:
 	DECLARE_DYNCREATE(CPrefabObject)
-	static void CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center, CPrefabItem* pItem);
+	static CPrefabObject* CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center, CPrefabItem* pItem);
 
 	//! CBaseObject overrides.
 	virtual float GetCreationOffsetFromTerrain() const override { return 0.0f; }
@@ -132,7 +132,6 @@ protected:
 	void         SyncParentObject();
 
 	void         OnShowInFG();
-	void         ConvertToProceduralObject();
 
 private:
 	void DeleteChildrenWithoutUpdating();

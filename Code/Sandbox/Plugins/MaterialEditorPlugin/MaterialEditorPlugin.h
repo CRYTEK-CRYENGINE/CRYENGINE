@@ -9,9 +9,8 @@ public:
 	CMaterialEditorPlugin() { /* entry point of the plugin, perform initializations */ }
 	~CMaterialEditorPlugin() { /* exit point of the plugin, perform cleanup */ }
 
-	int32       GetPluginVersion() { return 1; }
-	const char* GetPluginName() { return "Material Editor Plugin"; }
-	const char* GetPluginDescription() { return "New material editor integrated with the asset system"; }
-
 private:
+	int32       GetPluginVersion()     { return 1; }
+	const char* GetPluginName()        { return "Material Editor Plugin"; }
+	const char* GetPluginDescription() { return "New material editor integrated with the asset system"; }
 };

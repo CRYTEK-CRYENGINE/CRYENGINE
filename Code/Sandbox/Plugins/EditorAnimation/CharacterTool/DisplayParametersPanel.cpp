@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include "Expected.h"
 #include "Serialization.h"
 #include "DisplayParametersPanel.h"
@@ -27,8 +27,8 @@ DisplayParametersPanel::DisplayParametersPanel(QWidget* parent, CharacterDocumen
 	layout->setMargin(0);
 	layout->setSpacing(0);
 
-	m_propertyTree = new QPropertyTree(this);
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	m_propertyTree = new QPropertyTreeLegacy(this);
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	treeStyle.groupRectangle = false;
 	m_propertyTree->setTreeStyle(treeStyle);
@@ -39,8 +39,8 @@ DisplayParametersPanel::DisplayParametersPanel(QWidget* parent, CharacterDocumen
 	m_propertyTree->setArchiveContext(context);
 	m_propertyTree->setValueColumnWidth(0.6f);
 	m_propertyTree->attach(Serialization::SStruct(*m_displayOptions));
-	EXPECTED(connect(m_propertyTree, &QPropertyTree::signalChanged, this, &DisplayParametersPanel::OnPropertyTreeChanged));
-	EXPECTED(connect(m_propertyTree, &QPropertyTree::signalContinuousChange, this, &DisplayParametersPanel::OnPropertyTreeChanged));
+	EXPECTED(connect(m_propertyTree, &QPropertyTreeLegacy::signalChanged, this, &DisplayParametersPanel::OnPropertyTreeChanged));
+	EXPECTED(connect(m_propertyTree, &QPropertyTreeLegacy::signalContinuousChange, this, &DisplayParametersPanel::OnPropertyTreeChanged));
 	layout->addWidget(m_propertyTree, 1);
 }
 

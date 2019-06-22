@@ -9,7 +9,7 @@
 #include "ResponseSystem.h"
 
 #include <CrySystem/ISystem.h>
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 using namespace CryDRS;
 

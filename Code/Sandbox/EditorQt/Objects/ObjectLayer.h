@@ -93,7 +93,7 @@ public:
 	virtual bool IsFolder() const override { return m_layerType == eObjectLayerType_Folder; }
 
 	virtual void SetModified(bool isModified = true) override;
-	bool         IsModified() { return m_isModified; }
+	bool         IsModified() const { return m_isModified; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// User interface support.

@@ -449,8 +449,7 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				}
 				else
 				{
-					ULONG counter = it->first->Release();
-					DX11_ASSERT(counter == 0, "Ref-Counter of D3D11 resource %s is not 0 but %d, memory will leak!", GetDebugName(it->first).c_str(), counter);
+					CRY_DX11_VERIFY(it->first->Release() == 0, "Invalid ref-count of D3D11 resource %s, memory will leak!", GetDebugName(it->first).c_str());
 
 					releases++;
 				}
@@ -476,8 +475,7 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				// so even when the CResource is destructed and the d3d resource
 				// given up for release, they can continue being in use
 				// This means the ref-count here doesn't necessarily need to be 0
-				ULONG counter = it->second.back().pObject->Release();
-				DX11_ASSERT(counter == 0, "Ref-Counter of D3D11 resource %s is not 0 but %d, memory will leak!", GetDebugName(it->second.back().pObject).c_str(), counter);
+				CRY_DX11_VERIFY(it->second.back().pObject->Release() == 0, "Invalid ref-count of D3D11 resource %s, memory will leak!", GetDebugName(it->second.back().pObject).c_str());
 
 				it->second.pop_back();
 				evictions++;
@@ -501,9 +499,7 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 		int rowPos = 25;
 		int rowMax = 25;
 		float colPos = 20;
-		size_t releaseSize = 0;
 		size_t recycleSize = 0;
-		size_t releaseNums = 0;
 		size_t recycleNums = 0;
 
 		const auto& fenceManager = GetScheduler().GetFenceManager();

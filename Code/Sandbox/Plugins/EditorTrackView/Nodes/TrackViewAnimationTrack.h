@@ -17,6 +17,8 @@ public:
 	virtual SAnimTime GetKeyAnimStart(const uint index) const override;
 	virtual SAnimTime GetKeyAnimEnd(const uint index) const override;
 
+	virtual _smart_ptr<IAnimKeyWrapper> GetWrappedKey(int key);
+
 private:
 	float GetKeyDurationFromAnimationData(const SCharacterKey& key) const;
 };

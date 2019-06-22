@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <type_traits>
-#include <string.h>
+#include <cstring>
 #include <CrySTL/type_traits.h>
 
 namespace CryGTestDetails
@@ -126,7 +126,7 @@ namespace CryGTestDetails
 		{
 			char lhs[messageBufferLength] = {}, rhs[messageBufferLength] = {};
 			this->parse(this->m_msg, "==", lhs, rhs);
-			GTEST_ASSERT_(::testing::internal::EqHelper<GTEST_IS_NULL_LITERAL_(this->m_val1)>::Compare(lhs, rhs, this->m_val1, this->m_val2),
+			GTEST_ASSERT_(::testing::internal::EqHelper::Compare(lhs, rhs, this->m_val1, this->m_val2),
 				CRY_GTEST_MESSAGE);
 		}
 	};
@@ -503,3 +503,8 @@ inline void PrintTo(const CryFixedStringT<S>& str, ::std::ostream* os) { *os << 
 template<size_t S>
 inline void PrintTo(const CryFixedWStringT<S>& str, ::std::ostream* os) { *os << str.c_str(); }
 
+#ifdef USE_CRY_ASSERT
+#	define EXPECT_ASSERT_FAILURE(statement, substr) EXPECT_NONFATAL_FAILURE(statement, substr)
+#else
+#	define EXPECT_ASSERT_FAILURE(statement, substr)
+#endif

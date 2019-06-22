@@ -3,14 +3,16 @@
 #include "StdAfx.h"
 #include "SystemControlsWidget.h"
 
+#include "AudioControlsEditorPlugin.h"
 #include "SystemSourceModel.h"
 #include "SystemLibraryModel.h"
 #include "SystemFilterProxyModel.h"
-#include "AudioControlsEditorPlugin.h"
-#include "ImplementationManager.h"
+#include "AssetsManager.h"
+#include "ImplManager.h"
 #include "PropertiesWidget.h"
 #include "AssetIcons.h"
 #include "AssetUtils.h"
+#include "FileImporterUtils.h"
 #include "TreeView.h"
 #include "Common/IImpl.h"
 #include "Common/ModelUtils.h"
@@ -31,6 +33,8 @@
 
 namespace ACE
 {
+constexpr int g_systemNameColumn = static_cast<int>(CSystemSourceModel::EColumns::Name);
+
 //////////////////////////////////////////////////////////////////////////
 void GetAssetsFromIndexesSeparated(
 	QModelIndexList const& indexes,
@@ -54,7 +58,6 @@ void GetAssetsFromIndexesSeparated(
 					outLibraries.push_back(reinterpret_cast<CLibrary*>(internalPtr.value<intptr_t>()));
 					break;
 				}
-
 			case static_cast<int>(EAssetType::Folder):
 				{
 					outFolders.push_back(reinterpret_cast<CFolder*>(internalPtr.value<intptr_t>()));
@@ -88,11 +91,11 @@ void GetAssetsFromIndexesCombined(QModelIndexList const& indexes, Assets& outAss
 //////////////////////////////////////////////////////////////////////////
 XmlNodeRef ConstructTemporaryTrigger(CControl const* const pControl)
 {
-	XmlNodeRef const pNode = GetISystem()->CreateXmlNode(CryAudio::g_szTriggerTag);
+	XmlNodeRef const node = GetISystem()->CreateXmlNode(CryAudio::g_szTriggerTag);
 
-	if (pNode != nullptr)
+	if (node.isValid())
 	{
-		pNode->setAttr(CryAudio::g_szNameAttribute, pControl->GetName());
+		node->setAttr(CryAudio::g_szNameAttribute, pControl->GetName());
 		size_t const numConnections = pControl->GetConnectionCount();
 
 		for (size_t i = 0; i < numConnections; ++i)
@@ -101,12 +104,12 @@ XmlNodeRef ConstructTemporaryTrigger(CControl const* const pControl)
 
 			if (pIConnection != nullptr)
 			{
-				AssetUtils::TryConstructTriggerConnectionNode(pNode, pIConnection);
+				AssetUtils::TryConstructTriggerConnectionNode(node, pIConnection, pControl->GetContextId());
 			}
 		}
 	}
 
-	return pNode;
+	return node;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -115,7 +118,6 @@ CSystemControlsWidget::CSystemControlsWidget(QWidget* const pParent)
 	, m_pSystemFilterProxyModel(new CSystemFilterProxyModel(this))
 	, m_pSourceModel(new CSystemSourceModel(this))
 	, m_pTreeView(new CTreeView(this))
-	, m_nameColumn(static_cast<int>(CSystemSourceModel::EColumns::Name))
 	, m_isReloading(false)
 	, m_isCreatedFromMenu(false)
 	, m_suppressRenaming(false)
@@ -128,26 +130,24 @@ CSystemControlsWidget::CSystemControlsWidget(QWidget* const pParent)
 	m_pMountingProxyModel->SetDragCallback(&CSystemSourceModel::GetDragDropData);
 
 	m_pSystemFilterProxyModel->setSourceModel(m_pMountingProxyModel);
-	m_pSystemFilterProxyModel->setFilterKeyColumn(m_nameColumn);
+	m_pSystemFilterProxyModel->setFilterKeyColumn(g_systemNameColumn);
 
 	m_pTreeView->setEditTriggers(QAbstractItemView::EditKeyPressed | QAbstractItemView::SelectedClicked);
 	m_pTreeView->setDragEnabled(true);
 	m_pTreeView->setDragDropMode(QAbstractItemView::DragDrop);
 	m_pTreeView->setSelectionMode(QAbstractItemView::ExtendedSelection);
 	m_pTreeView->setSelectionBehavior(QAbstractItemView::SelectRows);
-	m_pTreeView->setTreePosition(m_nameColumn);
+	m_pTreeView->setTreePosition(g_systemNameColumn);
 	m_pTreeView->setUniformRowHeights(true);
 	m_pTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
 	m_pTreeView->setModel(m_pSystemFilterProxyModel);
-	m_pTreeView->sortByColumn(m_nameColumn, Qt::AscendingOrder);
+	m_pTreeView->sortByColumn(g_systemNameColumn, Qt::AscendingOrder);
 	m_pTreeView->viewport()->installEventFilter(this);
 	m_pTreeView->installEventFilter(this);
 	m_pTreeView->header()->setMinimumSectionSize(25);
 	m_pTreeView->header()->setSectionResizeMode(static_cast<int>(CSystemSourceModel::EColumns::Notification), QHeaderView::ResizeToContents);
 	m_pTreeView->header()->setSectionResizeMode(static_cast<int>(CSystemSourceModel::EColumns::PakStatus), QHeaderView::ResizeToContents);
-	m_pTreeView->SetNameColumn(m_nameColumn);
-	m_pTreeView->SetNameRole(static_cast<int>(ModelUtils::ERoles::Name));
-	m_pTreeView->SetTypeRole(static_cast<int>(ModelUtils::ERoles::SortPriority));
+	m_pTreeView->SetNameColumn(g_systemNameColumn);
 	m_pTreeView->TriggerRefreshHeaderColumns();
 
 	m_pFilteringPanel = new QFilteringPanel("ACESystemControlsPanel", m_pSystemFilterProxyModel, this);
@@ -206,13 +206,13 @@ CSystemControlsWidget::CSystemControlsWidget(QWidget* const pParent)
 	                                                       StopControlExecution();
 			}, reinterpret_cast<uintptr_t>(this));
 
-	g_implementationManager.SignalOnBeforeImplementationChange.Connect([this]()
+	g_implManager.SignalOnBeforeImplChange.Connect([this]()
 		{
 			StopControlExecution();
 			ClearFilters();
 		}, reinterpret_cast<uintptr_t>(this));
 
-	g_implementationManager.SignalOnAfterImplementationChange.Connect([this]()
+	g_implManager.SignalOnAfterImplChange.Connect([this]()
 		{
 			setEnabled(g_pIImpl != nullptr);
 		}, reinterpret_cast<uintptr_t>(this));
@@ -224,8 +224,8 @@ CSystemControlsWidget::~CSystemControlsWidget()
 	g_assetsManager.SignalOnBeforeLibraryRemoved.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	g_assetsManager.SignalAssetRenamed.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::SignalOnBeforeLoad.DisconnectById(reinterpret_cast<uintptr_t>(this));
-	g_implementationManager.SignalOnBeforeImplementationChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
-	g_implementationManager.SignalOnAfterImplementationChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	g_implManager.SignalOnBeforeImplChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	g_implManager.SignalOnAfterImplChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
 
 	StopControlExecution();
 	DeleteModels();
@@ -332,7 +332,7 @@ bool CSystemControlsWidget::eventFilter(QObject* pObject, QEvent* pEvent)
 //////////////////////////////////////////////////////////////////////////
 Assets CSystemControlsWidget::GetSelectedAssets() const
 {
-	QModelIndexList const& indexes = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	QModelIndexList const& indexes = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
 	Assets assets;
 	GetAssetsFromIndexesCombined(indexes, assets);
 	return assets;
@@ -373,7 +373,7 @@ CAsset* CSystemControlsWidget::CreateFolder(CAsset* const pParent)
 //////////////////////////////////////////////////////////////////////////
 void CSystemControlsWidget::CreateParentFolder()
 {
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
 	size_t const numAssets = selection.size();
 
 	Libraries libraries;
@@ -408,7 +408,9 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 {
 	auto const pContextMenu = new QMenu(this);
 	QMenu* const pAddMenu = new QMenu(tr("Add"), pContextMenu);
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
+
+	CAsset* pImportAsset = nullptr;
 
 	pContextMenu->addMenu(pAddMenu);
 	pContextMenu->addSeparator();
@@ -447,7 +449,7 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 
 				if (index.isValid())
 				{
-					CAsset const* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, m_nameColumn);
+					CAsset* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, g_systemNameColumn);
 
 					if (pAsset != nullptr)
 					{
@@ -510,6 +512,11 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 									pContextMenu->addSeparator();
 								}
 							}
+
+							if ((g_implInfo.flags & EImplInfoFlags::SupportsFileImport) != 0)
+							{
+								pImportAsset = pAsset;
+							}
 						}
 					}
 				}
@@ -535,10 +542,12 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 					}
 					else if (controlType == EAssetType::Preload)
 					{
-						if (pControl->GetScope() == g_globalScopeId && !pControl->IsAutoLoad())
+						if (!pControl->IsAutoLoad() &&
+						    ((pControl->GetContextId() == CryAudio::GlobalContextId) ||
+						     (std::find(g_activeUserDefinedContexts.begin(), g_activeUserDefinedContexts.end(), pControl->GetContextId()) != g_activeUserDefinedContexts.end())))
 						{
-							QAction* const pLoadAction = new QAction(tr("Load Global Preload Request"), pContextMenu);
-							QAction* const pUnloadAction = new QAction(tr("Unload Global Preload Request"), pContextMenu);
+							QAction* const pLoadAction = new QAction(tr("Load Preload Request"), pContextMenu);
+							QAction* const pUnloadAction = new QAction(tr("Unload Preload Request"), pContextMenu);
 							QObject::connect(pLoadAction, &QAction::triggered, [=]() { gEnv->pAudioSystem->PreloadSingleRequest(CryAudio::StringToId(pControl->GetName()), false); });
 							QObject::connect(pUnloadAction, &QAction::triggered, [=]() { gEnv->pAudioSystem->UnloadSingleRequest(CryAudio::StringToId(pControl->GetName())); });
 							pContextMenu->insertSeparator(pContextMenu->actions().at(0));
@@ -560,27 +569,29 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 			}
 			else if (controls.size() > 1)
 			{
-				bool hasOnlyGlobalPreloads = false;
+				bool hasOnlyPreloadsInActiveContext = false;
 
 				for (auto const pControl : controls)
 				{
-					if ((pControl->GetType() == EAssetType::Preload) && (pControl->GetScope() == g_globalScopeId) && !pControl->IsAutoLoad())
+					if ((pControl->GetType() == EAssetType::Preload) &&
+					    !pControl->IsAutoLoad() &&
+					    ((pControl->GetContextId() == CryAudio::GlobalContextId) ||
+					     (std::find(g_activeUserDefinedContexts.begin(), g_activeUserDefinedContexts.end(), pControl->GetContextId()) != g_activeUserDefinedContexts.end())))
 					{
-						hasOnlyGlobalPreloads = true;
+						hasOnlyPreloadsInActiveContext = true;
 					}
 					else
 					{
-						hasOnlyGlobalPreloads = false;
+						hasOnlyPreloadsInActiveContext = false;
 						break;
 					}
 				}
 
-				if (hasOnlyGlobalPreloads)
+				if (hasOnlyPreloadsInActiveContext)
 				{
-
-					QAction* const pLoadAction = new QAction(tr("Load Global Preload Requests"), pContextMenu);
-					QAction* const pUnloadAction = new QAction(tr("Unload Global Preload Requests"), pContextMenu);
-					QObject::connect(pLoadAction, &QAction::triggered, [&]()
+					QAction* const pLoadAction = new QAction(tr("Load reload Requests"), pContextMenu);
+					QAction* const pUnloadAction = new QAction(tr("Unload Preload Requests"), pContextMenu);
+					QObject::connect(pLoadAction, &QAction::triggered, [=]()
 						{
 							for (auto const pControl : controls)
 							{
@@ -588,7 +599,7 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 							}
 						});
 
-					QObject::connect(pUnloadAction, &QAction::triggered, [&]()
+					QObject::connect(pUnloadAction, &QAction::triggered, [=]()
 						{
 							for (auto const pControl : controls)
 							{
@@ -619,7 +630,7 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 
 		pContextMenu->addAction(tr("Rename"), [=]()
 			{
-				QModelIndex const& nameColumnIndex = m_pTreeView->currentIndex().sibling(m_pTreeView->currentIndex().row(), m_nameColumn);
+				QModelIndex const& nameColumnIndex = m_pTreeView->currentIndex().sibling(m_pTreeView->currentIndex().row(), g_systemNameColumn);
 				m_pTreeView->edit(nameColumnIndex);
 			});
 
@@ -633,6 +644,15 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 	pContextMenu->addAction(tr("Expand All"), [=]() { m_pTreeView->expandAll(); });
 	pContextMenu->addAction(tr("Collapse All"), [=]() { m_pTreeView->collapseAll(); });
 
+	if (pImportAsset != nullptr)
+	{
+		pContextMenu->addSeparator();
+		pContextMenu->addAction(tr("Import Files"), [=]()
+			{
+				OpenFileSelector(EImportTargetType::SystemControls, pImportAsset);
+			});
+	}
+
 	pContextMenu->exec(QCursor::pos());
 }
 
@@ -640,13 +660,13 @@ void CSystemControlsWidget::OnContextMenu(QPoint const& pos)
 void CSystemControlsWidget::OnRenameSelectedControls(string const& name)
 {
 	m_suppressRenaming = true;
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
 
 	if (selection.size() > 1)
 	{
 		for (auto const& index : selection)
 		{
-			CAsset* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, m_nameColumn);
+			CAsset* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, g_systemNameColumn);
 
 			if (pAsset != nullptr)
 			{
@@ -661,7 +681,7 @@ void CSystemControlsWidget::OnRenameSelectedControls(string const& name)
 //////////////////////////////////////////////////////////////////////////
 void CSystemControlsWidget::OnDeleteSelectedControls()
 {
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
 	int const numSelected = selection.length();
 
 	if (numSelected > 0)
@@ -678,7 +698,7 @@ void CSystemControlsWidget::OnDeleteSelectedControls()
 		}
 
 		auto const messageBox = new CQuestionDialog();
-		messageBox->SetupQuestion("Audio Controls Editor", text);
+		messageBox->SetupQuestion(g_szEditorName, text);
 
 		if (messageBox->Execute() == QDialogButtonBox::Yes)
 		{
@@ -688,7 +708,7 @@ void CSystemControlsWidget::OnDeleteSelectedControls()
 			{
 				if (index.isValid())
 				{
-					selectedItems.push_back(CSystemSourceModel::GetAssetFromIndex(index, m_nameColumn));
+					selectedItems.push_back(CSystemSourceModel::GetAssetFromIndex(index, g_systemNameColumn));
 				}
 			}
 
@@ -770,7 +790,7 @@ void CSystemControlsWidget::OnDeleteSelectedControls()
 			if (!notDeletedAssetsText.isEmpty())
 			{
 				auto const defaultControlsMessageBox = new CQuestionDialog();
-				defaultControlsMessageBox->SetupQuestion("Audio Controls Editor", notDeletedAssetsText, QDialogButtonBox::Ok, QDialogButtonBox::Ok);
+				defaultControlsMessageBox->SetupQuestion(g_szEditorName, notDeletedAssetsText, QDialogButtonBox::Ok, QDialogButtonBox::Ok);
 				defaultControlsMessageBox->Execute();
 			}
 		}
@@ -780,7 +800,7 @@ void CSystemControlsWidget::OnDeleteSelectedControls()
 //////////////////////////////////////////////////////////////////////////
 void CSystemControlsWidget::ExecuteControl()
 {
-	CAsset const* const pAsset = CSystemSourceModel::GetAssetFromIndex(m_pTreeView->currentIndex(), m_nameColumn);
+	CAsset const* const pAsset = CSystemSourceModel::GetAssetFromIndex(m_pTreeView->currentIndex(), g_systemNameColumn);
 
 	if ((pAsset != nullptr) && (pAsset->GetType() == EAssetType::Trigger))
 	{
@@ -836,7 +856,7 @@ CAsset* CSystemControlsWidget::GetSelectedAsset() const
 
 	if (index.isValid())
 	{
-		pAsset = CSystemSourceModel::GetAssetFromIndex(index, m_nameColumn);
+		pAsset = CSystemSourceModel::GetAssetFromIndex(index, g_systemNameColumn);
 	}
 
 	return pAsset;
@@ -848,7 +868,7 @@ void CSystemControlsWidget::SelectNewAsset(QModelIndex const& parent, int const 
 	if (!g_assetsManager.IsLoading())
 	{
 		ClearFilters();
-		QModelIndex const& assetIndex = m_pSystemFilterProxyModel->mapFromSource(m_pMountingProxyModel->index(row, m_nameColumn, parent));
+		QModelIndex const& assetIndex = m_pSystemFilterProxyModel->mapFromSource(m_pMountingProxyModel->index(row, g_systemNameColumn, parent));
 
 		if (m_isCreatedFromMenu)
 		{
@@ -881,7 +901,7 @@ void CSystemControlsWidget::OnUpdateCreateButtons()
 	else
 	{
 		m_pCreateParentFolderAction->setVisible(IsParentFolderAllowed());
-		auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+		QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
 
 		if (selection.size() == 1)
 		{
@@ -889,7 +909,7 @@ void CSystemControlsWidget::OnUpdateCreateButtons()
 
 			if (index.isValid())
 			{
-				CAsset const* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, m_nameColumn);
+				CAsset const* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, g_systemNameColumn);
 
 				if (pAsset != nullptr)
 				{
@@ -928,7 +948,7 @@ void CSystemControlsWidget::OnUpdateCreateButtons()
 bool CSystemControlsWidget::IsParentFolderAllowed() const
 {
 	bool isAllowed = false;
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
 
 	if (!selection.isEmpty())
 	{
@@ -987,13 +1007,13 @@ bool CSystemControlsWidget::IsParentFolderAllowed() const
 bool CSystemControlsWidget::IsDefaultControlSelected() const
 {
 	bool isDefaultControlSelected = false;
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(m_nameColumn);
+	QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(g_systemNameColumn);
 
 	for (auto const& index : selection)
 	{
 		if (index.isValid())
 		{
-			CAsset const* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, m_nameColumn);
+			CAsset const* const pAsset = CSystemSourceModel::GetAssetFromIndex(index, g_systemNameColumn);
 
 			if ((pAsset != nullptr) && ((pAsset->GetFlags() & EAssetFlags::IsDefaultControl) != 0))
 			{
@@ -1018,6 +1038,18 @@ void CSystemControlsWidget::OnAfterReload()
 {
 	m_pTreeView->RestoreExpanded();
 	m_pTreeView->RestoreSelection();
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSystemControlsWidget::OnFileImporterOpened()
+{
+	m_pTreeView->setDragDropMode(QAbstractItemView::NoDragDrop);
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CSystemControlsWidget::OnFileImporterClosed()
+{
+	m_pTreeView->setDragDropMode(QAbstractItemView::DragDrop);
 }
 
 //////////////////////////////////////////////////////////////////////////

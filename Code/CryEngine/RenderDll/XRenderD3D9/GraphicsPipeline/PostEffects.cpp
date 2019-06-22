@@ -63,15 +63,15 @@ uint64 CPostEffectContext::GetShaderRTMask() const
 
 CTexture* CPostEffectContext::GetSrcBackBufferTexture() const
 {
-	return CRendererResources::s_ptexDisplayTargetSrc;
+	return GetRenderView()->GetGraphicsPipeline()->GetPipelineResources().m_pTexDisplayTargetSrc;
 }
 
 CTexture* CPostEffectContext::GetDstBackBufferTexture() const
 {
 	if (!m_bUseAltBackBuffer)
 		return GetRenderView()->GetColorTarget();
-	
-	return CRendererResources::s_ptexDisplayTargetDst;
+
+	return GetRenderView()->GetGraphicsPipeline()->GetPipelineResources().m_pTexDisplayTargetDst;
 }
 
 CTexture* CPostEffectContext::GetDstDepthStencilTexture() const
@@ -93,47 +93,37 @@ const CEffectParam* CPostEffectContext::GetEffectParamByName(const char* pszPara
 
 //////////////////////////////////////////////////////////////////////////
 
-CPostEffectStage::CPostEffectStage()
-{
-
-}
-
-CPostEffectStage::~CPostEffectStage()
-{
-
-}
-
 void CPostEffectStage::Init()
 {
 	// TODO: all commented ones
-//	m_postEffectArray[EPostEffectID::SunShafts           ] = stl::make_unique<CSunShaftsPass           >();
-//	m_postEffectArray[EPostEffectID::MotionBlur          ] = stl::make_unique<CMotionBlurPass          >();
-//	m_postEffectArray[EPostEffectID::ColorGrading        ] = stl::make_unique<CColorGradingPass        >();
-//	m_postEffectArray[EPostEffectID::DepthOfField        ] = stl::make_unique<CDepthOfFieldPass        >();
-	m_postEffectArray[EPostEffectID::HUDSilhouettes      ] = stl::make_unique<CHudSilhouettesPass      >();
-//	m_postEffectArray[EPostEffectID::PostAA              ] = stl::make_unique<CPostAAPass              >();
-	m_postEffectArray[EPostEffectID::UnderwaterGodRays   ] = stl::make_unique<CUnderwaterGodRaysPass   >();
-//	m_postEffectArray[EPostEffectID::VolumetricScattering] = stl::make_unique<CVolumetricScatteringPass>();
-	m_postEffectArray[EPostEffectID::Sharpening          ] = stl::make_unique<CSharpeningPass          >();
-	m_postEffectArray[EPostEffectID::Blurring            ] = stl::make_unique<CBlurringPass            >();
-	m_postEffectArray[EPostEffectID::UberGamePostProcess ] = stl::make_unique<CUberGamePostEffectPass  >();
-//	m_postEffectArray[EPostEffectID::NightVision         ] = stl::make_unique<CNightVisionPass         >();
-//	m_postEffectArray[EPostEffectID::SonarVision         ] = stl::make_unique<CSonarVisionPass         >();
-//	m_postEffectArray[EPostEffectID::ThermalVision       ] = stl::make_unique<CThermalVisionPass       >();
-	m_postEffectArray[EPostEffectID::FlashBang           ] = stl::make_unique<CFlashBangPass           >();
-//	m_postEffectArray[EPostEffectID::ImageGhosting       ] = stl::make_unique<CImageGhostingPass       >();
-//	m_postEffectArray[EPostEffectID::NanoGlass           ] = stl::make_unique<CNanoGlassPass           >();
-//	m_postEffectArray[EPostEffectID::RainDrops           ] = stl::make_unique<CRainDropsPass           >();
-	m_postEffectArray[EPostEffectID::WaterDroplets       ] = stl::make_unique<CWaterDropletsPass       >();
-	m_postEffectArray[EPostEffectID::WaterFlow           ] = stl::make_unique<CWaterFlowPass           >();
-	m_postEffectArray[EPostEffectID::ScreenBlood         ] = stl::make_unique<CScreenBloodPass         >();
-//	m_postEffectArray[EPostEffectID::ScreenFrost         ] = stl::make_unique<CScreenFrostPass         >();
-	m_postEffectArray[EPostEffectID::KillCamera          ] = stl::make_unique<CKillCameraPass          >();
-//	m_postEffectArray[EPostEffectID::AlienInterference   ] = stl::make_unique<CAlienInterferencePass   >();
-	m_postEffectArray[EPostEffectID::PostStereo          ] = stl::make_unique<CPostStereoPass          >();
-	m_postEffectArray[EPostEffectID::HUD3D               ] = stl::make_unique<CHud3DPass               >();
-	m_postEffectArray[EPostEffectID::ScreenFader         ] = stl::make_unique<CScreenFaderPass         >();
-//	m_postEffectArray[EPostEffectID::Post3DRenderer      ] = stl::make_unique<CPost3DRendererPass      >();
+	//	m_postEffectArray[EPostEffectID::SunShafts           ] = stl::make_unique<CSunShaftsPass           >();
+	//	m_postEffectArray[EPostEffectID::MotionBlur          ] = stl::make_unique<CMotionBlurPass          >();
+	//	m_postEffectArray[EPostEffectID::ColorGrading        ] = stl::make_unique<CColorGradingPass        >();
+	//	m_postEffectArray[EPostEffectID::DepthOfField        ] = stl::make_unique<CDepthOfFieldPass        >();
+	    m_postEffectArray[EPostEffectID::HUDSilhouettes      ] = stl::make_unique<CHudSilhouettesPass      >(&m_graphicsPipeline);
+	//	m_postEffectArray[EPostEffectID::PostAA              ] = stl::make_unique<CPostAAPass              >();
+	    m_postEffectArray[EPostEffectID::UnderwaterGodRays   ] = stl::make_unique<CUnderwaterGodRaysPass   >(&m_graphicsPipeline);
+	//	m_postEffectArray[EPostEffectID::VolumetricScattering] = stl::make_unique<CVolumetricScatteringPass>();
+	    m_postEffectArray[EPostEffectID::Sharpening          ] = stl::make_unique<CSharpeningPass          >(&m_graphicsPipeline);
+	    m_postEffectArray[EPostEffectID::Blurring            ] = stl::make_unique<CBlurringPass            >(&m_graphicsPipeline);
+	    m_postEffectArray[EPostEffectID::UberGamePostProcess ] = stl::make_unique<CUberGamePostEffectPass  >(&m_graphicsPipeline);
+	//	m_postEffectArray[EPostEffectID::NightVision         ] = stl::make_unique<CNightVisionPass         >();
+	//	m_postEffectArray[EPostEffectID::SonarVision         ] = stl::make_unique<CSonarVisionPass         >();
+	//	m_postEffectArray[EPostEffectID::ThermalVision       ] = stl::make_unique<CThermalVisionPass       >();
+	    m_postEffectArray[EPostEffectID::FlashBang           ] = stl::make_unique<CFlashBangPass           >(&m_graphicsPipeline);
+	//	m_postEffectArray[EPostEffectID::ImageGhosting       ] = stl::make_unique<CImageGhostingPass       >();
+	//	m_postEffectArray[EPostEffectID::NanoGlass           ] = stl::make_unique<CNanoGlassPass           >();
+	//	m_postEffectArray[EPostEffectID::RainDrops           ] = stl::make_unique<CRainDropsPass           >();
+	    m_postEffectArray[EPostEffectID::WaterDroplets       ] = stl::make_unique<CWaterDropletsPass       >(&m_graphicsPipeline);
+	    m_postEffectArray[EPostEffectID::WaterFlow           ] = stl::make_unique<CWaterFlowPass           >(&m_graphicsPipeline);
+	    m_postEffectArray[EPostEffectID::ScreenBlood         ] = stl::make_unique<CScreenBloodPass         >(&m_graphicsPipeline);
+	//	m_postEffectArray[EPostEffectID::ScreenFrost         ] = stl::make_unique<CScreenFrostPass         >();
+	    m_postEffectArray[EPostEffectID::KillCamera          ] = stl::make_unique<CKillCameraPass          >(&m_graphicsPipeline);
+	//	m_postEffectArray[EPostEffectID::AlienInterference   ] = stl::make_unique<CAlienInterferencePass   >();
+	    m_postEffectArray[EPostEffectID::PostStereo          ] = stl::make_unique<CPostStereoPass          >(&m_graphicsPipeline);
+	    m_postEffectArray[EPostEffectID::HUD3D               ] = stl::make_unique<CHud3DPass               >(&m_graphicsPipeline);
+	    m_postEffectArray[EPostEffectID::ScreenFader         ] = stl::make_unique<CScreenFaderPass         >(&m_graphicsPipeline);
+	//	m_postEffectArray[EPostEffectID::Post3DRenderer      ] = stl::make_unique<CPost3DRendererPass      >();
 
 	for (auto& pPostEffect : m_postEffectArray)
 	{
@@ -178,10 +168,12 @@ bool CPostEffectStage::Execute()
 		return false;
 	}
 
+	std::shared_ptr<CGraphicsPipeline> pGP = RenderView()->GetGraphicsPipeline();
+
 	// Skip hdr/post processing when rendering different camera views
 	if ((RenderView()->IsViewFlag(SRenderViewInfo::eFlags_MirrorCull))
-	    || (RenderView()->GetShaderRenderingFlags() & SHDF_CUBEMAPGEN)
-	    || (RenderView()->GetShaderRenderingFlags() & SHDF_ALLOWPOSTPROCESS) == 0)
+	    || (pGP->GetRenderFlags() & SHDF_CUBEMAPGEN)
+	    || (pGP->GetRenderFlags() & SHDF_ALLOWPOSTPROCESS) == 0)
 	{
 		return false;
 	}
@@ -191,12 +183,12 @@ bool CPostEffectStage::Execute()
 		return false;
 	}
 
-	IF (!CTexture::IsTextureExist(CRendererResources::s_ptexDisplayTargetSrc), 0)
+	IF (!CTexture::IsTextureExist(pGP->GetPipelineResources().m_pTexDisplayTargetSrc), 0)
 	{
 		return false;
 	}
 
-	IF (!CTexture::IsTextureExist(CRendererResources::s_ptexSceneTarget), 0)
+	IF (!CTexture::IsTextureExist(pGP->GetPipelineResources().m_pTexSceneTarget), 0)
 	{
 		return false;
 	}
@@ -235,7 +227,6 @@ bool CPostEffectStage::Execute()
 		pCurrEffect->SetCurrentContext(&m_context);
 		if (pCurrEffect->Preprocess(viewInfo))
 		{
-			pCurrEffect->SetCurrentContext(nullptr);
 			const auto id = pCurrEffect->GetID();
 
 			// TODO: Do this on the last effect, not after AA (because effects after AA use ptexDisplayTarget)
@@ -413,10 +404,6 @@ void CPostEffectStage::Execute3DHudFlashUpdate()
 }
 
 //////////////////////////////////////////////////////////////////////////
-CUnderwaterGodRaysPass::CUnderwaterGodRaysPass()
-{
-
-}
 
 CUnderwaterGodRaysPass::~CUnderwaterGodRaysPass()
 {
@@ -449,14 +436,14 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 
 	PROFILE_LABEL_SCOPE("UNDERWATER_GODRAYS");
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-
 	static CCryNameR param0Name("PB_GodRaysParamsVS");
 	static CCryNameR param1Name("PB_GodRaysParamsPS");
+	
+	CGraphicsPipelineResources& pipelineResources = context.GetRenderView()->GetGraphicsPipeline()->GetPipelineResources();
 
 	// render god-rays into low-res render target for less fillrate hit.
 	{
-		CClearSurfacePass::Execute(CRendererResources::s_ptexDisplayTargetScaled[1], Clr_Transparent);
+		CClearSurfacePass::Execute(pipelineResources.m_pTexDisplayTargetScaled[1], Clr_Transparent);
 
 		const float fAmount = pAmount->GetParam();
 		const float fWatLevel = SPostEffectsUtils::m_fWaterLevel;
@@ -480,7 +467,7 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 				pass.SetTechnique(CShaderMan::s_shPostEffects, techName, rtMask);
 				pass.SetState(GS_BLSRC_ONE | GS_BLDST_ONE | GS_NODEPTHTEST);
 
-				pass.SetRenderTarget(0, CRendererResources::s_ptexDisplayTargetScaled[1]);
+				pass.SetRenderTarget(0, pipelineResources.m_pTexDisplayTargetScaled[1]);
 
 				pass.SetTexture(0, pSrcBackBufferTexture);
 				pass.SetTexture(1, m_pWavesTex);
@@ -520,7 +507,7 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 
 			pass.SetTexture(0, pSrcTex);
 			pass.SetTexture(1, m_pUnderwaterBumpTex);
-			pass.SetTexture(2, CRendererResources::s_ptexDisplayTargetScaled[1]);
+			pass.SetTexture(2, pipelineResources.m_pTexDisplayTargetScaled[1]);
 
 			pass.SetSampler(0, EDefaultSamplerStates::TrilinearClamp);
 			pass.SetSampler(1, EDefaultSamplerStates::TrilinearWrap);
@@ -536,11 +523,6 @@ void CUnderwaterGodRaysPass::Execute(const CPostEffectContext& context)
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-CWaterDropletsPass::CWaterDropletsPass()
-{
-
-}
 
 CWaterDropletsPass::~CWaterDropletsPass()
 {
@@ -562,8 +544,6 @@ void CWaterDropletsPass::Execute(const CPostEffectContext& context)
 	{
 		return;
 	}
-
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
 	auto& pass = m_passWaterDroplets;
 
@@ -601,11 +581,6 @@ void CWaterDropletsPass::Execute(const CPostEffectContext& context)
 
 //////////////////////////////////////////////////////////////////////////
 
-CWaterFlowPass::CWaterFlowPass()
-{
-
-}
-
 CWaterFlowPass::~CWaterFlowPass()
 {
 	SAFE_RELEASE(m_pWaterFlowBumpTex);
@@ -626,8 +601,6 @@ void CWaterFlowPass::Execute(const CPostEffectContext& context)
 	{
 		return;
 	}
-
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
 	auto& pass = m_passWaterFlow;
 
@@ -681,7 +654,7 @@ void CSharpeningPass::Execute(const CPostEffectContext& context)
 
 	PROFILE_LABEL_SCOPE("SHARPENING");
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
+	CGraphicsPipelineResources& pipelineResources = context.GetRenderView()->GetGraphicsPipeline()->GetPipelineResources();
 
 	CTexture* pSrcTex = context.GetSrcBackBufferTexture();
 	CTexture* pDstTex = context.GetDstBackBufferTexture();
@@ -689,12 +662,12 @@ void CSharpeningPass::Execute(const CPostEffectContext& context)
 	const f32 fSharpenAmount = max(pAmount->GetParam(), CRenderer::CV_r_Sharpening + 1.0f);
 	if (fSharpenAmount > 1e-6f)
 	{
-		m_passStrechRect.Execute(pSrcTex, CRendererResources::s_ptexDisplayTargetScaled[0]);
+		m_passStrechRect.Execute(pSrcTex, pipelineResources.m_pTexDisplayTargetScaled[0]);
 	}
 
 	auto& pass = m_passSharpeningAndChromaticAberration;
 
-	if (pass.IsDirty(pDstTex->GetID(), pSrcTex->GetID(), CRendererResources::s_ptexDisplayTargetScaled[0]->GetID()))
+	if (pass.IsDirty(pDstTex->GetID(), pSrcTex->GetID(), pipelineResources.m_pTexDisplayTargetScaled[0]->GetID()))
 	{
 		static CCryNameTSCRC techName("CA_Sharpening");
 		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
@@ -705,7 +678,7 @@ void CSharpeningPass::Execute(const CPostEffectContext& context)
 		pass.SetRenderTarget(0, pDstTex);
 
 		pass.SetTexture(0, pSrcTex);
-		pass.SetTexture(1, CRendererResources::s_ptexDisplayTargetScaled[0]);
+		pass.SetTexture(1, pipelineResources.m_pTexDisplayTargetScaled[0]);
 
 		pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
 		pass.SetSampler(1, EDefaultSamplerStates::LinearClamp);
@@ -741,7 +714,7 @@ void CBlurringPass::Execute(const CPostEffectContext& context)
 
 	PROFILE_LABEL_SCOPE("BLURRING");
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
+	CGraphicsPipelineResources& pipelineResources = context.GetRenderView()->GetGraphicsPipeline()->GetPipelineResources();
 
 	auto& pass = m_passBlurring;
 
@@ -754,10 +727,10 @@ void CBlurringPass::Execute(const CPostEffectContext& context)
 	CTexture* pSrcTex = context.GetSrcBackBufferTexture();
 	CTexture* pDstTex = context.GetDstBackBufferTexture();
 
-	m_passStrechRect.Execute(pSrcTex, CRendererResources::s_ptexDisplayTargetScaledTemp[0]);
-	m_passGaussianBlur.Execute(CRendererResources::s_ptexDisplayTargetScaledTemp[0], CRendererResources::s_ptexDisplayTargetScaled[0], 1.0f, LERP(0.0f, fMaxBlurAmount, fAmount));
+	m_passStrechRect.Execute(pSrcTex, pipelineResources.m_pTexDisplayTargetScaledTemp[0]);
+	m_passGaussianBlur.Execute(pipelineResources.m_pTexDisplayTargetScaledTemp[0], pipelineResources.m_pTexDisplayTargetScaled[0], 1.0f, LERP(0.0f, fMaxBlurAmount, fAmount));
 
-	if (pass.IsDirty(pDstTex->GetID(), pSrcTex->GetID(), CRendererResources::s_ptexDisplayTargetScaled[0]->GetID()))
+	if (pass.IsDirty(pDstTex->GetID(), pSrcTex->GetID(), pipelineResources.m_pTexDisplayTargetScaled[0]->GetID()))
 	{
 		static CCryNameTSCRC techName("BlurInterpolation");
 		pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
@@ -767,7 +740,7 @@ void CBlurringPass::Execute(const CPostEffectContext& context)
 
 		pass.SetRenderTarget(0, pDstTex);
 
-		pass.SetTexture(0, CRendererResources::s_ptexDisplayTargetScaled[0]);
+		pass.SetTexture(0, pipelineResources.m_pTexDisplayTargetScaled[0]);
 		pass.SetTexture(1, pSrcTex);
 
 		pass.SetSampler(0, EDefaultSamplerStates::PointClamp);
@@ -796,8 +769,6 @@ void CUberGamePostEffectPass::Execute(const CPostEffectContext& context)
 	if (pPostEffect)
 	{
 		PROFILE_LABEL_SCOPE("UBER_GAME_POSTPROCESS");
-
-		CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
 		const auto& gamePostEffect = *static_cast<const CUberGamePostProcess*>(pPostEffect);
 
@@ -891,8 +862,6 @@ void CFlashBangPass::Execute(const CPostEffectContext& context)
 	auto* pPostEffect = const_cast<CPostEffect*>(context.GetPostEffect(EPostEffectID::FlashBang));
 	if (pPostEffect)
 	{
-		CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-
 		CTexture* pSrcTex = context.GetSrcBackBufferTexture();
 
 		auto& postEffect = *static_cast<CFlashBang*>(pPostEffect);
@@ -988,18 +957,19 @@ void CPostStereoPass::Execute(const CPostEffectContext& context)
 {
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	CD3DStereoRenderer* const RESTRICT_POINTER rendS3D = &(gcpRendD3D.GetS3DRend());
-	
- 	if (!rendS3D->IsPostStereoEnabled())
+	CGraphicsPipelineResources& pipelineResources = context.GetRenderView()->GetGraphicsPipeline()->GetPipelineResources();
+
+	if (!rendS3D->IsPostStereoEnabled())
 	{
 		return;
 	}
 
 	PROFILE_LABEL_SCOPE("POST_STEREO");
-	
+
 	CTexture* pSrcBackBufferTexture = context.GetSrcBackBufferTexture();
 
 	// Mask near geometry (weapon)
-	CTexture* pTmpMaskTex = CRendererResources::s_ptexSceneNormalsBent; // non-msaaed target
+	CTexture* pTmpMaskTex = pipelineResources.m_pTexSceneNormalsBent; // non-msaaed target
 	CRY_ASSERT(pTmpMaskTex);
 	CRY_ASSERT(pTmpMaskTex->GetWidth() == pSrcBackBufferTexture->GetWidth());
 	CRY_ASSERT(pTmpMaskTex->GetHeight() == pSrcBackBufferTexture->GetHeight());
@@ -1040,8 +1010,8 @@ void CPostStereoPass::Execute(const CPostEffectContext& context)
 	{
 		auto& pass = m_passPostStereo;
 
-		auto *leftDc = rendS3D->GetEyeDisplayContext(CCamera::eEye_Left).first;
-		auto *rightDc = rendS3D->GetEyeDisplayContext(CCamera::eEye_Right).first;
+		auto* leftDc  = rendS3D->GetEyeDisplayContext(CCamera::eEye_Left).first;
+		auto* rightDc = rendS3D->GetEyeDisplayContext(CCamera::eEye_Right).first;
 		if (!leftDc || !rightDc)
 			return;
 
@@ -1061,7 +1031,7 @@ void CPostStereoPass::Execute(const CPostEffectContext& context)
 			pass.SetDepthTarget(pZTexture);
 
 			pass.SetTexture(0, pSrcBackBufferTexture);
-			pass.SetTexture(1, CRendererResources::s_ptexLinearDepth);
+			pass.SetTexture(1, pipelineResources.m_pTexLinearDepth);
 			pass.SetTexture(2, pTmpMaskTex);
 
 			pass.SetSampler(0, m_samplerLinearMirror);
@@ -1093,11 +1063,6 @@ void CPostStereoPass::Execute(const CPostEffectContext& context)
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-CKillCameraPass::CKillCameraPass()
-{
-
-}
 
 CKillCameraPass::~CKillCameraPass()
 {
@@ -1193,7 +1158,7 @@ void CKillCameraPass::Execute(const CPostEffectContext& context)
 			int height = 0;
 			if (context.GetRenderView())
 			{
-				const SRenderViewport &viewport = context.GetRenderView()->GetViewport();
+				const SRenderViewport& viewport = context.GetRenderView()->GetViewport();
 				width = viewport.width;
 				height = viewport.height;
 			}
@@ -1232,11 +1197,6 @@ void CKillCameraPass::Execute(const CPostEffectContext& context)
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-CScreenBloodPass::CScreenBloodPass()
-{
-
-}
 
 CScreenBloodPass::~CScreenBloodPass()
 {
@@ -1327,10 +1287,8 @@ void CScreenFaderPass::Execute(const CPostEffectContext& context)
 
 	PROFILE_LABEL_SCOPE("SCREEN FADER");
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-
 	auto& pass = m_passScreenFader;
-	const Vec4 &color = pColor->GetParamVec4();
+	const Vec4& color = pColor->GetParamVec4();
 
 	CTexture* pDstTex = context.GetDstBackBufferTexture();
 
@@ -1388,8 +1346,7 @@ void CHudSilhouettesPass::Execute(const CPostEffectContext& context)
 	if (CRenderer::CV_r_customvisions == 1
 	    || CRenderer::CV_r_customvisions == 3)
 	{
-		CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-		auto* pSceneCustom = rd->GetGraphicsPipeline().GetSceneCustomStage();
+		auto* pSceneCustom = context.GetRenderView()->GetGraphicsPipeline()->GetStage<CSceneCustomStage>();
 		if (pSceneCustom)
 		{
 			pSceneCustom->ExecuteSilhouettePass();
@@ -1420,12 +1377,13 @@ void CHudSilhouettesPass::Execute(const CPostEffectContext& context)
 void CHudSilhouettesPass::ExecuteDeferredSilhouettesOptimised(const CPostEffectContext& context, float fBlendParam, float fType, float fFillStrength)
 {
 	const bool bHasSilhouettesToRender = (context.GetRenderView()->GetBatchFlags(EFSLIST_CUSTOM) & FB_CUSTOM_RENDER) ? true : false;
+	CGraphicsPipelineResources& pipelineResources = context.GetRenderView()->GetGraphicsPipeline()->GetPipelineResources();
 
 	if (bHasSilhouettesToRender)
 	{
 		PROFILE_LABEL_SCOPE("DEFERRED_SILHOUETTES_PASS");
 
-		CTexture* pSilTex = CRendererResources::s_ptexSceneNormalsMap;
+		CTexture* pSilTex = pipelineResources.m_pTexSceneNormalsMap;
 		CTexture* pDstTex = context.GetDstBackBufferTexture();
 
 		const int flags = FT_USAGE_RENDERTARGET | FT_NOMIPS;
@@ -1483,11 +1441,6 @@ void CHudSilhouettesPass::ExecuteDeferredSilhouettesOptimised(const CPostEffectC
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-CHud3DPass::CHud3DPass()
-{
-
-}
 
 CHud3DPass::~CHud3DPass()
 {
@@ -1555,14 +1508,16 @@ void CHud3DPass::ExecuteFlashUpdate(const CPostEffectContext& context, CHud3D& h
 
 	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 
-	uint32 nRECount = hud3d.m_pRenderData[nThreadID].size();
 	const bool bForceRefresh = (hud3d.m_pOverideCacheDelay->GetParam() > 0.5f);
 
-	if (nRECount || bForceRefresh) //&& m_nFlashUpdateFrameID != rd->GetFrameID(false) )
+	if (!hud3d.m_pRenderData[nThreadID].empty() || bForceRefresh) //&& m_nFlashUpdateFrameID != rd->GetFrameID(false) )
 	{
+		auto pGraphicsPipeline = context.GetRenderView()->GetGraphicsPipeline();
+		CGraphicsPipelineResources& pipelineResources = pGraphicsPipeline->GetPipelineResources();
+
 		// Share hud render target with scene normals
-		hud3d.m_pHUD_RT       = CRendererResources::s_ptexCached3DHud;
-		hud3d.m_pHUDScaled_RT = CRendererResources::s_ptexCached3DHudScaled;
+		hud3d.m_pHUD_RT = pipelineResources.m_pTexCached3DHud;
+		hud3d.m_pHUDScaled_RT = pipelineResources.m_pTexCached3DHudScaled;
 
 		if ((context.GetRenderView()->GetFrameId() % max(1, (int)CRenderer::CV_r_PostProcessHUD3DCache)) != 0)
 		{
@@ -1597,10 +1552,8 @@ void CHud3DPass::ExecuteFlashUpdate(const CPostEffectContext& context, CHud3D& h
 		SEfResTexture* pDiffuse = nullptr;
 		SEfResTexture* pPrevDiffuse = nullptr;
 
-		for (uint32 r = 0; r < nRECount; ++r)
+		for (SHudData& pData : hud3d.m_pRenderData[nThreadID])
 		{
-			SHudData& pData = hud3d.m_pRenderData[nThreadID][r];
-
 			pDiffuse = pData.pDiffuse;
 			if (!pDiffuse || !pDiffuse->m_Sampler.m_pDynTexSource)
 			{
@@ -1643,7 +1596,6 @@ void CHud3DPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 {
 	PROFILE_LABEL_SCOPE("3D HUD DOWNSAMPLE 4X4");
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	const uint32 nThreadID = gRenDev->GetRenderThreadID();
 
 	// temporary clear/fix - try avoiding this
@@ -1667,12 +1619,12 @@ void CHud3DPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 		pass.BeginAddingPrimitives();
 
 		auto& renderDataArray = hud3d.m_pRenderData[nThreadID];
-		uint32 nRECount = renderDataArray.size();
 		uint32 index = 0;
 
-		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
+		CConstantBufferPtr pPerViewCB = context.GetRenderView()->GetGraphicsPipeline()->GetMainViewConstantBuffer();
 
 		auto& primArray = m_downsamplePrimitiveArray;
+		const uint32 nRECount = renderDataArray.capacity();
 		if (primArray.size() > nRECount)
 		{
 			for (auto it = (primArray.begin() + nRECount); it != primArray.end(); ++it)
@@ -1682,9 +1634,8 @@ void CHud3DPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 		}
 		primArray.resize(nRECount, nullptr);
 
-		for (uint32 r = 0; r < nRECount; ++r)
+		for (SHudData& pData : renderDataArray)
 		{
-			SHudData& pData = renderDataArray[r];
 			CShaderResources* pShaderResources = (CShaderResources*)pData.pShaderResources;
 
 			SEfResTexture* pDiffuse = pData.pDiffuse;
@@ -1732,9 +1683,9 @@ void CHud3DPass::ExecuteDownsampleHud4x4(const CPostEffectContext& context, clas
 					auto& cm = prim.GetConstantManager();
 					cm.BeginNamedConstantUpdate();
 
-					SetShaderParams(context,EShaderStage_Vertex | EShaderStage_Pixel, cm, pData, hud3d);
+					SetShaderParams(context, EShaderStage_Vertex | EShaderStage_Pixel, cm, pData, hud3d);
 
-					cm.EndNamedConstantUpdate(&viewport); // Unmap constant buffers and mark as bound
+					cm.EndNamedConstantUpdate(&viewport, context.GetRenderView()); // Unmap constant buffers and mark as bound
 				}
 
 				pass.AddPrimitive(&prim);
@@ -1751,13 +1702,14 @@ void CHud3DPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 {
 	PROFILE_LABEL_SCOPE("UPDATE BLOOM TEX");
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	const auto nThreadID = gRenDev->GetRenderThreadID();
 
 	// Calculate HUD's projection matrix using fixed FOV.
 	hud3d.CalculateProjMatrix();
 
-	CTexture* pOutputRT = CRendererResources::s_ptexDisplayTargetScaled[1];
+	CGraphicsPipelineResources& pipelineResources = context.GetRenderView()->GetGraphicsPipeline()->GetPipelineResources();
+	
+	CTexture* pOutputRT = pipelineResources.m_pTexDisplayTargetScaled[1];
 
 	// temporary clear/fix - try avoiding this
 	CClearSurfacePass::Execute(pOutputRT, Clr_Transparent);
@@ -1779,12 +1731,12 @@ void CHud3DPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 		pass.BeginAddingPrimitives();
 
 		auto& renderDataArray = hud3d.m_pRenderData[nThreadID];
-		uint32 nRECount = renderDataArray.size();
 		uint32 index = 0;
 
-		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
+		CConstantBufferPtr pPerViewCB = context.GetRenderView()->GetGraphicsPipeline()->GetMainViewConstantBuffer();
 
 		auto& primArray = m_bloomPrimitiveArray;
+		const uint32 nRECount = renderDataArray.capacity();
 		if (primArray.size() > nRECount)
 		{
 			for (auto it = (primArray.begin() + nRECount); it != primArray.end(); ++it)
@@ -1794,9 +1746,8 @@ void CHud3DPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 		}
 		primArray.resize(nRECount, nullptr);
 
-		for (uint32 r = 0; r < nRECount; ++r)
+		for (SHudData& pData : renderDataArray)
 		{
-			SHudData& pData = renderDataArray[r];
 			CShaderResources* pShaderResources = (CShaderResources*)pData.pShaderResources;
 
 			SEfResTexture* pDiffuse = pData.pDiffuse;
@@ -1837,9 +1788,9 @@ void CHud3DPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 					auto& cm = prim.GetConstantManager();
 					cm.BeginNamedConstantUpdate();
 
-					SetShaderParams(context,EShaderStage_Vertex, cm, pData, hud3d);
+					SetShaderParams(context, EShaderStage_Vertex, cm, pData, hud3d);
 
-					cm.EndNamedConstantUpdate(&viewport); // Unmap constant buffers and mark as bound
+					cm.EndNamedConstantUpdate(&viewport, context.GetRenderView()); // Unmap constant buffers and mark as bound
 				}
 
 				pass.AddPrimitive(&prim);
@@ -1851,7 +1802,7 @@ void CHud3DPass::ExecuteBloomTexUpdate(const CPostEffectContext& context, class 
 		pass.Execute();
 	}
 
-	CTexture* pBlurDst = CRendererResources::s_ptexDisplayTargetScaledTemp[1];
+	CTexture* pBlurDst = pipelineResources.m_pTexDisplayTargetScaledTemp[1];
 	if (pBlurDst)
 	{
 		m_passBlurGaussian.Execute(pOutputRT, pBlurDst, 1.0f, 0.85f);
@@ -1862,7 +1813,8 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 {
 	PROFILE_LABEL_SCOPE("3D HUD FINAL PASS");
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
+	CGraphicsPipelineResources& pipelineResources = context.GetRenderView()->GetGraphicsPipeline()->GetPipelineResources();
+
 	const auto nThreadID = gRenDev->GetRenderThreadID();
 
 	// Calculate HUD's projection matrix using fixed FOV.
@@ -1963,12 +1915,12 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 		pass.BeginAddingPrimitives();
 
 		auto& renderDataArray = hud3d.m_pRenderData[nThreadID];
-		uint32 nRECount = renderDataArray.size();
 		uint32 index = 0;
 
-		CConstantBufferPtr pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
+		CConstantBufferPtr pPerViewCB = context.GetRenderView()->GetGraphicsPipeline()->GetMainViewConstantBuffer();
 
 		auto& primArray = m_hudPrimitiveArray;
+		const uint32 nRECount = renderDataArray.capacity();
 		if (primArray.size() > nRECount)
 		{
 			for (auto it = (primArray.begin() + nRECount); it != primArray.end(); ++it)
@@ -1978,9 +1930,8 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 		}
 		primArray.resize(nRECount, nullptr);
 
-		for (uint32 r = 0; r < nRECount; ++r)
+		for (SHudData& pData : renderDataArray)
 		{
-			SHudData& pData = renderDataArray[r];
 			CShaderResources* pShaderResources = (CShaderResources*)pData.pShaderResources;
 
 			SEfResTexture* pDiffuse = pData.pDiffuse;
@@ -2020,7 +1971,7 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 				}
 				prim.SetSampler(0, EDefaultSamplerStates::LinearClamp);
 
-				prim.SetTexture(1, CRendererResources::s_ptexDisplayTargetScaled[1]);
+				prim.SetTexture(1, pipelineResources.m_pTexDisplayTargetScaled[1]);
 				prim.SetSampler(1, EDefaultSamplerStates::LinearClamp);
 
 				if (bInterferenceApplied)
@@ -2037,7 +1988,7 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 					auto& cm = prim.GetConstantManager();
 					cm.BeginNamedConstantUpdate();
 
-					SetShaderParams(context,EShaderStage_Vertex | EShaderStage_Pixel, cm, pData, hud3d);
+					SetShaderParams(context, EShaderStage_Vertex | EShaderStage_Pixel, cm, pData, hud3d);
 
 					// Set additional parameters
 					vHudEffectParams[0].x = fCurrentDofBlend;
@@ -2065,7 +2016,7 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 
 					if (bInterferenceApplied)
 					{
-						float vTCScaleX = (float)SHudData::s_nFlashWidthMax /  (float)hud3d.m_pHUD_RT->GetWidth () * 2.0f;
+						float vTCScaleX = (float)SHudData::s_nFlashWidthMax  / (float)hud3d.m_pHUD_RT->GetWidth()  * 2.0f;
 						float vTCScaleY = (float)SHudData::s_nFlashHeightMax / (float)hud3d.m_pHUD_RT->GetHeight() * 2.0f;
 
 						vHudEffectParams[1].x = hud3d.m_interferenceRandNums.x * vTCScaleX;
@@ -2077,7 +2028,7 @@ void CHud3DPass::ExecuteFinalPass(const CPostEffectContext& context, CTexture* p
 					cm.SetNamedConstantArray(hud3d.m_pHudEffectsParamName, vHudEffectParams, hudEffectParamCount, eHWSC_Pixel);
 					cm.SetNamedConstant(hud3d.m_pHudOverrideColorMultParamName, vOverrideColorParams, eHWSC_Pixel);
 
-					cm.EndNamedConstantUpdate(&viewport); // Unmap constant buffers and mark as bound
+					cm.EndNamedConstantUpdate(&viewport, context.GetRenderView()); // Unmap constant buffers and mark as bound
 				}
 
 				pass.AddPrimitive(&prim);
@@ -2122,18 +2073,18 @@ bool CHud3DPass::SetVertex(CRenderPrimitive& prim, struct SHudData& pData) const
 }
 
 void CHud3DPass::SetShaderParams(
-	const CPostEffectContext &context,
-  EShaderStage shaderStages,
-  CRenderPrimitive::ConstantManager& constantManager,
-  const struct SHudData& data,
-  const class CHud3D& hud3d) const
+	const CPostEffectContext& context,
+	EShaderStage shaderStages,
+	CRenderPrimitive::ConstantManager& constantManager,
+	const struct SHudData& data,
+	const class CHud3D& hud3d) const
 {
 	CShaderResources* pShaderResources = (CShaderResources*)data.pShaderResources;
 	float fOpacity = pShaderResources->GetStrengthValue(EFTT_OPACITY) * hud3d.m_pOpacityMul->GetParam();
 
 	const CRenderObject* pRO = data.pRO;
 	Matrix44A mObjCurr, mViewProj;
-	mObjCurr = pRO->GetMatrix(gcpRendD3D->GetObjectAccessorThreadConfig());
+	mObjCurr = pRO->GetMatrix();
 	mObjCurr.Transpose();
 
 	// Render in camera space to remove precision bugs

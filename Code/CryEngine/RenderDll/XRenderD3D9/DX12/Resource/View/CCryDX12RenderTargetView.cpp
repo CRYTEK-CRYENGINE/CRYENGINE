@@ -16,7 +16,7 @@ CCryDX12RenderTargetView* CCryDX12RenderTargetView::Create(CCryDX12Device* pDevi
 	// Special case: NullResource is valid when only the D3D12 resource is null
 	if (!pResource11 && !pResource12)
 	{
-		DX12_ASSERT(0, "Unknown resource type!");
+		DX12_ERROR("Unknown resource type!");
 		return NULL;
 	}
 

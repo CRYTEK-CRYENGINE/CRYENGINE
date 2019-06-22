@@ -14,9 +14,6 @@
 #include "../../System.h"
 #include "../../CPUDetect.h"
 
-// used to distinguish regular and blocking worker threads
-#define BLOCKING_WORKER_ID_FLAG 0x40000000
-
 ///////////////////////////////////////////////////////////////////////////////
 JobManager::BlockingBackEnd::CBlockingBackEnd::CBlockingBackEnd(JobManager::SInfoBlock** pRegularWorkerFallbacks, uint32 nRegularWorkerThreads) :
 	m_Semaphore(SJobQueue_BlockingBackEnd::eMaxWorkQueueJobsSize),
@@ -27,7 +24,7 @@ JobManager::BlockingBackEnd::CBlockingBackEnd::CBlockingBackEnd(JobManager::SInf
 {
 	m_JobQueue.Init();
 
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	m_pBackEndWorkerProfiler = 0;
 #endif
 }
@@ -35,6 +32,7 @@ JobManager::BlockingBackEnd::CBlockingBackEnd::CBlockingBackEnd(JobManager::SInf
 ///////////////////////////////////////////////////////////////////////////////
 JobManager::BlockingBackEnd::CBlockingBackEnd::~CBlockingBackEnd()
 {
+	ShutDown();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,7 +40,6 @@ bool JobManager::BlockingBackEnd::CBlockingBackEnd::Init(uint32 nSysMaxWorker)
 {
 	m_pWorkerThreads = new CBlockingBackEndWorkerThread*[nSysMaxWorker];
 
-	// create single worker thread for blocking backend
 	for (uint32 i = 0; i < nSysMaxWorker; ++i)
 	{
 		m_pWorkerThreads[i] = new CBlockingBackEndWorkerThread(this, m_Semaphore, m_JobQueue, m_pRegularWorkerFallbacks, m_nRegularWorkerThreads, i);
@@ -55,7 +52,7 @@ bool JobManager::BlockingBackEnd::CBlockingBackEnd::Init(uint32 nSysMaxWorker)
 
 	m_nNumWorker = nSysMaxWorker;
 
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	m_pBackEndWorkerProfiler = new JobManager::CWorkerBackEndProfiler;
 	m_pBackEndWorkerProfiler->Init(m_nNumWorker);
 #endif
@@ -90,7 +87,7 @@ bool JobManager::BlockingBackEnd::CBlockingBackEnd::ShutDown()
 	m_pWorkerThreads = NULL;
 	m_nNumWorker = 0;
 
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	SAFE_DELETE(m_pBackEndWorkerProfiler);
 #endif
 
@@ -133,7 +130,7 @@ void JobManager::BlockingBackEnd::CBlockingBackEnd::AddJob(JobManager::CJobDeleg
 	const uint32 cJobId = cJobHandle->jobId;
 	rJobInfoBlock.jobId = (unsigned char)cJobId;
 
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	assert(cJobId < JobManager::detail::eJOB_FRAME_STATS_MAX_SUPP_JOBS);
 	m_pBackEndWorkerProfiler->RegisterJob(cJobId, CJobManager::Instance()->GetJobName(rInfoBlock.jobInvoker));
 	rJobInfoBlock.frameProfIndex = (unsigned char)m_pBackEndWorkerProfiler->GetProfileIndex();
@@ -163,27 +160,27 @@ void JobManager::BlockingBackEnd::CBlockingBackEndWorkerThread::SignalStopWork()
 
 bool JobManager::BlockingBackEnd::IsBlockingWorkerId(uint32 workerId)
 {
-	return (workerId & BLOCKING_WORKER_ID_FLAG) != 0;
+	return (workerId & JobManager::s_blockingWorkerFlag) != 0;
 }
 
 uint32 JobManager::BlockingBackEnd::GetIndexFromWorkerId(uint32 workerId)
 {
 	CRY_ASSERT(IsBlockingWorkerId(workerId));
-	return workerId & !BLOCKING_WORKER_ID_FLAG;
+	return workerId & ~JobManager::s_blockingWorkerFlag;
 }
 
 //////////////////////////////////////////////////////////////////////////
 void JobManager::BlockingBackEnd::CBlockingBackEndWorkerThread::ThreadEntry()
 {
 	// set up thread id
-	JobManager::detail::SetWorkerThreadId(m_nId | BLOCKING_WORKER_ID_FLAG);
+	JobManager::detail::SetWorkerThreadId(m_nId | JobManager::s_blockingWorkerFlag);
 	do
 	{
 		SInfoBlock infoBlock;
 		///////////////////////////////////////////////////////////////////////////
 		// wait for new work
 		{
-			//CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - JobWorkerThread");
+			//CRY_PROFILE_SECTION_WAITING(PROFILE_SYSTEM, "Wait - JobWorkerThread");
 			m_rSemaphore.Acquire();
 		}
 
@@ -293,18 +290,18 @@ void JobManager::BlockingBackEnd::CBlockingBackEndWorkerThread::ThreadEntry()
 		pJobProfilingData->nWorkerThread = GetWorkerThreadId();
 #endif
 
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 		const uint64 nStartTime = JobManager::IWorkerBackEndProfiler::GetTimeSample();
 #endif
-
 		// call delegator function to invoke job entry
 #if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
-		CRY_PROFILE_REGION(PROFILE_SYSTEM, "Job");
-		CRYPROFILE_SCOPE_PLATFORM_MARKER(CJobManager::Instance()->GetJobName(infoBlock.jobInvoker));
+		CRY_PROFILE_SECTION(PROFILE_SYSTEM, "Job");
 #endif
-		(*infoBlock.jobInvoker)(infoBlock.GetParamAddress());
-
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+		{
+			MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "Job: %s", CJobManager::Instance()->GetJobName(infoBlock.jobInvoker));
+			(*infoBlock.jobInvoker)(infoBlock.GetParamAddress());
+		}
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 		JobManager::IWorkerBackEndProfiler* workerProfiler = m_pBlockingBackend->GetBackEndWorkerProfiler();
 		const uint64 nEndTime = JobManager::IWorkerBackEndProfiler::GetTimeSample();
 		workerProfiler->RecordJob(infoBlock.frameProfIndex, m_nId, static_cast<const uint32>(infoBlock.jobId), static_cast<const uint32>(nEndTime - nStartTime));

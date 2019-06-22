@@ -118,29 +118,29 @@ struct
 	int          image;
 } s_propertyTypeNames[] =
 {
-	{ IVariable::DT_SIMPLE,                        "Bool",                             ePropertyBool,                  2  },
-	{ IVariable::DT_SIMPLE,                        "Int",                              ePropertyInt,                   0  },
-	{ IVariable::DT_SIMPLE,                        "Float",                            ePropertyFloat,                 0  },
-	{ IVariable::DT_SIMPLE,                        "Vector",                           ePropertyVector2,               10 },
-	{ IVariable::DT_SIMPLE,                        "Vector",                           ePropertyVector,                10 },
-	{ IVariable::DT_SIMPLE,                        "Vector",                           ePropertyVector4,               10 },
-	{ IVariable::DT_SIMPLE,                        "String",                           ePropertyString,                3  },
-	{ IVariable::DT_PERCENT,                       "Float",                            ePropertyInt,                   13 },
-	{ IVariable::DT_BOOLEAN,                       "Boolean",                          ePropertyBool,                  2  },
-	{ IVariable::DT_COLOR,                         "Color",                            ePropertyColor,                 1  },
-	{ IVariable::DT_CURVE | IVariable::DT_PERCENT, "FloatCurve",                       ePropertyFloatCurve,            13 },
-	{ IVariable::DT_CURVE | IVariable::DT_COLOR,   "ColorCurve",                       ePropertyColorCurve,            1  },
-	{ IVariable::DT_ANGLE,                         "Angle",                            ePropertyAngle,                 0  },
-	{ IVariable::DT_FILE,                          "File",                             ePropertyFile,                  7  },
-	{ IVariable::DT_TEXTURE,                       "Texture",                          ePropertyTexture,               4  },
-	{ IVariable::DT_ANIMATION,                     "Animation",                        ePropertyAnimation,             -1 },
-	{ IVariable::DT_OBJECT,                        "Model",                            ePropertyModel,                 5  },
-	{ IVariable::DT_SIMPLE,                        "Selection",                        ePropertySelection,             -1 },
-	{ IVariable::DT_SIMPLE,                        "List",                             ePropertyList,                  -1 },
-	{ IVariable::DT_SHADER,                        "Shader",                           ePropertyShader,                9  },
-	{ IVariable::DT_MATERIAL,                      "Material",                         ePropertyMaterial,              14 },
-	{ IVariable::DT_AI_BEHAVIOR,                   "AIBehavior",                       ePropertyAiBehavior,            8  },
-	{ IVariable::DT_AI_ANCHOR,                     "AIAnchor",                         ePropertyAiAnchor,              8  },
+	{ IVariable::DT_SIMPLE,                        "Bool",                           ePropertyBool,                  2  },
+	{ IVariable::DT_SIMPLE,                        "Int",                            ePropertyInt,                   0  },
+	{ IVariable::DT_SIMPLE,                        "Float",                          ePropertyFloat,                 0  },
+	{ IVariable::DT_SIMPLE,                        "Vector",                         ePropertyVector2,               10 },
+	{ IVariable::DT_SIMPLE,                        "Vector",                         ePropertyVector,                10 },
+	{ IVariable::DT_SIMPLE,                        "Vector",                         ePropertyVector4,               10 },
+	{ IVariable::DT_SIMPLE,                        "String",                         ePropertyString,                3  },
+	{ IVariable::DT_PERCENT,                       "Float",                          ePropertyInt,                   13 },
+	{ IVariable::DT_BOOLEAN,                       "Boolean",                        ePropertyBool,                  2  },
+	{ IVariable::DT_COLOR,                         "Color",                          ePropertyColor,                 1  },
+	{ IVariable::DT_CURVE | IVariable::DT_PERCENT, "FloatCurve",                     ePropertyFloatCurve,            13 },
+	{ IVariable::DT_CURVE | IVariable::DT_COLOR,   "ColorCurve",                     ePropertyColorCurve,            1  },
+	{ IVariable::DT_ANGLE,                         "Angle",                          ePropertyAngle,                 0  },
+	{ IVariable::DT_FILE,                          "File",                           ePropertyFile,                  7  },
+	{ IVariable::DT_TEXTURE,                       "Texture",                        ePropertyTexture,               4  },
+	{ IVariable::DT_ANIMATION,                     "Animation",                      ePropertyAnimation,             -1 },
+	{ IVariable::DT_OBJECT,                        "Model",                          ePropertyModel,                 5  },
+	{ IVariable::DT_SIMPLE,                        "Selection",                      ePropertySelection,             -1 },
+	{ IVariable::DT_SIMPLE,                        "List",                           ePropertyList,                  -1 },
+	{ IVariable::DT_SHADER,                        "Shader",                         ePropertyShader,                9  },
+	{ IVariable::DT_MATERIAL,                      "Material",                       ePropertyMaterial,              14 },
+	{ IVariable::DT_AI_BEHAVIOR,                   "AIBehavior",                     ePropertyAiBehavior,            8  },
+	{ IVariable::DT_AI_ANCHOR,                     "AIAnchor",                       ePropertyAiAnchor,              8  },
 #ifdef USE_DEPRECATED_AI_CHARACTER_SYSTEM
 	{
 		IVariable::DT_AI_CHARACTER, "AICharacter", ePropertyAiCharacter, 8
@@ -149,43 +149,44 @@ struct
 	{
 		IVariable::DT_AI_PFPROPERTIESLIST, "AgentTypeList", ePropertyAiPFPropertiesList, 8
 	},
-	{ IVariable::DT_AIENTITYCLASSES,               "AI Entity Classes",                ePropertyAiEntityClasses,       8  },
-	{ IVariable::DT_EQUIP,                         "Equip",                            ePropertyEquip,                 11 },
-	{ IVariable::DT_REVERBPRESET,                  "ReverbPreset",                     ePropertyReverbPreset,          11 },
-	{ IVariable::DT_LOCAL_STRING,                  "LocalString",                      ePropertyLocalString,           3  },
-	{ IVariable::DT_SOCLASS,                       "Smart Object Class",               ePropertySOClass,               8  },
-	{ IVariable::DT_SOCLASSES,                     "Smart Object Classes",             ePropertySOClasses,             8  },
-	{ IVariable::DT_SOSTATE,                       "Smart Object State",               ePropertySOState,               8  },
-	{ IVariable::DT_SOSTATES,                      "Smart Object States",              ePropertySOStates,              8  },
-	{ IVariable::DT_SOSTATEPATTERN,                "Smart Object State Pattern",       ePropertySOStatePattern,        8  },
-	{ IVariable::DT_SOACTION,                      "AI Action",                        ePropertySOAction,              8  },
-	{ IVariable::DT_SOHELPER,                      "Smart Object Helper",              ePropertySOHelper,              8  },
-	{ IVariable::DT_SONAVHELPER,                   "Smart Object Navigation Helper",   ePropertySONavHelper,           8  },
-	{ IVariable::DT_SOANIMHELPER,                  "Smart Object Animation Helper",    ePropertySOAnimHelper,          8  },
-	{ IVariable::DT_SOEVENT,                       "Smart Object Event",               ePropertySOEvent,               8  },
-	{ IVariable::DT_SOTEMPLATE,                    "Smart Object Template",            ePropertySOTemplate,            8  },
-	{ IVariable::DT_CUSTOMACTION,                  "Custom Action",                    ePropertyCustomAction,          7  },
-	{ IVariable::DT_VEEDHELPER,                    "Vehicle Helper",                   ePropertySelection,             -1 },
-	{ IVariable::DT_VEEDPART,                      "Vehicle Part",                     ePropertySelection,             -1 },
-	{ IVariable::DT_VEEDCOMP,                      "Vehicle Component",                ePropertySelection,             -1 },
-	{ IVariable::DT_GAMETOKEN,                     "Game Token",                       ePropertyGameToken,             -1 },
-	{ IVariable::DT_SEQUENCE,                      "Sequence",                         ePropertySequence,              -1 },
-	{ IVariable::DT_MISSIONOBJ,                    "Mission Objective",                ePropertyMissionObj,            -1 },
-	{ IVariable::DT_USERITEMCB,                    "User",                             ePropertyUser,                  -1 },
-	{ IVariable::DT_AITERRITORY,                   "AITerritory",                      ePropertyAiTerritory,           8  },
-	{ IVariable::DT_AIWAVE,                        "AIWave",                           ePropertyAiWave,                8  },
-	{ IVariable::DT_SEQUENCE_ID,                   "SequenceId",                       ePropertySequenceId,            -1 },
-	{ IVariable::DT_FLARE,                         "Flare",                            ePropertyFlare,                 7  },
-	{ IVariable::DT_PARTICLE_EFFECT,               "ParticleEffect",                   ePropertyParticleName,          3  },
-	{ IVariable::DT_GEOM_CACHE,                    "Geometry Cache",                   ePropertyGeomCache,             5  },
-	{ IVariable::DT_AUDIO_TRIGGER,                 "Audio Trigger",                    ePropertyAudioTrigger,          6  },
-	{ IVariable::DT_AUDIO_SWITCH,                  "Audio Switch",                     ePropertyAudioSwitch,           6  },
-	{ IVariable::DT_AUDIO_SWITCH_STATE,            "Audio Switch",                     ePropertyAudioSwitchState,      6  },
-	{ IVariable::DT_AUDIO_RTPC,                    "Audio Realtime Parameter Control", ePropertyAudioRTPC,             6  },
-	{ IVariable::DT_AUDIO_ENVIRONMENT,             "Audio Environment",                ePropertyAudioEnvironment,      6  },
-	{ IVariable::DT_AUDIO_PRELOAD_REQUEST,         "Audio Preload Request",            ePropertyAudioPreloadRequest,   6  },
-	{ IVariable::DT_AUDIO_SETTING,                 "Audio Setting",                    ePropertyAudioSetting,          6  },
-	{ IVariable::DT_DYNAMIC_RESPONSE_SIGNAL,       "Dynamic Response Signal",          ePropertyDynamicResponseSignal, 6  }, };
+	{ IVariable::DT_AIENTITYCLASSES,               "AI Entity Classes",              ePropertyAiEntityClasses,       8  },
+	{ IVariable::DT_EQUIP,                         "Equip",                          ePropertyEquip,                 11 },
+	{ IVariable::DT_REVERBPRESET,                  "ReverbPreset",                   ePropertyReverbPreset,          11 },
+	{ IVariable::DT_LOCAL_STRING,                  "LocalString",                    ePropertyLocalString,           3  },
+	{ IVariable::DT_SOCLASS,                       "Smart Object Class",             ePropertySOClass,               8  },
+	{ IVariable::DT_SOCLASSES,                     "Smart Object Classes",           ePropertySOClasses,             8  },
+	{ IVariable::DT_SOSTATE,                       "Smart Object State",             ePropertySOState,               8  },
+	{ IVariable::DT_SOSTATES,                      "Smart Object States",            ePropertySOStates,              8  },
+	{ IVariable::DT_SOSTATEPATTERN,                "Smart Object State Pattern",     ePropertySOStatePattern,        8  },
+	{ IVariable::DT_SOACTION,                      "AI Action",                      ePropertySOAction,              8  },
+	{ IVariable::DT_SOHELPER,                      "Smart Object Helper",            ePropertySOHelper,              8  },
+	{ IVariable::DT_SONAVHELPER,                   "Smart Object Navigation Helper", ePropertySONavHelper,           8  },
+	{ IVariable::DT_SOANIMHELPER,                  "Smart Object Animation Helper",  ePropertySOAnimHelper,          8  },
+	{ IVariable::DT_SOEVENT,                       "Smart Object Event",             ePropertySOEvent,               8  },
+	{ IVariable::DT_SOTEMPLATE,                    "Smart Object Template",          ePropertySOTemplate,            8  },
+	{ IVariable::DT_CUSTOMACTION,                  "Custom Action",                  ePropertyCustomAction,          7  },
+	{ IVariable::DT_VEEDHELPER,                    "Vehicle Helper",                 ePropertySelection,             -1 },
+	{ IVariable::DT_VEEDPART,                      "Vehicle Part",                   ePropertySelection,             -1 },
+	{ IVariable::DT_VEEDCOMP,                      "Vehicle Component",              ePropertySelection,             -1 },
+	{ IVariable::DT_GAMETOKEN,                     "Game Token",                     ePropertyGameToken,             -1 },
+	{ IVariable::DT_SEQUENCE,                      "Sequence",                       ePropertySequence,              -1 },
+	{ IVariable::DT_MISSIONOBJ,                    "Mission Objective",              ePropertyMissionObj,            -1 },
+	{ IVariable::DT_USERITEMCB,                    "User",                           ePropertyUser,                  -1 },
+	{ IVariable::DT_AITERRITORY,                   "AITerritory",                    ePropertyAiTerritory,           8  },
+	{ IVariable::DT_AIWAVE,                        "AIWave",                         ePropertyAiWave,                8  },
+	{ IVariable::DT_SEQUENCE_ID,                   "SequenceId",                     ePropertySequenceId,            -1 },
+	{ IVariable::DT_FLARE,                         "Flare",                          ePropertyFlare,                 7  },
+	{ IVariable::DT_PARTICLE_EFFECT,               "ParticleEffect",                 ePropertyParticleName,          3  },
+	{ IVariable::DT_GEOM_CACHE,                    "Geometry Cache",                 ePropertyGeomCache,             5  },
+	{ IVariable::DT_AUDIO_TRIGGER,                 "Audio Trigger",                  ePropertyAudioTrigger,          6  },
+	{ IVariable::DT_AUDIO_SWITCH,                  "Audio Switch",                   ePropertyAudioSwitch,           6  },
+	{ IVariable::DT_AUDIO_STATE,                   "Audio Switch",                   ePropertyAudioState,            6  },
+	{ IVariable::DT_AUDIO_SWITCH_STATE,            "Audio Switch State",             ePropertyAudioSwitchState,      6  },
+	{ IVariable::DT_AUDIO_PARAMETER,               "Audio Parameter",                ePropertyAudioParameter,        6  },
+	{ IVariable::DT_AUDIO_ENVIRONMENT,             "Audio Environment",              ePropertyAudioEnvironment,      6  },
+	{ IVariable::DT_AUDIO_PRELOAD_REQUEST,         "Audio Preload Request",          ePropertyAudioPreloadRequest,   6  },
+	{ IVariable::DT_AUDIO_SETTING,                 "Audio Setting",                  ePropertyAudioSetting,          6  },
+	{ IVariable::DT_DYNAMIC_RESPONSE_SIGNAL,       "Dynamic Response Signal",        ePropertyDynamicResponseSignal, 6  }, };
 static int NumPropertyTypes = sizeof(s_propertyTypeNames) / sizeof(s_propertyTypeNames[0]);
 
 const char* DISPLAY_NAME_ATTR = "DisplayName";
@@ -212,10 +213,12 @@ static const char* PropertyTypeToResourceType(PropertyType type)
 		return "AudioTrigger";
 	case ePropertyAudioSwitch:
 		return "AudioSwitch";
+	case ePropertyAudioState:
+		return "AudioState";
 	case ePropertyAudioSwitchState:
 		return "AudioSwitchState";
-	case ePropertyAudioRTPC:
-		return "AudioRTPC";
+	case ePropertyAudioParameter:
+		return "AudioParameter";
 	case ePropertyAudioEnvironment:
 		return "AudioEnvironment";
 	case ePropertyAudioPreloadRequest:
@@ -225,7 +228,7 @@ static const char* PropertyTypeToResourceType(PropertyType type)
 	case ePropertyDynamicResponseSignal:
 		return "DynamicResponseSignal";
 	default:
-		return 0;
+		return nullptr;
 	}
 }
 
@@ -1239,8 +1242,9 @@ void CPropertyItem::CreateInPlaceControl(CWnd* pWndParent, CRect& ctrlRect)
 	case ePropertyGeomCache:
 	case ePropertyAudioTrigger:
 	case ePropertyAudioSwitch:
+	case ePropertyAudioState:
 	case ePropertyAudioSwitchState:
-	case ePropertyAudioRTPC:
+	case ePropertyAudioParameter:
 	case ePropertyAudioEnvironment:
 	case ePropertyAudioPreloadRequest:
 	case ePropertyAudioSetting:
@@ -1591,8 +1595,9 @@ void CPropertyItem::CreateControls(CWnd* pWndParent, CRect& textRect, CRect& ctr
 	case ePropertyModel:
 	case ePropertyAudioTrigger:
 	case ePropertyAudioSwitch:
+	case ePropertyAudioState:
 	case ePropertyAudioSwitchState:
-	case ePropertyAudioRTPC:
+	case ePropertyAudioParameter:
 	case ePropertyAudioEnvironment:
 	case ePropertyAudioPreloadRequest:
 	case ePropertyAudioSetting:

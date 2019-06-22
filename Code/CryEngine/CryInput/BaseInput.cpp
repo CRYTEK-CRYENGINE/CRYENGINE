@@ -109,11 +109,11 @@ void CBaseInput::PostInit()
 	}
 }
 
-void CBaseInput::Update(bool bFocus)
+void CBaseInput::Update(bool bHasFocus)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_INPUT);
 
-	m_hasFocus = bFocus;
+	m_hasFocus = bHasFocus;
 
 	// Update blocking inputs
 	UpdateBlockingInputs();
@@ -123,7 +123,7 @@ void CBaseInput::Update(bool bFocus)
 	for (TInputDevices::iterator i = m_inputDevices.begin(); i != m_inputDevices.end(); ++i)
 	{
 		if ((*i)->IsEnabled())
-			(*i)->Update(bFocus);
+			(*i)->Update(bHasFocus);
 	}
 
 	// send commit event after all input processing for this frame has finished

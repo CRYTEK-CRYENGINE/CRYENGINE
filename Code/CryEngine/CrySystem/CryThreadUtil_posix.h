@@ -166,7 +166,7 @@ bool CryCreateThread(TThreadHandle* pThreadHandle, const SThreadCreationDesc& th
 {
 	uint32 nStackSize = threadDesc.nStackSizeInBytes != 0 ? threadDesc.nStackSizeInBytes : DEFAULT_THREAD_STACK_SIZE_KB * 1024;
 
-	assert(pThreadHandle != THREADID_NULL);
+	CRY_ASSERT(pThreadHandle != nullptr);
 	pthread_attr_t threadAttr;
 	pthread_attr_init(&threadAttr);
 	pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_JOINABLE);

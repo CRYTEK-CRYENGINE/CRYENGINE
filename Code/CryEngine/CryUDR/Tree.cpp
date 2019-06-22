@@ -118,5 +118,10 @@ namespace Cry
 			}
 		}
 
+		void CTree::Clear()
+		{
+			CRecursiveSyncObjectAutoLock _lock;
+			m_root.RemoveChildren();
+		}
 	}
 }

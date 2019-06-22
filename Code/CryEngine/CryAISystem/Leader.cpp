@@ -195,12 +195,12 @@ void CLeader::Update(EUpdateType type)
 		{
 			if (eUpdateResult == CLeaderAction::ACTION_DONE)
 			{
-				const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderActionCompleted_DEPRECATED(), pDestActor->GetAIObjectID(), pData);
+				const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderActionCompleted_DEPRECATED(), pDestActor->GetEntityID(), pData);
 				GetAISystem()->SendSignal(sigFilter, pSignal);
 			}
 			else
 			{
-				const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderActionFailed_DEPRECATED(), pDestActor->GetAIObjectID(), pData);
+				const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderActionFailed_DEPRECATED(), pDestActor->GetEntityID(), pData);
 				GetAISystem()->SendSignal(sigFilter, pSignal);
 			}
 		}
@@ -262,7 +262,7 @@ void CLeader::ProcessSignal(const AISignals::SignalSharedPtr pSignal)
 			CAIObject* pAILeader = GetAssociation().GetAIObject();
 			if (pAILeader && m_bLeaderAlive)
 			{
-				const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderDied_DEPRECATED(), pAILeader->GetAIObjectID());
+				const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderDied_DEPRECATED(), pAILeader->GetEntityID());
 				GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SUPERGROUP, pSignal);
 				m_bLeaderAlive = false;
 			}
@@ -462,7 +462,7 @@ void CLeader::OnEnemyStatsUpdated(const Vec3& avgEnemyPos, const Vec3& oldAvgEne
 				{
 					AISignals::AISignalExtraData* pData = new AISignals::AISignalExtraData;
 					pData->nID = pEntity->GetId();
-					const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupTarget(), pAILeader->GetAIObjectID(), pData);
+					const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupTarget(), pAILeader->GetEntityID(), pData);
 					GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 				}
 			}
@@ -896,7 +896,7 @@ CLeaderAction* CLeader::CreateAction(const LeaderActionParams* params, const boo
 		CAIObject* pAILeader = GetAssociation().GetAIObject();
 		if (pAILeader)
 		{
-			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActionCreated(), pAILeader->GetAIObjectID());
+			const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActionCreated(), pAILeader->GetEntityID());
 			GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 		}
 	}
@@ -1059,7 +1059,7 @@ void CLeader::DeadUnitNotify(CAIActor* pAIObj)
 {
 	if (pAIObj && GetAssociation() == pAIObj)
 	{
-		const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderDied_DEPRECATED(), pAIObj->GetAIObjectID());
+		const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnLeaderDied_DEPRECATED(), pAIObj->GetEntityID());
 		GetAISystem()->SendSignal(AISignals::SIGNALFILTER_SUPERGROUP, pSignal);
 		m_bLeaderAlive = false;
 	}

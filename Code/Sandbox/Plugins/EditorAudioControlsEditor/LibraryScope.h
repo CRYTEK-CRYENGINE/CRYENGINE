@@ -13,47 +13,61 @@ struct SLibraryScope final
 {
 	SLibraryScope()
 	{
-		pNodes[0] = GetISystem()->CreateXmlNode(CryAudio::g_szTriggersNodeTag);
-		pNodes[1] = GetISystem()->CreateXmlNode(CryAudio::g_szParametersNodeTag);
-		pNodes[2] = GetISystem()->CreateXmlNode(CryAudio::g_szSwitchesNodeTag);
-		pNodes[3] = GetISystem()->CreateXmlNode(CryAudio::g_szEnvironmentsNodeTag);
-		pNodes[4] = GetISystem()->CreateXmlNode(CryAudio::g_szPreloadsNodeTag);
-		pNodes[5] = GetISystem()->CreateXmlNode(CryAudio::g_szSettingsNodeTag);
+		nodes[0] = GetISystem()->CreateXmlNode(CryAudio::g_szTriggersNodeTag);
+		nodes[1] = GetISystem()->CreateXmlNode(CryAudio::g_szParametersNodeTag);
+		nodes[2] = GetISystem()->CreateXmlNode(CryAudio::g_szSwitchesNodeTag);
+		nodes[3] = GetISystem()->CreateXmlNode(CryAudio::g_szEnvironmentsNodeTag);
+		nodes[4] = GetISystem()->CreateXmlNode(CryAudio::g_szPreloadsNodeTag);
+		nodes[5] = GetISystem()->CreateXmlNode(CryAudio::g_szSettingsNodeTag);
 	}
 
 	XmlNodeRef GetXmlNode(EAssetType const type) const
 	{
-		XmlNodeRef pNode = nullptr;
+		XmlNodeRef node;
 
 		switch (type)
 		{
 		case EAssetType::Trigger:
-			pNode = pNodes[0];
-			break;
+			{
+				node = nodes[0];
+				break;
+			}
 		case EAssetType::Parameter:
-			pNode = pNodes[1];
-			break;
+			{
+				node = nodes[1];
+				break;
+			}
 		case EAssetType::Switch:
-			pNode = pNodes[2];
-			break;
+			{
+				node = nodes[2];
+				break;
+			}
 		case EAssetType::Environment:
-			pNode = pNodes[3];
-			break;
+			{
+				node = nodes[3];
+				break;
+			}
 		case EAssetType::Preload:
-			pNode = pNodes[4];
-			break;
+			{
+				node = nodes[4];
+				break;
+			}
 		case EAssetType::Setting:
-			pNode = pNodes[5];
-			break;
+			{
+				node = nodes[5];
+				break;
+			}
 		default:
-			pNode = nullptr;
-			break;
+			{
+				node = nullptr;
+				break;
+			}
 		}
 
-		return pNode;
+		return node;
 	}
 
-	XmlNodeRef pNodes[6]; // Trigger, Parameter, Switch, Environment, Preload, Setting
+	XmlNodeRef nodes[6]; // Trigger, Parameter, Switch, Environment, Preload, Setting
 	bool       isDirty = false;
 	uint32     numTriggers = 0;
 	uint32     numParameters = 0;

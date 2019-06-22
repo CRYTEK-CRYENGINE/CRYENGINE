@@ -1,9 +1,8 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __RenderMeshMerger_H
-#define __RenderMeshMerger_H
-
 #pragma once
+
+#include "PolygonClipContext.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Input structure for RenderMesh merger
@@ -176,5 +175,3 @@ private:
 	static int Cmp_RenderChunksInfo(const void* v1, const void* v2);
 
 };
-
-#endif //__RenderMeshMerger_H

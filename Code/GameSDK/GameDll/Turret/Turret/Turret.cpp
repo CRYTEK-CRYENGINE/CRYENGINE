@@ -917,7 +917,7 @@ void CTurret::NotifyDestroyed( const bool hasBeenDestroyedByPlayer /* = false */
 		const float notificationRadius = 50.0f;
 		const AISignals::ISignalDescription& signalDescription = hasBeenDestroyedByPlayer ?  gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnTurretHasBeenDestroyedByThePlayer() : gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnTurretHasBeenDestroyed();
 		
-		const tAIObjectID entityId = pTurretEntity->GetAI() ? pTurretEntity->GetAI()->GetAIObjectID() : 0;
+		const EntityId entityId = pTurretEntity->GetAI() ? pTurretEntity->GetAI()->GetEntityID() : INVALID_ENTITYID;
 		pAISystem->SendAnonymousSignal(
 			pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, signalDescription, entityId), 
 			pTurretEntity->GetWorldPos(), notificationRadius
@@ -1635,7 +1635,7 @@ void CTurret::NotifySelectedTarget( IEntity* pTargetEntity )
 		pData->nID = GetEntityId();
 		pData->point = GetEntity()->GetWorldPos();
 
-		AISignals::SignalSharedPtr signal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnTargetedByTurret(), pTargetAiObject->GetAIObjectID(), pData);
+		AISignals::SignalSharedPtr signal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnTargetedByTurret(), pTargetAiObject->GetEntityID(), pData);
 		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, signal);
 	}
 }
@@ -2752,7 +2752,7 @@ void CTurret::NotifyGroupTargetSpotted( const IEntity* pTargetEntity )
 	assert( pTargetTrackManager );
 	pTargetTrackManager->HandleStimulusEventInRange( groupMemberAiObjectId, "TurretSpottedTarget", stimulusEventInfo, radius );
 
-	AISignals::SignalSharedPtr signal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupMemberEnteredCombat(), pGroupMemeberAiObject->GetAIObjectID());
+	AISignals::SignalSharedPtr signal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupMemberEnteredCombat(), pGroupMemeberAiObject->GetEntityID());
 	gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_GROUPONLY, signal);
 }
 

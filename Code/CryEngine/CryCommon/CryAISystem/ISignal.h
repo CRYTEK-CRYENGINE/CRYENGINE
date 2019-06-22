@@ -993,7 +993,7 @@ private:
 	public:
 		virtual const int GetNSignal() const = 0;
 		virtual const ISignalDescription& GetSignalDescription() const = 0;
-		virtual const tAIObjectID GetSenderID() const = 0;
+		virtual const EntityId GetSenderID() const = 0;
 		virtual IAISignalExtraData* GetExtraData() = 0;
 
 		virtual void SetExtraData(IAISignalExtraData* val) = 0;
@@ -1024,12 +1024,12 @@ private:
 		virtual void                               DeregisterGameSignalDescription(const ISignalDescription& signalDescription) = 0;
 
 #ifdef SIGNAL_MANAGER_DEBUG
-		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const tAIObjectID senderID = 0, IAISignalExtraData* pEData = nullptr) = 0;
+		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const EntityId senderID = INVALID_ENTITYID, IAISignalExtraData* pEData = nullptr) = 0;
 #else
-		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const tAIObjectID senderID = 0, IAISignalExtraData* pEData = nullptr) const = 0;
+		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const EntityId senderID = INVALID_ENTITYID, IAISignalExtraData* pEData = nullptr) const = 0;
 #endif //SIGNAL_MANAGER_DEBUG
 
-		virtual SignalSharedPtr                    CreateSignal_DEPRECATED(const int nSignal, const char* szCustomSignalTypeName, const tAIObjectID senderID = 0, IAISignalExtraData* pEData = nullptr) = 0;
+		virtual SignalSharedPtr                    CreateSignal_DEPRECATED(const int nSignal, const char* szCustomSignalTypeName, const EntityId senderID = INVALID_ENTITYID, IAISignalExtraData* pEData = nullptr) = 0;
 
 #ifdef SIGNAL_MANAGER_DEBUG
 		virtual void                               DebugDrawSignalsHistory() const = 0;

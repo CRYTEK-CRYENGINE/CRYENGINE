@@ -89,7 +89,7 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 	CShader* pShader,
 	CShaderResources* pRes,
 	CRenderObject* pObj,
-	SShaderTechnique* pTech, 
+	SShaderTechnique* pTech,
 	SHRenderTarget* pRT,
 	int nPreprType,
 	CRenderElement* pRE,
@@ -98,7 +98,7 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 	if (!pRT)
 		return false;
 
-	int nThreadList = m_pRT->GetThreadList();
+	//int nThreadList = m_pRT->GetThreadList();
 
 	uint32 nPrFlags = pRT->m_nFlags;
 	if (nPrFlags & FRT_RENDTYPE_CURSCENE)
@@ -199,7 +199,7 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 			Tex = pEnvTex->m_pTex->m_pTexture;
 		}
 	}
-	
+
 	if (!Tex)
 	{
 		CRY_ASSERT_MESSAGE(Tex, "DrawToRenderTarget called without passing a target texture!");
@@ -232,111 +232,110 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 	switch (pRT->m_eUpdateType)
 	{
 	case eRTUpdate_WaterReflect:
-	{
-		bool bSkip = false;
-		if (m_waterUpdateInfo.m_nLastWaterFrameID < 100)
 		{
-			m_waterUpdateInfo.m_nLastWaterFrameID++;
-			bSkip = true;
-		}
-		if (bSkip || !CRenderer::CV_r_waterreflections)
-		{
-			assert(pEnvTex != NULL);
-			if (pEnvTex && pEnvTex->m_pTex && pEnvTex->m_pTex->m_pTexture)
-				pEnvTex->m_pTex->m_pTexture->Clear(Clr_Empty);
-
-			return true;
-		}
-
-		if (m_waterUpdateInfo.m_nLastWaterFrameID == gRenDev->GetMainFrameID())
-			// water reflection already created this frame, share it
-			return true;
-
-		I3DEngine* eng               = (I3DEngine*)gEnv->p3DEngine;
-		int nVisibleWaterPixelsCount = eng->GetOceanVisiblePixelsCount() / 2;            // bug in occlusion query returns 2x more
-		int nPixRatioThreshold       = (int)(CRendererResources::s_renderArea * CRenderer::CV_r_waterreflections_min_visible_pixels_update);
-
-		static int nVisWaterPixCountPrev = nVisibleWaterPixelsCount;
-		if (CRenderer::CV_r_waterreflections_mgpu)
-		{
-			nVisWaterPixCountPrev = bMGPUAllowNextUpdate ? nVisibleWaterPixelsCount : nVisWaterPixCountPrev;
-		}
-		else
-			nVisWaterPixCountPrev = nVisibleWaterPixelsCount;
-
-		float fUpdateFactorMul   = 1.0f;
-		float fUpdateDistanceMul = 1.0f;
-		if (nVisWaterPixCountPrev < nPixRatioThreshold / 4)
-		{
-			bEnableAnisotropicBlur = false;
-			fUpdateFactorMul       = CV_r_waterreflections_minvis_updatefactormul * 10.0f;
-			fUpdateDistanceMul     = CV_r_waterreflections_minvis_updatedistancemul * 5.0f;
-		}
-		else if (nVisWaterPixCountPrev < nPixRatioThreshold)
-		{
-			fUpdateFactorMul   = CV_r_waterreflections_minvis_updatefactormul;
-			fUpdateDistanceMul = CV_r_waterreflections_minvis_updatedistancemul;
-		}
-
-		float fMGPUScale           = CRenderer::CV_r_waterreflections_mgpu ? (1.0f / (float) gRenDev->GetActiveGPUCount()) : 1.0f;
-		float fWaterUpdateFactor   = CV_r_waterupdateFactor * fUpdateFactorMul * fMGPUScale;
-		float fWaterUpdateDistance = CV_r_waterupdateDistance * fUpdateDistanceMul * fMGPUScale;
-
-		float fTimeUpd = min(0.3f, eng->GetDistanceToSectorWithWater());
-		fTimeUpd *= fWaterUpdateFactor;
-		//if (fTimeUpd > 1.0f)
-		//fTimeUpd = 1.0f;
-		
-		Vec3 camView = -passInfo.GetCamera().GetRenderVectorZ();
-		Vec3 camUp   = passInfo.GetCamera().GetRenderVectorY();
-
-		m_waterUpdateInfo.m_nLastWaterFrameID = gRenDev->GetMainFrameID();
-
-		CTimeValue animTime = GetAnimationTime();
-
-		Vec3  camPos   = passInfo.GetCamera().GetPosition();
-		float fDistCam = (camPos - m_waterUpdateInfo.m_LastWaterPosUpdate).GetLength();
-		float fDotView = camView * m_waterUpdateInfo.m_LastWaterViewdirUpdate;
-		float fDotUp   = camUp * m_waterUpdateInfo.m_LastWaterUpdirUpdate;
-		float fFOV     = passInfo.GetCamera().GetFov();
-		if (m_waterUpdateInfo.m_fLastWaterUpdate - 1.0f > animTime.GetSeconds())
-			m_waterUpdateInfo.m_fLastWaterUpdate = animTime.GetSeconds();
-
-		const float fMaxFovDiff = 0.1f;       // no exact test to prevent slowly changing fov causing per frame water reflection updates
-
-		static bool bUpdateReflection = true;
-		if (bMGPUAllowNextUpdate)
-		{
-			bUpdateReflection = animTime.GetSeconds() - m_waterUpdateInfo.m_fLastWaterUpdate >= fTimeUpd || fDistCam > fWaterUpdateDistance;
-			bUpdateReflection = bUpdateReflection || fDotView<0.9f || fabs(fFOV - m_waterUpdateInfo.m_fLastWaterFOVUpdate)>fMaxFovDiff;
-		}
-
-		if (bUpdateReflection && bMGPUAllowNextUpdate)
-		{
-			m_waterUpdateInfo.m_fLastWaterUpdate       = animTime.GetSeconds();
-			m_waterUpdateInfo.m_LastWaterViewdirUpdate = camView;
-			m_waterUpdateInfo.m_LastWaterUpdirUpdate   = camUp;
-			m_waterUpdateInfo.m_fLastWaterFOVUpdate    = fFOV;
-			m_waterUpdateInfo.m_LastWaterPosUpdate     = camPos;
-			assert(pEnvTex != NULL);
-			if (pEnvTex)
+			bool bSkip = false;
+			if (m_waterUpdateInfo.m_nLastWaterFrameID < 100)
 			{
-				pEnvTex->m_pTex->ResetUpdateMask();
+				m_waterUpdateInfo.m_nLastWaterFrameID++;
+				bSkip = true;
 			}
-		}
-		else if (!bUpdateReflection)
-		{
+			if (bSkip || !CRenderer::CV_r_waterreflections)
+			{
+				assert(pEnvTex != NULL);
+				if (pEnvTex && pEnvTex->m_pTex && pEnvTex->m_pTex->m_pTexture)
+					pEnvTex->m_pTex->m_pTexture->Clear(Clr_Empty);
+
+				return true;
+			}
+
+			if (m_waterUpdateInfo.m_nLastWaterFrameID == gRenDev->GetMainFrameID())
+				// water reflection already created this frame, share it
+				return true;
+
+			I3DEngine* eng = (I3DEngine*)gEnv->p3DEngine;
+			int nVisibleWaterPixelsCount = eng->GetOceanVisiblePixelsCount() / 2;          // bug in occlusion query returns 2x more
+			int nPixRatioThreshold = (int)(CRendererResources::s_renderArea* CRenderer::CV_r_waterreflections_min_visible_pixels_update);
+
+			static int nVisWaterPixCountPrev = nVisibleWaterPixelsCount;
+			if (CRenderer::CV_r_waterreflections_mgpu)
+			{
+				nVisWaterPixCountPrev = bMGPUAllowNextUpdate ? nVisibleWaterPixelsCount : nVisWaterPixCountPrev;
+			}
+			else
+				nVisWaterPixCountPrev = nVisibleWaterPixelsCount;
+
+			float fUpdateFactorMul = 1.0f;
+			float fUpdateDistanceMul = 1.0f;
+			if (nVisWaterPixCountPrev < nPixRatioThreshold / 4)
+			{
+				bEnableAnisotropicBlur = false;
+				fUpdateFactorMul = CV_r_waterreflections_minvis_updatefactormul * 10.0f;
+				fUpdateDistanceMul = CV_r_waterreflections_minvis_updatedistancemul * 5.0f;
+			}
+			else if (nVisWaterPixCountPrev < nPixRatioThreshold)
+			{
+				fUpdateFactorMul = CV_r_waterreflections_minvis_updatefactormul;
+				fUpdateDistanceMul = CV_r_waterreflections_minvis_updatedistancemul;
+			}
+
+			float fMGPUScale = CRenderer::CV_r_waterreflections_mgpu ? (1.0f / (float) gRenDev->GetActiveGPUCount()) : 1.0f;
+			float fWaterUpdateFactor = CV_r_waterupdateFactor * fUpdateFactorMul * fMGPUScale;
+			float fWaterUpdateDistance = CV_r_waterupdateDistance * fUpdateDistanceMul * fMGPUScale;
+
+			float fTimeUpd = min(0.3f, eng->GetDistanceToSectorWithWater());
+			fTimeUpd *= fWaterUpdateFactor;
+			//if (fTimeUpd > 1.0f)
+			//fTimeUpd = 1.0f;
+
+			Vec3 camView = -passInfo.GetCamera().GetRenderVectorZ();
+			Vec3 camUp = passInfo.GetCamera().GetRenderVectorY();
+
+			m_waterUpdateInfo.m_nLastWaterFrameID = gRenDev->GetMainFrameID();
+
+			CTimeValue animTime = GetAnimationTime();
+
+			Vec3 camPos = passInfo.GetCamera().GetPosition();
+			float fDistCam = (camPos - m_waterUpdateInfo.m_LastWaterPosUpdate).GetLength();
+			float fDotView = camView * m_waterUpdateInfo.m_LastWaterViewdirUpdate;
+			float fFOV = passInfo.GetCamera().GetFov();
+			if (m_waterUpdateInfo.m_fLastWaterUpdate - 1.0f > animTime.GetSeconds())
+				m_waterUpdateInfo.m_fLastWaterUpdate = animTime.GetSeconds();
+
+			const float fMaxFovDiff = 0.1f;     // no exact test to prevent slowly changing fov causing per frame water reflection updates
+
+			static bool bUpdateReflection = true;
+			if (bMGPUAllowNextUpdate)
+			{
+				bUpdateReflection = animTime.GetSeconds() - m_waterUpdateInfo.m_fLastWaterUpdate >= fTimeUpd || fDistCam > fWaterUpdateDistance;
+				bUpdateReflection = bUpdateReflection || fDotView<0.9f || fabs(fFOV - m_waterUpdateInfo.m_fLastWaterFOVUpdate)> fMaxFovDiff;
+			}
+
+			if (bUpdateReflection && bMGPUAllowNextUpdate)
+			{
+				m_waterUpdateInfo.m_fLastWaterUpdate = animTime.GetSeconds();
+				m_waterUpdateInfo.m_LastWaterViewdirUpdate = camView;
+				m_waterUpdateInfo.m_LastWaterUpdirUpdate = camUp;
+				m_waterUpdateInfo.m_fLastWaterFOVUpdate = fFOV;
+				m_waterUpdateInfo.m_LastWaterPosUpdate = camPos;
+				assert(pEnvTex != NULL);
+				if (pEnvTex)
+				{
+					pEnvTex->m_pTex->ResetUpdateMask();
+				}
+			}
+			else if (!bUpdateReflection)
+			{
+				assert(pEnvTex != NULL);
+				PREFAST_ASSUME(pEnvTex != NULL);
+				if (pEnvTex && pEnvTex->m_pTex && pEnvTex->m_pTex->IsValid())
+					return true;
+			}
+
 			assert(pEnvTex != NULL);
 			PREFAST_ASSUME(pEnvTex != NULL);
-			if (pEnvTex && pEnvTex->m_pTex && pEnvTex->m_pTex->IsValid())
-				return true;
+			pEnvTex->m_pTex->SetUpdateMask();
 		}
-
-		assert(pEnvTex != NULL);
-		PREFAST_ASSUME(pEnvTex != NULL);
-		pEnvTex->m_pTex->SetUpdateMask();
-	}
-	break;
+		break;
 	}
 
 	// Just copy current BB to the render target and exit
@@ -364,11 +363,9 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 
 	static CCamera tmp_cam_mgpu = passInfo.GetCamera();
 	CCamera tmp_cam             = passInfo.GetCamera();
-	CCamera prevCamera          = tmp_cam;
 	bool bMirror                = false;
 	bool bOceanRefl             = false;
 
-	SRenderViewInfo::EFlags recusriveViewFlags = SRenderViewInfo::eFlags_None;
 	passInfo.GetRenderView()->CalculateViewInfo();
 	const auto& viewInfo = passInfo.GetRenderView()->GetViewInfo(CCamera::eEye_Left);
 
@@ -376,7 +373,6 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 	if (nPrFlags & FRT_CAMERA_REFLECTED_WATERPLANE)
 	{
 		bOceanRefl = true;
-
 
 		float fMinDist = min(SKY_BOX_SIZE * 0.5f, eng->GetDistanceToSectorWithWater());      // 16 is half of skybox size
 		float fMaxDist = eng->GetMaxViewDistance();
@@ -460,7 +456,7 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 			//Pl.d = -Pl.d;
 			if (pObj)
 			{
-				Matrix44 mat = pObj->GetMatrix(passInfo).GetTransposed();
+				Matrix44 mat = pObj->GetMatrix().GetTransposed();
 				Pl = TransformPlane(mat, Pl);
 			}
 			if ((vPrevPos | Pl.n) - Pl.d < 0)
@@ -536,7 +532,7 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 	// TODO: ClearTexture()
 	assert(pEnvTex);
 	PREFAST_ASSUME(pEnvTex);
-	
+
 	CRenderOutputPtr pRenderOutput = nullptr;
 	if (m_nGraphicsPipeline >= 3)
 	{
@@ -590,19 +586,26 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 			break;
 		}
 
-		int nRFlags = SHDF_ALLOWHDR | SHDF_NO_DRAWNEAR | SHDF_FORWARD_MINIMAL;
-
-		// disable caustics if camera above water
-		if (obliqueClipPlane.d < 0)
-			nRFlags |= SHDF_NO_DRAWCAUSTICS;
-
 		if (bMirror)
 		{
 			pEnvTex->SetMatrix(tmp_cam);
 		}
 
-		auto recursivePassInfo = SRenderingPassInfo::CreateRecursivePassRenderingInfo(bOceanRefl ? tmp_cam_mgpu : tmp_cam, nRenderPassFlags);
-		
+		SGraphicsPipelineDescription graphicsPipelineDesc;
+		graphicsPipelineDesc.type = EGraphicsPipelineType::Minimum;
+		graphicsPipelineDesc.shaderFlags = SHDF_ALLOWHDR | SHDF_NO_DRAWNEAR | SHDF_FORWARD_MINIMAL | SHDF_ALLOW_SKY;
+
+		// disable caustics if camera above water
+		if (obliqueClipPlane.d < 0)
+			graphicsPipelineDesc.shaderFlags |= SHDF_NO_DRAWCAUSTICS;
+
+		if (m_renderToTexturePipelineKey == SGraphicsPipelineKey::InvalidGraphicsPipelineKey)
+		{
+			m_renderToTexturePipelineKey = CreateGraphicsPipeline(graphicsPipelineDesc);
+		}
+
+		auto recursivePassInfo = SRenderingPassInfo::CreateRecursivePassRenderingInfo(m_renderToTexturePipelineKey, bOceanRefl ? tmp_cam_mgpu : tmp_cam, nRenderPassFlags);
+
 		SRenderViewInfo::EFlags recursiveViewFlags = SRenderViewInfo::eFlags_None;
 		recursiveViewFlags |= SRenderViewInfo::eFlags_DrawToTexure;
 		if (!(nPrFlags & FRT_CAMERA_REFLECTED_WATERPLANE)) // projection matrix is already mirrored for ocean reflections
@@ -618,42 +621,47 @@ bool CD3D9Renderer::FX_DrawToRenderTarget(
 		pRecursiveRenderView->SetPreviousFrameCameras(&cam, 1);
 
 		ExecuteRenderThreadCommand(
-			[=]	{
-				pRenderOutput->BeginRendering(pRecursiveRenderView);
-			},
-			ERenderCommandFlags::None
-		);
+			[=]
+		{
+			pRenderOutput->BeginRendering(pRecursiveRenderView);
+			CGraphicsPipeline* pGraphicsPipeline = pRecursiveRenderView->GetGraphicsPipeline().get();
+			pGraphicsPipeline->Resize(pRenderOutput->GetOutputResolution().x, pRenderOutput->GetOutputResolution().y);
 
-		eng->RenderWorld(nRFlags, recursivePassInfo, __FUNCTION__);
+		},
+			ERenderCommandFlags::None
+			);
+
+		eng->RenderWorld(graphicsPipelineDesc.shaderFlags, recursivePassInfo, __FUNCTION__);
 
 		ExecuteRenderThreadCommand(
 			[=]
-			{
-				pRenderOutput->EndRendering(pRecursiveRenderView);
-			},
+		{
+			pRenderOutput->EndRendering(pRecursiveRenderView);
+		},
 			ERenderCommandFlags::None
-		);
+			);
 	}
 
 	// Very Hi specs get anisotropic reflections
 	int nReflQuality = (bOceanRefl) ? (int)CV_r_waterreflections_quality : (int)CV_r_reflections_quality;
-	
+
 	if (nReflQuality >= 4 && bEnableAnisotropicBlur && Tex && Tex->GetDevTexture())
 	{
 		ExecuteRenderThreadCommand(
 			[=]
-			{
-				GetGraphicsPipeline().ExecuteAnisotropicVerticalBlur(Tex, 1, 8 * max(1.0f - min(fAnisoScale / 100.0f, 1.0f), 0.2f), 1, false);
-			},
+		{
+			CGraphicsPipeline* pGraphicsPipeline = FindGraphicsPipeline(passInfo.GetGraphicsPipelineKey()).get();
+			pGraphicsPipeline->ExecuteAnisotropicVerticalBlur(Tex, 1, 8 * max(1.0f - min(fAnisoScale / 100.0f, 1.0f), 0.2f), 1, false);
+		},
 			ERenderCommandFlags::None
-		);
+			);
 	}
 
 	if (m_LogFile)
 		Logv("*** End RT for Water reflections ***\n");
 
 	// todo: encode hdr format
-	
+
 	// increase frame id to support multiple recursive draws
 	//gRenDev->m_renderThreadInfo[nThreadList].m_nFrameID++;
 

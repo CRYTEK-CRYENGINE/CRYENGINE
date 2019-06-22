@@ -66,7 +66,7 @@ CCameraObject::CCameraObject() : m_listeners(1)
 //////////////////////////////////////////////////////////////////////////
 void CCameraObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 	CViewManager* pManager = GetIEditorImpl()->GetViewManager();
 	if (pManager && pManager->GetCameraObjectId() == GetId())
 	{

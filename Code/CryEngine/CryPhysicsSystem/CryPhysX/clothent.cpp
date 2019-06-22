@@ -267,7 +267,6 @@ int PhysXCloth::Action(pe_action* _action, int bThreadSafe)
 		DeferredAttachAndCreate();
 		if (m_cloth) {
 			WriteLock lock(m_lockAttach);
-			mesh_data *md = (mesh_data*)m_parts[0].geom->pGeom->GetData();
 			PxClothParticleData *vtx = m_cloth->lockParticleData(PxDataAccessFlag::eREADABLE);
 			PhysXEnt *entAttach = (PhysXEnt*)action->pEntity;
 			QuatT gpose = getGlobalPose(), gposeAtt = entAttach->getGlobalPose();

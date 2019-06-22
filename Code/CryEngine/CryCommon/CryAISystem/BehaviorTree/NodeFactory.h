@@ -58,7 +58,7 @@ public:
 
 		if (node)
 		{
-			MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "CreateNodeFromXml: %s", xml->getTag());
+			MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "CreateNodeFromXml: %s", xml->getTag());
 
 #ifdef DEBUG_MODULAR_BEHAVIOR_TREE
 			static_cast<Node*>(node.get())->SetXmlLine(xml->getLine());

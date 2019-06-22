@@ -12,7 +12,7 @@
 
 void CGlobalHeaderDBA::CreateDatabaseDBA(const char* filename)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_DBA, 0, filename);
+	MEMSTAT_CONTEXT(EMemStatContextType::DBA, filename);
 	stack_string strPath = filename;
 	PathUtil::UnifyFilePath(strPath);
 	m_strFilePathDBA = strPath.c_str();
@@ -22,7 +22,7 @@ void CGlobalHeaderDBA::CreateDatabaseDBA(const char* filename)
 
 void CGlobalHeaderDBA::LoadDatabaseDBA(const char* sForCharacter)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_DBA, 0, m_strFilePathDBA.c_str());
+	MEMSTAT_CONTEXT(EMemStatContextType::DBA, m_strFilePathDBA.c_str());
 	m_nLastUsedTimeDelta = 0;
 	if (m_pStream || m_pDatabaseInfo)
 		return;
@@ -143,7 +143,7 @@ void CInternalDatabaseInfo::StreamOnComplete(IReadStream* pStream, unsigned nErr
 
 void* CInternalDatabaseInfo::StreamOnNeedStorage(IReadStream* pStream, unsigned nSize, bool& bAbortOnFailToAlloc)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_DBA, 0, m_strFilePath.c_str());
+	MEMSTAT_CONTEXT(EMemStatContextType::DBA, m_strFilePath.c_str());
 
 	char* pData = NULL;
 
@@ -160,8 +160,8 @@ void* CInternalDatabaseInfo::StreamOnNeedStorage(IReadStream* pStream, unsigned 
 void CInternalDatabaseInfo::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 {
 	DEFINE_PROFILER_FUNCTION();
-	//LOADING_TIME_PROFILE_SECTION(g_pISystem);
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_DBA, 0, m_strFilePath.c_str());
+	//CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
+	MEMSTAT_CONTEXT(EMemStatContextType::DBA, m_strFilePath.c_str());
 
 	if (pStream->IsError())
 	{
@@ -294,7 +294,7 @@ bool CInternalDatabaseInfo::ReadControllers(IChunkFile::ChunkDesc* pChunkDesc, b
 
 bool CInternalDatabaseInfo::ReadController905(IChunkFile::ChunkDesc* pChunkDesc, bool bStreaming)
 {
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	if (pChunkDesc->bSwapEndian)
 		CryFatalError("%s: data are stored in non-native endian format", __FUNCTION__);

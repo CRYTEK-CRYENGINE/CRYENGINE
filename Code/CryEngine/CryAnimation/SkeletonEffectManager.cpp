@@ -106,7 +106,7 @@ void CSkeletonEffectManager::SpawnEffectAudio(CCharInstance* pCharInstance, cons
 
 	// Spawn audio
 	CryAudio::ControlId const triggerId = CryAudio::StringToId(triggerName);
-	CryAudio::SExecuteTriggerData triggerData(triggerId, triggerName, CryAudio::EOcclusionType::Ignore, loc.t, INVALID_ENTITYID, true);
+	CryAudio::SExecuteTriggerData triggerData(triggerId, triggerName, CryAudio::EOcclusionType::Ignore, loc.t, true);
 	gEnv->pAudioSystem->ExecuteTriggerEx(triggerData);
 }
 

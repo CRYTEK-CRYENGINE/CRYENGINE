@@ -9,6 +9,7 @@
 #include "D3DOpenVR.h"
 
 #include <Common/RenderDisplayContext.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define MGPU_STEREO
 
@@ -55,8 +56,7 @@ void OnStereoModeVarChanged(ICVar* pCvar)
 	gcpRendD3D->GetS3DRend().OnStereoModeChanged();
 }
 
-
-CStereoRenderingScope::CStereoRenderingScope(std::string &&tag, SDisplayContextKey displayContextKey)
+CStereoRenderingScope::CStereoRenderingScope(std::string&& tag, SDisplayContextKey displayContextKey)
 	: profileMarkerTag(std::move_if_noexcept(tag))
 	, displayContextKey(displayContextKey)
 {
@@ -74,7 +74,6 @@ CStereoRenderingScope::~CStereoRenderingScope() noexcept
 	if (profileMarkerTag.length())
 		gcpRendD3D->PopProfileMarker(profileMarkerTag.c_str());
 }
-
 
 CD3DStereoRenderer::CD3DStereoRenderer()
 	: m_device(EStereoDevice::STEREO_DEVICE_DEFAULT)
@@ -100,31 +99,31 @@ CD3DStereoRenderer::CD3DStereoRenderer()
 	, m_pHmdRenderer(nullptr)
 {
 	REGISTER_CVAR3("r_StereoDevice", m_device, m_device, VF_REQUIRE_APP_RESTART | VF_DUMPTODISK,
-		"Sets stereo device (only possible before app start)\n"
-		"Usage: r_StereoDevice [0/1/2/3/4]\n"
-		"0: No stereo support (default)\n"
-		"1: Frame compatible formats (side-by-side, interlaced, anaglyph)\n"
-		"2: Stereo driver (PC only, NVidia or AMD)\n"
-		"100: Auto-detect device for platform");
+	               "Sets stereo device (only possible before app start)\n"
+	               "Usage: r_StereoDevice [0/1/2/3/4]\n"
+	               "0: No stereo support (default)\n"
+	               "1: Frame compatible formats (side-by-side, interlaced, anaglyph)\n"
+	               "2: Stereo driver (PC only, NVidia or AMD)\n"
+	               "100: Auto-detect device for platform");
 
 	REGISTER_CVAR3_CB("r_StereoMode", m_mode, m_mode, VF_DUMPTODISK,
-		"Sets stereo rendering mode.\n"
-		"Usage: r_StereoMode [0=off/1/2]\n"
-		"1: Dual rendering\n"
-		"2: Post Stereo\n"
-		"3: Menu mode: Flash rendered twice, once to social screen and once to HMD", OnStereoModeVarChanged);
+	                  "Sets stereo rendering mode.\n"
+	                  "Usage: r_StereoMode [0=off/1/2]\n"
+	                  "1: Dual rendering\n"
+	                  "2: Post Stereo\n"
+	                  "3: Menu mode: Flash rendered twice, once to social screen and once to HMD", OnStereoModeVarChanged);
 
 	REGISTER_CVAR3_CB("r_StereoOutput", m_output, m_output, VF_DUMPTODISK,
-		"Sets stereo output. Output depends on the stereo monitor\n"
-		"Usage: r_StereoOutput [0=off/1/2/3/4/5/6/...]\n"
-		"0: Standard\n"
-		"1: Side by Side Squeezed\n"
-		"2: Checkerboard\n"
-		"3: Above and Below (not supported)\n"
-		"4: Side by Side\n"
-		"5: Line by Line (Interlaced)\n"
-		"6: Anaglyph\n"
-		"7: VR Device\n", OnStereoModeVarChanged);
+	                  "Sets stereo output. Output depends on the stereo monitor\n"
+	                  "Usage: r_StereoOutput [0=off/1/2/3/4/5/6/...]\n"
+	                  "0: Standard\n"
+	                  "1: Side by Side Squeezed\n"
+	                  "2: Checkerboard\n"
+	                  "3: Above and Below (not supported)\n"
+	                  "4: Side by Side\n"
+	                  "5: Line by Line (Interlaced)\n"
+	                  "6: Anaglyph\n"
+	                  "7: VR Device\n", OnStereoModeVarChanged);
 
 	if (m_device == EStereoDevice::STEREO_DEVICE_DEFAULT)
 		SelectDefaultDevice();
@@ -174,7 +173,7 @@ void CD3DStereoRenderer::OnStereoModeChanged()
 
 void CD3DStereoRenderer::InitDeviceBeforeD3D()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 #if defined(USE_NV_API)
 	bool availableDriverNV = false;
 	uint8 enabled = 0;
@@ -234,7 +233,7 @@ void CD3DStereoRenderer::InitDeviceBeforeD3D()
 
 void CD3DStereoRenderer::InitDeviceAfterD3D()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	g_pMgpu = NULL;
 #if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && defined(AMD_LIQUID_VR)
@@ -318,9 +317,9 @@ void CD3DStereoRenderer::Shutdown()
 	}
 #endif
 
-	for (auto &e : m_pEyeDisplayContexts)
+	for (auto& e : m_pEyeDisplayContexts)
 		RecreateDisplayContext(e, "", Clr_Empty, {});
-	for (auto &e : m_pVrQuadLayerDisplayContexts)
+	for (auto& e : m_pVrQuadLayerDisplayContexts)
 		RecreateDisplayContext(e, "", Clr_Transparent, {});
 }
 
@@ -447,7 +446,7 @@ void CD3DStereoRenderer::HandleNVControl()
 #endif
 }
 
-void CD3DStereoRenderer::RecreateDisplayContext(std::pair<std::shared_ptr<CCustomRenderDisplayContext>, SDisplayContextKey> &target, std::string name, const ColorF &clearColor, std::vector<_smart_ptr<CTexture>> &&swapChain)
+void CD3DStereoRenderer::RecreateDisplayContext(std::pair<std::shared_ptr<CCustomRenderDisplayContext>, SDisplayContextKey>& target, std::string name, const ColorF& clearColor, std::vector<_smart_ptr<CTexture>>&& swapChain)
 {
 	IRenderer::SDisplayContextDescription displayContextDesc = {};
 	displayContextDesc.clearColor = clearColor;
@@ -466,7 +465,7 @@ void CD3DStereoRenderer::RecreateDisplayContext(std::pair<std::shared_ptr<CCusto
 		target.second = gcpRendD3D->AddCustomContext(target.first);
 }
 
-void CD3DStereoRenderer::CreateEyeDisplayContext(CCamera::EEye eEye, std::vector<_smart_ptr<CTexture>> &&swapChain)
+void CD3DStereoRenderer::CreateEyeDisplayContext(CCamera::EEye eEye, std::vector<_smart_ptr<CTexture>>&& swapChain)
 {
 	static_assert(CCamera::eEye_eCount <= 2, "More eyes defined than covered in the following code, please adjust.");
 	const std::string name = (eEye == CCamera::EEye::eEye_Left ? "LeftEye-SwapChain" : "RightEye-SwapChain");
@@ -474,7 +473,7 @@ void CD3DStereoRenderer::CreateEyeDisplayContext(CCamera::EEye eEye, std::vector
 	RecreateDisplayContext(m_pEyeDisplayContexts[eEye], name, Clr_Empty, std::move(swapChain));
 }
 
-void CD3DStereoRenderer::CreateVrQuadLayerDisplayContext(RenderLayer::EQuadLayers id, std::vector<_smart_ptr<CTexture>> &&swapChain)
+void CD3DStereoRenderer::CreateVrQuadLayerDisplayContext(RenderLayer::EQuadLayers id, std::vector<_smart_ptr<CTexture>>&& swapChain)
 {
 	static_assert(RenderLayer::eQuadLayers_Total <= 9, "More quadlayers defined than covered in the following code, please adjust.");
 	const char number = '0' + id;
@@ -483,7 +482,7 @@ void CD3DStereoRenderer::CreateVrQuadLayerDisplayContext(RenderLayer::EQuadLayer
 	RecreateDisplayContext(m_pVrQuadLayerDisplayContexts[id], name, Clr_Transparent, std::move(swapChain));
 }
 
-void CD3DStereoRenderer::SetCurrentEyeSwapChainIndices(const std::array<uint32_t, eEyeType_NumEyes> &indices)
+void CD3DStereoRenderer::SetCurrentEyeSwapChainIndices(const std::array<uint32_t, eEyeType_NumEyes>& indices)
 {
 	for (auto it = m_pEyeDisplayContexts.begin(); it != m_pEyeDisplayContexts.end(); ++it)
 	{
@@ -492,7 +491,7 @@ void CD3DStereoRenderer::SetCurrentEyeSwapChainIndices(const std::array<uint32_t
 	}
 }
 
-void CD3DStereoRenderer::SetCurrentQuadLayerSwapChainIndices(const std::array<uint32_t, RenderLayer::eQuadLayers_Total> &indices)
+void CD3DStereoRenderer::SetCurrentQuadLayerSwapChainIndices(const std::array<uint32_t, RenderLayer::eQuadLayers_Total>& indices)
 {
 	for (auto it = m_pVrQuadLayerDisplayContexts.begin(); it != m_pVrQuadLayerDisplayContexts.end(); ++it)
 	{
@@ -524,9 +523,9 @@ CCamera CD3DStereoRenderer::PrepareCamera(int nEye, const CCamera& currentCamera
 		if (IHmdManager* pHmdManager = gEnv->pSystem->GetHmdManager())
 		{
 			int width = 0, height = 0;
-			if (auto *dc = GetEyeDisplayContext(CCamera::EEye(nEye)).first)
+			if (auto* dc = GetEyeDisplayContext(CCamera::EEye(nEye)).first)
 			{
-				const CTexture *tex = dc->GetCurrentBackBuffer();
+				const CTexture* tex = dc->GetCurrentBackBuffer();
 				width  = tex->GetWidth();
 				height = tex->GetHeight();
 			}
@@ -580,22 +579,12 @@ CCamera CD3DStereoRenderer::PrepareCamera(int nEye, const CCamera& currentCamera
 void CD3DStereoRenderer::ProcessScene(int sceneFlags, const SRenderingPassInfo& passInfo)
 {
 	CRY_ASSERT(gRenDev->m_pRT->IsMainThread());
-
-	// for recursive rendering (e.g. rendering to ocean reflection texture), stereo is not needed
-	if (passInfo.IsRecursivePass() || (m_mode != EStereoMode::STEREO_MODE_DUAL_RENDERING))
-	{
-		gcpRendD3D->RenderFrame(sceneFlags, passInfo);
-		return;
-	}
-
-	// Invoke RenderFrame with both eyes
-	// We will prepare cameras in CD3DStereoRenderer::RenderScene when it is called by the render thread
-	gcpRendD3D->RenderFrame(sceneFlags | SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE, passInfo);
+	gcpRendD3D->RenderFrame(sceneFlags, passInfo);
 }
 
 void CD3DStereoRenderer::ClearEyes(ColorF clearColor)
 {
-	for (const auto &dc : m_pEyeDisplayContexts)
+	for (const auto& dc : m_pEyeDisplayContexts)
 	{
 		if (dc.first)
 			dc.first->GetCurrentBackBuffer()->Clear(clearColor);
@@ -604,7 +593,7 @@ void CD3DStereoRenderer::ClearEyes(ColorF clearColor)
 
 void CD3DStereoRenderer::ClearVrQuads(ColorF clearColor)
 {
-	for (const auto &dc : m_pVrQuadLayerDisplayContexts)
+	for (const auto& dc : m_pVrQuadLayerDisplayContexts)
 	{
 		if (dc.first)
 			dc.first->GetCurrentBackBuffer()->Clear(clearColor);
@@ -612,21 +601,21 @@ void CD3DStereoRenderer::ClearVrQuads(ColorF clearColor)
 }
 
 std::array<CCamera, 2> CD3DStereoRenderer::GetStereoCameras() const
-{ 
+{
 	if (m_bPreviousCameraValid)
 		return m_previousCameras;
 
 	CCamera dummyCamera;
-	if (auto *dc = GetEyeDisplayContext(CCamera::eEye_Left).first)
+	if (auto* dc = GetEyeDisplayContext(CCamera::eEye_Left).first)
 	{
-		const CTexture *tex = dc->GetCurrentBackBuffer();
+		const CTexture* tex = dc->GetCurrentBackBuffer();
 
 		Matrix44A mat;
 		mathMatrixOrtho(&mat, static_cast<float>(tex->GetWidth()), static_cast<float>(tex->GetHeight()), 0, 1);
 
 		dummyCamera.SetMatrix(Matrix34(mat));
-		dummyCamera.SetFrustum(tex->GetWidth(), tex->GetHeight(), dummyCamera.GetFov(), 0, 1, 
-			static_cast<float>(tex->GetHeight()) / static_cast<float>(tex->GetWidth()));
+		dummyCamera.SetFrustum(tex->GetWidth(), tex->GetHeight(), dummyCamera.GetFov(), 0, 1,
+		                       static_cast<float>(tex->GetHeight()) / static_cast<float>(tex->GetWidth()));
 	}
 
 	return { { dummyCamera, dummyCamera } };
@@ -663,18 +652,16 @@ void CD3DStereoRenderer::PrepareFrame()
 
 	CTimeValue timePresentBegin = gEnv->pTimer->GetAsyncTime();
 	m_pHmdRenderer->PrepareFrame(static_cast<uint64_t>(gcpRendD3D->GetRenderFrameID()));
-	SRenderStatistics::Write().m_Summary.waitForGPU += gEnv->pTimer->GetAsyncTime().GetDifferenceInSeconds(timePresentBegin);
+	SRenderStatistics::Write().m_Summary.waitForGPU_RT += gEnv->pTimer->GetAsyncTime().GetDifferenceInSeconds(timePresentBegin);
 
 	m_framePrepared = true;
 }
 
-void CD3DStereoRenderer::RenderScene(const SStereoRenderContext &context)
+void CD3DStereoRenderer::RenderScene(const SStereoRenderContext& context)
 {
 	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
-	// ProcessScene provides both flags, we split this up into two render passes if we have to further below
-	CRY_ASSERT(context.flags & (SHDF_STEREO_LEFT_EYE | SHDF_STEREO_RIGHT_EYE));
 
-	CRenderView *pRenderView = context.pRenderView.get();
+	CRenderView* pRenderView = context.pRenderView.get();
 	CCamera camera = pRenderView->GetCamera(CCamera::eEye_Left);
 
 	if (!m_pHmdRenderer)
@@ -717,28 +704,15 @@ void CD3DStereoRenderer::RenderScene(const SStereoRenderContext &context)
 				//gcpRendD3D->SelectGPU(GPUMASK_LEFT);
 			}
 
+			pRenderView->SetCurrentEye(CCamera::eEye_Both);
+
 			gcpRendD3D->PushProfileMarker("DUAL_EYES");
-			pRenderView->SetShaderRenderingFlags(context.flags);
 			gcpRendD3D->RT_RenderScene(pRenderView);
 			gcpRendD3D->PopProfileMarker("DUAL_EYES");
 		}
 	}
-	else 
+	else
 	{
-		const int sceneFlagsLeft = context.flags & ~SHDF_STEREO_RIGHT_EYE;
-		int sceneFlagsRight = (context.flags & ~SHDF_STEREO_LEFT_EYE) | SHDF_NO_SHADOWGEN;
-
-		if (g_pMgpu && CRenderer::CV_r_StereoEnableMgpu)
-		{
-			// Render shadows on both GPUs
-			sceneFlagsRight &= ~SHDF_NO_SHADOWGEN;
-
-#if !defined(_RELEASE)
-			// Divide the cascades across the GPUs
-			//??AC CRenderer::CV_r_ShadowGenMode = 1;
-#endif
-		}
-
 		// Left eye
 		{
 			if (g_pMgpu && CRenderer::CV_r_StereoEnableMgpu)
@@ -748,12 +722,11 @@ void CD3DStereoRenderer::RenderScene(const SStereoRenderContext &context)
 
 			auto eyeRenderScope = PrepareRenderingToEye(CCamera::eEye_Left);
 
+			pRenderView->SetCurrentEye(CCamera::eEye_Left);
+
 			// Manually call prepresent and postpresent on the eye's display contexts, as RT_EndFrame and friends are not being called.
 			gcpRendD3D->GetActiveDisplayContext()->PrePresent();
-
-			pRenderView->SetShaderRenderingFlags(sceneFlagsLeft);
 			gcpRendD3D->RT_RenderScene(pRenderView);
-
 			gcpRendD3D->GetActiveDisplayContext()->PostPresent();
 		}
 
@@ -766,12 +739,11 @@ void CD3DStereoRenderer::RenderScene(const SStereoRenderContext &context)
 
 			auto eyeRenderScope = PrepareRenderingToEye(CCamera::eEye_Right);
 
+			pRenderView->SetCurrentEye(CCamera::eEye_Right);
+
 			// Manually call prepresent and postpresent on the eye's display contexts, as RT_EndFrame and friends are not being called.
 			gcpRendD3D->GetActiveDisplayContext()->PrePresent();
-
-			pRenderView->SetShaderRenderingFlags(sceneFlagsRight);
 			gcpRendD3D->RT_RenderScene(pRenderView);
-
 			gcpRendD3D->GetActiveDisplayContext()->PostPresent();
 		}
 	}
@@ -788,7 +760,7 @@ void CD3DStereoRenderer::SubmitFrameToHMD()
 {
 	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
 
-	if (!m_pHmdRenderer || !m_framePrepared) 
+	if (!m_pHmdRenderer || !m_framePrepared)
 		return;
 
 	m_pHmdRenderer->SubmitFrame();
@@ -821,7 +793,7 @@ void CD3DStereoRenderer::DisplaySocialScreen()
 	const Vec2i displayResolution = pDisplayContext->GetDisplayResolution();
 	CTexture* pColorTarget = pDisplayContext->GetRenderOutput()->GetColorTarget();
 
-	const auto &type = GetSocialScreenType();
+	const auto& type = GetSocialScreenType();
 	if (type.first == EHmdSocialScreen::Off || !m_pHmdRenderer)
 	{
 		CClearSurfacePass::Execute(pColorTarget, ColorF(0.1f, 0.1f, 0.1f, 1.0f));
@@ -830,14 +802,14 @@ void CD3DStereoRenderer::DisplaySocialScreen()
 
 	RenderSocialScreen(pColorTarget, type, displayResolution);
 }
-void CD3DStereoRenderer::RenderSocialScreen(CTexture* pColorTarget, const std::pair<EHmdSocialScreen, EHmdSocialScreenAspectMode> &socialScreenType, const Vec2i &displayResolutions)
+void CD3DStereoRenderer::RenderSocialScreen(CTexture* pColorTarget, const std::pair<EHmdSocialScreen, EHmdSocialScreenAspectMode>& socialScreenType, const Vec2i& displayResolutions)
 {
 	CRY_ASSERT(m_pHmdRenderer);
 
 	if (!m_eyeToScreenPass || !m_quadLayerPass)
 	{
-		m_eyeToScreenPass = stl::make_unique<CFullscreenPass>();
-		m_quadLayerPass = stl::make_unique<CFullscreenPass>();
+		m_eyeToScreenPass = stl::make_unique<CFullscreenPass>(gcpRendD3D->FindGraphicsPipeline(SGraphicsPipelineKey::BaseGraphicsPipelineKey).get());
+		m_quadLayerPass = stl::make_unique<CFullscreenPass>(gcpRendD3D->FindGraphicsPipeline(SGraphicsPipelineKey::BaseGraphicsPipelineKey).get());
 	}
 
 	const auto socialScreen = socialScreenType.first;
@@ -857,7 +829,7 @@ void CD3DStereoRenderer::RenderSocialScreen(CTexture* pColorTarget, const std::p
 	targetSize.y = static_cast<float>(pColorTarget->GetHeight());
 
 	// Rescale utility function
-	const auto rescaleViewport = [&](const Vec2_tpl<uint32_t> &size) -> D3D11_RECT
+	const auto rescaleViewport = [&](const Vec2_tpl<uint32_t>& size) -> D3D11_RECT
 	{
 		float w = static_cast<float>(size.x);
 		float h = static_cast<float>(size.y);
@@ -917,7 +889,7 @@ void CD3DStereoRenderer::RenderSocialScreen(CTexture* pColorTarget, const std::p
 
 	// Draw eyes' outputs
 	int32_t x = 0;
-	for (const auto &eye : eyesToRender)
+	for (const auto& eye : eyesToRender)
 	{
 		if (eye == CCamera::EEye::eEye_eCount)
 			continue;
@@ -993,8 +965,8 @@ bool CD3DStereoRenderer::TakeScreenshot(const char path[])
 	pathL.insert(pathL.find('.'), "_L");
 	pathR.insert(pathR.find('.'), "_R");
 
-	const auto *leftDc = GetEyeDisplayContext(CCamera::eEye_Left).first;
-	const auto *rightDc = GetEyeDisplayContext(CCamera::eEye_Right).first;
+	const auto* leftDc = GetEyeDisplayContext(CCamera::eEye_Left).first;
+	const auto* rightDc = GetEyeDisplayContext(CCamera::eEye_Right).first;
 
 	if (!leftDc || !rightDc)
 		return false;
@@ -1024,10 +996,10 @@ CStereoRenderingScope CD3DStereoRenderer::PrepareRenderingToVrQuadLayer(RenderLa
 {
 	const auto profileTag = "STEREO_QUAD";
 
-	const auto &dc = m_pVrQuadLayerDisplayContexts[id];
+	const auto& dc = m_pVrQuadLayerDisplayContexts[id];
 	if (dc.first)
 	{
-		CTexture* pTexture = dc.first->GetCurrentBackBuffer();;
+		CTexture* pTexture = dc.first->GetCurrentBackBuffer();
 		if (pTexture && m_pHmdRenderer)
 		{
 			if (RenderLayer::CProperties* pLayer = m_pHmdRenderer->GetQuadLayerProperties(id))
@@ -1050,9 +1022,9 @@ CStereoRenderingScope CD3DStereoRenderer::PrepareRenderingToVrQuadLayer(RenderLa
 void CD3DStereoRenderer::GetInfo(EStereoDevice* device, EStereoMode* mode, EStereoOutput* output, EStereoDeviceState* state) const
 {
 	if (device) *device = m_device;
-	if (mode)   *mode = m_mode;
+	if (mode) *mode = m_mode;
 	if (output) *output = m_output;
-	if (state)  *state = m_deviceState;
+	if (state) *state = m_deviceState;
 }
 
 void CD3DStereoRenderer::GetNVControlValues(bool& stereoActivated, float& stereoStrength) const
@@ -1076,7 +1048,7 @@ void CD3DStereoRenderer::OnResolutionChanged(int newWidth, int newHeight)
 	m_headlockedQuadCamera.SetFrustum(newWidth, newHeight);
 }
 
-void CD3DStereoRenderer::CalculateResolution(int requestedWidth, int requestedHeight, int* pDisplayWidth, int *pDisplayHeight)
+void CD3DStereoRenderer::CalculateResolution(int requestedWidth, int requestedHeight, int* pDisplayWidth, int* pDisplayHeight)
 {
 	switch (m_output)
 	{
@@ -1170,7 +1142,7 @@ void CD3DStereoRenderer::ReleaseDevice()
 }
 
 //////////////////////////////////////////////////////////////////////////
-stl::optional<Matrix34> CD3DStereoRenderer::TryGetHmdCameraAsync(const SStereoRenderContext &context)
+stl::optional<Matrix34> CD3DStereoRenderer::TryGetHmdCameraAsync(const SStereoRenderContext& context)
 {
 	auto hmd_post_inject_camera = gEnv->pConsole->GetCVar("hmd_post_inject_camera");
 	if (!hmd_post_inject_camera || !hmd_post_inject_camera->GetIVal() || !context.orientationForLateCameraInjection)
@@ -1184,9 +1156,9 @@ stl::optional<Matrix34> CD3DStereoRenderer::TryGetHmdCameraAsync(const SStereoRe
 		return stl::nullopt;
 
 	// Query async tracking state
-	return pHmdDevice->RequestAsyncCameraUpdate(context.frameId, 
-		context.orientationForLateCameraInjection.value().first, 
-		context.orientationForLateCameraInjection.value().second);
+	return pHmdDevice->RequestAsyncCameraUpdate(context.frameId,
+	                                            context.orientationForLateCameraInjection.value().first,
+	                                            context.orientationForLateCameraInjection.value().second);
 }
 
 //////////////////////////////////////////////////////////////////////////

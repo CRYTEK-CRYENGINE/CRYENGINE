@@ -96,7 +96,6 @@ target_include_directories(${THIS_PROJECT} PUBLIC "${SDK_DIR}/SDL_mixer")
 target_link_libraries(${THIS_PROJECT} PRIVATE
 	SDL2
 	timidity
-	flac_static
 	libogg_static
 	libmikmod_static
 	libvorbis_static
@@ -104,7 +103,6 @@ target_link_libraries(${THIS_PROJECT} PRIVATE
 )
 target_compile_definitions(${THIS_PROJECT} PRIVATE
 	-DMUSIC_OGG
-	-DMUSIC_FLAC
 	-DMUSIC_MOD_MIKMOD
 	-DMUSIC_MOD_MODPLUG
 	-DMUSIC_MID_TIMIDITY

@@ -92,12 +92,35 @@ struct vtxInWPOS
 	float3 CamVec: TEXCOORD1;
 };
 
-struct pixoutMRT
+struct pixoutMRTTrace_NID_GS
+{
+	half4 Diffuse: SV_Target0;
+};
+
+struct pixoutMRTTrace
+{
+	half4 Diffuse: SV_Target0;
+	half4 Specular: SV_Target1;
+};
+
+struct pixoutMRTDemosaic
 {
 	half4 Diffuse: SV_Target0;
 	half4 Specular: SV_Target1;
 	half4 Diffuse1: SV_Target2;
 	half4 Specular1: SV_Target3;
+};
+
+struct pixoutMRTUpscale
+{
+	half4 Diffuse: SV_Target0;
+#if %_RT_REVERSE_DEPTH
+	half4 Specular: SV_Target1;
+#endif
+#if %_RT_PROJECTION_MULTI_RES
+	half4 Diffuse1: SV_Target2;
+	half4 Specular1: SV_Target3;
+#endif
 };
 
 struct pixout_RenderAtmosphere
@@ -953,9 +976,9 @@ void FindBestPortals(float3 vPos0, float3 vNor0, out float4 arrBestPortalPos[MAX
 	}
 }
 
-pixoutMRT DemosaicPS(vtxOutWPOS IN)
+pixoutMRTDemosaic DemosaicPS(vtxOutWPOS IN)
 {
-	pixoutMRT OUT = (pixoutMRT)0;
+	pixoutMRTDemosaic OUT = (pixoutMRTDemosaic)0;
 
 	// read position and normal
 	float3 vPos0 = GetWorldPos(VOX_DEPTH_SCALE * SampleLinearDepth(sceneDepth, IN.baseTC.xy) - VOX_DEPTH_BIAS, IN.CamVec);
@@ -1313,9 +1336,9 @@ void ProcessLights(inout float4 vALD, inout float4 vRGB, in float3 vPos0, in flo
 
 #ifdef SVO_LMAPS
 
-pixoutMRT ConeTracePS_NID_GS(vtxOutWPOS IN)
+pixoutMRTTrace_NID_GS ConeTracePS_NID_GS(vtxOutWPOS IN)
 {
-	pixoutMRT OUT = (pixoutMRT)0;
+	pixoutMRTTrace_NID_GS OUT = (pixoutMRTTrace_NID_GS)0;
 
 	int nAtlasOffset = (int)IN.CamVec.w + .45;
 	float3 tcMin = ComputeDataTC(nAtlasOffset);
@@ -1439,9 +1462,9 @@ void ConeTrace_LM_PS(in vtxOutWPOS IN, out float4 vALD, out float4 vRGB)
 
 #endif // SVO_LMAPS
 
-pixoutMRT ConeTracePS(vtxOutWPOS IN)
+pixoutMRTTrace ConeTracePS(vtxOutWPOS IN)
 {
-	pixoutMRT OUT = (pixoutMRT)0;
+	pixoutMRTTrace OUT = (pixoutMRTTrace)0;
 
 	float4 vALD = 0;
 	float4 vRGB = 0;
@@ -2583,9 +2606,9 @@ void BoxGenGS_GS(point vert2FragGeneral InPos[1], inout TriangleStream<vtxOutWPO
 
 #endif // SVO_LMAPS
 
-pixoutMRT UpScalePS(vtxOutWPOS IN)
+pixoutMRTUpscale UpScalePS(vtxOutWPOS IN)
 {
-	pixoutMRT OUT = (pixoutMRT)0;
+	pixoutMRTUpscale OUT = (pixoutMRTUpscale)0;
 
 	const float fDepthRange = .12;
 	const float fDotMax = .35;

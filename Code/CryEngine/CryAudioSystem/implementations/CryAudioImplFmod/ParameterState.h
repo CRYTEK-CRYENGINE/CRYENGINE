@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "ParameterInfo.h"
 #include <ISwitchStateConnection.h>
 #include <PoolObject.h>
-#include <CryAudio/IAudioInterfacesCommonData.h>
 
 namespace CryAudio
 {
@@ -22,23 +22,10 @@ public:
 	CParameterState& operator=(CParameterState const&) = delete;
 	CParameterState& operator=(CParameterState&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
-	explicit CParameterState(
-		uint32 const id,
-		float const value,
-		char const* const szName)
-		: m_id(id)
-		, m_value(value)
-		, m_name(szName)
-	{}
-#else
-	explicit CParameterState(
-		uint32 const id,
-		float const value)
-		: m_id(id)
+	explicit CParameterState(CParameterInfo const& parameterInfo, float const value)
+		: m_parameterInfo(parameterInfo)
 		, m_value(value)
 	{}
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
 
 	virtual ~CParameterState() override;
 
@@ -49,12 +36,8 @@ public:
 
 private:
 
-	uint32 const m_id;
-	float const  m_value;
-
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
-	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+	CParameterInfo m_parameterInfo;
+	float const    m_value;
 };
 } // namespace Fmod
 } // namespace Impl

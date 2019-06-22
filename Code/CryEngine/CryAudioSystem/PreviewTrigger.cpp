@@ -2,10 +2,10 @@
 
 #include "stdafx.h"
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include "PreviewTrigger.h"
-	#include "GlobalObject.h"
 	#include "TriggerUtils.h"
+	#include "Object.h"
 	#include "Common/IImpl.h"
 	#include "Common/IObject.h"
 	#include "Common/ITriggerConnection.h"
@@ -35,20 +35,20 @@ void CPreviewTrigger::Execute(Impl::ITriggerInfo const& triggerInfo)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CPreviewTrigger::Execute(XmlNodeRef const pNode)
+void CPreviewTrigger::Execute(XmlNodeRef const& node)
 {
 	Clear();
 
-	int const numConnections = pNode->getChildCount();
+	int const numConnections = node->getChildCount();
 
 	for (int i = 0; i < numConnections; ++i)
 	{
-		XmlNodeRef const pTriggerImplNode(pNode->getChild(i));
+		XmlNodeRef const triggerImplNode(node->getChild(i));
 
-		if (pTriggerImplNode)
+		if (triggerImplNode.isValid())
 		{
 			float radius = 0.0f;
-			Impl::ITriggerConnection* const pConnection = g_pIImpl->ConstructTriggerConnection(pTriggerImplNode, radius);
+			Impl::ITriggerConnection* const pConnection = g_pIImpl->ConstructTriggerConnection(triggerImplNode, radius);
 
 			if (pConnection != nullptr)
 			{
@@ -66,7 +66,7 @@ void CPreviewTrigger::Execute(XmlNodeRef const pNode)
 //////////////////////////////////////////////////////////////////////////
 void CPreviewTrigger::Execute()
 {
-	Impl::IObject* const pIObject = g_previewObject.GetImplDataPtr();
+	Impl::IObject* const pIObject = g_previewObject.GetImplData();
 
 	uint16 numPlayingInstances = 0;
 	uint16 numPendingInstances = 0;
@@ -94,7 +94,7 @@ void CPreviewTrigger::Execute()
 
 	if ((numPlayingInstances > 0) || (numPendingInstances > 0))
 	{
-		g_previewObject.ConstructTriggerInstance(m_id, numPlayingInstances, numPendingInstances, ERequestFlags::None, nullptr, nullptr, nullptr);
+		g_previewObject.ConstructTriggerInstance(m_id, INVALID_ENTITYID, numPlayingInstances, numPendingInstances, ERequestFlags::None, nullptr, nullptr, nullptr, 0.0f);
 	}
 	else
 	{
@@ -116,4 +116,4 @@ void CPreviewTrigger::Clear()
 	m_connections.clear();
 }
 }      // namespace CryAudio
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE

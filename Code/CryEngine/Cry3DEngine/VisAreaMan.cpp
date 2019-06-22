@@ -198,7 +198,7 @@ SAABBTreeNode* SAABBTreeNode::GetTopNode(const AABB& box, void** pNodeCache)
 	}
 
 	// Find top node containing box.
-	for (;; )
+	for (;;)
 	{
 		int i;
 		for (i = 0; i < 2; i++)
@@ -491,10 +491,10 @@ void CVisAreaManager::PortalsDrawDebug()
 			float fError = pPortal->IsPortalValid() ? 1.f : fBlink;
 
 			ColorB col(
-			  (int)clamp_tpl(fError * 255.0f, 0.0f, 255.0f),
-			  (int)clamp_tpl(fError * (pPortal->m_lstConnections.Count() < 2) * 255.0f, 0.0f, 255.0f),
-			  0,
-			  64);
+				(int)clamp_tpl(fError * 255.0f, 0.0f, 255.0f),
+				(int)clamp_tpl(fError * (pPortal->m_lstConnections.Count() < 2) * 255.0f, 0.0f, 255.0f),
+				0,
+				64);
 			DrawBBox(pPortal->m_boxArea.min, pPortal->m_boxArea.max, col);
 
 			IRenderAuxText::DrawLabelEx((pPortal->m_boxArea.min + pPortal->m_boxArea.max) * 0.5f, 1, (float*)&oneVec, 0, 1, pPortal->GetName());
@@ -591,7 +591,7 @@ void CVisAreaManager::DephysicalizeInBox(const AABB& bbox)
 void CVisAreaManager::CheckVis(const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CVisAreaManager::CheckVis");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CVisAreaManager::CheckVis");
 
 	if (passInfo.IsGeneralPass())
 	{
@@ -651,9 +651,9 @@ void CVisAreaManager::CheckVis(const SRenderingPassInfo& passInfo)
 			// reset scissor if skybox is visible also thru skyboxonly portal
 			if (m_bSkyVisible && m_lstOutdoorPortalCameras.Count() == 1)
 				m_lstOutdoorPortalCameras[0].m_ScissorInfo.x1 =
-				  m_lstOutdoorPortalCameras[0].m_ScissorInfo.x2 =
-				    m_lstOutdoorPortalCameras[0].m_ScissorInfo.y1 =
-				      m_lstOutdoorPortalCameras[0].m_ScissorInfo.y2 = 0;
+					m_lstOutdoorPortalCameras[0].m_ScissorInfo.x2 =
+						m_lstOutdoorPortalCameras[0].m_ScissorInfo.y1 =
+							m_lstOutdoorPortalCameras[0].m_ScissorInfo.y2 = 0;
 		}
 		else if (m_pCurPortal)
 		{
@@ -1461,6 +1461,8 @@ void CVisAreaManager::PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePo
 	float fPrecacheTimeStart = GetTimer()->GetAsyncCurTime();
 #endif
 
+	int nRenderingFlags = SHDF_ZPASS | SHDF_ALLOWHDR | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_WATER | SHDF_ALLOW_AO | SHDF_ALLOW_SKY;
+
 	GetRenderer()->EnableSwapBuffers((GetCVars()->e_PrecacheLevel >= 2) ? true : false);
 
 	uint32 dwPrecacheLocations = 0;
@@ -1509,8 +1511,8 @@ void CVisAreaManager::PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePo
 			cam.SetFrustum(GetRenderer()->GetOverlayWidth(), GetRenderer()->GetOverlayHeight(), gf_PI / 2, cam.GetNearPlane(), cam.GetFarPlane());
 			//	Get3DEngine()->SetupCamera(cam);
 
-			GetRenderer()->BeginFrame({});
-			Get3DEngine()->RenderWorld(SHDF_ZPASS | SHDF_ALLOWHDR | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_WATER | SHDF_ALLOW_AO, SRenderingPassInfo::CreateGeneralPassRenderingInfo(cam), "PrecacheVisAreas");
+			GetRenderer()->BeginFrame({}, SGraphicsPipelineKey::BaseGraphicsPipelineKey);
+			Get3DEngine()->RenderWorld(nRenderingFlags, SRenderingPassInfo::CreateGeneralPassRenderingInfo(SGraphicsPipelineKey::BaseGraphicsPipelineKey, cam), "PrecacheVisAreas");
 			GetRenderer()->RenderDebug();
 			GetRenderer()->EndFrame();
 
@@ -1538,8 +1540,8 @@ void CVisAreaManager::PrecacheLevel(bool bPrecacheAllVisAreas, Vec3* pPrecachePo
 			cam.SetPosition(pPrecachePoints[p]);
 			cam.SetFrustum(GetRenderer()->GetOverlayWidth(), GetRenderer()->GetOverlayHeight(), gf_PI / 2, cam.GetNearPlane(), cam.GetFarPlane());
 
-			GetRenderer()->BeginFrame({});
-			Get3DEngine()->RenderWorld(SHDF_ZPASS | SHDF_ALLOWHDR | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_WATER | SHDF_ALLOW_AO, SRenderingPassInfo::CreateGeneralPassRenderingInfo(cam), "PrecacheOutdoor");
+			GetRenderer()->BeginFrame({}, SGraphicsPipelineKey::BaseGraphicsPipelineKey);
+			Get3DEngine()->RenderWorld(nRenderingFlags, SRenderingPassInfo::CreateGeneralPassRenderingInfo(SGraphicsPipelineKey::BaseGraphicsPipelineKey, cam), "PrecacheOutdoor");
 			GetRenderer()->RenderDebug();
 			GetRenderer()->EndFrame();
 
@@ -1590,8 +1592,8 @@ void CVisAreaManager::IntersectWithBox(const AABB& aabbBox, PodArray<CVisArea*>*
 {
 	for (int p = 0; p < m_lstPortals.Count(); p++)
 	{
-		if (m_lstPortals[p]->m_boxArea.min.x<aabbBox.max.x&& m_lstPortals[p]->m_boxArea.max.x> aabbBox.min.x &&
-		    m_lstPortals[p]->m_boxArea.min.y<aabbBox.max.y&& m_lstPortals[p]->m_boxArea.max.y> aabbBox.min.y)
+		if (m_lstPortals[p]->m_boxArea.min.x<aabbBox.max.x && m_lstPortals[p]->m_boxArea.max.x> aabbBox.min.x &&
+		    m_lstPortals[p]->m_boxArea.min.y<aabbBox.max.y && m_lstPortals[p]->m_boxArea.max.y> aabbBox.min.y)
 		{
 			plstResult->Add(m_lstPortals[p]);
 		}
@@ -1599,8 +1601,8 @@ void CVisAreaManager::IntersectWithBox(const AABB& aabbBox, PodArray<CVisArea*>*
 
 	for (int v = 0; v < m_lstVisAreas.Count(); v++)
 	{
-		if (m_lstVisAreas[v]->m_boxArea.min.x<aabbBox.max.x&& m_lstVisAreas[v]->m_boxArea.max.x> aabbBox.min.x &&
-		    m_lstVisAreas[v]->m_boxArea.min.y<aabbBox.max.y&& m_lstVisAreas[v]->m_boxArea.max.y> aabbBox.min.y)
+		if (m_lstVisAreas[v]->m_boxArea.min.x<aabbBox.max.x && m_lstVisAreas[v]->m_boxArea.max.x> aabbBox.min.x &&
+		    m_lstVisAreas[v]->m_boxArea.min.y<aabbBox.max.y && m_lstVisAreas[v]->m_boxArea.max.y> aabbBox.min.y)
 		{
 			plstResult->Add(m_lstVisAreas[v]);
 		}
@@ -1638,8 +1640,8 @@ void CVisAreaManager::AddLightSource(SRenderLight* pLight, const SRenderingPassI
 	else if (!bThisAreaInly)
 	{
 		AABB lightBox(
-		  pLight->m_Origin - Vec3(pLight->m_fRadius, pLight->m_fRadius, pLight->m_fRadius),
-		  pLight->m_Origin + Vec3(pLight->m_fRadius, pLight->m_fRadius, pLight->m_fRadius));
+			pLight->m_Origin - Vec3(pLight->m_fRadius, pLight->m_fRadius, pLight->m_fRadius),
+			pLight->m_Origin + Vec3(pLight->m_fRadius, pLight->m_fRadius, pLight->m_fRadius));
 		PodArray<CVisArea*> arrAreas;
 		arrAreas.Clear();
 		m_pVisAreaManager->IntersectWithBox(lightBox, &arrAreas, true);

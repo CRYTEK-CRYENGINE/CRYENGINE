@@ -6,78 +6,7 @@
 namespace pfx2
 {
 
-MakeDataType(EPDT_Alpha, float, EDD_ParticleUpdate);
-
-//////////////////////////////////////////////////////////////////////////
-// CFeatureFieldOpacity
-
-class CFeatureFieldOpacity : public CParticleFeature
-{
-public:
-	CRY_PFX2_DECLARE_FEATURE
-
-	CFeatureFieldOpacity()
-		: m_alphaScale(0, 1)
-		, m_clipLow(0, 0)
-		, m_clipRange(1, 1)
-	{
-	}
-
-	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
-	{
-		m_opacity.AddToComponent(pComponent, this, EPDT_Alpha);
-
-		pParams->m_shaderData.m_alphaTest[0][0] = m_alphaScale.x;
-		pParams->m_shaderData.m_alphaTest[1][0] = m_alphaScale.y - m_alphaScale.x;
-		pParams->m_shaderData.m_alphaTest[0][1] = m_clipLow.x;
-		pParams->m_shaderData.m_alphaTest[1][1] = m_clipLow.y - m_clipLow.x;
-		pParams->m_shaderData.m_alphaTest[0][2] = m_clipRange.x;
-		pParams->m_shaderData.m_alphaTest[1][2] = m_clipRange.y - m_clipRange.x;
-
-		if (auto pInt = MakeGpuInterface(pComponent, gpu_pfx2::eGpuFeatureType_FieldOpacity))
-		{
-			const uint numSamples = gpu_pfx2::kNumModifierSamples;
-			float samples[numSamples];
-			m_opacity.Sample({samples, numSamples});
-			gpu_pfx2::SFeatureParametersOpacity parameters;
-			parameters.samples = samples;
-			parameters.numSamples = numSamples;
-			parameters.alphaScale = m_alphaScale;
-			parameters.clipLow = m_clipLow;
-			parameters.clipRange = m_clipRange;
-			pInt->SetParameters(parameters);
-		}
-		pComponent->UpdateParticles.add(this);
-	}
-
-	virtual void Serialize(Serialization::IArchive& ar) override
-	{
-		CParticleFeature::Serialize(ar);
-		ar(m_opacity, "value", "Value");
-		ar(m_alphaScale, "AlphaScale", "Alpha Scale");
-		ar(m_clipLow, "ClipLow", "Clip Low");
-		ar(m_clipRange, "ClipRange", "Clip Range");
-	}
-
-	virtual void InitParticles(CParticleComponentRuntime& runtime) override
-	{
-		CRY_PFX2_PROFILE_DETAIL;
-		m_opacity.Init(runtime, EPDT_Alpha);
-	}
-
-	virtual void UpdateParticles(CParticleComponentRuntime& runtime) override
-	{
-		CRY_PFX2_PROFILE_DETAIL;
-		m_opacity.Update(runtime, EPDT_Alpha);
-	}
-
-private:
-	CParamMod<EDD_ParticleUpdate, UUnitFloat> m_opacity;
-	Vec2 m_alphaScale;
-	Vec2 m_clipLow, m_clipRange;
-};
-
-CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureFieldOpacity, "Field", "Opacity", colorField);
+extern TDataType<float> EPDT_Alpha;
 
 //////////////////////////////////////////////////////////////////////////
 // CFeatureFieldSize

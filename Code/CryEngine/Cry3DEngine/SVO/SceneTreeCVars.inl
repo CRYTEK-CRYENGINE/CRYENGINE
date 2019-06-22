@@ -1,5 +1,7 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
+#include <CrySystem/ConsoleRegistration.h>
+
 #ifdef CVAR_CPP
 
 	#undef REGISTER_CVAR_AUTO_STRING

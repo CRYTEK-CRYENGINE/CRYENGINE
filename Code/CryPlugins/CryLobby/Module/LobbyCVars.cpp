@@ -6,6 +6,7 @@
 #include "CryMatchMaking.h"
 #include "LAN/CryLANLobby.h"
 #include "CryDedicatedServerArbitrator.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if USE_STEAM
 	#define STEAM_GAME_DEFAULT_PORT (64100)

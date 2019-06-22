@@ -1,16 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   terrain_hmap.cpp
-//  Version:     v1.00
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Compilers:   Visual Studio.NET
-//  Description: highmap
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 
 #include "terrain.h"
@@ -306,7 +295,6 @@ bool CTerrain::RayTrace(Vec3 const& vStart, Vec3 const& vEnd, SRayTrace* prt, bo
 					if (prt)
 					{
 						IMaterial* pMat = GetSurfaceTypes()[nType].pLayerMat;
-						;
 						prt->pMaterial = pMat;
 						if (pMat && pMat->GetSubMtlCount() > 2)
 							prt->pMaterial = pMat->GetSubMtl(2);

@@ -23,6 +23,7 @@
 	#include <CryRenderer/ITexture.h>
 	#include <CrySystem/IStreamEngine.h>
 	#include <CryString/UnicodeFunctions.h>
+	#include <CrySystem/ConsoleRegistration.h>
 
 	#ifndef GFC_NO_THREADSUPPORT
 //////////////////////////////////////////////////////////////////////////
@@ -361,19 +362,10 @@ CryGFxLog::~CryGFxLog()
 
 void CryGFxLog::LogMessageVarg(LogMessageType messageType, const char* pFmt, va_list argList)
 {
-	char logBuf[1024];
+	char logBuf[1024] = "<Flash> ";
 	{
-		const char prefix[] = "<Flash> ";
-
-		static_assert(sizeof(prefix) + 128 <= sizeof(logBuf), "Invalid array size!");
-
-		// prefix
-		{
-			cry_strcpy(logBuf, prefix);
-		}
-
 		// msg
-		size_t len = sizeof(prefix) - 1;
+		size_t len = strlen(logBuf);
 		{
 			cry_vsprintf(&logBuf[len], sizeof(logBuf) - len, pFmt, argList);
 			len = strlen(logBuf);

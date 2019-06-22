@@ -399,7 +399,7 @@ typedef struct in_addr_windows
 	#define _flushall sync
 
 //! We take the definition of the pthread_t type directly from the pthread file.
-	#define THREADID_NULL 0
+constexpr threadID THREADID_NULL = 0;
 
 #endif // CRY_PLATFORM_APPLE
 

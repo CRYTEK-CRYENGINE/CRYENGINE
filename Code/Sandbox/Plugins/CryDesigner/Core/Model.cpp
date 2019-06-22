@@ -775,7 +775,7 @@ void Model::QueryPolygonsSharingEdge(
 	edgeAABB.Reset();
 	edgeAABB.Add(ToVec3(edge.m_v[0]));
 	edgeAABB.Add(ToVec3(edge.m_v[1]));
-	edgeAABB.Expand(Vec3(0.001, 0.001f, 0.001f));
+	edgeAABB.Expand(Vec3(0.001f, 0.001f, 0.001f));
 
 	for (int i = 0, iPolygonSize(m_Polygons[m_ShelfID].size()); i < iPolygonSize; ++i)
 	{

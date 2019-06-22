@@ -95,7 +95,7 @@ CControllerDefragHdl CControllerDefragHeap::AllocPinned(size_t sz, IControllerRe
 			{
 				ret = CControllerDefragHdl(apr.hdl);
 
-				MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+				MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 				MEMREPLAY_SCOPE_ALLOC(m_pBaseAddress + apr.offs, apr.usableSize, MinAlignment);
 			}
 			else
@@ -105,7 +105,7 @@ CControllerDefragHdl CControllerDefragHeap::AllocPinned(size_t sz, IControllerRe
 		}
 		else if (AllowGPHFallback)
 		{
-			MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+			MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 			ret = CControllerDefragHdl(FixedAlloc(sz, true));
 
@@ -117,7 +117,7 @@ CControllerDefragHdl CControllerDefragHeap::AllocPinned(size_t sz, IControllerRe
 	}
 	else
 	{
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 		ret = CControllerDefragHdl(FixedAlloc(sz, false));
 
@@ -137,7 +137,7 @@ void CControllerDefragHeap::Free(CControllerDefragHdl hdl)
 		UINT_PTR offs = m_pAllocator->Pin(hdl.AsHdl());
 
 		{
-			MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+			MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 			MEMREPLAY_SCOPE_FREE(m_pBaseAddress + offs);
 		}
 
@@ -152,7 +152,7 @@ void CControllerDefragHeap::Free(CControllerDefragHdl hdl)
 	}
 	else
 	{
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 		FixedFree(hdl.AsFixed());
 
@@ -238,7 +238,7 @@ void CControllerDefragHeap::Relocate(uint32 userMoveId, void* pContext, UINT_PTR
 		for (IControllerRelocatableChain* rbc = (IControllerRelocatableChain*)pContext; rbc; rbc = rbc->GetNext())
 			rbc->Relocate(pNewBase, pOldBase);
 
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 		MEMREPLAY_SCOPE_REALLOC(m_pBaseAddress + oldOffset, m_pBaseAddress + newOffset, size, MinAlignment);
 
 		cp.relocateFrameId = m_tickId;

@@ -274,6 +274,13 @@ namespace Schematyc2
 			return m_sequenceOps.empty();
 		}
 
+		inline void CompactMemory()
+		{
+			m_nodes.shrink_to_fit();
+			m_sequenceOps.shrink_to_fit();
+			m_scratchPad.ShrinkToFit();
+		}
+
 	private:
 
 		SGUID                 m_guid;

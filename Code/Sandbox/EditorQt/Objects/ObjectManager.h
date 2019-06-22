@@ -226,9 +226,8 @@ public:
 	//! @param flags Can be one of SerializeFlags.
 	void Serialize(XmlNodeRef& rootNode, bool bLoading, int flags = SERIALIZE_ALL);
 
-	//! Load objects from object archive.
-	//! @param bSelect if set newly loaded object will be selected.
-	void LoadObjects(CObjectArchive& ar, bool bSelect);
+	//! Handles loading of objects from archive, guaranteeing unique names and selecting them
+	void CreateAndSelectObjects(CObjectArchive& ar) override;
 
 	//! Delete from Object manager all objects without SHARED flag.
 	void DeleteNotSharedObjects();
@@ -325,6 +324,9 @@ private:
 	   @param bLoadInCurrentLayer set true to load the object in the current layer.
 	 */
 	CBaseObject* NewObject(CObjectArchive&, CBaseObject* pUndoObject, bool bLoadInCurrentLayer) override;
+
+	//! Load objects from object archive.
+	void LoadObjects(CObjectArchive& ar);
 
 	//! Update visibility of all objects.
 	void UpdateVisibilityList();

@@ -1,17 +1,8 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   LocalMemoryUsage.h
-//  Version:     v1.00
-//  Created:     Istvan Kiss (Spidy) [11/5/2008]
-//  Description: Visual helper for checking a local memory usage on maps
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+#pragma once
 
-#ifndef _LOCAL_MEMORY_USAGE_H
-#define _LOCAL_MEMORY_USAGE_H
+//  Description: Visual helper for checking a local memory usage on maps
 
 #include <CryMath/Cry_Geo.h>
 #include <CryMemory/ILocalMemoryUsage.h>
@@ -19,9 +10,9 @@
 #include <unordered_map>
 
 #define LOCALMEMORY_SECTOR_SIZE     32.f        //Size of one sector
-#define LOCALMEMORY_SECTOR_NR_X     128         //4096 / LOCALMEMORY_SECTOR_SIZE	Sector number of the world (x)
+#define LOCALMEMORY_SECTOR_NR_X     128         //4096 / LOCALMEMORY_SECTOR_SIZE  Sector number of the world (x)
 #define LOCALMEMORY_SECTOR_NR_Y     128         //4096 / LOCALMEMORY_SECTOR_SIZE  Sector number of the world (y)
-#define LOCALMEMORY_SECTOR_PER_PASS 128         //4096 / 32												Sector nr for one calculation pass. Now it is the whole world;
+#define LOCALMEMORY_SECTOR_PER_PASS 128         //4096 / 32					      Sector nr for one calculation pass. Now it is the whole world;
 
 //Sector number must be = LOCALMEMORY_SECTOR_PER_PASS * n
 
@@ -41,9 +32,9 @@ struct IStatObj;
 struct ICharacterInstance;
 struct IRenderMesh;
 struct IRenderNode;
+struct ITexture;
 struct CRenderChunk;
 class CCamera;
-class ITexture;
 struct ICVar;
 
 #include <CryCore/Containers/VectorMap.h>
@@ -238,4 +229,3 @@ private:
 };
 
 #undef MAX_LODS
-#endif//_LOCAL_MEMORY_USAGE_H

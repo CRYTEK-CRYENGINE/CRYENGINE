@@ -16,9 +16,6 @@
 	#define BOOST_NO_EXCEPTIONS
 	#define BOOST_EXCEPTION_DISABLE
 
-// disable noexcept warning inside boost.
-	#define BOOST_NO_CXX11_NOEXCEPT
-
 	#ifdef BOOST_NO_EXCEPTIONS
 namespace boost
 {

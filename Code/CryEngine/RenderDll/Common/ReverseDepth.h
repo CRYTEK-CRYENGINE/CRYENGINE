@@ -1,9 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __REVERSE_DEPTH_H__
-#define __REVERSE_DEPTH_H__
-
-//#include "Cry_Matrix44.h"
+#pragma once
 
 struct ReverseDepthHelper
 {
@@ -56,5 +53,3 @@ struct ReverseDepthHelper
 		return nState;
 	}
 };
-
-#endif // __REVERSE_DEPTH_H__

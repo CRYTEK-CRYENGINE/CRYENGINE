@@ -24,7 +24,7 @@
 //===================================================================
 float CPuppet::GetTargetAliveTime()
 {
-	float fTargetStayAliveTime = gAIEnv.CVars.RODAliveTime;
+	float fTargetStayAliveTime = gAIEnv.CVars.legacyPuppetRod.RODAliveTime;
 
 	const CAIObject* pLiveTarget = GetLiveTarget(m_refAttentionTarget).GetAIObject();
 	if (!pLiveTarget)
@@ -46,7 +46,7 @@ float CPuppet::GetTargetAliveTime()
 		Vec3 vTargetDir = pLiveTarget->GetPos() - GetPos();
 
 		// Scale target life time based on target speed.
-		const float fMoveInc = gAIEnv.CVars.RODMoveInc;
+		const float fMoveInc = gAIEnv.CVars.legacyPuppetRod.RODMoveInc;
 		{
 			float fIncrease = 0.0f;
 
@@ -78,7 +78,7 @@ float CPuppet::GetTargetAliveTime()
 		}
 
 		// Scale target life time based on target stance.
-		const float fStanceInc = gAIEnv.CVars.RODStanceInc;
+		const float fStanceInc = gAIEnv.CVars.legacyPuppetRod.RODStanceInc;
 		{
 			float fIncrease = 0.0f;
 
@@ -92,7 +92,7 @@ float CPuppet::GetTargetAliveTime()
 		}
 
 		// Scale target life time based on target vs. shooter orientation.
-		const float fDirectionInc = gAIEnv.CVars.RODDirInc;
+		const float fDirectionInc = gAIEnv.CVars.legacyPuppetRod.RODDirInc;
 		{
 			float fIncrease = 0.0f;
 
@@ -110,7 +110,7 @@ float CPuppet::GetTargetAliveTime()
 		if (!m_allowedToHitTarget)
 		{
 			// If the agent is set not to be allowed to hit the target, let the others shoot first.
-			const float fAmbientFireInc = gAIEnv.CVars.RODAmbientFireInc;
+			const float fAmbientFireInc = gAIEnv.CVars.legacyPuppetRod.RODAmbientFireInc;
 			fTargetStayAliveTime += fAmbientFireInc;
 		}
 		else if (m_targetZone == AIZONE_KILL)
@@ -119,7 +119,7 @@ float CPuppet::GetTargetAliveTime()
 			const SAIBodyInfo bi = GetBodyInfo();
 			if (!bi.GetLinkedVehicleEntity())
 			{
-				const float fKillZoneInc = gAIEnv.CVars.RODKillZoneInc;
+				const float fKillZoneInc = gAIEnv.CVars.legacyPuppetRod.RODKillZoneInc;
 				fTargetStayAliveTime += fKillZoneInc;
 			}
 		}
@@ -173,7 +173,7 @@ void CPuppet::UpdateHealthTracking()
 		m_targetDamageHealthThr = max(0.0f, m_targetDamageHealthThr - (1.0f / fTargetStayAliveTime) * m_Parameters.m_fAccuracy * fFrametime);
 	}
 
-	if (gAIEnv.CVars.DebugDrawDamageControl > 0)
+	if (gAIEnv.CVars.legacyDebugDraw.DebugDrawDamageControl > 0)
 	{
 		if (!m_targetDamageHealthThrHistory)
 			m_targetDamageHealthThrHistory = new CValueHistory<float>(100, 0.1f);
@@ -191,7 +191,7 @@ void CPuppet::UpdateHealthTracking()
 float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 {
 	// Apply archetype modifier
-	float fReactionTime = gAIEnv.CVars.RODReactionTime * GetParameters().m_PerceptionParams.reactionTime;
+	float fReactionTime = gAIEnv.CVars.legacyPuppetRod.RODReactionTime * GetParameters().m_PerceptionParams.reactionTime;
 
 	const CAIActor* pLiveTarget = GetLiveTarget(m_refAttentionTarget).GetAIObject();
 	if (!pLiveTarget)
@@ -213,19 +213,19 @@ float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 			EAILightLevel iTargetLightLevel = pLiveTarget->GetLightLevel();
 			if (iTargetLightLevel == AILL_MEDIUM)
 			{
-				fReactionTime += gAIEnv.CVars.RODReactionMediumIllumInc;
+				fReactionTime += gAIEnv.CVars.legacyPuppetRod.RODReactionMediumIllumInc;
 			}
 			else if (iTargetLightLevel == AILL_DARK)
 			{
-				fReactionTime += gAIEnv.CVars.RODReactionDarkIllumInc;
+				fReactionTime += gAIEnv.CVars.legacyPuppetRod.RODReactionDarkIllumInc;
 			}
 			else if (iTargetLightLevel == AILL_SUPERDARK)
 			{
-				fReactionTime += gAIEnv.CVars.RODReactionSuperDarkIllumInc;
+				fReactionTime += gAIEnv.CVars.legacyPuppetRod.RODReactionSuperDarkIllumInc;
 			}
 		}
 
-		const float fDistInc = min(1.0f, gAIEnv.CVars.RODReactionDistInc);
+		const float fDistInc = min(1.0f, gAIEnv.CVars.legacyPuppetRod.RODReactionDistInc);
 		// Increase reaction time if the target is further away.
 		if (m_targetZone == AIZONE_COMBAT_NEAR)
 			fReactionTime += fDistInc;
@@ -236,7 +236,7 @@ float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 		const SAIBodyInfo& bi = pLiveActor->GetBodyInfo();
 		if (fabsf(bi.lean) > 0.01f)
 		{
-			fReactionTime += gAIEnv.CVars.RODReactionLeanInc;
+			fReactionTime += gAIEnv.CVars.legacyPuppetRod.RODReactionLeanInc;
 		}
 
 		Vec3 dirTargetToShooter = GetPos() - pLiveTarget->GetPos();
@@ -246,9 +246,9 @@ float CPuppet::GetFiringReactionTime(const Vec3& targetPos) const
 		const float thr1 = cosf(DEG2RAD(30.0f));
 		const float thr2 = cosf(DEG2RAD(95.0f));
 		if (fLeaningDot < thr1)
-			fReactionTime += gAIEnv.CVars.RODReactionDirInc;
+			fReactionTime += gAIEnv.CVars.legacyPuppetRod.RODReactionDirInc;
 		else if (fLeaningDot < thr2)
-			fReactionTime += gAIEnv.CVars.RODReactionDirInc * 2.0f;
+			fReactionTime += gAIEnv.CVars.legacyPuppetRod.RODReactionDirInc * 2.0f;
 	}
 
 	return fReactionTime;
@@ -300,8 +300,8 @@ void CPuppet::UpdateTargetZone(CWeakRef<CAIObject> refTarget)
 	}
 	else
 	{
-		const float fKillRange = gAIEnv.CVars.RODKillRangeMod;
-		const float fCombatRange = gAIEnv.CVars.RODCombatRangeMod;
+		const float fKillRange = gAIEnv.CVars.legacyPuppetRod.RODKillRangeMod;
+		const float fCombatRange = gAIEnv.CVars.legacyPuppetRod.RODCombatRangeMod;
 
 		// Calculate off of attack range
 		const float fDistToTargetSqr = Distance::Point_PointSq(GetPos(), pTarget->GetPos());
@@ -593,7 +593,7 @@ void CPuppet::ResetTargetTracking()
 //====================================================================
 float CPuppet::GetCoverFireTime() const
 {
-	return m_CurrentWeaponDescriptor.coverFireTime * gAIEnv.CVars.RODCoverFireTimeMod;
+	return m_CurrentWeaponDescriptor.coverFireTime * gAIEnv.CVars.legacyPuppetRod.RODCoverFireTimeMod;
 }
 
 //====================================================================

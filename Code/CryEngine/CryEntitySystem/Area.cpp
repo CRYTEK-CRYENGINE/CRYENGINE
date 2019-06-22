@@ -2491,7 +2491,11 @@ void CArea::ResolveEntityIds()
 	{
 		for (std::pair<EntityId, EntityGUID>& identifierPair : m_entityIdentifiers)
 		{
-			identifierPair.first = g_pIEntitySystem->FindEntityByGuid(identifierPair.second);
+			if (identifierPair.first == INVALID_ENTITYID)
+			{
+				identifierPair.first = g_pIEntitySystem->FindEntityByGuid(identifierPair.second);
+				AddEntity(identifierPair.first);
+			}
 		}
 
 		m_state |= Cry::AreaManager::EAreaState::EntityIdsResolved;
@@ -2730,7 +2734,7 @@ void CArea::RemoveEntity(EntityGUID const entGuid)
 //////////////////////////////////////////////////////////////////////////
 void CArea::RemoveEntities()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	// Inform all attached entities that they have been disconnected to prevent lost entities.
 	EntityIdVector const tmpVec(std::move(m_entityIdentifiers));
 

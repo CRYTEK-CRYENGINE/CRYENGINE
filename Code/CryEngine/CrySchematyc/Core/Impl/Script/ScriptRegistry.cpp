@@ -7,6 +7,7 @@
 #include <CrySerialization/Forward.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySystem/File/ICryPak.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CrySchematyc/Env/IEnvRegistry.h>
 #include <CrySchematyc/Env/Elements/IEnvComponent.h>
 #include <CrySchematyc/Services/ILog.h>
@@ -97,7 +98,7 @@ void CScriptRegistry::ProcessEvent(const SScriptEvent& event)
 
 bool CScriptRegistry::Load()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	// Configure file enumeration flags.
 	FileUtils::FileEnumFlags fileEnumFlags = FileUtils::EFileEnumFlags::Recursive;
@@ -112,7 +113,7 @@ bool CScriptRegistry::Load()
 
 	auto loadScript = [this, &inputBlocks](const char* szFileName, unsigned attributes)
 	{
-		LOADING_TIME_PROFILE_SECTION_ARGS(szFileName);
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, szFileName);
 		// TODO: Move this to a separated function.
 		SScriptInputBlock inputBlock;
 		CScriptLoadSerializer serializer(inputBlock);
@@ -897,7 +898,7 @@ IScript* CScriptRegistry::GetScriptByFileName(const char* szFilePath) const
 
 IScript* CScriptRegistry::LoadScript(const char* szFilePath)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	CScript* pScript = nullptr;
 

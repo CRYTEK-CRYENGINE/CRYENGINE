@@ -11,7 +11,7 @@
 #include <CrySerialization/Enum.h>
 
 class QVBoxLayout;
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class CTrackViewSequenceTabWidget;
 
 namespace
@@ -66,6 +66,6 @@ private:
 private:
 	bool                                  m_bUndoPush;
 	//bool m_bDontUpdateProperties;
-	QPropertyTree*                        m_pPropertyTree;
+	QPropertyTreeLegacy*                        m_pPropertyTree;
 	std::vector<STrackViewPropertiesRoot> m_properties;
 };

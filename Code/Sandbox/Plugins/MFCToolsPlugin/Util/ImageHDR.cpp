@@ -90,7 +90,7 @@ int RGBE_ReadPixels_RLE(CCryFile* fp, float* data, uint32 scanline_width,
 
 #include <math.h>
 #include <malloc.h>
-#include <string.h>
+#include <cstring>
 #include <ctype.h>
 
 /* This file contains code to read and write four byte rgbe file format

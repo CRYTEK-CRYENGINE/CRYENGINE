@@ -92,8 +92,14 @@ namespace Cry
 				return false;
 			}
 
-			ITexture* CAccount::GetAvatar(EAvatarSize size) const
+			TextureId CAccount::GetAvatar(EAvatarSize size) const
 			{
+				const size_t avatarIdx = static_cast<size_t>(size);
+				if (m_pAvatars[avatarIdx])
+				{
+					return m_pAvatars[avatarIdx]->GetTextureID();
+				}
+
 				int imageId = -1;
 
 				if (ISteamFriends* pSteamFriends = SteamFriends())
@@ -117,13 +123,13 @@ namespace Cry
 				if (imageId == -1 || !pSteamUtils)
 				{
 					CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "[Steam] Failed to load avatar");
-					return nullptr;
+					return NullTextureID;
 				}
 
 				uint32 width, height;
 				if (!pSteamUtils->GetImageSize(imageId, &width, &height))
 				{
-					return nullptr;
+					return NullTextureID;
 				}
 
 				const size_t imageSize = width * height * 4;
@@ -131,13 +137,15 @@ namespace Cry
 				imageBuffer.resize(imageSize);
 				if (!pSteamUtils->GetImageRGBA(imageId, imageBuffer.data(), imageSize))
 				{
-					return nullptr;
+					return NullTextureID;
 				}
 
 				ETEX_Format format = eTF_R8G8B8A8;
 				const int textureId = gEnv->pRenderer->UploadToVideoMemory(imageBuffer.data(), width, height, format, format, 1);
 
-				return gEnv->pRenderer->EF_GetTextureByID(textureId);
+				m_pAvatars[avatarIdx].reset(gEnv->pRenderer->EF_GetTextureByID(textureId));
+
+				return textureId;
 			}
 		}
 	}

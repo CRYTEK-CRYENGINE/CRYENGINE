@@ -16,15 +16,15 @@ public:
 	{
 	}
 
-	void SetEnabled(bool bEnabled)  { m_bEnabled = bEnabled; }
-	bool IsActive()                 { return CRenderer::CV_r_GraphicsPipelinePassScheduler && m_bEnabled; }
+	void SetEnabled(bool bEnabled) { m_bEnabled = bEnabled; }
+	bool IsActive()                { return CRenderer::CV_r_GraphicsPipelinePassScheduler && m_bEnabled; }
 
 	void AddPass(CPrimitiveRenderPass* pPass);
-	void AddPass(CFullscreenPass* pFullscreenPass)  { AddPass((CPrimitiveRenderPass*)pFullscreenPass); }
+	void AddPass(CFullscreenPass* pFullscreenPass) { AddPass((CPrimitiveRenderPass*)pFullscreenPass); }
 	void AddPass(CSceneRenderPass* pScenePass);
 	void AddPass(CComputeRenderPass* pComputePass);
-	
-	void Execute();
+
+	void Execute(CGraphicsPipeline* pGraphicsPipeline);
 
 private:
 	void InsertResourceTransitions(CPrimitiveRenderPass* pPass);
@@ -43,18 +43,18 @@ private:
 		eTransition_RenderTargetReadToWrite,
 		eTransition_RenderTargetWriteToRead,
 	};
-	
+
 	struct SResourceState
 	{
-		int16   passID = -1;
-		uint16  state  = 0;
+		int16  passID = -1;
+		uint16 state = 0;
 	};
 
 	struct STransition
 	{
-		CTexture*            pRenderTarget;
-		EResourceTransition  transition;
-		uint16               nextUsagePass;
+		CTexture*           pRenderTarget;
+		EResourceTransition transition;
+		uint16              nextUsagePass;
 
 		STransition()
 			: pRenderTarget(nullptr)
@@ -62,7 +62,7 @@ private:
 			, nextUsagePass(0)
 		{
 		}
-		
+
 		STransition(CTexture* pRenderTarget, EResourceTransition transition, uint16 nextUsagePass)
 			: pRenderTarget(pRenderTarget)
 			, transition(transition)
@@ -77,25 +77,25 @@ private:
 		ePassType_Scene,
 		ePassType_Compute
 	};
-	
+
 	struct SQueuedRenderPass
 	{
 		union
 		{
-			CPrimitiveRenderPass*  pPrimitivePass;
-			CSceneRenderPass*      pScenePass;
-			CComputeRenderPass*    pComputePass;
+			CPrimitiveRenderPass* pPrimitivePass;
+			CSceneRenderPass*     pScenePass;
+			CComputeRenderPass*   pComputePass;
 		};
-		EPassType              passType;    
-		uint32                 numTransitions;
-		STransition            transitions[8];
+		EPassType   passType;
+		uint32      numTransitions;
+		STransition transitions[8];
 
 		SQueuedRenderPass()
 			: pPrimitivePass(nullptr)
 			, numTransitions(0)
 		{
 		}
-		
+
 		SQueuedRenderPass(CPrimitiveRenderPass* pPrimitiveRenderPass)
 			: pPrimitivePass(pPrimitiveRenderPass)
 			, numTransitions(0)
@@ -119,7 +119,7 @@ private:
 	};
 
 private:
-	bool                                 m_bEnabled;
-	std::vector<SQueuedRenderPass>       m_renderPasses;
-	std::map<CTexture*, SResourceState>  m_resourceStates;
+	bool                                m_bEnabled;
+	std::vector<SQueuedRenderPass>      m_renderPasses;
+	std::map<CTexture*, SResourceState> m_resourceStates;
 };

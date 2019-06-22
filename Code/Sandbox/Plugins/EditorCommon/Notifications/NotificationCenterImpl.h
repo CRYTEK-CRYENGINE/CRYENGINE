@@ -6,11 +6,13 @@
 #include <QMutex>
 
 // CryCommon
+#include <CrySerialization/Decorators/Range.h>
 #include <CrySystem/ILog.h>
-#include "EditorCommonAPI.h"
 
-#include "Internal/Notifications_Internal.h"
+// EditorCommon
+#include "EditorCommonAPI.h"
 #include "EditorFramework/Preferences.h"
+#include "Internal/Notifications_Internal.h"
 #include "NotificationCenter.h"
 
 // Preferences
@@ -29,7 +31,7 @@ struct SNotificationPreferences : public SPreferencePage
 		ar.openBlock("general", "General");
 		ar(m_allowPopUps, "allowPopUps", "Allow Pop-Ups");
 		ar(m_combineNotifications, "combineNotifications", "Combine Notifications");
-		ar(m_maxNotificationCount, "maxNotificationCount", m_combineNotifications ? "Max Notification Count" : "!Max Notification Count");
+		ar(yasli::Range(m_maxNotificationCount, 1, INT_MAX), "maxNotificationCount", m_combineNotifications ? "Max Notification Count" : "!Max Notification Count");
 		ar.closeBlock();
 		return true;
 	}

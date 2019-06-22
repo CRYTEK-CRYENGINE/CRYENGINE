@@ -3,6 +3,7 @@
 #pragma once
 
 #include <CryThreading/CryThread.h>
+#include <CryCore/StlUtils.h>
 #include <set>
 
 namespace CryMT

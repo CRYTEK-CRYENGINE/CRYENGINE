@@ -64,7 +64,7 @@ public:
 	CCrySignal();
 	~CCrySignal();
 
-	template<typename Object, typename MemberFunction, typename std::enable_if<CryMemFunTraits<MemberFunction>::isMemberFunction, int>::type* = 0>
+	template<typename Object, typename MemberFunction, typename std::enable_if<SFuncInfo<MemberFunction>::isMemberFunction, int>::type* = 0>
 	void Connect(Object* pObject, MemberFunction function, uintptr_t forceId = 0);
 
 	template<typename Function, typename std::enable_if<IsCallable<Function>::value, int>::type* = 0>
@@ -90,7 +90,7 @@ CCrySignal<Signature>::~CCrySignal()
 }
 
 template<typename Signature>
-template<typename Object, typename MemberFunction, typename std::enable_if<CryMemFunTraits<MemberFunction>::isMemberFunction, int>::type*>
+template<typename Object, typename MemberFunction, typename std::enable_if<SFuncInfo<MemberFunction>::isMemberFunction, int>::type*>
 void CCrySignal<Signature >::Connect(Object* pObject, MemberFunction function, uintptr_t forceId /*= 0*/)
 {
 	typename CCrySignal<Signature>::TObserver observer;

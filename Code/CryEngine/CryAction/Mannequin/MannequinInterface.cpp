@@ -12,6 +12,7 @@
 #include "GameObjects/GameObject.h"
 #include "MannequinDebug.h"
 #include "ProceduralClipFactory.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 CMannequinInterface::CMannequinInterface()
 	: m_pAnimationDatabaseManager(new CAnimationDatabaseManager())
@@ -50,7 +51,7 @@ IAnimationDatabaseManager& CMannequinInterface::GetAnimationDatabaseManager()
 
 IActionController* CMannequinInterface::CreateActionController(IEntity* pEntity, SAnimationContext& context)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Mannequin, 0, "ActionController (%s)", pEntity ? pEntity->GetName() ? pEntity->GetName() : "<unknown>" : "<no entity>");
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Mannequin, "ActionController (%s)", pEntity ? pEntity->GetName() ? pEntity->GetName() : "<unknown>" : "<no entity>");
 	return new CActionController(pEntity, context);
 }
 

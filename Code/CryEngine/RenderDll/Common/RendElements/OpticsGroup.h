@@ -13,7 +13,7 @@ protected:
 
 public:
 
-	COpticsGroup(const char* name = "[Unnamed_Group]") : COpticsElement(name) { _init(); };
+	COpticsGroup(const char* name = "[Unnamed_Group]") : COpticsElement(name) { _init(); }
 	COpticsGroup(const char* name, COpticsElement* elem, ...);
 	virtual ~COpticsGroup(){}
 

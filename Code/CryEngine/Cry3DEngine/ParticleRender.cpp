@@ -1,15 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ParticleRender.cpp
-//  Version:     v1.00
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Evolved:     2005 by J Scott Peter
-//  Description: Rendering functions for CParticle and CParticleContainer
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 
 #include "Particle.h"
@@ -1396,7 +1386,7 @@ void CParticleContainer::ComputeVertices(const SCameraInfo& camInfo, CREParticle
 //////////////////////////////////////////////////////////////////////////
 struct SVertexIndexPoolUsageCmp
 {
-	// sort that the bigger entry is always at positon 0
+	// sort that the bigger entry is always at position 0
 	ILINE bool operator()(const SVertexIndexPoolUsage& rA, const SVertexIndexPoolUsage& rB) const
 	{
 		return rA.nVertexMemory > rB.nVertexMemory;

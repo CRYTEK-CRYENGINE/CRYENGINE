@@ -4,7 +4,8 @@
 #include "SystemLibraryModel.h"
 
 #include "SystemSourceModel.h"
-#include "AudioControlsEditorPlugin.h"
+#include "AssetsManager.h"
+#include "ContextManager.h"
 #include "AssetIcons.h"
 #include "AssetUtils.h"
 #include "Common/IItem.h"
@@ -17,11 +18,12 @@
 
 namespace ACE
 {
+constexpr int g_libraryNameColumn = static_cast<int>(CSystemSourceModel::EColumns::Name);
+
 /////////////////////////////////////////////////////////////////////////////////////////
 CSystemLibraryModel::CSystemLibraryModel(CLibrary* const pLibrary, QObject* const pParent)
 	: QAbstractItemModel(pParent)
 	, m_pLibrary(pLibrary)
-	, m_nameColumn(static_cast<int>(CSystemSourceModel::EColumns::Name))
 {
 	CRY_ASSERT_MESSAGE(pLibrary != nullptr, "Library is null pointer during %s", __FUNCTION__);
 	ConnectSignals();
@@ -185,10 +187,6 @@ QVariant CSystemLibraryModel::data(QModelIndex const& index, int role) const
 			{
 				variant = (pAsset->GetFlags() & EAssetFlags::IsDefaultControl) != 0;
 			}
-			else if (role == static_cast<int>(ModelUtils::ERoles::Name))
-			{
-				variant = QtUtil::ToQString(pAsset->GetName());
-			}
 			else
 			{
 				EAssetType const assetType = pAsset->GetType();
@@ -201,107 +199,127 @@ QVariant CSystemLibraryModel::data(QModelIndex const& index, int role) const
 						switch (role)
 						{
 						case Qt::DecorationRole:
-							if ((flags& EAssetFlags::HasPlaceholderConnection) != 0)
 							{
-								variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::Placeholder);
-							}
-							else if ((flags& EAssetFlags::HasConnection) == 0)
-							{
-								variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::NoConnection);
-							}
-							else if (((assetType == EAssetType::Folder) || (assetType == EAssetType::Switch)) && ((flags& EAssetFlags::HasControl) == 0))
-							{
-								variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::NoControl);
-							}
-							break;
-						case Qt::ToolTipRole:
-							if ((flags& EAssetFlags::HasPlaceholderConnection) != 0)
-							{
-								if ((assetType == EAssetType::Folder) || (assetType == EAssetType::Switch))
+								if ((flags& EAssetFlags::HasPlaceholderConnection) != 0)
 								{
-									variant = tr("Contains item whose connection was not found in middleware project");
+									variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::Placeholder);
 								}
-								else
+								else if ((flags& EAssetFlags::HasConnection) == 0)
 								{
-									variant = tr("Item connection was not found in middleware project");
+									variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::NoConnection);
 								}
-							}
-							else if ((flags& EAssetFlags::HasConnection) == 0)
-							{
-								if ((assetType == EAssetType::Folder) || (assetType == EAssetType::Switch))
+								else if (((assetType == EAssetType::Folder) || (assetType == EAssetType::Switch)) && ((flags& EAssetFlags::HasControl) == 0))
 								{
-									variant = tr("Contains item that is not connected to any middleware control");
+									variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::NoControl);
 								}
-								else
-								{
-									variant = tr("Item is not connected to any middleware control");
-								}
-							}
-							else if ((flags& EAssetFlags::HasControl) == 0)
-							{
-								if (assetType == EAssetType::Folder)
-								{
-									variant = tr("Contains no audio control");
-								}
-								else if (assetType == EAssetType::Switch)
-								{
-									variant = tr("Contains no state");
-								}
-							}
-							break;
-						case static_cast<int>(ModelUtils::ERoles::Id):
-							if (assetType != EAssetType::Folder)
-							{
-								CControl const* const pControl = static_cast<CControl*>(pAsset);
 
-								if (pControl != nullptr)
-								{
-									variant = pControl->GetId();
-								}
+								break;
 							}
-							break;
+						case Qt::ToolTipRole:
+							{
+								if ((flags& EAssetFlags::HasPlaceholderConnection) != 0)
+								{
+									if ((assetType == EAssetType::Folder) || (assetType == EAssetType::Switch))
+									{
+										variant = tr("Contains item whose connection was not found in middleware project");
+									}
+									else
+									{
+										variant = tr("Item connection was not found in middleware project");
+									}
+								}
+								else if ((flags& EAssetFlags::HasConnection) == 0)
+								{
+									if ((assetType == EAssetType::Folder) || (assetType == EAssetType::Switch))
+									{
+										variant = tr("Contains item that is not connected to any middleware control");
+									}
+									else
+									{
+										variant = tr("Item is not connected to any middleware control");
+									}
+								}
+								else if ((flags& EAssetFlags::HasControl) == 0)
+								{
+									if (assetType == EAssetType::Folder)
+									{
+										variant = tr("Contains no audio control");
+									}
+									else if (assetType == EAssetType::Switch)
+									{
+										variant = tr("Contains no state");
+									}
+								}
+
+								break;
+							}
+						case static_cast<int>(ModelUtils::ERoles::Id):
+							{
+								if (assetType != EAssetType::Folder)
+								{
+									CControl const* const pControl = static_cast<CControl*>(pAsset);
+
+									if (pControl != nullptr)
+									{
+										variant = pControl->GetId();
+									}
+								}
+
+								break;
+							}
+						default:
+							{
+								break;
+							}
 						}
+
+						break;
 					}
-					break;
 				case static_cast<int>(CSystemSourceModel::EColumns::Type):
 					{
 						if ((role == Qt::DisplayRole) && (assetType != EAssetType::Folder))
 						{
 							variant = QString(AssetUtils::GetTypeName(assetType));
 						}
+
+						break;
 					}
-					break;
 				case static_cast<int>(CSystemSourceModel::EColumns::Placeholder):
 					{
 						if (role == Qt::CheckStateRole)
 						{
 							variant = ((flags& EAssetFlags::HasPlaceholderConnection) == 0) ? Qt::Checked : Qt::Unchecked;
 						}
+
+						break;
 					}
-					break;
 				case static_cast<int>(CSystemSourceModel::EColumns::NoConnection):
 					{
 						if (role == Qt::CheckStateRole)
 						{
 							variant = ((flags& EAssetFlags::HasConnection) != 0) ? Qt::Checked : Qt::Unchecked;
 						}
+
+						break;
 					}
-					break;
 				case static_cast<int>(CSystemSourceModel::EColumns::NoControl):
 					{
 						if ((role == Qt::CheckStateRole) && ((assetType == EAssetType::Folder) || (assetType == EAssetType::Switch)))
 						{
 							variant = ((flags& EAssetFlags::HasControl) == 0) ? Qt::Checked : Qt::Unchecked;
 						}
+
+						break;
 					}
-					break;
 				case static_cast<int>(CSystemSourceModel::EColumns::PakStatus):
 					{
 						switch (role)
 						{
 						case Qt::DecorationRole:
-							variant = ModelUtils::GetPakStatusIcon(m_pLibrary->GetPakStatus());
-							break;
+							{
+								variant = ModelUtils::GetPakStatusIcon(m_pLibrary->GetPakStatus());
+								break;
+							}
 						case Qt::ToolTipRole:
 							{
 								EPakStatus const pakStatus = m_pLibrary->GetPakStatus();
@@ -323,76 +341,112 @@ QVariant CSystemLibraryModel::data(QModelIndex const& index, int role) const
 									variant = tr("Parent library does not exist on disk. Save to write file.");
 								}
 							}
+
 							break;
 						}
+
+						break;
 					}
-					break;
 				case static_cast<int>(CSystemSourceModel::EColumns::InPak):
 					{
 						if (role == Qt::CheckStateRole)
 						{
 							variant = ((m_pLibrary->GetPakStatus() & EPakStatus::InPak) != 0) ? Qt::Checked : Qt::Unchecked;
 						}
+
+						break;
 					}
-					break;
 				case static_cast<int>(CSystemSourceModel::EColumns::OnDisk):
 					{
 						if (role == Qt::CheckStateRole)
 						{
 							variant = ((m_pLibrary->GetPakStatus() & EPakStatus::OnDisk) != 0) ? Qt::Checked : Qt::Unchecked;
 						}
-					}
-					break;
-				case static_cast<int>(CSystemSourceModel::EColumns::Scope):
-					if ((role == Qt::DisplayRole) && (assetType != EAssetType::Folder))
-					{
-						CControl const* const pControl = static_cast<CControl*>(pAsset);
 
-						if (pControl != nullptr)
-						{
-							variant = QtUtil::ToQString(g_assetsManager.GetScopeInfo(pControl->GetScope()).name);
-						}
+						break;
 					}
-					break;
+				case static_cast<int>(CSystemSourceModel::EColumns::Context):
+					{
+						if ((role == Qt::DisplayRole) && (assetType != EAssetType::Folder))
+						{
+							CControl const* const pControl = static_cast<CControl*>(pAsset);
+
+							if (pControl != nullptr)
+							{
+								variant = QtUtil::ToQString(g_contextManager.GetContextName(pControl->GetContextId()));
+							}
+
+						}
+
+						break;
+					}
 				case static_cast<int>(CSystemSourceModel::EColumns::Name):
 					{
 						switch (role)
 						{
 						case Qt::DecorationRole:
-							variant = GetAssetIcon(assetType);
-							break;
+							{
+								variant = GetAssetIcon(assetType);
+								break;
+							}
 						case Qt::DisplayRole:
-							if ((pAsset->GetFlags() & EAssetFlags::IsModified) != 0)
 							{
-								variant = QtUtil::ToQString(pAsset->GetName() + " *");
+								if ((pAsset->GetFlags() & EAssetFlags::IsModified) != 0)
+								{
+									variant = QtUtil::ToQString(pAsset->GetName() + " *");
+								}
+								else
+								{
+									variant = QtUtil::ToQString(pAsset->GetName());
+								}
+
+								break;
 							}
-							else
-							{
-								variant = QtUtil::ToQString(pAsset->GetName());
-							}
-							break;
 						case Qt::EditRole:
-							variant = QtUtil::ToQString(pAsset->GetName());
-							break;
-						case Qt::ToolTipRole:
-							if (!pAsset->GetDescription().IsEmpty())
-							{
-								variant = QtUtil::ToQString(pAsset->GetName() + ": " + pAsset->GetDescription());
-							}
-							else
 							{
 								variant = QtUtil::ToQString(pAsset->GetName());
+								break;
 							}
-							break;
+						case Qt::ToolTipRole:
+							{
+								if (!pAsset->GetDescription().IsEmpty())
+								{
+									variant = QtUtil::ToQString(pAsset->GetName() + ": " + pAsset->GetDescription());
+								}
+								else
+								{
+									variant = QtUtil::ToQString(pAsset->GetName());
+								}
+
+								break;
+							}
+						case static_cast<int>(ModelUtils::ERoles::Id):
+							{
+								variant = pAsset->GetId();
+								break;
+							}
 						case static_cast<int>(ModelUtils::ERoles::SortPriority):
-							variant = static_cast<int>(assetType);
-							break;
+							{
+								variant = static_cast<int>(assetType);
+								break;
+							}
 						case static_cast<int>(ModelUtils::ERoles::InternalPointer):
-							variant = reinterpret_cast<intptr_t>(pAsset);
-							break;
+							{
+								variant = reinterpret_cast<intptr_t>(pAsset);
+								break;
+							}
+						default:
+							{
+								break;
+							}
 						}
+
+						break;
 					}
-					break;
+				default:
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -406,7 +460,7 @@ bool CSystemLibraryModel::setData(QModelIndex const& index, QVariant const& valu
 {
 	bool wasDataChanged = false;
 
-	if (index.isValid() && (index.column() == m_nameColumn))
+	if (index.isValid() && (index.column() == g_libraryNameColumn))
 	{
 		auto const pAsset = static_cast<CAsset*>(index.internalPointer());
 
@@ -427,31 +481,40 @@ bool CSystemLibraryModel::setData(QModelIndex const& index, QVariant const& valu
 
 							switch (assetType)
 							{
-							case EAssetType::Preload:
-							case EAssetType::Parameter:
-							case EAssetType::Switch:
-							case EAssetType::Trigger:
-							case EAssetType::Environment:
+							case EAssetType::Preload:     // Intentional fall-through.
+							case EAssetType::Parameter:   // Intentional fall-through.
+							case EAssetType::Switch:      // Intentional fall-through.
+							case EAssetType::Trigger:     // Intentional fall-through.
+							case EAssetType::Environment: // Intentional fall-through.
 							case EAssetType::Setting:
-								pAsset->SetName(AssetUtils::GenerateUniqueControlName(newName, assetType));
-								break;
-							case EAssetType::State:
+								{
+									pAsset->SetName(AssetUtils::GenerateUniqueControlName(newName, assetType));
+									break;
+								}
+							case EAssetType::State: // Intentional fall-through.
 							case EAssetType::Folder:
-								pAsset->SetName(AssetUtils::GenerateUniqueName(newName, assetType, pAsset->GetParent()));
-								break;
+								{
+									pAsset->SetName(AssetUtils::GenerateUniqueName(newName, assetType, pAsset->GetParent()));
+									break;
+								}
 							default:
-								CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, R"([Audio Controls Editor] The item type '%d' is not handled!)", assetType);
-								break;
+								{
+									CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, R"([Audio Controls Editor] The item type '%d' is not handled!)", assetType);
+									break;
+								}
 							}
 						}
 
 						wasDataChanged = true;
 					}
+
+					break;
 				}
-				break;
 			default:
-				CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, R"([Audio Controls Editor] The role '%d' is not handled!)", role);
-				break;
+				{
+					CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, R"([Audio Controls Editor] The role '%d' is not handled!)", role);
+					break;
+				}
 			}
 		}
 	}
@@ -476,7 +539,7 @@ Qt::ItemFlags CSystemLibraryModel::flags(QModelIndex const& index) const
 		{
 			flags = QAbstractItemModel::flags(index) | Qt::ItemIsSelectable;
 		}
-		else if (index.column() == m_nameColumn)
+		else if (index.column() == g_libraryNameColumn)
 		{
 			flags = QAbstractItemModel::flags(index) | Qt::ItemIsDropEnabled | Qt::ItemIsDragEnabled | Qt::ItemIsEditable;
 		}

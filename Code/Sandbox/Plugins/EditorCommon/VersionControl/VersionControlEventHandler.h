@@ -3,15 +3,10 @@
 
 #include "EditorCommon.h"
 
-class CAsset;
-class CLevelExplorer;
-struct IObjectLayer;
-
-namespace VersionControlEventHandler
+class EDITOR_COMMON_API CVersionControlEventHandler
 {
+public:
+	static void Activate();
 
-void EDITOR_COMMON_API HandleOnAssetBrowser(const QString& event, std::vector<CAsset*> assets, std::vector<string> folders);
-
-void EDITOR_COMMON_API HandleOnLevelExplorer(const QString& event, std::vector<IObjectLayer*> layers, std::vector<IObjectLayer*> layerFolders);
-
+	static void Deactivate();
 };

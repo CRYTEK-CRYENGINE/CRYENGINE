@@ -24,7 +24,7 @@ public:
 
 	static void ForEachParentOf(const std::vector<CBaseObject*>& objects, std::function<void(CGroup*, std::vector<CBaseObject*>&)> );
 	static bool CanCreateFrom(std::vector<CBaseObject*>& objects);
-	static void CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center);
+	static CGroup* CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center);
 
 	// Creates a new group with provided objects
 	virtual bool CreateFrom(std::vector<CBaseObject*>& objects);

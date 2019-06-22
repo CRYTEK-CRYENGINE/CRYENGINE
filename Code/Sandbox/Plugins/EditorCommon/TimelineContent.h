@@ -99,7 +99,14 @@ struct STimelineTrack : public _i_reference_target_t
 		CAP_DESCRIPTION_TRACK          = BIT(1), // No keys
 		CAP_COMPOUND_TRACK             = BIT(2), // No own keys, but will show combined keys for child tracks
 		CAP_TOGGLE_TRACK               = BIT(3), // For boolean tracks that are either on or off between keys. Used to key visibility etc.
-		CAP_CLIP_TRUNCATED_BY_NEXT_KEY = BIT(4)
+		CAP_CLIP_TRUNCATED_BY_NEXT_KEY = BIT(4),
+		CAP_FOLDER_TRACK               = BIT(5),
+		CAP_NODE_TRACK                 = BIT(6),
+		CAP_SUBTRACK                   = BIT(7),
+		CAP_X_SUBTRACK                 = BIT(8),
+		CAP_Y_SUBTRACK                 = BIT(9),
+		CAP_Z_SUBTRACK                 = BIT(10),
+		CAP_CAM_TRACK                  = BIT(11)
 	};
 	bool              expanded            : 1;
 	bool              modified            : 1;

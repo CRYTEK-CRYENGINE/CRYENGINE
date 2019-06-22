@@ -1,6 +1,8 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
-#include <CryEntitySystem/IEntityComponent.h>
-#include <CryEntitySystem/IEntity.h>
+
+#include <CryEntitySystem/IEntitySystem.h>
 
 ////////////////////////////////////////////////////////
 // Spawn point
@@ -9,7 +11,7 @@ class CSpawnPointComponent final : public IEntityComponent
 {
 public:
 	CSpawnPointComponent() = default;
-	virtual ~CSpawnPointComponent() {}
+	virtual ~CSpawnPointComponent() = default;
 
 	// Reflect type to set a unique identifier for this component
 	// and provide additional information to expose it in the sandbox
@@ -27,7 +29,23 @@ public:
 		static CryGUID id = "{41316132-8A1E-4073-B0CD-A242FD3D2E90}"_cry_guid;
 		return id;
 	}
+	
+	static Matrix34 GetFirstSpawnPointTransform()
+	{
+		// Spawn at first default spawner
+		IEntityItPtr pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
+		pEntityIterator->MoveFirst();
 
-public:
-	void SpawnEntity(IEntity* otherEntity);
+		while (!pEntityIterator->IsEnd())
+		{
+			IEntity *pEntity = pEntityIterator->Next();
+
+			if (CSpawnPointComponent* pSpawner = pEntity->GetComponent<CSpawnPointComponent>())
+			{
+				return pSpawner->GetWorldTransformMatrix();
+			}
+		}
+		
+		return IDENTITY;
+	}
 };

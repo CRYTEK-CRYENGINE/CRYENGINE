@@ -4,8 +4,8 @@
 
 #include <StdAfx.h>
 #include <CrySerialization/IArchive.h>
-#include "Serialization/PropertyTree/IDrawContext.h"
-#include "Serialization/PropertyTree/PropertyTree.h"
+#include "Serialization/PropertyTreeLegacy/IDrawContext.h"
+#include "Serialization/PropertyTreeLegacy/PropertyTreeLegacy.h"
 
 #include "IEditor.h"
 #include "IEditorClassFactory.h"
@@ -28,7 +28,7 @@ struct SEditToolButton
 	bool           m_bNeedDocument;
 	int            buttonflags;
 	void*          m_userData;
-	PropertyTree*  tree;
+	PropertyTreeLegacy*  tree;
 	CEditTool*     m_activeTool;
 
 	explicit SEditToolButton(const char* icon)
@@ -132,7 +132,7 @@ struct SEditToolButton
 	}
 
 	// workaround for propertytree not being available at creation time
-	void SetPropertyTree(PropertyTree* ptree)
+	void SetPropertyTree(PropertyTreeLegacy* ptree)
 	{
 		tree = ptree;
 	}

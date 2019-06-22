@@ -21,6 +21,13 @@ SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SUN_COLOR)
 SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SUN_INTENSITY)
 SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SUN_SPECULAR_MULTIPLIER)
 
+SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SKYBOX_ANGLE)
+SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SKYBOX_STRETCHING)
+SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SKYBOX_COLOR)
+SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SKYBOX_INTENSITY)
+SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SKYBOX_FILTER)
+SERIALIZATION_ENUM_DEFAULTNAME(PARAM_SKYBOX_OPACITY)
+
 SERIALIZATION_ENUM_DEFAULTNAME(PARAM_FOG_COLOR)
 SERIALIZATION_ENUM_DEFAULTNAME(PARAM_FOG_COLOR_MULTIPLIER)
 SERIALIZATION_ENUM_DEFAULTNAME(PARAM_VOLFOG_HEIGHT)
@@ -408,27 +415,27 @@ void LoadPresetFromOldFormatXML(CEnvironmentPreset& preset, XmlNodeRef node)
 static const char* sPresetsLibsPath = "libs/environmentpresets/";
 static const char* sPresetXMLRootNodeName = "EnvironmentPreset";
 
-string GetPresetXMLFilenamefromName(const string& presetName, const bool bForWriting)
+CryPathString GetPresetXMLFilenamefromName(const string& presetName, const bool bForWriting)
 {
-	char szAdjustedFile[ICryPak::g_nMaxPath];
-	gEnv->pCryPak->AdjustFileName(presetName.c_str(), szAdjustedFile, bForWriting ? ICryPak::FLAGS_FOR_WRITING : 0);
+	CryPathString adjustedName;
+	gEnv->pCryPak->AdjustFileName(presetName.c_str(), adjustedName, bForWriting ? ICryPak::FLAGS_FOR_WRITING : 0);
 
 	// Backward compatibility with old xml file extension.
-	if (!bForWriting && !GetISystem()->GetIPak()->IsFileExist(szAdjustedFile))
+	if (!bForWriting && !GetISystem()->GetIPak()->IsFileExist(adjustedName))
 	{
-		string filePathXml = PathUtil::ReplaceExtension(szAdjustedFile, "xml");
+		string filePathXml = PathUtil::ReplaceExtension(adjustedName, "xml");
 		if (GetISystem()->GetIPak()->IsFileExist(filePathXml))
 		{
 			return filePathXml;
 		}
 	}
 
-	return szAdjustedFile;
+	return adjustedName;
 }
 
 bool SavePresetToXML(const CEnvironmentPreset& preset, const string& presetName)
 {
-	const string filename = GetPresetXMLFilenamefromName(presetName, false);
+	const CryPathString filename(GetPresetXMLFilenamefromName(presetName, false));
 
 	if (!Serialization::SaveXmlFile(filename.c_str(), preset, sPresetXMLRootNodeName))
 	{
@@ -441,7 +448,7 @@ bool SavePresetToXML(const CEnvironmentPreset& preset, const string& presetName)
 
 bool LoadPresetFromXML(CEnvironmentPreset& pPreset, const string& presetName)
 {
-	const string filename = GetPresetXMLFilenamefromName(presetName, false);
+	const CryPathString filename(GetPresetXMLFilenamefromName(presetName, false));
 	const bool bFileExist = gEnv->pCryPak->IsFileExist(filename.c_str());
 	if (!bFileExist)
 	{
@@ -580,9 +587,24 @@ bool CTimeOfDay::RemovePreset(const char* szPresetName)
 		return false;
 	}
 
+	if (m_pCurrentPreset == findResult->second.get())
+	{
+		m_pCurrentPreset = nullptr;
+		m_currentPresetName.clear();
+	}
+
 	// The preset interface can still be used outside the class, so we never delete the presets, just move them to the list of preview's preset.
 	m_previewPresets[findResult->first] = std::move(findResult->second);
 	m_presets.erase(findResult);
+
+	if (!m_pCurrentPreset && m_presets.size())
+	{
+		const auto it = m_presets.begin();
+		m_pCurrentPreset = it->second.get();
+		m_currentPresetName = it->first;
+		Update(true, true);
+		ConstantsChanged();
+	}
 	
 	NotifyOnChange(IListener::EChangeType::PresetRemoved, szPresetName);
 	return true;
@@ -656,16 +678,19 @@ bool CTimeOfDay::ResetPreset(const char* szPresetName)
 	TPresetsSet::iterator it = m_presets.find(szPresetName);
 	if (it == m_presets.end())
 	{
-		return false;
+		it = m_previewPresets.find(szPresetName);
+		if (it == m_previewPresets.end())
+		{
+			return false;
+		}
 	}
 
 	it->second->Reset();
 	if (it->second.get() == m_pCurrentPreset)
 	{
+		Update(true, true);
 		ConstantsChanged();
 	}
-
-	Update(true, true);
 	return true;
 }
 
@@ -708,9 +733,15 @@ void CTimeOfDay::DiscardPresetChanges(const char* szPresetName)
 
 bool CTimeOfDay::ImportPreset(const char* szPresetName, const char* szFilePath)
 {
-	TPresetsSet::iterator it = m_presets.find(szPresetName);
+	TPresetsSet::const_iterator it = m_presets.find(szPresetName);
 	if (it == m_presets.end())
-		return false;
+	{
+		it = m_previewPresets.find(szPresetName);
+		if (it == m_previewPresets.end())
+		{
+			return false;
+		}
+	}
 
 	XmlNodeRef root = GetISystem()->LoadXmlFromFile(szFilePath);
 	if (!root)
@@ -733,18 +764,23 @@ bool CTimeOfDay::ImportPreset(const char* szPresetName, const char* szFilePath)
 
 bool CTimeOfDay::ExportPreset(const char* szPresetName, const char* szFilePath) const
 {
-	const string sPresetName(szPresetName);
-	TPresetsSet::const_iterator it = m_presets.find(sPresetName);
-	if (it != m_presets.end())
+	TPresetsSet::const_iterator it = m_presets.find(szPresetName);
+	if (it == m_presets.end())
 	{
-		if (!Serialization::SaveXmlFile(szFilePath, *it->second.get(), sPresetXMLRootNodeName))
+		it = m_previewPresets.find(szPresetName);
+		if (it == m_previewPresets.end())
 		{
-			CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_ERROR, "TimeOfDay: Failed to save preset: %s", szFilePath);
 			return false;
 		}
-		return true;
 	}
-	return false;
+
+	if (!Serialization::SaveXmlFile(szFilePath, *it->second.get(), sPresetXMLRootNodeName))
+	{
+		CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_ERROR, "TimeOfDay: Failed to save preset: %s", szFilePath);
+		return false;
+	}
+
+	return true;
 }
 
 bool CTimeOfDay::PreviewPreset(const char* szPresetName)
@@ -764,10 +800,11 @@ bool CTimeOfDay::PreviewPreset(const char* szPresetName)
 		return false;
 	}
 
-	std::pair<TPresetsSet::iterator, bool> insertResult = m_previewPresets.emplace(path, stl::make_unique<CEnvironmentPreset>());
-	CEnvironmentPreset& preset = *insertResult.first->second;
+	std::pair<TPresetsSet::iterator, bool> insertResult = m_previewPresets.emplace(path, nullptr);
 	if (insertResult.second)
 	{
+		insertResult.first->second.reset(new CEnvironmentPreset());
+		CEnvironmentPreset& preset = *insertResult.first->second;
 		if (root->isTag(sPresetXMLRootNodeName))
 		{
 			Serialization::LoadXmlFile(preset, szPresetName);
@@ -779,7 +816,7 @@ bool CTimeOfDay::PreviewPreset(const char* szPresetName)
 		}
 	}
 
-	m_pCurrentPreset = &preset;
+	m_pCurrentPreset = insertResult.first->second.get();
 	m_currentPresetName = insertResult.first->first;
 
 	Update(true, true);
@@ -866,8 +903,19 @@ void CTimeOfDay::Reset()
 	m_pCurrentPreset = nullptr;
 	m_currentPresetName.clear();
 	m_defaultPresetName.clear();
+
+	if (!gEnv->IsEditor())
+	{
+		m_previewPresets.clear();
+	}
+	else // do not delete and overwrite state of loaded presets, as they may have active editing sessions and unsaved changes.
+	{
+		for (auto&& preset : m_presets)
+		{
+			m_previewPresets[preset.first] = std::move(preset.second);
+		}
+	}
 	m_presets.clear();
-	m_previewPresets.clear();
 
 	m_fTime = 12;
 	m_bEditMode = false;
@@ -938,6 +986,10 @@ void CTimeOfDay::ConstantsChanged()
 	p3DEngine->UpdateMoonParams();
 	p3DEngine->UpdateWindParams();
 	p3DEngine->UpdateCloudShadows();
+	
+	// Empty texture means disable color grading; Transition time == 0 -> switch immediately
+	const auto& cgp = GetConstants().GetColorGradingParams();
+	p3DEngine->GetColorGradingCtrl()->SetColorGradingLut(cgp.useTexture ? cgp.texture.c_str() : "", 0.f);
 
 #if defined(FEATURE_SVO_GI)
 	p3DEngine->UpdateTISettings();
@@ -1015,6 +1067,7 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 	Vec3 sunPos;
 
 	const ITimeOfDay::Sun& sun = GetSunParams();
+	const ITimeOfDay::Sky& sky = GetSkyParams();
 
 	if (sun.sunLinkedToTOD)
 	{
@@ -1120,10 +1173,36 @@ void CTimeOfDay::UpdateEnvLighting(bool forceUpdate)
 	// set sun, sky, and fog color
 	const Vec3 sunColor(GetValue(PARAM_SUN_COLOR));
 	const float sunIntensityLux(GetValue(PARAM_SUN_INTENSITY).x * sunMultiplier);
-	p3DEngine->SetSunColor(ConvertIlluminanceToLightColor(sunIntensityLux, sunColor));
+	const Vec3 sunEmission(ConvertIlluminanceToLightColor(sunIntensityLux, sunColor));
+	p3DEngine->SetSunColor(sunEmission);
 	p3DEngine->SetGlobalParameter(E3DPARAM_SUN_SPECULAR_MULTIPLIER, Vec3(sunSpecMultiplier, 0, 0));
 	p3DEngine->SetSkyBrightness(skyBrightMultiplier);
 	p3DEngine->SetGIAmount(GIMultiplier);
+
+	const float skyboxAngle(GetValue(PARAM_SKYBOX_ANGLE).x);
+	p3DEngine->SetGlobalParameter(E3DPARAM_SKY_SKYBOX_ANGLE, skyboxAngle);
+	const float skyboxStretch(GetValue(PARAM_SKYBOX_STRETCHING).x);
+	p3DEngine->SetGlobalParameter(E3DPARAM_SKY_SKYBOX_STRETCHING, skyboxStretch);
+	const Vec3 skyboxColor(GetValue(PARAM_SKYBOX_COLOR));
+	const float skyboxIntensityLux(GetValue(PARAM_SKYBOX_INTENSITY).x * sunMultiplier);
+	const Vec3 skyboxEmmission(ConvertIlluminanceToLightColor(skyboxIntensityLux, skyboxColor));
+	p3DEngine->SetGlobalParameter(E3DPARAM_SKY_SKYBOX_EMITTANCE, skyboxEmmission);
+	const Vec3 skyboxFilter(GetValue(PARAM_SKYBOX_FILTER));
+	const float skyboxOpacity(GetValue(PARAM_SKYBOX_OPACITY).x);
+	p3DEngine->SetGlobalParameter(E3DPARAM_SKY_SKYBOX_FILTER, skyboxFilter * skyboxOpacity);
+
+	// Selective overwrite
+	IMaterial* pMaterialDef = nullptr;
+	if (!sky.materialDefSpec.empty())
+		p3DEngine->SetSkyMaterial(pMaterialDef = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(sky.materialDefSpec.c_str(), false), eSkySpec_Def);
+	else
+		p3DEngine->SetSkyMaterial(pMaterialDef, eSkySpec_Def);
+
+	IMaterial* pMaterialLow = nullptr;
+	if (!sky.materialLowSpec.empty())
+		p3DEngine->SetSkyMaterial(pMaterialLow = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(sky.materialLowSpec.c_str(), false), eSkySpec_Low);
+	else
+		p3DEngine->SetSkyMaterial(pMaterialDef, eSkySpec_Low);
 
 	const Vec3 fogColor(fogMultiplier * GetValue(PARAM_FOG_COLOR));
 	p3DEngine->SetFogColor(fogColor);
@@ -1338,6 +1417,8 @@ void CTimeOfDay::Serialize(XmlNodeRef& node, bool bLoading)
 {
 	if (bLoading)
 	{
+		Reset();
+
 		node->getAttr("Time", m_fTime);
 
 		node->getAttr("TimeStart", m_advancedInfo.fStartTime);
@@ -1346,24 +1427,6 @@ void CTimeOfDay::Serialize(XmlNodeRef& node, bool bLoading)
 
 		if (m_pTimeOfDaySpeedCVar->GetFVal() != m_advancedInfo.fAnimSpeed)
 			m_pTimeOfDaySpeedCVar->Set(m_advancedInfo.fAnimSpeed);
-
-		m_pCurrentPreset = nullptr;
-		m_currentPresetName.clear();
-		m_defaultPresetName.clear();
-
-		if (!gEnv->IsEditor())
-		{
-			m_presets.clear();
-			m_previewPresets.clear();
-		}
-		else // do not delete and overwrite state of loaded presets, as they may have active editing sessions and unsaved changes.
-		{
-			for (auto&& preset : m_presets)
-			{
-				m_previewPresets[preset.first] = std::move(preset.second);
-			}
-			m_presets.clear();
-		}
 
 		if (XmlNodeRef presetsNode = node->findChild("Presets"))
 		{
@@ -1399,29 +1462,31 @@ void CTimeOfDay::Serialize(XmlNodeRef& node, bool bLoading)
 				}
 			}
 		}
-		else if (m_presets.empty()) // create a new default preset
+		else if (node->getChildCount()) // if the root node is not empty, this is probably the old XML format.
 		{
-			string presetName("default");
 			if (gEnv->pGameFramework)
 			{
 				const char* szLevelName = gEnv->pGameFramework->GetLevelName();
 				if (szLevelName && *szLevelName)
 				{
-					presetName = PathUtil::Make(sPresetsLibsPath, szLevelName, "env");
+					const string presetName = PathUtil::Make(sPresetsLibsPath, szLevelName, "env");
+					std::pair<CEnvironmentPreset*, bool> result = GetOrCreatePreset(presetName);
+					// Try to load only if the preset has just been created.
+					if (!result.second)
+					{
+						CEnvironmentPreset& preset = *result.first;
+						LoadPresetFromOldFormatXML(preset, node);
+						SavePreset(presetName);
+					}
 				}
-			}
-
-			std::pair<TPresetsSet::iterator, bool> insertRes = m_presets.emplace(presetName, stl::make_unique<CEnvironmentPreset>());
-			CEnvironmentPreset& preset = *insertRes.first->second.get();
-
-			// if the root node is not empty, this is probably the old XML format, try to convert.
-			if (node->getChildCount())
-			{
-				LoadPresetFromOldFormatXML(preset, node);
 			}
 		}
 
-		if (!m_pCurrentPreset && !m_presets.empty())
+		if (m_presets.empty()) // create a new default preset
+		{
+			LoadPreset(GetDefaultPresetFilepath());
+		}
+		else if (!m_pCurrentPreset)
 		{
 			const auto it = m_presets.begin();
 			m_pCurrentPreset = it->second.get();

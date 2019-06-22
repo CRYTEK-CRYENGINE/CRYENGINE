@@ -2,7 +2,6 @@
 
 #include "StdAfx.h"
 #include "SequenceManager.h"
-#include "SequenceAgent.h"
 #include "SequenceFlowNodes.h"
 #include "AIBubblesSystem/AIBubblesSystem.h"
 
@@ -20,8 +19,7 @@ bool SequenceManager::RegisterSequence(EntityId entityId, TFlowNodeId startNodeI
 	SequenceId newSequenceId = GenerateUniqueSequenceId();
 	Sequence sequence(entityId, newSequenceId, startNodeId, sequenceProperties, flowGraph);
 
-	SequenceAgent agent(entityId);
-	if (!agent.ValidateAgent())
+	if (m_pAgentAdapter && !InitAgentAdapter(entityId))
 		return false;
 
 	if (!sequence.TraverseAndValidateSequence())
@@ -46,6 +44,12 @@ void SequenceManager::StartSequence(SequenceId sequenceId)
 	}
 
 	CancelActiveSequencesForThisEntity(sequence->GetEntityId());
+
+	IAgentAdapter* pAgentAdapter = InitAgentAdapter(sequence->GetEntityId());
+	if (!pAgentAdapter || pAgentAdapter->OnSequenceStarted(sequence->IsInterruptible()))
+	{
+		sequence->SequenceBehaviorReady();
+	}
 	sequence->Start();
 }
 
@@ -60,7 +64,17 @@ void SequenceManager::CancelSequence(SequenceId sequenceId)
 
 	if (sequence->IsActive())
 	{
-		sequence->Cancel();
+		CancelSequence(*sequence);
+	}
+}
+
+void SequenceManager::CancelSequence(Sequence& sequence)
+{
+	sequence.Cancel();
+
+	if (IAgentAdapter* pAgentAdapter = InitAgentAdapter(sequence.GetEntityId()))
+	{
+		pAgentAdapter->OnSequenceCanceled();
 	}
 }
 
@@ -114,7 +128,7 @@ void SequenceManager::SequenceNonInterruptibleBehaviorLeft(EntityId entityId)
 		if (sequence.IsActive() && !sequence.IsInterruptible() && sequence.GetEntityId() == entityId)
 		{
 			AIQueueBubbleMessage("AI Sequence Error", entityId, "The sequence behavior has unexpectedly been deselected and the sequence has been canceled.", eBNS_LogWarning | eBNS_Balloon);
-			sequence.Cancel();
+			CancelSequence(sequence);
 		}
 	}
 }
@@ -128,7 +142,7 @@ void SequenceManager::AgentDisabled(EntityId entityId)
 		Sequence& sequence = sequenceIterator->second;
 		if (sequence.IsActive() && sequence.GetEntityId() == entityId)
 		{
-			sequence.Cancel();
+			CancelSequence(sequence);
 		}
 	}
 }
@@ -154,6 +168,10 @@ void SequenceManager::ActionCompleted(SequenceId sequenceId)
 		return;
 	}
 
+	if (IAgentAdapter* pAgentAdapter = InitAgentAdapter(sequence->GetEntityId()))
+	{
+		pAgentAdapter->OnActionCompleted();
+	}
 	sequence->ActionComplete();
 }
 
@@ -167,6 +185,19 @@ void SequenceManager::SetBookmark(SequenceId sequenceId, TFlowNodeId bookmarkNod
 	}
 
 	sequence->SetBookmark(bookmarkNodeId);
+}
+
+void SequenceManager::SetAgentAdapter(IAgentAdapter* pAgentAdapter)
+{
+	m_pAgentAdapter = pAgentAdapter;
+}
+
+IAgentAdapter* SequenceManager::InitAgentAdapter(EntityId entityId)
+{
+	if (!m_pAgentAdapter)
+		return nullptr;
+	
+	return m_pAgentAdapter->InitLocalAgent(entityId) ? m_pAgentAdapter : nullptr;
 }
 
 SequenceId SequenceManager::GenerateUniqueSequenceId()
@@ -194,7 +225,7 @@ void SequenceManager::CancelActiveSequencesForThisEntity(EntityId entityId)
 		Sequence& sequence = sequenceIterator->second;
 		if (sequence.IsActive() && sequence.GetEntityId() == entityId)
 		{
-			sequence.Cancel();
+			CancelSequence(sequence);
 		}
 	}
 }

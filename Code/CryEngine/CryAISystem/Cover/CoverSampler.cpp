@@ -395,7 +395,7 @@ float CoverSampler::SampleHeightInterval(const Vec3& position, const Vec3& dir, 
 {
 	Vec3 top = position + CoverUp * interval;
 
-	if (gAIEnv.CVars.DebugDrawCoverSampler & 2)
+	if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCoverSampler & 2)
 	{
 		GetAISystem()->AddDebugLine(top, top + dir, 92, 192, 0, 3.0f);
 	}
@@ -414,7 +414,7 @@ float CoverSampler::SampleHeightInterval(const Vec3& position, const Vec3& dir, 
 		if (surfaceType)
 			*surfaceType = result.surfaceType;
 
-		if (gAIEnv.CVars.DebugDrawCoverSampler & 4)
+		if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCoverSampler & 4)
 		{
 			GetAISystem()->AddDebugLine(result.position, result.position + result.normal, 0, 128, 192, 3.0f);
 		}
@@ -568,7 +568,7 @@ bool CoverSampler::SampleFloor(const Vec3& position, float searchHeight, float s
 	Vec3 center = position + CoverUp * (searchHeight * 0.5f);
 	Vec3 dir = CoverUp * -searchHeight;
 
-	if (gAIEnv.CVars.DebugDrawCoverSampler & 1)
+	if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCoverSampler & 1)
 	{
 		GetAISystem()->AddDebugLine(center, center + dir, 214, 164, 96, 3.0f);
 		GetAISystem()->AddDebugSphere(center, 0.1f, 210, 183, 135, 3.0f);
@@ -647,7 +647,7 @@ float CoverSampler::SampleWidthInterval(EDirection direction, float interval, fl
 					m_state.depth = depth;
 					m_state.edgeHeight = height;
 				}
-				else if (gAIEnv.CVars.DebugDrawCoverSampler & 8)
+				else if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCoverSampler & 8)
 				{
 					GetAISystem()->AddDebugSphere(sample.position, 0.035f, 255, 0, 0, 3.0f);
 					GetAISystem()->AddDebugLine(sample.position + CoverUp * CoverOffsetUp, floor + CoverUp * CoverOffsetUp, 255, 0, 0, 3.0f);
@@ -703,7 +703,7 @@ bool CoverSampler::CheckClearance(const Vec3& floor, const Vec3& floorNormal, co
 	/*
 
 	   #ifdef CRYAISYSTEM_DEBUG
-	   if (gAIEnv.CVars.DebugDrawCoverSampler & 16)
+	   if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCoverSampler & 16)
 	   {
 	    Vec3 center = floor + CoverUp * (slopeOffset + (maxHeight - slopeOffset) * 0.5f);
 

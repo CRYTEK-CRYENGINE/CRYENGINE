@@ -12,7 +12,7 @@
 
 #include <CryIcon.h>
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 
 #include <QSplitter>
 #include <QBoxLayout>
@@ -82,10 +82,10 @@ QTerrainLayerPanel::QTerrainLayerPanel(QWidget* parent)
 	pSplitter->addWidget(pPainterContainer);
 	pPainterLayout->addWidget(new QTerrainLayerButtons());
 
-	m_pPropertyTree = new QPropertyTree();
+	m_pPropertyTree = new QPropertyTreeLegacy();
 	pPainterLayout->addWidget(m_pPropertyTree);
-	QObject::connect(m_pPropertyTree, &QPropertyTree::signalBeginUndo, this, &QTerrainLayerPanel::OnBeginUndo);
-	QObject::connect(m_pPropertyTree, &QPropertyTree::signalEndUndo, this, &QTerrainLayerPanel::OnEndUndo);
+	QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalBeginUndo, this, &QTerrainLayerPanel::OnBeginUndo);
+	QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalEndUndo, this, &QTerrainLayerPanel::OnEndUndo);
 }
 
 QTerrainLayerPanel::~QTerrainLayerPanel()

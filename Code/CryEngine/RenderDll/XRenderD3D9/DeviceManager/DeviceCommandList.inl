@@ -369,6 +369,10 @@ inline void CDeviceGraphicsCommandInterface::Draw(uint32 VertexCountPerInstance,
 			nPrimitives = VertexCountPerInstance;
 			assert(VertexCountPerInstance > 0);
 			break;
+		case ept4ControlPointPatchList:
+			nPrimitives = VertexCountPerInstance / 2;
+			assert(VertexCountPerInstance > 0);
+			break;
 
 	#ifndef _RELEASE
 		default:

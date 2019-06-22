@@ -360,7 +360,7 @@ void CReadStream::ExecuteAsyncCallback_CBLocked()
 	if (!m_bIsAsyncCallbackExecuted && m_pCallback)
 	{
 		m_bIsAsyncCallbackExecuted = true;
-		MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Streaming Callback %s", gEnv->pSystem->GetStreamEngine()->GetStreamTaskTypeName(m_Type));
+		MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "Streaming Callback %s", gEnv->pSystem->GetStreamEngine()->GetStreamTaskTypeName(m_Type));
 
 		m_pCallback->StreamAsyncOnComplete(this, m_nIOError);
 	}

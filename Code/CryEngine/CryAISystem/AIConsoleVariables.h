@@ -1,344 +1,90 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef AICONSOLEVARIABLES_H
-#define AICONSOLEVARIABLES_H
+#pragma once
 
-struct AIConsoleVars
+#include <CrySystem/ConsoleRegistration.h>
+
+#include "BehaviorTree/BehaviorTreeConsoleVariables.h"
+#include "CollisionAvoidance/CollisionAvoidanceConsoleVariables.h"
+#include "VisionMapConsoleVariables.h"
+#include "Movement/MovementConsoleVariables.h"
+#include "Navigation/NavigationSystem/NavigationConsoleVariables.h"
+#include "MNMPathfinderConsoleVariables.h"
+#include "PathFollowerConsoleVariables.h"
+#include "AILegacyConsoleVariables.h"
+
+struct SAIConsoleVars
 {
-	// cppcheck-suppress uninitMemberVar
-	AIConsoleVars() {}
-
 	void Init();
 
+	static void DebugAgent(IConsoleCmdArgs* args);
+
 	DeclareConstIntCVar(DebugDraw, -1);
-
-	DeclareConstIntCVar(DebugDrawCover, 0);
-	DeclareConstIntCVar(DebugDrawCoverOccupancy, 0);
-	DeclareConstIntCVar(DebugDrawNavigation, 0);
-	DeclareConstIntCVar(DebugDrawNavigationQueriesUDR, 0);
-	DeclareConstIntCVar(DebugDrawNavigationQueriesList, 0);
-	DeclareConstIntCVar(DebugTriangleOnCursor, 0);
-	DeclareConstIntCVar(DebugDrawNavigationWorldMonitor, 0);
-	DeclareConstIntCVar(DebugDrawSignalsHistory, 0);
-	DeclareConstIntCVar(NavigationSystemMT, 1);
-	DeclareConstIntCVar(StoreNavigationQueriesHistory, 0);
-	DeclareConstIntCVar(NavGenThreadJobs, 1);
-	float NavmeshStabilizationTimeToUpdate;
-	float NavmeshTileDistanceDraw;
-	DeclareConstIntCVar(DebugDrawCoverPlanes, 0);
-	DeclareConstIntCVar(DebugDrawCoverLocations, 0);
-	DeclareConstIntCVar(DebugDrawCoverSampler, 0);
-	DeclareConstIntCVar(DebugDrawDynamicCoverSampler, 0);
-	DeclareConstIntCVar(CoverSystem, 1);
-	DeclareConstIntCVar(CoverExactPositioning, 0);
-	DeclareConstIntCVar(NetworkDebug, 0);
-	DeclareConstIntCVar(DebugPathFinding, 0);
-	DeclareConstIntCVar(DebugDrawBannedNavsos, 0);
-	DeclareConstIntCVar(DebugDrawGroups, 0);
-	DeclareConstIntCVar(DebugDrawCoolMisses, 0);
-	DeclareConstIntCVar(DebugDrawFireCommand, 0);
-
-	DeclareConstIntCVar(DebugDrawCommunication, 0);
-	DeclareConstIntCVar(DebugDrawCommunicationHistoryDepth, 5);
-	DeclareConstIntCVar(RecordCommunicationStats, 0);
-	DeclareConstIntCVar(CommunicationForceTestVoicePack, 0);
-	DeclareConstIntCVar(IgnorePlayer, 0);
-	DeclareConstIntCVar(IgnoreVisibilityChecks, 0);
-	DeclareConstIntCVar(BeautifyPath, 1);
-	DeclareConstIntCVar(PathStringPullingIterations, 5);
-	DeclareConstIntCVar(AttemptStraightPath, 1);
-	DeclareConstIntCVar(PredictivePathFollowing, 1);
-	DeclareConstIntCVar(DebugDrawCrowdControl, 0);
-	DeclareConstIntCVar(UpdateProxy, 1);
-	DeclareConstIntCVar(DrawType, -1);
-	DeclareConstIntCVar(AdjustPathsAroundDynamicObstacles, 1);
-	DeclareConstIntCVar(DrawFormations, 0);
-	DeclareConstIntCVar(DrawSmartObjects, 0);
-	DeclareConstIntCVar(DrawGoals, 0);
-	DeclareConstIntCVar(DrawTargets, 0);
-	DeclareConstIntCVar(DrawStats, 0);
-	DeclareConstIntCVar(DrawAttentionTargetsPosition, 0);
-
-	DeclareConstIntCVar(DebugDrawVegetationCollisionDist, 0);
-	DeclareConstIntCVar(RecordLog, 0);
-	DeclareConstIntCVar(DrawTrajectory, 0);
-	DeclareConstIntCVar(DrawRadar, 0);
-	DeclareConstIntCVar(DrawRadarDist, 20);
-	DeclareConstIntCVar(DebugRecordAuto, 0);
-	DeclareConstIntCVar(DebugRecordBuffer, 1024);
-	DeclareConstIntCVar(DrawGroupTactic, 0);
-	DeclareConstIntCVar(UpdateAllAlways, 0);
-	DeclareConstIntCVar(DrawDistanceLUT, 0);
-	DeclareConstIntCVar(DrawAreas, 0);
-	DeclareConstIntCVar(DrawProbableTarget, 0);
-	DeclareConstIntCVar(DebugDrawDamageParts, 0);
-	DeclareConstIntCVar(DebugDrawStanceSize, 0);
-	DeclareConstIntCVar(DebugDrawUpdate, 0);
-	DeclareConstIntCVar(DebugDrawEnabledActors, 0);
-	DeclareConstIntCVar(DebugDrawEnabledPlayers, 0);
-	DeclareConstIntCVar(DebugDrawLightLevel, 0);
-	DeclareConstIntCVar(DebugDrawPhysicsAccess, 0);
 	DeclareConstIntCVar(RayCasterQuota, 12);
+	DeclareConstIntCVar(NetworkDebug, 0);
 	DeclareConstIntCVar(IntersectionTesterQuota, 12);
-	DeclareConstIntCVar(AmbientFireEnable, 1);
-	DeclareConstIntCVar(DebugDrawAmbientFire, 0);
-	DeclareConstIntCVar(PlayerAffectedByLight, 1);
-	DeclareConstIntCVar(DebugDrawExpensiveAccessoryQuota, 0);
-	DeclareConstIntCVar(DebugTargetSilhouette, 0);
-	DeclareConstIntCVar(DebugDrawDamageControl, 0);
-	DeclareConstIntCVar(DrawFakeDamageInd, 0);
+	DeclareConstIntCVar(UpdateAllAlways, 0);
+	DeclareConstIntCVar(DebugDrawVegetationCollisionDist, 0);
 	DeclareConstIntCVar(DrawPlayerRanges, 0);
-	DeclareConstIntCVar(DrawPerceptionIndicators, 0);
-	DeclareConstIntCVar(DrawPerceptionDebugging, 0);
-	DeclareConstIntCVar(DrawPerceptionModifiers, 0);
-	DeclareConstIntCVar(DebugGlobalPerceptionScale, 0);
-	DeclareConstIntCVar(TargetTracking, 1);
-	DeclareConstIntCVar(TargetTracks_GlobalTargetLimit, 0);
-	DeclareConstIntCVar(TargetTracks_TargetDebugDraw, 0);
-	DeclareConstIntCVar(TargetTracks_ConfigDebugDraw, 0);
-
-	DeclareConstIntCVar(ForceStance, -1);
-	DeclareConstIntCVar(ForceAllowStrafing, -1);
-
-	DeclareConstIntCVar(DebugDrawAdaptiveUrgency, 0);
-	DeclareConstIntCVar(DebugDrawReinforcements, -1);
-	DeclareConstIntCVar(DebugDrawPlayerActions, 0);
-
 	DeclareConstIntCVar(WaterOcclusionEnable, 1);
-
-	DeclareConstIntCVar(IgnoreVisualStimulus, 0);
-	DeclareConstIntCVar(IgnoreSoundStimulus, 0);
-	DeclareConstIntCVar(IgnoreBulletRainStimulus, 0);
-
-	// Interest system
-	DeclareConstIntCVar(InterestSystem, 1);
-	DeclareConstIntCVar(DebugInterest, 0);
-	DeclareConstIntCVar(InterestSystemCastRays, 1);
-
-	// Path Follower
-	DeclareConstIntCVar(UseSmartPathFollower, 1);
-	DeclareConstIntCVar(SmartPathFollower_useAdvancedPathShortcutting, 1);
-	DeclareConstIntCVar(SmartPathFollower_useAdvancedPathShortcutting_debug, 0);
-
-	DeclareConstIntCVar(DrawPathFollower, 0);
-
-	DeclareConstIntCVar(MNMPathfinderMT, 1);
-	DeclareConstIntCVar(MNMPathfinderConcurrentRequests, 4);
-	DeclareConstIntCVar(MNMRaycastImplementation, 2);
-	DeclareConstIntCVar(MNMRemoveInaccessibleTrianglesOnLoad, 0);
-
+	DeclareConstIntCVar(Recorder, 0);
+	DeclareConstIntCVar(StatsDisplayMode, 0);
+	DeclareConstIntCVar(DebugDrawSignalsHistory, 0);
+	DeclareConstIntCVar(UpdateProxy, 1);
 	DeclareConstIntCVar(LogConsoleVerbosity, 0);
 	DeclareConstIntCVar(LogFileVerbosity, 0);
 	DeclareConstIntCVar(EnableWarningsErrors, 0);
+	DeclareConstIntCVar(IgnorePlayer, 0);
 
-	DeclareConstIntCVar(Recorder, 0);
-	DeclareConstIntCVar(StatsDisplayMode, 0);
+	int                              AiSystem;
+	float                            OverlayMessageDuration;
+	float                            AIUpdateInterval;
+	float                            SteepSlopeUpValue;
+	float                            SteepSlopeAcrossValue;
+	float                            WaterOcclusionScale;
+	float                            DebugDrawOffset;
 
-	DeclareConstIntCVar(VisionMapNumberOfPVSUpdatesPerFrame, 1);
-	DeclareConstIntCVar(VisionMapNumberOfVisibilityUpdatesPerFrame, 1);
+	SAIConsoleVarsNavigation         navigation;
+	SAIConsoleVarsMNMPathfinder      pathfinder;
+	SAIConsoleVarsPathFollower       pathFollower;
+	SAIConsoleVarsMovement           movement;
+	SAIConsoleVarsCollisionAvoidance collisionAvoidance;
+	SAIConsoleVarsVisionMap          visionMap;
+	SAIConsoleVarsBehaviorTree       behaviorTree;
 
-	DeclareConstIntCVar(DebugDrawVisionMap, 0);
-	DeclareConstIntCVar(DebugDrawVisionMapStats, 1);
-	DeclareConstIntCVar(DebugDrawVisionMapVisibilityChecks, 1);
-	DeclareConstIntCVar(DebugDrawVisionMapObservers, 1);
-	DeclareConstIntCVar(DebugDrawVisionMapObserversFOV, 0);
-	DeclareConstIntCVar(DebugDrawVisionMapObservables, 1);
+	// Legacy CVars
+	DeclareConstIntCVar(LegacyDebugPathFinding, 0);
+	DeclareConstIntCVar(LegacyDebugDrawBannedNavsos, 0);
+	DeclareConstIntCVar(LegacyCoverExactPositioning, 0);
+	DeclareConstIntCVar(LegacyIgnoreVisibilityChecks, 0);
+	DeclareConstIntCVar(LegacyRecordLog, 0);
+	DeclareConstIntCVar(LegacyDebugRecordAuto, 0);
+	DeclareConstIntCVar(LegacyDebugRecordBuffer, 1024);
+	DeclareConstIntCVar(LegacyDrawAreas, 0);
+	DeclareConstIntCVar(LegacyScriptBind, 1);
+	DeclareConstIntCVar(LegacyAdjustPathsAroundDynamicObstacles, 1);
+	DeclareConstIntCVar(LegacyOutputPersonalLogToConsole, 0);
+	DeclareConstIntCVar(LegacyPredictivePathFollowing, 1);
+	DeclareConstIntCVar(LegacyForceSerializeAllObjects, 0);
 
-	DeclareConstIntCVar(DrawFireEffectEnabled, 1);
+	int                                     LegacyLogSignals;
+	const char*                             LegacyCompatibilityMode;
+	const char*                             LegacyDrawLocate;
 
-	DeclareConstIntCVar(AllowedToHitPlayer, 1);
-	DeclareConstIntCVar(AllowedToHit, 1);
-	DeclareConstIntCVar(EnableCoolMisses, 1);
-
-	DeclareConstIntCVar(ForceSerializeAllObjects, 0);
-
-	DeclareConstIntCVar(EnableORCA, 1);
-	DeclareConstIntCVar(CollisionAvoidanceUpdateVelocities, 1);
-	DeclareConstIntCVar(CollisionAvoidanceEnableRadiusIncrement, 1);
-	DeclareConstIntCVar(CollisionAvoidanceClampVelocitiesWithNavigationMesh, 0);
-	DeclareConstIntCVar(DebugDrawCollisionAvoidance, 0);
-
-	DeclareConstIntCVar(BubblesSystemAlertnessFilter, 7);
-	DeclareConstIntCVar(BubblesSystemUseDepthTest, 0);
-	DeclareConstIntCVar(BubblesSystemAllowPrototypeDialogBubbles, 0);
-
-	DeclareConstIntCVar(PathfinderDangerCostForAttentionTarget, 5);
-	DeclareConstIntCVar(PathfinderDangerCostForExplosives, 2);
-	DeclareConstIntCVar(PathfinderAvoidanceCostForGroupMates, 2);
-	float PathfinderExplosiveDangerRadius;
-	float PathfinderExplosiveDangerMaxThreatDistance;
-	float PathfinderGroupMatesAvoidanceRadius;
-
-	DeclareConstIntCVar(DebugMovementSystem, 0);
-	DeclareConstIntCVar(DebugMovementSystemActorRequests, 0);
-	DeclareConstIntCVar(OutputPersonalLogToConsole, 0);
-	DeclareConstIntCVar(DrawModularBehaviorTreeStatistics, 0);
-	DeclareConstIntCVar(LogModularBehaviorTreeExecutionStacks, 0);
-
-	DeclareConstIntCVar(MNMPathfinderPositionInTrianglePredictionType, 1);
-
-	int         MovementSystemPathReplanningEnabled;
-
-	const char* DrawPath;
-	const char* DrawPathAdjustment;
-
-	float       TacticalPointUpdateTime;
-	const char* CompatibilityMode;
-	float       AllowedTimeForPathfinding;
-	float       DrawAgentFOV;
-	const char* FilterAgentName;
-	float       AgentStatsDist;
-	int         AiSystem;
-	float       DebugDrawArrowLabelsVisibilityDistance;
-
-	float       CoverPredictTarget;
-	float       CoverSpacing;
-
-	const char* StatsTarget;
-	float       AIUpdateInterval;
-
-	float       CollisionAvoidanceAgentExtraFat;
-	float       CollisionAvoidanceRadiusIncrementIncreaseRate;
-	float       CollisionAvoidanceRadiusIncrementDecreaseRate;
-	float       CollisionAvoidanceRange;
-	float       CollisionAvoidanceTargetCutoffRange;
-	float       CollisionAvoidancePathEndCutoffRange;
-	float       CollisionAvoidanceSmartObjectCutoffRange;
-	float       CollisionAvoidanceTimeStep;
-	float       CollisionAvoidanceMinSpeed;
-	float       CollisionAvoidanceAgentTimeHorizon;
-	float       CollisionAvoidanceObstacleTimeHorizon;
-	float       DebugCollisionAvoidanceForceSpeed;
-	const char* DebugDrawCollisionAvoidanceAgentName;
-
-	const char* DrawRefPoints;
-	const char* DrawLocate;
-	float       DebugDrawOffset;
-	float       SteepSlopeUpValue;
-	float       SteepSlopeAcrossValue;
-	float       ExtraRadiusDuringBeautification;
-	float       ExtraForbiddenRadiusDuringBeautification;
-	const char* DrawShooting;
-	const char* DrawAgentStats;
-
-	float       SightRangeSuperDarkIllumMod;
-	float       SightRangeDarkIllumMod;
-	float       SightRangeMediumIllumMod;
-
-	float       RODAliveTime;
-	float       RODMoveInc;
-	float       RODStanceInc;
-	float       RODDirInc;
-	float       RODAmbientFireInc;
-	float       RODKillZoneInc;
-	float       RODFakeHitChance;
-
-	float       RODKillRangeMod;
-	float       RODCombatRangeMod;
-
-	float       RODReactionTime;
-	float       RODReactionSuperDarkIllumInc;
-	float       RODReactionDarkIllumInc;
-	float       RODReactionMediumIllumInc;
-	float       RODReactionDistInc;
-	float       RODReactionDirInc;
-	float       RODReactionLeanInc;
-
-	float       RODLowHealthMercyTime;
-
-	float       RODCoverFireTimeMod;
-
-	int         AmbientFireQuota;
-	float       AmbientFireUpdateInterval;
-
-	const char* DrawPerceptionHandlerModifiers;
-	const char* TargetTracks_AgentDebugDraw;
-	const char* TargetTracks_ConfigDebugFilter;
-	const char* DrawAgentStatsGroupFilter;
-
-	int         DrawSelectedTargets;
-
-	const char* ForceAGAction;
-	const char* ForceAGSignal;
-	const char* ForcePosture;
-	const char* ForceLookAimTarget;
-
-	float       BannedNavSoTime;
-	float       WaterOcclusionScale;
-
-	float       MinActorDynamicObstacleAvoidanceRadius;
-	float       ExtraVehicleAvoidanceRadiusBig;
-	float       ExtraVehicleAvoidanceRadiusSmall;
-	float       ObstacleSizeThreshold;
-
-	int         MNMDebugAccessibility;
-	int         MNMDebugDrawTileStates;
-	const char* MNMDebugDrawFlag;
-
-	int         MNMEditorBackgroundUpdate;
-
-	float       MNMPathFinderQuota;
-	int         MNMPathFinderDebug;
-
-	int         MNMProfileMemory;
-
-	int         MNMAllowDynamicRegenInEditor;
-
-	int         EnableBubblesSystem;
-	float       BubblesSystemFontSize;
-	float       BubblesSystemDecayTime;
-	const char* BubblesSystemNameFilter;
-
-	float       OverlayMessageDuration;
-	float       DrawFireEffectDecayRange;
-	float       DrawFireEffectMinDistance;
-	float       DrawFireEffectMinTargetFOV;
-	float       DrawFireEffectMaxAngle;
-	float       DrawFireEffectTimeScale;
-
-	float       CoolMissesBoxSize;
-	float       CoolMissesBoxHeight;
-	float       CoolMissesMinMissDistance;
-	float       CoolMissesMaxLightweightEntityMass;
-	float       CoolMissesProbability;
-	float       CoolMissesCooldown;
-
-	float       SmartPathFollower_LookAheadDistance;
-	float       SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathWalk;
-	float       SmartPathFollower_LookAheadPredictionTimeForMovingAlongPathRunAndSprint;
-	float       SmartPathFollower_decelerationHuman;
-	float       SmartPathFollower_decelerationVehicle;
-
-	float       LobThrowMinAllowedDistanceFromFriends;
-	float       LobThrowTimePredictionForFriendPositions;
-	float       LobThrowPercentageOfDistanceToTargetUsedForInaccuracySimulation;
-	DeclareConstIntCVar(LobThrowSimulateRandomInaccuracy, 0);
-
-	int         LogSignals;
-
-	// Modular Behavior Tree
-	int         ModularBehaviorTree;
-	int         ModularBehaviorTreeDebug;
-	int         ModularBehaviorTreeDebugTree;
-	int         ModularBehaviorTreeDebugVariables;
-	int         ModularBehaviorTreeDebugTimestamps;
-	int         ModularBehaviorTreeDebugEvents;
-	int         ModularBehaviorTreeDebugLog;
-	int         ModularBehaviorTreeDebugBlackboard;
-
-
-	float       CommunicationManagerHeightThresholdForTargetPosition;
-
-	static void CommTest(IConsoleCmdArgs* args);
-	static void CommTestStop(IConsoleCmdArgs* args);
-	static void CommWriteStats(IConsoleCmdArgs* args);
-	static void CommResetStats(IConsoleCmdArgs* args);
-	static void DebugMNMAgentType(IConsoleCmdArgs* args);
-	static void MNMCalculateAccessibility(IConsoleCmdArgs* args); // TODO: Remove when the seeds work
-	static void MNMComputeConnectedIslands(IConsoleCmdArgs* args);
-	static void NavigationReloadConfig(IConsoleCmdArgs* args);
-	static void DebugAgent(IConsoleCmdArgs* args);
-	static void AIBubblesNameFilterCallback(ICVar* pCvar);
+	SAIConsoleVarsLegacyCoverSystem         legacyCoverSystem;
+	SAIConsoleVarsLegacyBubblesSystem       legacyBubblesSystem;
+	SAIConsoleVarsLegacySmartObjects        legacySmartObjects;
+	SAIConsoleVarsLegacyTacticalPointSystem legacyTacticalPointSystem;
+	SAIConsoleVarsLegacyCommunicationSystem legacyCommunicationSystem;
+	SAIConsoleVarsLegacyPathObstacles       legacyPathObstacles;
+	SAIConsoleVarsLegacyDebugDraw           legacyDebugDraw;
+	SAIConsoleVarsLegacyGroupSystem         legacyGroupSystem;
+	SAIConsoleVarsLegacyFormation           legacyFormationSystem;
+	SAIConsoleVarsLegacyPerception          legacyPerception;
+	SAIConsoleVarsLegacyTargetTracking      legacyTargetTracking;
+	SAIConsoleVarsLegacyInterestSystem      legacyInterestSystem;
+	SAIConsoleVarsLegacyFiring              legacyFiring;
+	SAIConsoleVarsLegacyPuppet              legacyPuppet;
+	SAIConsoleVarsLegacyPuppetROD           legacyPuppetRod;
+	// ~Legacy CVars
 };
-
-#endif

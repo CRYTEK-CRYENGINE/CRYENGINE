@@ -249,7 +249,9 @@ private:
 	float             m_frameDeltaTime;
 };
 
-namespace MNMUtils
+namespace MNM
+{
+namespace Utils
 {
 // Helper functions to read/write various navigationId types from file without creating intermediate uint32.
 // These functions are currently used only in NavigationUpdatesManager and NavigationSystem. They should be moved to separate file when they were needed somewhere else too.
@@ -269,4 +271,5 @@ void WriteNavigationIdType(CCryFile& file, const TId& id)
 	const uint32 uid = id;
 	file.WriteType<uint32>(&uid);
 }
-} // namespace MNMUtils
+} // namespace Utils
+} // namespace MNM

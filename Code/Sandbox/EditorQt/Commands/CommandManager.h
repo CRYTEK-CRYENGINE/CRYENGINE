@@ -35,7 +35,8 @@ public:
 	virtual CCommand*                GetCommand(const char* cmdFullName) const override;
 	virtual void                     SetChecked(const char* cmdFullName, bool checked) override;
 	virtual QAction*                 GetAction(const char* cmdFullName, const char* text = nullptr) const override;
-	virtual QAction*                 CreateNewAction(const char* cmdFullName) const override;
+	virtual QCommandAction*          CreateNewAction(const char* cmdFullName) const override;
+	virtual QCommandAction*          GetCommandAction(const char* command, const char* text = nullptr) const override;
 
 	void                             SetEditorUIActionsEnabled(bool bEnabled);
 
@@ -57,7 +58,6 @@ public:
 	void            RemoveCustomCommand(CCustomCommand* pCommand);
 	void            RemoveAllCustomCommands();
 	void            GetCustomCommandList(std::vector<CCommand*>& cmds) const;
-	QCommandAction* GetCommandAction(string command, const char* text = nullptr) const;
 
 protected:
 	struct SCommandTableEntry

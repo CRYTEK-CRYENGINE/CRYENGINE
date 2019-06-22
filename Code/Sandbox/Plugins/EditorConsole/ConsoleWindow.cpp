@@ -5,6 +5,7 @@
 #include "ConsolePlugin.h"
 #include "TabLineEdit.h"
 
+#include <Commands/QCommandAction.h>
 #include <EditorFramework/Events.h>
 #include <EditorStyleHelper.h>
 #include <FileDialogs/SystemFileDialog.h>
@@ -36,6 +37,7 @@ CConsoleWindow::CConsoleWindow(QWidget* pParent /*= nullptr*/)
 {
 	//set up UI
 	SetupUI();
+	RegisterActions();
 
 	//attach event handlers
 	connect(m_pInput, &QLineEdit::textEdited, this, &CConsoleWindow::HandleInput);
@@ -58,8 +60,19 @@ CConsoleWindow::CConsoleWindow(QWidget* pParent /*= nullptr*/)
 	m_searchWidget->hide();
 
 	m_searchBackwards = false;
+}
+
+void CConsoleWindow::Initialize()
+{
+	CDockableEditor::Initialize();
 
 	InitMenu();
+}
+
+void CConsoleWindow::RegisterActions()
+{
+	RegisterAction("general.save", &CConsoleWindow::OnSave);
+	RegisterAction("general.clear", &CConsoleWindow::ClearConsole);
 }
 
 void CConsoleWindow::InitMenu()
@@ -71,7 +84,7 @@ void CConsoleWindow::InitMenu()
 	AddToMenu(&items[0], CRY_ARRAY_COUNT(items));
 
 	auto pEditMenu = GetMenu(MenuItems::EditMenu);
-	pEditMenu->AddAction(GetAction("general.consoleClearLog"), -1, -1);
+	pEditMenu->AddCommandAction(GetAction("general.clear"), -1, -1);
 
 	const CEditor::MenuItems items2[] = {
 		CEditor::MenuItems::Find,
@@ -168,8 +181,6 @@ void CConsoleWindow::SetupUI()
 {
 	QWidget* m_pCentralWidget = new QWidget();
 
-	setObjectName(QStringLiteral("ConsoleWindow"));
-	resize(551, 386);
 	m_pCentralWidget->setObjectName(QStringLiteral("m_pCentralWidget"));
 	QVBoxLayout* verticalLayout = new QVBoxLayout(m_pCentralWidget);
 	verticalLayout->setSpacing(2);
@@ -246,10 +257,7 @@ void CConsoleWindow::SetupUI()
 
 	verticalLayout->addWidget(m_pInput, Qt::AlignBottom);
 
-	setLayout(verticalLayout);
-
-	layout()->addWidget(m_pCentralWidget);
-
+	SetContent(verticalLayout);
 } // setupUi
 
 //handle new incoming log lines
@@ -604,18 +612,6 @@ bool CConsoleWindow::event(QEvent* pEvent)
 		}
 	}
 
-	if (pEvent->type() == SandboxEvent::Command)
-	{
-		CommandEvent* commandEvent = static_cast<CommandEvent*>(pEvent);
-
-		const string& command = commandEvent->GetCommand();
-		if (command == "general.consoleClearLog")
-		{
-			pEvent->setAccepted(ClearConsole());
-			return true;
-		}
-	}
-
 	return CDockableEditor::event(pEvent);
 }
 
@@ -768,20 +764,7 @@ bool CConsoleWindow::eventFilter(QObject* o, QEvent* ev)
 void CConsoleWindow::HandleContextMenu(const QPoint& pt)
 {
 	QMenu* menu = m_pHistory->createStandardContextMenu();
-	menu->insertAction(menu->actions()[0], GetIEditor()->GetICommandManager()->GetAction("general.consoleClearLog"));
+	menu->insertAction(menu->actions()[0], GetAction("general.clear"));
 	menu->exec(m_pHistory->mapToGlobal(pt));
 	delete menu;
 }
-
-namespace
-{
-namespace Private_EditorConsoleCommands
-{
-void PyConsoleClearLog()
-{
-	CommandEvent("general.consoleClearLog").SendToKeyboardFocus();
-}
-}
-}
-
-REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(Private_EditorConsoleCommands::PyConsoleClearLog, general, consoleClearLog, "Clear", "general.consoleClearLog()");

@@ -101,9 +101,7 @@ extern void SliceAndSleep(const char* pFunc, int line);
 	#define USE_HTTP_WEBSOCKETS 0
 #endif
 
-#if (CRY_PLATFORM_WINDOWS || CRY_PLATFORM_ORBIS || CRY_PLATFORM_DURANGO) && \
-	!defined(RESOURCE_COMPILER) &&											\
-	!defined(NOT_USE_CRY_MEMORY_MANAGER)
+#if !defined(RELEASE) && !defined(RESOURCE_COMPILER) && !defined(NOT_USE_CRY_MEMORY_MANAGER)
 	#define CAPTURE_REPLAY_LOG 1
 #endif
 
@@ -134,43 +132,23 @@ extern void SliceAndSleep(const char* pFunc, int line);
 #endif
 
 #if !defined(_RELEASE)
-	#define USE_FRAME_PROFILER // comment this define to remove most profiler related code in the engine
 	#define CRY_TRACE_HEAP
 #endif
 
 //---------------------------------------------------------------------
 // Profiling
 //---------------------------------------------------------------------
-#if !defined(_RELEASE) || defined(PERFORMANCE_BUILD)
+#ifdef ENABLE_PROFILING_CODE
 // Define here if you want to enable any external profiling tools
-	#if defined(PERFORMANCE_BUILD)
-		#if defined(USE_FRAME_PROFILER)
-			#define ALLOW_FRAME_PROFILER 0 // currently not support in performance
-		#else
-			#define ALLOW_FRAME_PROFILER 0 // do not change this value
-		#endif
-		#if defined(USE_BROFILER) && CRY_PLATFORM_WINDOWS
-			#define ALLOW_BROFILER        1 // decide if you want to enable Brofiler
-		#else
-			#define ALLOW_BROFILER        0 // do not change this value
-		#endif
-		#define ALLOW_PLATFORM_PROFILER 1 // decide if you want to enable PIX/Razor/GPA
-		#define ALLOW_DEEP_PROFILING    1 // show more than just Regions
-	#else
-		#if defined(USE_FRAME_PROFILER)
-			#define ALLOW_FRAME_PROFILER 1 // decide if you want to enable internal profiler
-		#else
-			#define ALLOW_FRAME_PROFILER 0 // do not change this value
-		#endif
-		#if defined(USE_BROFILER) && CRY_PLATFORM_WINDOWS
-			#define ALLOW_BROFILER        1 // decide if you want to enable Brofiler
-		#else
-			#define ALLOW_BROFILER        0 // do not change this value
-		#endif
-		#define ALLOW_PLATFORM_PROFILER 1 // decide if you want to enable PIX/Razor/GPA
-		#define ALLOW_DEEP_PROFILING    1 // show more than just Regions
-	#endif
-
+#	if defined(USE_BROFILER) && CRY_PLATFORM_WINDOWS
+#		define ALLOW_BROFILER 1
+#	else
+#		define ALLOW_BROFILER 0
+#	endif
+#	define ALLOW_PLATFORM_PROFILER 1 // decide if you want to enable PIX/Razor/GPA
+#else
+#	define ALLOW_BROFILER 0
+#	define ALLOW_PLATFORM_PROFILER 0
 #endif
 //---------------------------------------------------------------------
 

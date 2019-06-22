@@ -133,6 +133,9 @@ public:
 	virtual std::vector<CItemModelAttribute*> GetDetails() const                                                             { return std::vector<CItemModelAttribute*>(); }
 	virtual QVariant                          GetDetailValue(const CAsset* pAsset, const CItemModelAttribute* pDetail) const { return QVariant(); }
 
+	//! Returns true if the asset's data files are derived and therefore are located in the cache folder (like *.dds).
+	virtual bool HasDerivedFiles() const { return false; }
+
 	//! Returns true if the asset may have a thumbnail
 	virtual bool HasThumbnail() const { return false; }
 
@@ -185,21 +188,17 @@ public:
 	// Returns a collection of paths to all files belonging to the asset.
 	// The collection includes the asset metadata, thumbnail and data files. As an option, the collection can also include the asset source file.
 	//! \param asset An instance of asset to be examined.
-	//! \param includeSourceFile If true, the collection will include the asset source file, if any.
+	//! \param includeSourceFile If true, the collection will include the asset's source file, if any.
 	//! \param makeAbsolute By default the paths are relative to the assets root directory.
-	virtual std::vector<string> GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute = false, bool includeThumbnail = true) const;
+	//! \param includeThumbnail If true, the collection will include the asset's thumbnail file, if any.
+	//! \param includeDerived If true, the collection will include the asset's derived files, if any.
+	virtual std::vector<string> GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute = false, bool includeThumbnail = true, bool includeDerived = false) const;
 
 	//! Returns the color code of the thumbnail.
 	virtual QColor GetThumbnailColor() const { return QColor(Qt::green); }
 
 	//! Makes cryasset filename from asset name.
 	string MakeMetadataFilename(const char* szAssetName) const;
-
-	//! Returns an instance of instant editor or nullptr if there is no active instance.
-	CAssetEditor* GetInstantEditor() const { return m_pInstantEditor; }
-
-	//! Assign the editor as the instant editor.
-	void SetInstantEditor(CAssetEditor* pEditor);
 
 	//! Returns true if the asset type supports automatic generation and repairing missing or broken *.cryasset file. 
 	//! The default implementation returns true.
@@ -247,7 +246,6 @@ private:
 
 private:
 	CryIcon       m_icon;
-	CAssetEditor* m_pInstantEditor = nullptr;
 };
 
 //Helper macro for declaring IClassDesc.

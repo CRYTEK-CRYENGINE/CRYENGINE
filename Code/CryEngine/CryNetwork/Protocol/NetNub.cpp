@@ -1862,7 +1862,7 @@ void CNetNub::ProcessKeyExchange1(const TNetAddress& from, const uint8* pData, u
 		return;
 	}
 
-	std::unique_ptr<uint8> pConnectionStringBuf(new uint8[connectionStringBufSize]);
+	std::unique_ptr<uint8[]> pConnectionStringBuf(new uint8[connectionStringBufSize]);
 	::memcpy(pConnectionStringBuf.get(), pCur, connectionStringBufSize);
 	pCur += connectionStringBufSize;
 	NET_ASSERT((pCur - pData) == messageSize);

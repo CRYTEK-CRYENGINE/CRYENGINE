@@ -29,6 +29,8 @@ public:
 	virtual void           OnAreaChange(IVariable* pVariable) = 0;
 	virtual void           OnSizeChange(IVariable* pVariable) = 0;
 
+	virtual void           ClearArea() = 0;
+
 protected:
 
 	CAreaObjectBase();
@@ -118,6 +120,7 @@ protected:
 	virtual void OnSizeChange(IVariable* pVariable) override;
 	void         OnSoundParamsChange(IVariable* pVar);
 	void         OnPointChange(IVariable* var);
+	void         ClearArea() override final;
 
 	CVariable<float> m_innerFadeDistance;
 	CVariable<int>   m_areaId;

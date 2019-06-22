@@ -30,6 +30,8 @@ uint32 CAttachmentVCLOTH::Immediate_AddBinding(IAttachmentObject* pIAttachmentOb
 	if (pISkinRender == 0)
 		CryFatalError("CryAnimation: if you create the binding for a Skin-Attachment, then you have to pass the pointer to an ISkin as well");
 
+	assert(pIAttachmentObject->GetAttachmentType() == IAttachmentObject::eAttachment_SkinMesh);
+
 	uint32 nLogWarnings = (nLoadingFlags&CA_DisableLogWarnings) == 0;
 	CSkin* pCSkinRenderModel = (CSkin*)pISkinRender;
 
@@ -107,6 +109,9 @@ uint32 CAttachmentVCLOTH::Immediate_AddBinding(IAttachmentObject* pIAttachmentOb
 
 	SAFE_RELEASE(m_pIAttachmentObject);
 	m_pIAttachmentObject = pIAttachmentObject;
+
+	static_cast<CSKINAttachment*>(m_pIAttachmentObject)->m_pIAttachmentSkin = this;
+
 	return 1;
 }
 
@@ -181,6 +186,7 @@ void CAttachmentVCLOTH::Immediate_ClearBinding(uint32 nLoadingFlags)
 {
 	if (m_pIAttachmentObject)
 	{
+		assert(static_cast<CSKINAttachment*>(m_pIAttachmentObject)->m_pIAttachmentSkin == this);
 		m_pIAttachmentObject->Release();
 		m_pIAttachmentObject = 0;
 
@@ -496,8 +502,6 @@ _smart_ptr<IRenderMesh> CAttachmentVCLOTH::CreateVertexAnimationRenderMesh(uint 
 		, m_sSoftwareMeshName.c_str()
 		, eRMT_Transient);
 
-	m_pRenderMeshsSW[id]->SetMeshLod(lod);
-
 	TRenderChunkArray& chunks = pIStaticRenderMesh->GetChunks();
 	TRenderChunkArray  nchunks;
 	nchunks.resize(chunks.size());
@@ -533,7 +537,7 @@ void CAttachmentVCLOTH::RenderAttachment(SRendParams& RendParams, const SRenderi
 
 	DEFINE_PROFILER_FUNCTION();
 
-	bool bNeedSWskinning = (m_pAttachmentManager->m_pSkelInstance->m_CharEditMode&CA_CharacterTool); // in character tool always use software skinning
+	bool bNeedSWskinning = (m_pAttachmentManager->m_pSkelInstance->m_CharEditMode&CA_CharacterAuxEditor); // in character tool always use software skinning
 	if (!bNeedSWskinning)
 	{
 		m_clothPiece.GetSimulator().HandleCameraDistance();
@@ -614,7 +618,7 @@ void CAttachmentVCLOTH::RenderAttachment(SRendParams& RendParams, const SRenderi
 
 	pObj->m_fAlpha = RendParams.fAlpha;
 	pObj->m_fDistance = RendParams.fDistance;
-	pObj->SetAmbientColor(RendParams.AmbientColor, passInfo);
+	pObj->SetAmbientColor(RendParams.AmbientColor);
 
 	uLocalObjFlags |= RendParams.dwFObjFlags;
 
@@ -636,7 +640,7 @@ void CAttachmentVCLOTH::RenderAttachment(SRendParams& RendParams, const SRenderi
 
 	assert(RendParams.pMatrix);
 	Matrix34 RenderMat34 = (*RendParams.pMatrix);
-	pObj->SetMatrix(RenderMat34, passInfo);
+	pObj->SetMatrix(RenderMat34);
 	pObj->m_nClipVolumeStencilRef = RendParams.nClipVolumeStencilRef;
 	pObj->m_nTextureID = RendParams.nTextureID;
 
@@ -836,7 +840,7 @@ void CAttachmentVCLOTH::RenderAttachment(SRendParams& RendParams, const SRenderi
 				}
 			}
 
-			if ((Console::GetInst().ca_DebugSWSkinning > 0) || (pMaster->m_CharEditMode & CA_CharacterTool))
+			if ((Console::GetInst().ca_DebugSWSkinning > 0) || (pMaster->m_CharEditMode & CA_CharacterAuxEditor))
 			{
 				m_vertexAnimation.DrawVertexDebug(pRenderMesh, QuatT(RenderMat34), pVertexAnimation);
 			}
@@ -1558,7 +1562,7 @@ void CClothSimulator::UpdateCollidablesLerp(f32 t01)
 
 void CClothSimulator::PositionsProjectToProxySurface(f32 t01)
 {
-	CRY_PROFILE_REGION(PROFILE_ANIMATION, "CClothSimulator::PositionsProjectToProxySurface");
+	CRY_PROFILE_SECTION(PROFILE_ANIMATION, "CClothSimulator::PositionsProjectToProxySurface");
 
 	std::vector<SCollidable>& collidables = m_permCollidables;
 	int colliderId[2];     // special handling for collision with two colliders at the same time, thus store id
@@ -2032,7 +2036,7 @@ int CClothSimulator::Step()
 		const f32 springDamping = m_config.springDamping;
 		if (springDamping)
 		{
-			CRY_PROFILE_REGION(PROFILE_ANIMATION, "CClothSimulator::Step::Damping");
+			CRY_PROFILE_SECTION(PROFILE_ANIMATION, "CClothSimulator::Step::Damping");
 			for (int i = 0; i < m_nEdges; i++)
 			{
 				DampEdge(m_links[i], springDamping);
@@ -2067,7 +2071,7 @@ int CClothSimulator::Step()
 		float bendStiffness = m_config.bendStiffness;
 		float bendStiffnessByTrianglesAngle = -m_config.bendStiffnessByTrianglesAngle / 10.0f;
 
-		CRY_PROFILE_REGION(PROFILE_ANIMATION, "CClothSimulator::Step::ConstraintsAndCollisions");
+		CRY_PROFILE_SECTION(PROFILE_ANIMATION, "CClothSimulator::Step::ConstraintsAndCollisions");
 
 		// interpolate transformation of collisionProxies
 		UpdateCollidablesLerp(stepTime01);
@@ -2080,7 +2084,7 @@ int CClothSimulator::Step()
 
 			// solve springs - stretching, bending & shearing
 			{
-				CRY_PROFILE_REGION(PROFILE_ANIMATION, "CClothSimulator::Step::SolveEdges");
+				CRY_PROFILE_SECTION(PROFILE_ANIMATION, "CClothSimulator::Step::SolveEdges");
 				if (stretchStiffness)
 				{
 					for (int i = 0; i < m_nEdges; i++)
@@ -2107,7 +2111,7 @@ int CClothSimulator::Step()
 
 			if (m_config.springDampingPerSubstep && springDamping)
 			{
-				CRY_PROFILE_REGION(PROFILE_ANIMATION, "CClothSimulator::Step::DampEdges");
+				CRY_PROFILE_SECTION(PROFILE_ANIMATION, "CClothSimulator::Step::DampEdges");
 				// only damp  stretch links here, in the collision/stiffness loop
 				for (int i = 0; i < m_nEdges; i++)
 				{
@@ -2759,9 +2763,9 @@ void CClothPiece::WaitForJob(bool bPrev)
 	int nList = nFrameID % 3;
 	if (m_pVClothAttachment->m_arrSkinningRendererData[nList].nFrameID == nFrameID && m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData)
 	{
-		if (m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncDataJobs)
+		if (m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncJobs)
 		{
-			gEnv->pJobManager->WaitForJob(*m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncDataJobs);
+			gEnv->pJobManager->WaitForJob(*m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncJobs);
 		}
 	}
 }
@@ -2922,7 +2926,7 @@ void CClothPiece::UpdateSimulation(const DualQuat* pTransformations, const uint 
 		dt = dt ? dt : g_AverageFrameTime;
 
 		// don't handle camera distance in character tool
-		if (!(m_pCharInstance->m_CharEditMode & CA_CharacterTool))
+		if (!(m_pCharInstance->m_CharEditMode & CA_CharacterAuxEditor))
 		{
 			m_simulator.HandleCameraDistance();
 		}

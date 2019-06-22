@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 
-#include "QPropertyTree/ContextList.h"
+#include "QPropertyTreeLegacy/ContextList.h"
 #include "AnimationList.h"
 #include "AnimationTagList.h"
 #include "CharacterDocument.h"

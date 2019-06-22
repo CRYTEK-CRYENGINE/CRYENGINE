@@ -357,7 +357,7 @@ void CEnvironementProbeObject::Display(CObjectRenderHelper& objRenderHelper)
 		rp.pMatrix = &tm;
 		rp.pMaterial = m_pHelperMesh->GetMaterial();
 
-		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(gEnv->p3DEngine->GetRenderingCamera(), SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextKey());
+		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(objRenderHelper.GetPassInfo().GetGraphicsPipelineKey(), gEnv->p3DEngine->GetRenderingCamera(), SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextKey());
 		m_pHelperMesh->Render(rp, passInfo);
 	}
 }

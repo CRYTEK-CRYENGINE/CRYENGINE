@@ -19,6 +19,7 @@
 #include "GameCVars.h"
 #include "GameRules.h"
 #include "Agent.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 //////////////////////////////////////////////////////////////////////////
 void RecordAIComment(EntityId entityId, const char* szComment, ...)

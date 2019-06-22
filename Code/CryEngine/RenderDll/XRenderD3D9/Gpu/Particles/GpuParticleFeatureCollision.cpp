@@ -21,7 +21,7 @@ void CFeatureCollision::Update(const gpu_pfx2::SUpdateContext& context, CDeviceC
 
 	m_parameters.CopyToDevice();
 
-	CTexture* zTarget = CRendererResources::s_ptexLinearDepth;
+	CTexture* zTarget = context.pRenderView->GetGraphicsPipeline()->GetPipelineResources().m_pTexLinearDepth;
 	pRuntime->SetUpdateTexture(eFeatureUpdateSrvSlot_depthBuffer, zTarget);
 	pRuntime->SetUpdateConstantBuffer(eConstantBufferSlot_Collisions, m_parameters.GetDeviceConstantBuffer());
 	pRuntime->SetUpdateFlags(EFeatureUpdateFlags_Collision_ScreenSpace);

@@ -24,7 +24,8 @@
 #include <EditorFramework/BroadcastManager.h>
 #include <EditorFramework/Events.h>
 #include <EditorFramework/PersonalizationManager.h>
-#include <EditorFramework/ToolBarCustomizeDialog.h>
+#include <EditorFramework/ToolBar/ToolBarCustomizeDialog.h>
+#include <EditorFramework/WidgetsGlobalActionRegistry.h>
 #include <Menu/MenuWidgetBuilders.h>
 #include <Preferences/GeneralPreferences.h>
 #include <QTrackingTooltip.h>
@@ -67,11 +68,12 @@ REGISTER_PREFERENCES_PAGE_PTR(SPerformancePreferences, &gPerformancePreferences)
 
 //////////////////////////////////////////////////////////////////////////
 
-CEditorMainFrame* CEditorMainFrame::m_pInstance = nullptr;
+CEditorMainFrame * CEditorMainFrame::m_pInstance = nullptr;
 
 namespace
 {
-CTabPaneManager* s_pToolTabManager = nullptr;
+CTabPaneManager*              s_pToolTabManager = nullptr;
+CWidgetsGlobalActionRegistry* s_pWidgetGlobalActionRegistry = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -148,6 +150,8 @@ public:
 	QWidget*  centralwidget;
 	QMenuBar* menubar;
 	CMenu*    menuFile;
+	CMenu*    menuFileNew;
+	CMenu*    menuFileOpen;
 	QMenu*    menuRecent_Files;
 	CMenu*    menuEdit;
 	CMenu*    menuEditing_Mode;
@@ -336,8 +340,21 @@ public:
 		menubar->addAction(menuTools->menuAction());
 		menubar->addAction(menuLayout->menuAction());
 		menubar->addAction(menuHelp->menuAction());
-		menuFile->AddCommand("general.new");
-		menuFile->AddCommand("general.open");
+
+		menuFileNew = new CMenu(menuFile);
+		menuFileNew->AddCommand("project.new");
+		QCommandAction* pCommandAciton = GetIEditor()->GetICommandManager()->CreateNewAction("general.new");
+		pCommandAciton->setText("Level...");
+		menuFileNew->addAction(pCommandAciton);
+		menuFile->addAction(menuFileNew->menuAction());
+
+		menuFileOpen = new CMenu(menuFile);
+		menuFileOpen->AddCommand("project.open");
+		pCommandAciton = GetIEditor()->GetICommandManager()->CreateNewAction("general.open");
+		pCommandAciton->setText("Level...");
+		menuFileOpen->addAction(pCommandAciton);
+		menuFile->addAction(menuFileOpen->menuAction());
+
 		menuFile->AddCommand("general.save");
 		menuFile->AddCommand("general.save_as");
 		menuFile->addSeparator();
@@ -354,6 +371,7 @@ public:
 		menuEdit->AddCommand("general.redo");
 		menuEdit->addSeparator();
 		menuEdit->AddCommand("general.delete");
+		menuEdit->AddCommand("general.rename");
 		menuEdit->AddCommand("general.duplicate");
 		menuEdit->AddCommand("general.copy");
 		menuEdit->AddCommand("general.cut");
@@ -405,14 +423,14 @@ public:
 			//Intentionally using new menu syntax instead of mimicking generated code
 			CAbstractMenu builder;
 
-			builder.AddCommandAction("layer.hide_all");
-			builder.AddCommandAction("layer.show_all");
+			builder.CreateCommandAction("layer.hide_all");
+			builder.CreateCommandAction("layer.unhide_all");
 
 			const int sec = builder.GetNextEmptySection();
 
-			builder.AddCommandAction("layer.make_all_uneditable", sec);
-			builder.AddCommandAction("layer.make_all_editable", sec);
-			builder.AddCommandAction("layer.make_read_only_layers_uneditable", sec);
+			builder.CreateCommandAction("layer.lock_all", sec);
+			builder.CreateCommandAction("layer.unlock_all", sec);
+			builder.CreateCommandAction("layer.lock_read_only_layers", sec);
 
 			QMenu* menuLayers = menuLevel->addMenu(QObject::tr("Layers"));
 			builder.Build(MenuWidgetBuilders::CMenuBuilder(menuLayers));
@@ -467,8 +485,8 @@ public:
 		menuSelection->AddCommand("selection.hide_objects");
 		menuSelection->AddCommand("object.show_all");
 		menuSelection->addSeparator();
-		menuSelection->AddCommand("selection.make_objects_uneditable");
-		menuSelection->AddCommand("object.make_all_editable");
+		menuSelection->AddCommand("selection.lock_objects");
+		menuSelection->AddCommand("object.unlock_all");
 		menuMaterial->AddCommand("material.assign_current_to_selection");
 		menuMaterial->AddCommand("material.reset_selection");
 		menuMaterial->AddCommand("material.set_current_from_object");
@@ -581,31 +599,33 @@ public:
 		ESystemConfigSpec currentConfigSpec = GetIEditorImpl()->GetEditorConfigSpec();
 
 		actionVery_High->setText(QApplication::translate("MainWindow", "Very High", 0));
-		actionVery_High->setProperty("command", QVariant(QApplication::translate("MainWindow", "general.set_config_spec 4", 0)));
+		actionVery_High->setProperty("command", QString("general.set_config_spec %1").arg(CONFIG_VERYHIGH_SPEC));
 		actionVery_High->setChecked(currentConfigSpec == CONFIG_VERYHIGH_SPEC);
 		actionHigh->setText(QApplication::translate("MainWindow", "High", 0));
-		actionHigh->setProperty("command", QVariant(QApplication::translate("MainWindow", "general.set_config_spec 3", 0)));
+		actionHigh->setProperty("command", QString("general.set_config_spec %1").arg(CONFIG_HIGH_SPEC));
 		actionHigh->setChecked(currentConfigSpec == CONFIG_HIGH_SPEC);
 		actionMedium->setText(QApplication::translate("MainWindow", "Medium", 0));
-		actionMedium->setProperty("command", QVariant(QApplication::translate("MainWindow", "general.set_config_spec 2", 0)));
+		actionMedium->setProperty("command", QString("general.set_config_spec %1").arg(CONFIG_MEDIUM_SPEC));
 		actionMedium->setChecked(currentConfigSpec == CONFIG_MEDIUM_SPEC);
 		actionLow->setText(QApplication::translate("MainWindow", "Low", 0));
-		actionLow->setProperty("command", QVariant(QApplication::translate("MainWindow", "general.set_config_spec 1", 0)));
+		actionLow->setProperty("command", QString("general.set_config_spec %1").arg(CONFIG_LOW_SPEC));
 		actionLow->setChecked(currentConfigSpec == CONFIG_LOW_SPEC);
 		actionXBox_One->setText(QApplication::translate("MainWindow", "XBox One", 0));
-		actionXBox_One->setProperty("command", QVariant(QApplication::translate("MainWindow", "general.set_config_spec 5", 0)));
+		actionXBox_One->setProperty("command", QString("general.set_config_spec %1").arg(CONFIG_DURANGO));
 		actionXBox_One->setChecked(currentConfigSpec == CONFIG_DURANGO);
 		actionPS4->setText(QApplication::translate("MainWindow", "PS4", 0));
-		actionPS4->setProperty("command", QVariant(QApplication::translate("MainWindow", "general.set_config_spec 6", 0)));
+		actionPS4->setProperty("command", QString("general.set_config_spec %1").arg(CONFIG_ORBIS));
 		actionPS4->setChecked(currentConfigSpec == CONFIG_ORBIS);
 		actionCustom->setText(QApplication::translate("MainWindow", "Custom", 0));
-		actionCustom->setProperty("command", QVariant(QApplication::translate("MainWindow", "general.set_config_spec 0", 0)));
+		actionCustom->setProperty("command", QString("general.set_config_spec %1").arg(CONFIG_CUSTOM));
 		actionCustom->setChecked(currentConfigSpec == CONFIG_CUSTOM);
 
 		actionMute_Audio->setText(QApplication::translate("MainWindow", "Mute Audio", 0));
 		actionStop_All_Sounds->setText(QApplication::translate("MainWindow", "Stop All Sounds", 0));
 		actionRefresh_Audio->setText(QApplication::translate("MainWindow", "Refresh Audio", 0));
 		menuFile->setTitle(QApplication::translate("MainWindow", "&File", 0));
+		menuFileNew->setTitle(QApplication::translate("MainWindow", "New", 0));
+		menuFileOpen->setTitle(QApplication::translate("MainWindow", "Open", 0));
 		menuRecent_Files->setTitle(QApplication::translate("MainWindow", "Recent Files", 0));
 		menuEdit->setTitle(QApplication::translate("MainWindow", "Edit", 0));
 		menuEditing_Mode->setTitle(QApplication::translate("MainWindow", "Editing Mode", 0));
@@ -654,7 +674,9 @@ CEditorMainFrame::CEditorMainFrame(QWidget* parent)
 	, m_bClosing(false)
 	, m_bUserEventPriorityMode(false)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+
+	m_levelEditor->Initialize();
 
 	// Make the level editor the fallback handler for all unhandled events
 	m_loopHandler.SetDefaultHandler(m_levelEditor.get());
@@ -662,6 +684,7 @@ CEditorMainFrame::CEditorMainFrame(QWidget* parent)
 	m_pAboutDlg = nullptr;
 	Ui_MainWindow().setupUi(this);
 	s_pToolTabManager = new CTabPaneManager(this);
+	s_pWidgetGlobalActionRegistry = new CWidgetsGlobalActionRegistry();
 	connect(m_levelEditor.get(), &CLevelEditor::LevelLoaded, this, &CEditorMainFrame::UpdateWindowTitle);
 
 	setAttribute(Qt::WA_DeleteOnClose, true);
@@ -728,23 +751,9 @@ CEditorMainFrame::CEditorMainFrame(QWidget* parent)
 	setWindowIcon(QIcon("icons:editor_icon.ico"));
 	qApp->setWindowIcon(windowIcon());
 
-	//QWidget* w = QCustomWindowFrame::wrapWidget(this);
 	QWidget* w = QSandboxWindow::wrapWidget(this, m_toolManager);
 	w->setObjectName("mainWindow");
 	w->show();
-
-	ICommandManager* pCommandManager = GetIEditorImpl()->GetICommandManager();
-
-	// Workaround for having CEditorMainframe handle shortcuts for all registered commands
-	pCommandManager->signalCommandAdded.Connect(this, &CEditorMainFrame::AddCommand);
-
-	// Any commands added before creation of CEditorMainFrame must also be added
-	std::vector<CCommand*> commands;
-	pCommandManager->GetCommandList(commands);
-	for (CCommand* pCommand : commands)
-	{
-		AddCommand(pCommand);
-	}
 
 	GetIEditorImpl()->GetLevelEditorSharedState()->signalEditToolChanged.Connect(this, &CEditorMainFrame::OnEditToolChanged);
 
@@ -777,6 +786,7 @@ CEditorMainFrame::~CEditorMainFrame()
 
 	if (m_pInstance)
 	{
+		SAFE_DELETE(s_pWidgetGlobalActionRegistry);
 		SAFE_DELETE(s_pToolTabManager);
 		m_pInstance = 0;
 	}
@@ -803,16 +813,16 @@ void CEditorMainFrame::SetDefaultLayout()
 
 void CEditorMainFrame::PostLoad()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	InitActions();
 	InitMenus();
 
 	// First attempt to migrate any toolbars in the root path to the mainframe folder. This will place any toolbars in the root
 	// in this editor's (MainFrame) specific folder. It will also upgrade toolbars to the latest version
-	GetIEditor()->GetEditorToolBarService()->MigrateToolBars("", "MainFrame");
+	GetIEditor()->GetToolBarService()->MigrateToolBars("", "MainFrame");
 
 	// Hardcoded editor name because mainframe toolbars are just a hack caused by not having a proper standalone level editor
-	std::vector<QToolBar*> toolbars = GetIEditor()->GetEditorToolBarService()->LoadToolBars("MainFrame");
+	std::vector<QToolBar*> toolbars = GetIEditor()->GetToolBarService()->LoadToolBars("MainFrame");
 	for (QToolBar* pToolBar : toolbars)
 	{
 		addToolBar(pToolBar);
@@ -1301,7 +1311,7 @@ void CEditorMainFrame::InitMenuBar()
 
 void CEditorMainFrame::InitActions()
 {
-	CEditorCommandManager* commandMgr = GetIEditorImpl()->GetCommandManager();
+	CEditorCommandManager* pCommandManager = GetIEditorImpl()->GetCommandManager();
 
 	//For all actions defined in the ui file...
 	QList<QAction*> actions = findChildren<QAction*>();
@@ -1360,7 +1370,7 @@ void CEditorMainFrame::InitActions()
 				}
 
 				action->SetCommand(command);
-				commandMgr->RegisterAction(action, command);
+				pCommandManager->RegisterAction(action, command);
 			}
 
 			// Create ActionGroups from Action properties
@@ -1379,26 +1389,25 @@ void CEditorMainFrame::InitActions()
 		}
 	}
 
-	//Register actions from the command manager to the main frame if they have been created before
+	// Workaround for having CEditorMainframe handle shortcuts for all registered commands
+	pCommandManager->signalCommandAdded.Connect(this, &CEditorMainFrame::AddCommand);
+
+	// Register any existing commands from the command manager as actions of the main frame
 	std::vector<CCommand*> commands;
-	commandMgr->GetCommandList(commands);
+	pCommandManager->GetCommandList(commands);
 	for (CCommand* cmd : commands)
 	{
 		if (cmd->CanBeUICommand())
 		{
-			QCommandAction* action = commandMgr->GetCommandAction(cmd->GetCommandString());
-
-			// Make sure shortcuts are callable from other windows as well (we might need to specialize this a bit more in the future)
-			action->setShortcutContext(Qt::WindowShortcut);
-
-			if (action->parent() == nullptr)
+			QCommandAction* pCommandAction = pCommandManager->GetCommandAction(cmd->GetCommandString());
+			if (pCommandAction->parent() == nullptr)
 			{
-				addAction(action);
+				addAction(pCommandAction);
 			}
 		}
 	}
 
-	//Must be called after actions declared in the .ui file are registered to the command manager
+	// Must be called after actions declared in the .ui file are registered to the command manager
 	CKeybindEditor::LoadUserKeybinds();
 }
 
@@ -1412,15 +1421,6 @@ void CEditorMainFrame::InitLayout()
 
 	if (!bLayoutLoaded)
 		SetDefaultLayout();
-}
-
-bool CEditorMainFrame::focusNextPrevChild(bool next)
-{
-	CEditTool* pTool = GetIEditorImpl()->GetLevelEditorSharedState()->GetEditTool();
-	if (pTool && pTool->IsAllowTabKey())
-		return false;
-
-	return QMainWindow::focusNextPrevChild(next);
 }
 
 void CEditorMainFrame::contextMenuEvent(QContextMenuEvent* pEvent)
@@ -1472,12 +1472,14 @@ void CEditorMainFrame::OnCustomizeToolBar()
 
 	pToolBarCustomizeDialog->signalToolBarAdded.Connect(this, &CEditorMainFrame::OnToolBarAdded);
 	pToolBarCustomizeDialog->signalToolBarModified.Connect(this, &CEditorMainFrame::OnToolBarModified);
+	pToolBarCustomizeDialog->signalToolBarRenamed.Connect(this, &CEditorMainFrame::OnToolBarRenamed);
 	pToolBarCustomizeDialog->signalToolBarRemoved.Connect(this, &CEditorMainFrame::OnToolBarRemoved);
 
 	connect(pToolBarCustomizeDialog, &QWidget::destroyed, [this, pToolBarCustomizeDialog]()
 	{
-		pToolBarCustomizeDialog->signalToolBarModified.DisconnectObject(this);
 		pToolBarCustomizeDialog->signalToolBarRemoved.DisconnectObject(this);
+		pToolBarCustomizeDialog->signalToolBarModified.DisconnectObject(this);
+		pToolBarCustomizeDialog->signalToolBarAdded.DisconnectObject(this);
 	});
 
 	pToolBarCustomizeDialog->show();
@@ -1512,6 +1514,12 @@ void CEditorMainFrame::OnToolBarModified(QToolBar* pToolBar)
 			pOldToolBar->deleteLater();
 		});
 	}
+}
+
+void CEditorMainFrame::OnToolBarRenamed(const char* szOldToolBarName, QToolBar* pToolBar)
+{
+	OnToolBarRemoved(szOldToolBarName);
+	OnToolBarAdded(pToolBar);
 }
 
 void CEditorMainFrame::OnToolBarRemoved(const char* szToolBarName)
@@ -1575,7 +1583,7 @@ void CEditorMainFrame::closeEvent(QCloseEvent* event)
 
 bool CEditorMainFrame::BeforeClose()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	SaveConfig();
 	// disconnect now or we'll end up closing all panels and saving an empty layout
 	disconnect(m_layoutChangedConnection);
@@ -1584,7 +1592,7 @@ bool CEditorMainFrame::BeforeClose()
 	GetIEditorImpl()->GetGlobalBroadcastManager()->Broadcast(aboutToQuitEvent);
 
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CEditorMainFrame::BeforeClose() Save Changes?");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CEditorMainFrame::BeforeClose() Save Changes?");
 
 		if (aboutToQuitEvent.GetChangeListCount() > 0)
 		{
@@ -1630,7 +1638,7 @@ bool CEditorMainFrame::BeforeClose()
 
 void CEditorMainFrame::SaveConfig()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!GetIEditorImpl()->IsInMatEditMode())
 	{
 		CTabPaneManager::GetInstance()->SaveLayout();
@@ -1731,7 +1739,7 @@ void CEditorMainFrame::AddCommand(CCommand* pCommand)
 
 void CEditorMainFrame::OnIdleCallback()
 {
-	if (gEnv->stoppedOnAssert)
+	if (Cry::Assert::IsInAssert())
 	{
 		// If inside assert dialog, we keep idling.
 		QTimer::singleShot(30, this, &CEditorMainFrame::OnIdleCallback);

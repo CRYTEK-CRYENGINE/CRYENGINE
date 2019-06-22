@@ -17,7 +17,25 @@ CAssetFilesGroupController::CAssetFilesGroupController(CAsset* pAsset, bool shou
 
 std::vector<string> CAssetFilesGroupController::GetFiles(bool includeGeneratedFile /*= true*/) const
 {
-	return m_pAsset ? m_pAsset->GetType()->GetAssetFiles(*m_pAsset, m_shouldIncludeSourceFile, false, includeGeneratedFile) : std::vector<string>();
+	std::vector<string> result;
+	if (m_pAsset)
+	{
+		result = m_pAsset->GetType()->GetAssetFiles(*m_pAsset, m_shouldIncludeSourceFile, false, includeGeneratedFile);
+
+		if (!result.empty() && result.back() != m_pAsset->GetMetadataFile())
+		{
+			for (auto i = 0; i < result.size(); ++i)
+			{
+				if (result[i] == m_pAsset->GetMetadataFile())
+				{
+					result[i] = result.back();
+					result[result.size() - 1] = m_pAsset->GetMetadataFile();
+				}
+			}
+		}
+	}
+
+	return result;
 }
 
 string CAssetFilesGroupController::GetGeneratedFile() const

@@ -3,14 +3,13 @@
 #include "StdAfx.h"
 #include "Utils.h"
 
-#include "ProjectManagement/UI/SelectProjectDialog.h"
-
 #include <CryIcon.h>
 #include <FileUtils.h>
 #include <PathUtils.h>
 #include <QtUtil.h>
 
 #include <CrySerialization/yasli/JSONIArchive.h>
+#include <CryString/CryStringUtils.h>
 
 #include <QApplication>
 #include <QDirIterator>
@@ -77,15 +76,30 @@ string FindProjectInFolder(const string& folder)
 	return QtUtil::ToString(iterator.fileInfo().absoluteFilePath());
 }
 
-string AskUserToSpecifyProject(QWidget* pParent, bool runOnSandboxInit)
+string AskUserToSpecifyProject(QWidget* pParent, bool runOnSandboxInit, CSelectProjectDialog::Tab tabToShow)
 {
-	CSelectProjectDialog dlg(pParent, runOnSandboxInit);
+	CSelectProjectDialog dlg(pParent, runOnSandboxInit, tabToShow);
+	if (runOnSandboxInit)
+	{
+		const string startupProject = dlg.GetProjectManager().GetStartupProject();
+		if (!startupProject.empty())
+		{
+			return startupProject;
+		}
+	}
+
 	if (dlg.exec() != QDialog::Accepted)
 	{
 		return "";
 	}
 
 	return dlg.GetPathToProject();
+}
+
+void AppendProjectPathToCommandLine(const string& projectPath, SSystemInitParams& systemParams)
+{
+	cry_strcat(systemParams.szSystemCmdLine, " -project ");
+	cry_strcat(systemParams.szSystemCmdLine, projectPath);
 }
 
 string GetCryEngineProgramDataFolder()

@@ -30,13 +30,13 @@ public:
 
 	EType GetType() const { return m_type; }
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	char const* GetName() const { return m_name.c_str(); }
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 protected:
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	explicit CBaseTriggerConnection(EType const type, char const* const szName)
 		: m_type(type)
 		, m_name(szName)
@@ -45,13 +45,13 @@ protected:
 	explicit CBaseTriggerConnection(EType const type)
 		: m_type(type)
 	{}
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 	EType const m_type;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 };
 } // namespace Fmod
 } // namespace Impl

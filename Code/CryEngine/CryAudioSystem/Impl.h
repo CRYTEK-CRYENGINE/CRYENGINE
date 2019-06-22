@@ -28,9 +28,9 @@ public:
 	virtual void                    OnBeforeRelease() override;
 	virtual void                    Release() override;
 	virtual void                    OnRefresh() override;
-	virtual void                    SetLibraryData(XmlNodeRef const pNode, bool const isLevelSpecific) override;
+	virtual void                    SetLibraryData(XmlNodeRef const& node, ContextId const contextId) override;
 	virtual void                    OnBeforeLibraryDataChanged() override;
-	virtual void                    OnAfterLibraryDataChanged() override;
+	virtual void                    OnAfterLibraryDataChanged(int const poolAllocationMode) override;
 	virtual void                    OnLoseFocus() override;
 	virtual void                    OnGetFocus() override;
 	virtual void                    MuteAll() override;
@@ -40,33 +40,32 @@ public:
 	virtual ERequestStatus          StopAllSounds() override;
 	virtual void                    RegisterInMemoryFile(SFileInfo* const pFileInfo) override;
 	virtual void                    UnregisterInMemoryFile(SFileInfo* const pFileInfo) override;
-	virtual ERequestStatus          ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo) override;
+	virtual ERequestStatus          ConstructFile(XmlNodeRef const& rootNode, SFileInfo* const pFileInfo) override;
 	virtual void                    DestructFile(IFile* const pIFile) override;
 	virtual char const* const       GetFileLocation(SFileInfo* const pFileInfo) override;
 	virtual void                    GetInfo(SImplInfo& implInfo) const override;
-	virtual ITriggerConnection*     ConstructTriggerConnection(XmlNodeRef const pRootNode, float& radius) override;
+	virtual ITriggerConnection*     ConstructTriggerConnection(XmlNodeRef const& rootNode, float& radius) override;
 	virtual ITriggerConnection*     ConstructTriggerConnection(ITriggerInfo const* const pITriggerInfo) override;
-	virtual void                    DestructTriggerConnection(ITriggerConnection const* const pITriggerConnection) override;
-	virtual IParameterConnection*   ConstructParameterConnection(XmlNodeRef const pRootNode) override;
+	virtual void                    DestructTriggerConnection(ITriggerConnection* const pITriggerConnection) override;
+	virtual IParameterConnection*   ConstructParameterConnection(XmlNodeRef const& rootNode) override;
 	virtual void                    DestructParameterConnection(IParameterConnection const* const pIParameterConnection) override;
-	virtual ISwitchStateConnection* ConstructSwitchStateConnection(XmlNodeRef const pRootNode) override;
+	virtual ISwitchStateConnection* ConstructSwitchStateConnection(XmlNodeRef const& rootNode) override;
 	virtual void                    DestructSwitchStateConnection(ISwitchStateConnection const* const pISwitchStateConnection) override;
-	virtual IEnvironmentConnection* ConstructEnvironmentConnection(XmlNodeRef const pRootNode) override;
+	virtual IEnvironmentConnection* ConstructEnvironmentConnection(XmlNodeRef const& rootNode) override;
 	virtual void                    DestructEnvironmentConnection(IEnvironmentConnection const* const pIEnvironmentConnection) override;
-	virtual ISettingConnection*     ConstructSettingConnection(XmlNodeRef const pRootNode) override;
+	virtual ISettingConnection*     ConstructSettingConnection(XmlNodeRef const& rootNode) override;
 	virtual void                    DestructSettingConnection(ISettingConnection const* const pISettingConnection) override;
-	virtual IObject*                ConstructGlobalObject() override;
-	virtual IObject*                ConstructObject(CTransformation const& transformation, char const* const szName = nullptr) override;
+	virtual IObject*                ConstructObject(CTransformation const& transformation, IListeners const& listeners, char const* const szName = nullptr) override;
 	virtual void                    DestructObject(IObject const* const pIObject) override;
-	virtual IListener*              ConstructListener(CTransformation const& transformation, char const* const szName = nullptr) override;
+	virtual IListener*              ConstructListener(CTransformation const& transformation, char const* const szName) override;
 	virtual void                    DestructListener(IListener* const pIListener) override;
 	virtual void                    GamepadConnected(DeviceId const deviceUniqueID) override;
 	virtual void                    GamepadDisconnected(DeviceId const deviceUniqueID) override;
 	virtual void                    SetLanguage(char const* const szLanguage) override;
 
-	// Below data is only used when CRY_AUDIO_USE_PRODUCTION_CODE is defined!
-	virtual void DrawDebugMemoryInfo(IRenderAuxGeom& auxGeom, float const posX, float& posY, bool const showDetailedInfo) override;
-	virtual void DrawDebugInfoList(IRenderAuxGeom& auxGeom, float& posX, float posY, float const debugDistance, char const* const szTextFilter) const override;
+	// Below data is only used when CRY_AUDIO_USE_DEBUG_CODE is defined!
+	virtual void DrawDebugMemoryInfo(IRenderAuxGeom& auxGeom, float const posX, float& posY, bool const drawDetailedInfo) override;
+	virtual void DrawDebugInfoList(IRenderAuxGeom& auxGeom, float& posX, float posY, Vec3 const& camPos, float const debugDistance, char const* const szTextFilter) const override;
 	// ~CryAudio::Impl::IImpl
 };
 } // namespace Null

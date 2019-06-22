@@ -48,7 +48,6 @@ void COcclusionQuery::EndQuery()
 	if (!m_nOcclusionID)
 		return;
 
-	CD3D9Renderer* rd = gcpRendD3D;
 	m_nDrawFrame = gRenDev->GetRenderFrameID();
 
 	D3DOcclusionQuery* pVizQuery = (D3DOcclusionQuery*)m_nOcclusionID;
@@ -58,7 +57,6 @@ void COcclusionQuery::EndQuery()
 
 bool COcclusionQuery::IsReady()
 {
-	CD3D9Renderer* rd = gcpRendD3D;
 	int nFrame = gRenDev->GetRenderFrameID();
 	return (m_nCheckFrame == nFrame);
 }
@@ -68,7 +66,6 @@ uint32 COcclusionQuery::GetVisibleSamples(bool bAsynchronous)
 	if (!m_nOcclusionID)
 		return ~0;
 
-	CD3D9Renderer* rd = gcpRendD3D;
 	int nFrame = gRenDev->GetRenderFrameID();
 
 	if (m_nCheckFrame == nFrame)

@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 #include "ConfigurationManager.h"
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CConfigurationManager::CConfigurationManager()
 	: m_pPlatformsCvar{nullptr}

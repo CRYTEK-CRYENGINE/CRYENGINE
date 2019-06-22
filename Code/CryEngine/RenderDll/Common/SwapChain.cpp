@@ -7,7 +7,6 @@ void CSwapChain::ReadSwapChainSurfaceDesc()
 {
 	CRY_ASSERT(m_pSwapChain);
 
-	HRESULT hr = S_OK;
 	ZeroMemory(&m_surfaceDesc, sizeof(DXGI_SURFACE_DESC));
 
 	//////////////////////////////////////////////////////////////////////////
@@ -19,7 +18,7 @@ void CSwapChain::ReadSwapChainSurfaceDesc()
 	m_surfaceDesc.Format = desc.format;
 	m_surfaceDesc.SampleDesc.Count = 1;
 	m_surfaceDesc.SampleDesc.Quality = 0;
-	hr = m_pSwapChain->GnmIsValid() ? S_OK : E_FAIL;
+	CRY_VERIFY(m_pSwapChain->GnmIsValid());
 #else
 	DXGI_SWAP_CHAIN_DESC backBufferSurfaceDesc = GetDesc();
 
@@ -34,8 +33,6 @@ void CSwapChain::ReadSwapChainSurfaceDesc()
 	m_surfaceDesc.SampleDesc.Quality = 0;
 #endif
 #endif
-	//////////////////////////////////////////////////////////////////////////
-	CRY_ASSERT(!FAILED(hr));
 }
 
 DXGI_FORMAT CSwapChain::GetSwapChainFormat()
@@ -185,7 +182,7 @@ CSwapChain CSwapChain::CreateSwapChain(IDXGIFactory2ToCall* pDXGIFactory, ID3D11
 
 	DXGISwapChain* pSwapChain = nullptr;
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("Xbox -- CRenderDisplayContext::CreateSwapChain: CreateSwapChainForCoreWindow()");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Xbox -- CRenderDisplayContext::CreateSwapChain: CreateSwapChainForCoreWindow()");
 #if (CRY_RENDERER_DIRECT3D >= 120)
 		IDXGISwapChain1ToCall* pDXGISwapChain = nullptr;
 		HRESULT hr = pDXGIFactory->CreateSwapChainForCoreWindow(pD3D12Device, (IUnknown*)gEnv->pWindow, &swapChainDesc, nullptr, &pDXGISwapChain);
@@ -195,7 +192,7 @@ CSwapChain CSwapChain::CreateSwapChain(IDXGIFactory2ToCall* pDXGIFactory, ID3D11
 		HRESULT hr = pDXGIFactory->CreateSwapChainForCoreWindow(pD3D11Device, (IUnknown*)gEnv->pWindow, &swapChainDesc, nullptr, &pSwapChain);
 #endif
 
-		CRY_ASSERT(SUCCEEDED(hr) && pSwapChain != nullptr);
+		CRY_VERIFY(SUCCEEDED(hr) && pSwapChain != nullptr);
 	}
 
 	CSwapChain sc = { pSwapChain, nullptr };
@@ -219,7 +216,7 @@ CSwapChain CSwapChain::CreateSwapChain(uint32_t width, uint32_t height)
 
 	DXGISwapChain* pSwapChain = nullptr;
 	HRESULT hr = GnmCreateSwapChain(desc, &pSwapChain) ? S_OK : E_FAIL;
-	CRY_ASSERT(SUCCEEDED(hr) && pSwapChain != nullptr);
+	CRY_VERIFY(SUCCEEDED(hr) && pSwapChain != nullptr);
 
 	return CSwapChain{ pSwapChain, nullptr };
 }
@@ -302,7 +299,7 @@ void CSwapChain::ResizeSwapChain(uint32_t buffers, uint32_t width, uint32_t heig
 	if (bResizeTarget)
 	{
 		HRESULT hr = m_pSwapChain->ResizeTarget(&scDesc.BufferDesc);
-		CRY_ASSERT(SUCCEEDED(hr));
+		CRY_VERIFY(SUCCEEDED(hr));
 	}
 
 	{
@@ -318,7 +315,7 @@ void CSwapChain::ResizeSwapChain(uint32_t buffers, uint32_t width, uint32_t heig
 	// Flip model swapchains (DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL and DXGI_SWAP_EFFECT_FLIP_DISCARD) are required to do so.
 	{
 		HRESULT hr = m_pSwapChain->ResizeBuffers(scDesc.BufferCount, scDesc.BufferDesc.Width, scDesc.BufferDesc.Height, DXGI_FORMAT_UNKNOWN, scDesc.Flags);
-		CRY_ASSERT(SUCCEEDED(hr));
+		CRY_VERIFY(SUCCEEDED(hr));
 
 #if (CRY_RENDERER_DIRECT3D >= 120)
 		if (scDesc.Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT)

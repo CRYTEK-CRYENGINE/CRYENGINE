@@ -12,6 +12,14 @@ namespace Impl
 {
 namespace PortAudio
 {
+enum class EEventFlags : EnumFlagsType
+{
+	None           = 0,
+	IsLocalized    = BIT(0),
+	ToBeDestructed = BIT(1),
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(EEventFlags);
+
 class CEvent final : public ITriggerConnection, public CPoolObject<CEvent, stl::PSyncNone>
 {
 public:
@@ -30,26 +38,25 @@ public:
 	CEvent& operator=(CEvent&&) = delete;
 
 	explicit CEvent(
-		uint32 const pathId_,
-		int const numLoops_,
-		double const sampleRate_,
-		EActionType const actionType_,
+		EEventFlags const flags,
+		EActionType const actionType,
+		uint32 const pathId,
+		int const numLoops,
+		double const sampleRate,
+		PaStreamParameters const& streamParameters,
 		char const* const szFilePath,
-		PaStreamParameters const& streamParameters_,
 		char const* const szFolder,
-		char const* const szName,
-		bool const isLocalized)
-		: pathId(pathId_)
-		, numLoops(numLoops_)
-		, sampleRate(sampleRate_)
-		, actionType(actionType_)
-		, filePath(szFilePath)
-		, streamParameters(streamParameters_)
+		char const* const szName)
+		: m_flags(flags)
+		, m_actionType(actionType)
+		, m_pathId(pathId)
+		, m_numLoops(numLoops)
+		, m_sampleRate(sampleRate)
+		, m_numInstances(0)
+		, m_streamParameters(streamParameters)
+		, m_filePath(szFilePath)
 		, m_folder(szFolder)
 		, m_name(szName)
-		, m_isLocalized(isLocalized)
-		, m_numInstances(0)
-		, m_toBeDestructed(false)
 	{}
 
 	virtual ~CEvent() override = default;
@@ -59,26 +66,34 @@ public:
 	virtual void           Stop(IObject* const pIObject) override;
 	// ~CryAudio::Impl::ITriggerConnection
 
-	void IncrementNumInstances() { ++m_numInstances; }
-	void DecrementNumInstances();
+	EEventFlags GetFlags() const                                      { return m_flags; }
+	void        SetFlag(EEventFlags const flag)                       { m_flags |= flag; }
 
-	bool CanBeDestructed() const   { return m_toBeDestructed && (m_numInstances == 0); }
-	void SetToBeDestructed() const { m_toBeDestructed = true; }
+	void        SetSampleRate(double const sampleRate)                { m_sampleRate = sampleRate; }
+	void        SetStreamParameters(PaStreamParameters const& params) { m_streamParameters = params; }
+	void        SetFilePath(char const* const szFilePath)             { m_filePath = szFilePath; }
 
-	uint32 const                                pathId;
-	int const                                   numLoops;
-	double                                      sampleRate;
-	EActionType const                           actionType;
-	CryFixedStringT<MaxFilePathLength>          filePath;
-	PaStreamParameters                          streamParameters;
-	CryFixedStringT<MaxFilePathLength> const    m_folder;
-	CryFixedStringT<MaxControlNameLength> const m_name;
-	bool const                                  m_isLocalized;
+	uint32      GetPathId() const                                     { return m_pathId; }
+	char const* GetFolder() const                                     { return m_folder.c_str(); }
+	char const* GetName() const                                       { return m_name.c_str(); }
+
+	bool        CanBeDestructed() const                               { return ((m_flags& EEventFlags::ToBeDestructed) != 0) && (m_numInstances == 0); }
+
+	void        IncrementNumInstances()                               { ++m_numInstances; }
+	void        DecrementNumInstances();
 
 private:
 
-	uint16       m_numInstances;
-	mutable bool m_toBeDestructed;
+	EEventFlags                                 m_flags;
+	EActionType const                           m_actionType;
+	uint32 const                                m_pathId;
+	int const                                   m_numLoops;
+	double                                      m_sampleRate;
+	uint16                                      m_numInstances;
+	PaStreamParameters                          m_streamParameters;
+	CryFixedStringT<MaxFilePathLength>          m_filePath;
+	CryFixedStringT<MaxFilePathLength> const    m_folder;
+	CryFixedStringT<MaxControlNameLength> const m_name;
 };
 } // namespace PortAudio
 } // namespace Impl

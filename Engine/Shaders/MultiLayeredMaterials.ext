@@ -1,0 +1,49 @@
+////////////////////////////////////////////////////////////////////////////
+//  Crytek Engine Source File.
+//  Shader extension
+//  Copyright (C), Crytek Studios, 2001-2011.
+////////////////////////////////////////////////////////////////////////////
+
+
+Version (2.00)
+
+UsesCommonGlobalFlags
+
+
+Property
+{
+	Name = %BASE_LAYER_CONDUCTOR
+	Mask = 0x1000000
+	Property    (Base layer is a conductor)
+	Description (Specifies whether the base is to be treated as conductor or dielectric)
+}
+
+Property
+{
+	Name = %LAYERS2_MAP
+	Mask = 0x200000
+	Property    (2 layers)
+	Description (Uses base layer and one additional layer)
+	DependencySet = $TEX_Detail;
+	DependencyReSet = $TEX_Detail;
+	Hidden
+}
+
+Property
+{
+	Name = %LAYERS3_MAP
+	Mask = 0x400000
+	Property    (3 layers)
+	Description (Uses base layer and two additional layer)
+	DependencySet = $TEX_SubSurface;
+	DependencyReSet = $TEX_SubSurface;
+	Hidden
+}
+
+Property
+{
+	Name = %THIN_FILM
+	Mask = 0x2000000
+	Property    (Thin-film)
+	Description (Has a thin-film on top)
+}

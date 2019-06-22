@@ -520,7 +520,7 @@ void CHyperGraphsTreeCtrl::FullReload()
 	if (m_bIgnoreReloads)
 		return;
 
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	SetRedraw(FALSE);
 

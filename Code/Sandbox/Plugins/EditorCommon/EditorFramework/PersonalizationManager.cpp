@@ -129,7 +129,8 @@ void CPersonalizationManager::SaveSharedState() const
 
 void CPersonalizationManager::LoadSharedState()
 {
-	m_sharedState = FromVariant(UserDataUtil::Load(Private_Personalization::szPersonalizationPath));
+	// Merge personalization from user and default directory
+	m_sharedState = FromVariant(UserDataUtil::Load(Private_Personalization::szPersonalizationPath, UserDataUtil::LoadType::MergeData));
 }
 
 void CPersonalizationManager::LoadProjectState()

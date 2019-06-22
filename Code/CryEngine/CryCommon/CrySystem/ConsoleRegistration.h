@@ -260,9 +260,9 @@ struct SDummyCVar : ICVar
 	#define DefineConstIntCVar3(name, _var_, defaultValue, flags, help) { static_assert(static_cast<int>(GetCVarOverride( # name, defaultValue)) == static_cast<int>(_var_), "Unexpected value!"); REGISTER_DUMMY_CVAR(int, name, GetCVarOverride( # name, defaultValue)); }
 	#define AllocateConstIntCVar(scope, name)
 
-	#define DefineConstFloatCVar(name, flags, help) { REGISTER_DUMMY_CVAR(float, ( # name), name ## Default); }
-	#define DeclareConstFloatCVar(name)
-	#define DeclareStaticConstFloatCVar(name)
+	#define DefineConstFloatCVar(name, flags, help) { REGISTER_DUMMY_CVAR(float, ( # name), GetCVarOverride( # name, name ## Default) ); }
+	#define DeclareConstFloatCVar(name) static constexpr float name = GetCVarOverride( # name, name ## Default)
+	#define DeclareStaticConstFloatCVar(name) DeclareConstFloatCVar(name)
 	#define AllocateConstFloatCVar(scope, name)
 
 #else
@@ -304,6 +304,9 @@ struct SDummyCVar : ICVar
 
 //! Preferred way to register an int64 CVar
 #define REGISTER_INT64(_name, _def_val, _flags, _comment) ConsoleRegistrationHelper::RegisterInt64(_name, (_def_val), (_flags), CVARHELP(_comment))
+
+//! Preferred way to register an int64 CVar with a callback
+#define REGISTER_INT64_CB(_name, _def_val, _flags, _comment, _onchangefunction) ConsoleRegistrationHelper::RegisterInt64(_name, (_def_val), (_flags), CVARHELP(_comment), _onchangefunction)
 
 //! Preferred way to register a float CVar
 #define REGISTER_FLOAT(_name, _def_val, _flags, _comment) ConsoleRegistrationHelper::RegisterFloat(_name, (_def_val), (_flags), CVARHELP(_comment))

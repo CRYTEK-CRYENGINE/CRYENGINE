@@ -6,11 +6,10 @@
 #include "Common/IObject.h"
 #include "Common/IParameterConnection.h"
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include "Object.h"
-	#include "GlobalObject.h"
 	#include "Common/Logger.h"
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -25,11 +24,11 @@ CParameter::~CParameter()
 	}
 }
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 //////////////////////////////////////////////////////////////////////////
 void CParameter::Set(CObject const& object, float const value) const
 {
-	Impl::IObject* const pIObject = object.GetImplDataPtr();
+	Impl::IObject* const pIObject = object.GetImplData();
 
 	for (auto const pConnection : m_connections)
 	{
@@ -43,24 +42,6 @@ void CParameter::Set(CObject const& object, float const value) const
 
 	const_cast<CObject&>(object).StoreParameterValue(m_id, value);
 }
-
-//////////////////////////////////////////////////////////////////////////
-void CParameter::Set(CGlobalObject const& globalObject, float const value) const
-{
-	Impl::IObject* const pIObject = globalObject.GetImplDataPtr();
-
-	for (auto const pConnection : m_connections)
-	{
-		pConnection->Set(pIObject, value);
-	}
-
-	if (m_connections.empty())
-	{
-		Cry::Audio::Log(ELogType::Warning, R"(Parameter "%s" set on object "%s" without connections)", GetName(), globalObject.GetName());
-	}
-
-	const_cast<CGlobalObject&>(globalObject).StoreParameterValue(m_id, value);
-}
 #else
 //////////////////////////////////////////////////////////////////////////
 void CParameter::Set(Impl::IObject* const pIObject, float const value) const
@@ -70,7 +51,25 @@ void CParameter::Set(Impl::IObject* const pIObject, float const value) const
 		pConnection->Set(pIObject, value);
 	}
 }
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
+
+//////////////////////////////////////////////////////////////////////////
+void CParameter::Set(float const value) const
+{
+	for (auto const pConnection : m_connections)
+	{
+		pConnection->Set(g_pIObject, value);
+	}
+
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
+	if (m_connections.empty())
+	{
+		Cry::Audio::Log(ELogType::Warning, R"(Parameter "%s" set without connections)", GetName());
+	}
+
+	g_parameters[m_id] = value;
+#endif // CRY_AUDIO_USE_DEBUG_CODE
+}
 
 //////////////////////////////////////////////////////////////////////////
 void CParameter::SetGlobally(float const value) const
@@ -80,11 +79,13 @@ void CParameter::SetGlobally(float const value) const
 		pConnection->SetGlobally(value);
 	}
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	if (m_connections.empty())
 	{
 		Cry::Audio::Log(ELogType::Warning, R"(Parameter "%s" set globally without connections)", GetName());
 	}
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+
+	g_parametersGlobally[m_id] = value;
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 }
 } // namespace CryAudio

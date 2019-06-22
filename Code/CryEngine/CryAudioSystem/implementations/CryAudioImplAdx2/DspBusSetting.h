@@ -12,10 +12,10 @@ namespace Impl
 {
 namespace Adx2
 {
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 constexpr char const* g_debugNoneDspBusSetting = "<none>";
 extern CryFixedStringT<MaxControlNameLength> g_debugCurrentDspBusSettingName;
-#endif  // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 class CDspBusSetting final : public ISettingConnection, public CPoolObject<CDspBusSetting, stl::PSyncNone>
 {

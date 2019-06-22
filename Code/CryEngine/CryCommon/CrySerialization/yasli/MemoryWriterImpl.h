@@ -12,7 +12,7 @@
 #include <CrySerialization/yasli/Config.h>
 
 #include <stdlib.h>
-#include <string.h>
+#include <cstring>
 #include <math.h>
 #ifdef _MSC_VER
 # include <float.h>

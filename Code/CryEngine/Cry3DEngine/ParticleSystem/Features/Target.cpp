@@ -24,7 +24,7 @@ void CTargetSource::Serialize(Serialization::IArchive& ar)
 void CTargetSource::AddToComponent(CParticleComponent* pComponent)
 {
 	if (m_source == ETargetSource::Target)
-		pComponent->GetEffect()->AddEnvironFlags(ENV_TARGET);
+		pComponent->AddEnvironFlags(ENV_TARGET);
 }
 
 }

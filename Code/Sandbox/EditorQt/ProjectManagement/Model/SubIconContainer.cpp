@@ -8,36 +8,39 @@
 
 CSubIconContainer::CSubIconContainer()
 {
-	QVariant v;
-	v.setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_CSharp.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
-	m_icons[0].push_back(v);
+	m_languageIcons[0].setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_CSharp.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
+	m_languageIcons[1].setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_Cpp.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
+	m_languageIcons[2].setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_VisualScripting.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
+	m_languageIcons[3].setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_Unknown.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
 
-	v.setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_Cpp.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
-	m_icons[1].push_back(v);
-
-	v.setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_VisualScripting.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
-	m_icons[2].push_back(v);
-
-	v.setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Language_Unknown.ico"), QThumbnailsView::SSubIcon::EPosition::BottomRight });
-	m_icons[3].push_back(v);
+	m_startupIcon.setValue(QThumbnailsView::SSubIcon{ CryIcon("icons:General/Project_Browser_startup_project_badge.ico"), QThumbnailsView::SSubIcon::EPosition::TopLeft });
 }
 
-const QVariantList& CSubIconContainer::GetLanguageIcon(const string& language) const
+QVariantList CSubIconContainer::GetIcons(const string& language, bool isStartupProject) const
 {
+	QVariantList lst;
+
 	if (language.CompareNoCase("C#") == 0)
 	{
-		return m_icons[0];
+		lst.push_back(m_languageIcons[0]);
 	}
-
-	if (language.CompareNoCase("C++") == 0)
+	else if (language.CompareNoCase("C++") == 0)
 	{
-		return m_icons[1];
+		lst.push_back(m_languageIcons[1]);
 	}
-
-	if (language.CompareNoCase("schematyc") == 0)
+	else if (language.CompareNoCase("schematyc") == 0)
 	{
-		return m_icons[2];
+		lst.push_back(m_languageIcons[2]);
+	}
+	else
+	{
+		lst.push_back(m_languageIcons[3]);
 	}
 
-	return m_icons[3];
+	if (isStartupProject)
+	{
+		lst.push_back(m_startupIcon);
+	}
+
+	return lst;
 }

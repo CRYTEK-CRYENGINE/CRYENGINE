@@ -2,60 +2,70 @@
     "toolBar": [
         {
             "iconPath": "icons:Viewport/Modes/screenmode_default.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 0
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_normals.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 1
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_smoothness.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 2
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_reflectance.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 3
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_albedo.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 4
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_lighting_model.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 5
         },
         {
             "iconPath": "icons:Viewport/Modes/display.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 6
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_sun_self_shadowing.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 7
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_subsurface.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 8
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_specular.ico",
+            "isBitFlag": false,
             "name": "r_DebugGBuffer",
             "type": 1,
             "value": 9
@@ -63,42 +73,49 @@
         "separator",
         {
             "iconPath": "icons:Viewport/Modes/screenmode_defaultmat_grey.ico",
+            "isBitFlag": false,
             "name": "e_defaultmaterial",
             "type": 1,
             "value": 1
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_defaultmat_normal.ico",
+            "isBitFlag": false,
             "name": "r_TexBindMode",
             "type": 1,
             "value": 6
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_proxy.ico",
+            "isBitFlag": false,
             "name": "p_draw_helpers_num",
             "type": 1,
             "value": 7970
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_wireframe_shaded.ico",
+            "isBitFlag": false,
             "name": "r_showlines",
             "type": 1,
             "value": 2
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_wireframe_unshaded.ico",
+            "isBitFlag": false,
             "name": "r_wireframe",
             "type": 1,
             "value": 1
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_vertex_normals.ico",
+            "isBitFlag": false,
             "name": "r_shownormals",
             "type": 1,
             "value": 1
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_tangents.ico",
+            "isBitFlag": false,
             "name": "r_ShowTangents",
             "type": 1,
             "value": 1
@@ -106,18 +123,21 @@
         "separator",
         {
             "iconPath": "icons:Viewport/Modes/screenmode_texel_256.ico",
+            "isBitFlag": false,
             "name": "r_TexelsPerMeter",
             "type": 1,
             "value": 256
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_texel_512.ico",
+            "isBitFlag": false,
             "name": "r_TexelsPerMeter",
             "type": 1,
             "value": 512
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_texel_1k.ico",
+            "isBitFlag": false,
             "name": "r_TexelsPerMeter",
             "type": 1,
             "value": 1024
@@ -125,12 +145,14 @@
         "separator",
         {
             "iconPath": "icons:Viewport/Modes/screenmode_lodvis.ico",
+            "isBitFlag": false,
             "name": "e_DebugDraw",
             "type": 1,
             "value": 3
         },
         {
             "iconPath": "icons:Viewport/Modes/screenmode_lod_cycle.ico",
+            "isBitFlag": false,
             "name": "e_LodMin",
             "type": 1,
             "value": 1

@@ -280,6 +280,12 @@ bool QPreviewWidget::CreateContext()
 		desc.screenResolution.y = m_height;
 
 		m_displayContextKey = m_pRenderer->CreateSwapChainBackedContext(desc);
+
+		m_graphicsPipelineDesc.type = EGraphicsPipelineType::Minimum;
+		m_graphicsPipelineDesc.shaderFlags = SHDF_SECONDARY_VIEWPORT | SHDF_ALLOWHDR | SHDF_FORWARD_MINIMAL;
+
+		m_graphicsPipelineKey = m_pRenderer->CreateGraphicsPipeline(m_graphicsPipelineDesc);
+
 		m_bContextCreated = true;
 
 		return true;
@@ -758,7 +764,7 @@ void QPreviewWidget::contextMenuEvent(QContextMenuEvent* event)
 	}
 }
 
-void QPreviewWidget::resizeEvent(QResizeEvent *ev)
+void QPreviewWidget::resizeEvent(QResizeEvent* ev)
 {
 	QWidget::resizeEvent(ev);
 
@@ -768,7 +774,7 @@ void QPreviewWidget::resizeEvent(QResizeEvent *ev)
 		return;
 
 	//ignore sizes when widget is invisible, just used to render pixmaps
-	if (isVisible()) 
+	if (isVisible())
 	{
 		m_width = cx;
 		m_height = cy;
@@ -810,7 +816,7 @@ bool QPreviewWidget::Render()
 
 		SetCamera(m_camera);
 
-		m_pRenderer->BeginFrame(m_displayContextKey);
+		m_pRenderer->BeginFrame(m_displayContextKey, m_graphicsPipelineKey);
 
 		DrawBackground();
 		if (m_bGrid || m_bAxis)
@@ -828,8 +834,7 @@ bool QPreviewWidget::Render()
 		gEnv->pConsole->GetCVar("r_displayInfo")->Set((int)m_bShowRenderInfo);
 
 		// Render object.
-		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_camera, SRenderingPassInfo::DEFAULT_FLAGS, true, m_displayContextKey);
-		passInfo.GetIRenderView()->SetShaderRenderingFlags(SHDF_NOASYNC | SHDF_ALLOWHDR | SHDF_SECONDARY_VIEWPORT);
+		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_graphicsPipelineKey, m_camera, SRenderingPassInfo::DEFAULT_FLAGS, true, m_displayContextKey);
 		m_pRenderer->EF_StartEf(passInfo);
 
 		{
@@ -920,7 +925,7 @@ bool QPreviewWidget::Render()
 				RenderObject(pMaterial, passInfo);
 			}
 
-			m_pRenderer->EF_EndEf3D(-1, -1, passInfo);
+			m_pRenderer->EF_EndEf3D(-1, -1, passInfo, m_graphicsPipelineDesc.shaderFlags);
 		}
 
 		m_pRenderer->RenderDebug(false);
@@ -1101,6 +1106,8 @@ void QPreviewWidget::DeleteRenderContex()
 		// Do not delete primary context.
 		if (m_displayContextKey != reinterpret_cast<HWND>(m_pRenderer->GetHWND()))
 			m_pRenderer->DeleteContext(m_displayContextKey);
+
+		m_pRenderer->DeleteGraphicsPipeline(m_graphicsPipelineKey);
 		m_bContextCreated = false;
 	}
 }

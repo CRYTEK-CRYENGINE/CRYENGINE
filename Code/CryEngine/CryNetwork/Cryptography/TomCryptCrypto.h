@@ -28,6 +28,7 @@ public:
 	using TSharedPtr = _smart_ptr<CTomCryptAesState>;
 
 	static TSharedPtr CreateAesStateFromSecret(const void* pSecret, const size_t secretSize);
+	static void operator delete(void* ptr);
 
 	//! Returns symmetric_CBC*
 	// NOTE: unable to forward-declare symmetric_CBC, as it's just a C-style struct typedef.
@@ -78,6 +79,7 @@ public:
 
 	using TSharedPtr = _smart_ptr<CTomCryptSha256Hmac>;
 	static TSharedPtr CreateFromSecret(const void* pSecret, const size_t secretSize);
+	static void operator delete(void* ptr);
 
 	bool Hash(const uint8* pBuf, const size_t bufSize);
 	bool FinishAndRestartHash(HashResult& result);

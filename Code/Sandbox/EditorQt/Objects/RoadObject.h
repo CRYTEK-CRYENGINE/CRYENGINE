@@ -27,13 +27,11 @@ struct CRoadSector
 	}
 
 	CRoadSector(const CRoadSector& old)
-	{
-		points = old.points;
-		t0 = old.t0;
-		t1 = old.t1;
-
-		m_pRoadSector = 0;
-	}
+		: points(old.points)
+		, t0(old.t0)
+		, t1(old.t1)
+		, m_pRoadSector(nullptr)
+	{}
 
 	void Release();
 };

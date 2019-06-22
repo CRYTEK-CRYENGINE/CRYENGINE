@@ -8,6 +8,7 @@
 #include <CrySystem/Profilers/IStatoscope.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Random.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if ENABLE_STATOSCOPE
 class COverloadDG : public IStatoscopeDataGroup

@@ -103,7 +103,7 @@ void CEntityComponentClipVolume::LegacySerializeXML(XmlNodeRef& entityNode, XmlN
 {
 	if (bLoading)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		XmlNodeRef volumeNode = componentNode->findChild("ClipVolume");
 		if (!volumeNode)

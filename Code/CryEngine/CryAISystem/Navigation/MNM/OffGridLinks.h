@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "MNM.h"
+#include "WayTriangleData.h"
+#include "MNMDebugDefines.h"
 
 struct NavigationMesh;
 

@@ -41,8 +41,9 @@ void CLensGhost::Load(IXmlNode* pNode)
 		{
 			if (textureName && textureName[0])
 			{
-				ITexture* pTexture = std::move(gEnv->pRenderer->EF_LoadTexture(textureName));
-				SetTexture((CTexture*)pTexture);
+				ITexture* pTexture = gEnv->pRenderer->EF_LoadTexture(textureName);
+				m_pTex.reset();
+				m_pTex.Assign_NoAddRef(static_cast<CTexture*>(pTexture));
 			}
 		}
 	}
@@ -52,7 +53,7 @@ CTexture* CLensGhost::GetTexture()
 {
 	if (!m_pTex)
 	{
-		m_pTex = std::move(CTexture::ForName("%ENGINE%/EngineAssets/Textures/flares/default-flare.tif", FT_DONT_RELEASE | FT_DONT_STREAM, eTF_Unknown));
+		m_pTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/flares/default-flare.tif", FT_DONT_RELEASE | FT_DONT_STREAM, eTF_Unknown);
 	}
 
 	return m_pTex;

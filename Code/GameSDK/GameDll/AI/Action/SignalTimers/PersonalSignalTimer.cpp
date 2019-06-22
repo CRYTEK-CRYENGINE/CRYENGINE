@@ -236,7 +236,7 @@ void CPersonalSignalTimer::SendSignal()
 		pData->iValue = ++m_iSignalsSinceLastReset;
 		pData->fValue = m_fTimerSinceLastReset;
 
-		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, m_sSignal, pEntity->GetAI()->GetAIObjectID(), pData);
+		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, m_sSignal, pEntity->GetId(), pData);
 		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 	}
 }

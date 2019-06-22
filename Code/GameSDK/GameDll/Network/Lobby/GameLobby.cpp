@@ -15,6 +15,7 @@
 #include "IGameSessionHandler.h"
 #include <CryLobby/ICryStats.h>
 #include <CrySystem/File/IResourceManager.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "Game.h"
 #include "Network/Squad/SquadManager.h"
@@ -3058,7 +3059,7 @@ void CGameLobby::SetupSessionData()
 	}
 	else
 	{
-		cry_strcpy(m_sessionData.m_name, "default servername");
+		cry_fixed_size_strcpy(m_sessionData.m_name, "default servername");
 	}
 
 	m_sessionData.m_ranked = false;

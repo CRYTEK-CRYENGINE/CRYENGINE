@@ -36,12 +36,6 @@ void CObjManager::RenderDecalAndRoad(IRenderNode* pEnt, PodArray<SRenderLight*>*
 {
 	FUNCTION_PROFILER_3DENGINE;
 
-	// do not draw if marked to be not drawn or already drawn in this frame
-	auto nRndFlags = pEnt->GetRndFlags();
-
-	if (nRndFlags & ERF_HIDDEN)
-		return;
-
 	// detect bad objects
 	float fEntLengthSquared = objBox.GetSize().GetLengthSquared();
 	if (!_finite(fEntLengthSquared))
@@ -62,9 +56,9 @@ void CObjManager::RenderDecalAndRoad(IRenderNode* pEnt, PodArray<SRenderLight*>*
 	if (!pTempData)
 		return;
 
-	if (nCheckOcclusion && pEnt->m_pOcNode)
+	if (nCheckOcclusion)
 		if (GetObjManager()->IsBoxOccluded(objBox, fEntDistance * passInfo.GetInverseZoomFactor(), &pTempData->userData.m_OcclState,
-		                                   pEnt->m_pOcNode->GetVisArea() != NULL, eoot_OBJECT, passInfo))
+		                                   pEnt->GetEntityVisArea() != nullptr, eoot_OBJECT, passInfo))
 			return;
 
 	CVisArea* pVisArea = (CVisArea*)pEnt->GetEntityVisArea();
@@ -117,9 +111,9 @@ void CObjManager::RenderVegetation(CVegetation* pEnt, PodArray<SRenderLight*>* p
 	if (!pTempData)
 		return;
 
-	if (passCullMask & kPassCullMainMask && nCheckOcclusion && pEnt->m_pOcNode)
+	if (passCullMask & kPassCullMainMask && nCheckOcclusion)
 	{
-		if (GetObjManager()->IsBoxOccluded(objBox, fEntDistance * passInfo.GetInverseZoomFactor(), &pTempData->userData.m_OcclState, pEnt->m_pOcNode->GetVisArea() != NULL, eoot_OBJECT, passInfo))
+		if (GetObjManager()->IsBoxOccluded(objBox, fEntDistance * passInfo.GetInverseZoomFactor(), &pTempData->userData.m_OcclState, pEnt->GetEntityVisArea() != nullptr, eoot_OBJECT, passInfo))
 		{
 			passCullMask &= ~kPassCullMainMask;
 		}
@@ -164,9 +158,6 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffe
 
 	// do not draw if marked to be not drawn or already drawn in this frame
 	auto nRndFlags = pEnt->GetRndFlags();
-
-	if (nRndFlags & ERF_HIDDEN)
-		return;
 
 	CRY_ASSERT(eERType != eERType_MovableBrush);
 
@@ -228,7 +219,7 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffe
 		pAffectingLights = NULL;
 #endif
 
-	if (pEnt->m_dwRndFlags & ERF_COLLISION_PROXY || pEnt->m_dwRndFlags & ERF_RAYCAST_PROXY)
+	if (pEnt->GetRndFlags() & (ERF_COLLISION_PROXY | ERF_RAYCAST_PROXY))
 	{
 		// Collision proxy is visible in Editor while in editing mode.
 		if (!gEnv->IsEditor() || !gEnv->IsEditing())
@@ -307,7 +298,7 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffe
 
 	DrawParams.dwFObjFlags |= FOB_TRANS_MASK;
 
-	if (pEnt->m_dwRndFlags & ERF_NO_DECALNODE_DECALS)
+	if (pEnt->GetRndFlags() & ERF_NO_DECALNODE_DECALS)
 		DrawParams.dwFObjFlags |= FOB_DYNAMIC_OBJECT;
 
 	if (pEnt->GetRndFlags() & ERF_HUD_REQUIRE_DEPTHTEST)
@@ -369,21 +360,18 @@ void CObjManager::RenderObject(IRenderNode* pEnt, PodArray<SRenderLight*>* pAffe
 
 void CObjManager::RenderAllObjectDebugInfo()
 {
-	m_arrRenderDebugInfo.CoalesceMemory();
-	for (size_t i = 0; i < m_arrRenderDebugInfo.size(); ++i)
+	for (SObjManRenderDebugInfo& rRenderDebugInfo : m_arrRenderDebugInfo)
 	{
-		SObjManRenderDebugInfo& rRenderDebugInfo = m_arrRenderDebugInfo[i];
 		if (rRenderDebugInfo.pEnt)
 			RenderObjectDebugInfo_Impl(rRenderDebugInfo.pEnt, rRenderDebugInfo.fEntDistance);
 	}
-	m_arrRenderDebugInfo.resize(0);
+	m_arrRenderDebugInfo.clear();
 }
 
 void CObjManager::RemoveFromRenderAllObjectDebugInfo(IRenderNode* pEnt)
 {
-	for (size_t i = 0; i < m_arrRenderDebugInfo.size(); ++i)
+	for (SObjManRenderDebugInfo& rRenderDebugInfo : m_arrRenderDebugInfo)
 	{
-		SObjManRenderDebugInfo& rRenderDebugInfo = m_arrRenderDebugInfo[i];
 		if (rRenderDebugInfo.pEnt == pEnt)
 		{
 			rRenderDebugInfo.pEnt = NULL;
@@ -394,7 +382,6 @@ void CObjManager::RemoveFromRenderAllObjectDebugInfo(IRenderNode* pEnt)
 
 void CObjManager::RenderObjectDebugInfo_Impl(IRenderNode* pEnt, float fEntDistance)
 {
-
 	if (GetCVars()->e_BBoxes > 0)
 	{
 		ColorF color(1, 1, 1, 1);

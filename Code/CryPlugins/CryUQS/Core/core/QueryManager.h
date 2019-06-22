@@ -42,8 +42,6 @@ namespace UQS
 				std::shared_ptr<CQueryBase>                            pQuery;
 				std::shared_ptr<const CQueryBlueprint>                 pQueryBlueprint;
 				Functor1<const SQueryResult&>                          pCallback;
-				CQueryID                                               queryID;
-				CQueryID                                               parentQueryID;
 				int                                                    priority;
 				std::unique_ptr<SWorkingData>                          pWorkingData;
 			};
@@ -58,12 +56,10 @@ namespace UQS
 
 			struct SFinishedQueryInfo
 			{
-				explicit                                               SFinishedQueryInfo(const std::shared_ptr<CQueryBase>& _pQuery, const std::shared_ptr<const CQueryBlueprint>& _pQueryBlueprint, const Functor1<const SQueryResult&>& _pCallback, const CQueryID& _queryID, const CQueryID& _parentQueryID, int _priority, const CTimeValue& _queryFinishedTimestamp, bool _bQueryFinishedWithSuccess, const string& _errorIfAny);
+				explicit                                               SFinishedQueryInfo(const std::shared_ptr<CQueryBase>& _pQuery, const std::shared_ptr<const CQueryBlueprint>& _pQueryBlueprint, const Functor1<const SQueryResult&>& _pCallback, int _priority, const CTimeValue& _queryFinishedTimestamp, bool _bQueryFinishedWithSuccess, const string& _errorIfAny);
 				std::shared_ptr<CQueryBase>                            pQuery;
 				std::shared_ptr<const CQueryBlueprint>                 pQueryBlueprint;
 				Functor1<const SQueryResult&>                          pCallback;
-				CQueryID                                               queryID;
-				CQueryID                                               parentQueryID;
 				int                                                    priority;
 				CTimeValue                                             queryFinishedTimestamp;
 				bool                                                   bQueryFinishedWithSuccess;
@@ -127,7 +123,7 @@ namespace UQS
 			};
 
 		public:
-			explicit                                                   CQueryManager(CQueryHistoryManager& queryHistoryManager);
+			explicit                                                   CQueryManager();
 
 			// IQueryManager
 			virtual CQueryID                                           StartQuery(const Client::SQueryRequest& request, Shared::IUqsString& errorMessage) override;
@@ -140,7 +136,6 @@ namespace UQS
 			virtual void                                               VisitRunningQueries(Client::IQueryVisitor& visitor) override;
 			// ~IQueryManager
 
-			CQueryID                                                   StartQueryInternal(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> pQueryBlueprint, const Shared::IVariantDict& runtimeParams, const char* szQuerierName, Functor1<const SQueryResult&> callback, const std::shared_ptr<CItemList>& pPotentialResultingItemsFromPreviousQuery, int priority, Shared::IUqsString& errorMessage);
 			CQueryBase*                                                FindQueryByQueryID(const CQueryID& queryID);
 			void                                                       Update();
 			void                                                       DebugDrawRunningQueriesStatistics2D() const;
@@ -151,7 +146,6 @@ namespace UQS
 			                                                           UQS_NON_COPYABLE(CQueryManager);
 
 			void                                                       UpdateQueries();
-			void                                                       UpdateNonRoundRobinQueries(std::vector<SFinishedQueryInfo>& outFinishedQueries);
 			void                                                       BuildRoundRobinList(std::vector<const SRunningQueryInfo*>& outRoundRobinQueries);
 			void                                                       UpdateRoundRobinQueries(const std::vector<const SRunningQueryInfo*>& roundRobinQueries, std::vector<SFinishedQueryInfo>& outFinishedQueries);
 			void                                                       FinalizeFinishedQueries(const std::vector<SFinishedQueryInfo>& finishedQueries);
@@ -165,11 +159,9 @@ namespace UQS
 			void                                                       DebugDrawRoundRobinLoad() const;
 
 		private:
-			CQueryID                                                   m_queryIDProvider;
-			std::list<SRunningQueryInfo>                               m_queries;
+			std::list<SRunningQueryInfo>                               m_queries;                    // all currently running queries (contains only top-level queries; child queries are managed by their parent)
 			std::list<SRunningQueryInfo>::const_iterator               m_roundRobinStart;            // bookmark of where the next round-robin update will start; points into m_queries; care is being take to prevent this iterator from dangling whenever the m_queries container is changed
 			bool                                                       m_bQueriesUpdateInProgress;   // safety guard to detect calls to CancelQuery() in the middle of iterating through all m_queries (this would invalidate iterators!!!)
-			CQueryHistoryManager&                                      m_queryHistoryManager;        // for allocating new historic queries each time a query blueprint gets instantiated and runs
 			std::deque<SHistoryQueryInfo2D>                            m_debugDrawHistory2D;         // for 2D on-screen drawing of statistics of all current and some past queries
 			SRoundRobinDebugSnapshot                                   m_roundRobinDebugSnapshot;    // round-robin load of the current frame for visualizing on screen
 			std::vector<Client::IQueryFinishedListener*>               m_queryFinishedListeners;

@@ -241,6 +241,7 @@ public:
 			m_localAngle = DEG2RAD(gSnappingPreferences.SnapAngle(angle));
 		}
 
+		const float oldAngle = m_angle;
 		m_angle = m_localAngle + m_revolutions * g_PI2;
 
 		if (axis * camToOrigin < 0.0f)
@@ -248,7 +249,7 @@ public:
 			m_angle = -m_angle;
 		}
 
-		rotation.angle = m_angle;
+		rotation.angle = m_angle - oldAngle;
 		rotation.axis = axis;
 		return true;
 	}
@@ -256,7 +257,7 @@ public:
 	virtual void DrawCursor(SDisplayContext& dc, float scale) override
 	{
 		Vec3 cursorDir;
-		cursorDir = ((m_cursorPosition - m_initPosition) ^ dc.view->CameraToWorld(m_cursorPosition)).GetNormalized() * 0.3 * scale;
+		cursorDir = ((m_cursorPosition - m_initPosition) ^ dc.view->CameraToWorld(m_cursorPosition)).GetNormalized() * 0.3f * scale;
 		dc.SetColor(0.0f, 0.0f, 0.0f);
 		dc.DrawArrow(m_cursorPosition, m_cursorPosition + cursorDir, 0.4f * scale);
 		dc.DrawArrow(m_cursorPosition, m_cursorPosition - cursorDir, 0.4f * scale);
@@ -369,7 +370,9 @@ public:
 
 		Vec3 offset = view->ViewToAxisConstraint(point, m_interactionLine, offsetOnGizmoCircle);
 
-		m_angle = ((offset * m_interactionLine > 0.0f) ? -1.0f : 1.0f) * offset.len() / scale;
+		const float oldAngle = m_angle;
+		const float sign = (offset * m_interactionLine > 0.0f) ? -1.0f : 1.0f;
+		m_angle = sign * offset.len() / scale;
 
 		if (gSnappingPreferences.angleSnappingEnabled())
 		{
@@ -378,8 +381,9 @@ public:
 		}
 
 		rotation.axis = axis;
-		// express angle in radians
-		rotation.angle = m_angle;
+
+		// Pass delta of rotation; m_angle is used for text rendering
+		rotation.angle = m_angle - oldAngle;
 
 		return true;
 	}
@@ -528,7 +532,7 @@ void CAxisRotateGizmo::Display(SDisplayContext& dc)
 			Vec3 yVec = camToOrigin ^ xVec;
 
 			Matrix34 m = Matrix34::CreateFromVectors(xVec, yVec, camToOrigin, m_position);
-			angle = g_PI2;
+			angle = static_cast<float>(g_PI2);
 			dc.PushMatrix(m);
 		}
 		else
@@ -538,7 +542,7 @@ void CAxisRotateGizmo::Display(SDisplayContext& dc)
 			Vec3 xVec = yVec ^ m_axis;
 
 			Matrix34 m = Matrix34::CreateFromVectors(xVec, yVec, m_axis, m_position);
-			angle = g_PI;
+			angle = static_cast<float>(g_PI);
 			dc.PushMatrix(m);
 		}
 

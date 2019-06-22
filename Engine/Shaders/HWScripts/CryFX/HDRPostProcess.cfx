@@ -386,15 +386,15 @@ pixout HDRFinalScenePS(vert2frag IN)
 
 pixout HDRFinalSceneDebugPS(vert2frag IN)
 {
+    half3 oSample;
+
 #if %_RT_DEBUG0
 	half fExposure = 0.00001 * ComputeExposure( luminanceTex.Load(int3(0, 0, 0)).y );
 	half3 vSample = hdrTex.Load(int3(IN.WPos.xy, 0)) * fExposure;
-	half3 oSample;
 
 	oSample = (vSample < 0.0031308) ? 12.92 * vSample : 1.055 * pow( vSample, 1.0 / 2.4 ) - float3( 0.055, 0.055, 0.055 );
 #elif %_RT_DEBUG1
 	half3 vSample = hdrTex.Load(int3(IN.WPos.xy, 0));
-	half3 oSample;
 
 	if(any(isnan(vSample)) || any(isinf(vSample)))
 		oSample = float3(1.0f, 0.0f, 0.0f);

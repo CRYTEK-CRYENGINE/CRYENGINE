@@ -8,11 +8,14 @@
 class CDebugRenderTargetsStage : public CGraphicsPipelineStage
 {
 public:
-	static const char* showRenderTargetHelp;
+	static const EGraphicsPipelineStage StageID = eStage_DebugRenderTargets;
+	static const char*                  showRenderTargetHelp;
+
+	CDebugRenderTargetsStage(CGraphicsPipeline& graphicsPipeline) : CGraphicsPipelineStage(graphicsPipeline) {}
 
 	void Execute();
 
-	void OnShowRenderTargetsCmd(IConsoleCmdArgs* pArgs);
+	void OnShowRenderTargetsCmd(SDebugRenderTargetInfo& debugInfo);
 
 private:
 
@@ -31,9 +34,9 @@ private:
 	void ExecuteShowTargets();
 
 private:
-	CPrimitiveRenderPass          m_debugPass;
-	std::vector<CRenderPrimitive> m_debugPrimitives;
-	int                           m_primitiveCount = 0;
+	CPrimitiveRenderPass           m_debugPass;
+	std::vector<CRenderPrimitive>  m_debugPrimitives;
+	int                            m_primitiveCount = 0;
 
 	std::vector<SRenderTargetInfo> m_renderTargetList;
 	bool                           m_bShowList;

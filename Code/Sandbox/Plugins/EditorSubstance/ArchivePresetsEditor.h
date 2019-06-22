@@ -24,9 +24,10 @@ class CArchivePresetsEditor : public CAssetEditor
 	Q_OBJECT
 public:
 	CArchivePresetsEditor(QWidget* parent = nullptr);
-	const string&       GetSubstanceArchive() const    { return m_substanceArchive; }
+	const string&       GetSubstanceArchive() const             { return m_substanceArchive; }
 protected:
-	virtual const char* GetEditorName() const override { return "Substance Archive Graph Editor"; }
+	virtual bool        IsDockingSystemEnabled() const override { return false; }
+	virtual const char* GetEditorName() const override          { return "Substance Archive Graph Editor"; }
 
 	virtual bool        OnOpenAsset(CAsset* pAsset) override;
 	virtual bool        OnSaveAsset(CEditableAsset& editAsset) override;

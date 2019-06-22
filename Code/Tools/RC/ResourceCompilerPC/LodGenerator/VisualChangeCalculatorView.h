@@ -144,7 +144,6 @@ namespace LODGenerator
 				int currentList=0;
 				idT *moveStart=moveList[currentList];
 				idT *moveEnd=moveStart;
-				bool bFirst=false;
 				std::vector<ZSpanData>::const_iterator begin=span.data.begin();
 				for (std::vector<ZSpanData>::const_iterator it=begin, end=span.data.end(); it!=end; ++it)
 				{

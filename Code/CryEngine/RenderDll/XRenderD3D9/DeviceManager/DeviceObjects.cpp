@@ -117,23 +117,23 @@ void CDeviceObjectFactory::AllocatePredefinedSamplerStates()
 	ReserveSamplerStates(300); // this likes to expand, so it'd be nice if it didn't; 300 => ~6Kb, there were 171 after one level
 
 	// *INDENT-OFF*
-	SamplerStateHandle a = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )); assert(a == EDefaultSamplerStates::PointClamp           );
-	SamplerStateHandle b = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )); assert(b == EDefaultSamplerStates::PointWrap            );
-	SamplerStateHandle c = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )); assert(c == EDefaultSamplerStates::PointBorder_Black    );
-	SamplerStateHandle d = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border, ~0      )); assert(d == EDefaultSamplerStates::PointBorder_White    );
-	SamplerStateHandle e = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0, true)); assert(e == EDefaultSamplerStates::PointCompare         );
-	SamplerStateHandle f = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )); assert(f == EDefaultSamplerStates::LinearClamp          );
-	SamplerStateHandle g = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )); assert(g == EDefaultSamplerStates::LinearWrap           );
-	SamplerStateHandle h = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )); assert(h == EDefaultSamplerStates::LinearBorder_Black   );
-	SamplerStateHandle i = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0, true)); assert(i == EDefaultSamplerStates::LinearCompare        );
-	SamplerStateHandle j = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )); assert(j == EDefaultSamplerStates::BilinearClamp        );
-	SamplerStateHandle k = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )); assert(k == EDefaultSamplerStates::BilinearWrap         );
-	SamplerStateHandle l = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )); assert(l == EDefaultSamplerStates::BilinearBorder_Black );
-	SamplerStateHandle m = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0, true)); assert(m == EDefaultSamplerStates::BilinearCompare      );
-	SamplerStateHandle n = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )); assert(n == EDefaultSamplerStates::TrilinearClamp       );
-	SamplerStateHandle o = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )); assert(o == EDefaultSamplerStates::TrilinearWrap        );
-	SamplerStateHandle p = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )); assert(p == EDefaultSamplerStates::TrilinearBorder_Black);
-	SamplerStateHandle q = GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border, ~0      )); assert(q == EDefaultSamplerStates::TrilinearBorder_White);
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )) == EDefaultSamplerStates::PointClamp           );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )) == EDefaultSamplerStates::PointWrap            );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )) == EDefaultSamplerStates::PointBorder_Black    );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border, ~0      )) == EDefaultSamplerStates::PointBorder_White    );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_POINT,     eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0, true)) == EDefaultSamplerStates::PointCompare         );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )) == EDefaultSamplerStates::LinearClamp          );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )) == EDefaultSamplerStates::LinearWrap           );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )) == EDefaultSamplerStates::LinearBorder_Black   );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_LINEAR,    eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0, true)) == EDefaultSamplerStates::LinearCompare        );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )) == EDefaultSamplerStates::BilinearClamp        );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )) == EDefaultSamplerStates::BilinearWrap         );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )) == EDefaultSamplerStates::BilinearBorder_Black );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_BILINEAR,  eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0, true)) == EDefaultSamplerStates::BilinearCompare      );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,  eSamplerAddressMode_Clamp,   0      )) == EDefaultSamplerStates::TrilinearClamp       );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,   eSamplerAddressMode_Wrap,    0      )) == EDefaultSamplerStates::TrilinearWrap        );
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border,  0      )) == EDefaultSamplerStates::TrilinearBorder_Black);
+	CRY_VERIFY(GetOrCreateSamplerStateHandle(SSamplerState(FILTER_TRILINEAR, eSamplerAddressMode_Border, eSamplerAddressMode_Border, eSamplerAddressMode_Border, ~0      )) == EDefaultSamplerStates::TrilinearBorder_White);
 	// *INDENT-ON*
 }
 
@@ -351,15 +351,13 @@ const CDeviceObjectFactory::SInputLayoutPair* CDeviceObjectFactory::GetOrCreateI
 	if (!pVertexShader)
 		return nullptr;
 
-	bool bInstanced = (StreamMask & VSM_INSTANCED) != 0;
-
 	// Reflect
 	void* pShaderReflBuf;
 
 	{
 		CRY_PROFILE_SECTION(PROFILE_RENDERER, "D3DReflect");
 		HRESULT hr = D3DReflection(pVertexShader->m_pShaderData, pVertexShader->m_nDataSize, IID_D3DShaderReflection, &pShaderReflBuf);
-		CRY_ASSERT(SUCCEEDED(hr) && pShaderReflBuf);
+		CRY_VERIFY(SUCCEEDED(hr) && pShaderReflBuf);
 	}
 
 	D3DShaderReflection* pShaderReflection = (D3DShaderReflection*)pShaderReflBuf;
@@ -462,9 +460,13 @@ InputLayoutHandle CDeviceObjectFactory::CreateCustomVertexFormat(size_t numDescs
 		decs.insert(it, inputLayout[n]);
 	}
 
-	// Store
-	auto idx = m_vertexFormatToInputLayoutCache.size();
-	m_vertexFormatToInputLayoutCache.emplace_back(std::move(decs));
+	// Find existing vertex format or store a new one
+	auto it = std::find(m_vertexFormatToInputLayoutCache.begin(), m_vertexFormatToInputLayoutCache.end(), decs);
+	auto idx = it - m_vertexFormatToInputLayoutCache.begin();
+	if (it == m_vertexFormatToInputLayoutCache.end())
+	{
+		m_vertexFormatToInputLayoutCache.emplace_back(std::move(decs));
+	}
 
 	return InputLayoutHandle(static_cast<uint8_t>(idx));
 }
@@ -511,7 +513,7 @@ bool CDeviceObjectFactory::OnRenderPassInvalidated(void* pRenderPass, SResourceB
 
 	if (flags)
 	{
-		if (auto pDesc = GetDeviceObjectFactory().GetRenderPassDesc(pPass))
+		if (GetDeviceObjectFactory().GetRenderPassDesc(pPass) != nullptr)
 		{
 			pPass->Invalidate();
 		}

@@ -11,12 +11,6 @@ namespace FMOD
 {
 class ChannelGroup;
 class DSP;
-
-namespace Studio
-{
-class EventInstance;
-class ParameterInstance;
-} // namespace Studio
 } // namespace FMOD
 
 namespace CryAudio
@@ -25,7 +19,7 @@ namespace Impl
 {
 namespace Fmod
 {
-class CBaseObject;
+class CObject;
 class CEvent;
 class CReturn;
 
@@ -47,8 +41,8 @@ public:
 	CEventInstance& operator=(CEventInstance const&) = delete;
 	CEventInstance& operator=(CEventInstance&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
-	explicit CEventInstance(TriggerInstanceId const triggerInstanceId, CEvent& event, CBaseObject const& baseObject)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
+	explicit CEventInstance(TriggerInstanceId const triggerInstanceId, CEvent& event, CObject const& object)
 		: m_triggerInstanceId(triggerInstanceId)
 		, m_event(event)
 		, m_state(EEventState::Pending)
@@ -57,11 +51,10 @@ public:
 		, m_pInstance(nullptr)
 		, m_pMasterTrack(nullptr)
 		, m_pLowpass(nullptr)
-		, m_pOcclusionParameter(nullptr)
-		, m_pAbsoluteVelocityParameter(nullptr)
 		, m_toBeRemoved(false)
+		, m_isPaused(false)
 		, m_isFadingOut(false)
-		, m_baseObject(baseObject)
+		, m_object(object)
 	{}
 #else
 	explicit CEventInstance(TriggerInstanceId const triggerInstanceId, CEvent& event)
@@ -73,11 +66,10 @@ public:
 		, m_pInstance(nullptr)
 		, m_pMasterTrack(nullptr)
 		, m_pLowpass(nullptr)
-		, m_pOcclusionParameter(nullptr)
-		, m_pAbsoluteVelocityParameter(nullptr)
 		, m_toBeRemoved(false)
+		, m_isPaused(false)
 	{}
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 	~CEventInstance();
 
@@ -88,47 +80,47 @@ public:
 	FMOD::Studio::EventInstance* GetFmodEventInstance() const                                       { return m_pInstance; }
 	void                         SetFmodEventInstance(FMOD::Studio::EventInstance* const pInstance) { m_pInstance = pInstance; }
 
-	bool                         HasAbsoluteVelocityParameter() const                               { return m_pAbsoluteVelocityParameter != nullptr; }
+	void                         SetListenermask(int const mask)                                    { m_pInstance->setListenerMask(mask); }
 
-	void                         SetInternalParameters();
 	bool                         PrepareForOcclusion();
 	void                         SetOcclusion(float const occlusion);
 	void                         SetReturnSend(CReturn const* const pReturn, float const value);
 	void                         UpdateVirtualState();
-	void                         SetAbsoluteVelocity(float const value);
 	void                         StopAllowFadeOut();
 	void                         StopImmediate();
 
-	void                         SetToBeRemoved()      { m_toBeRemoved = true; }
-	bool                         IsToBeRemoved() const { return m_toBeRemoved; }
+	void                         SetToBeRemoved()               { m_toBeRemoved = true; }
+	bool                         IsToBeRemoved() const          { return m_toBeRemoved; }
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
-	bool               IsFadingOut() const { return m_isFadingOut; }
-	CBaseObject const& GetObject() const   { return m_baseObject; }
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+	void                         SetPaused(bool const isPaused) { m_isPaused = isPaused; }
+	bool                         IsPaused() const               { return m_isPaused; }
+
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
+	bool           IsFadingOut() const { return m_isFadingOut; }
+	CObject const& GetObject() const   { return m_object; }
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 private:
 
-	TriggerInstanceId const          m_triggerInstanceId;
-	CEvent&                          m_event;
+	TriggerInstanceId const      m_triggerInstanceId;
+	CEvent&                      m_event;
 
-	EEventState                      m_state;
+	EEventState                  m_state;
 
-	float                            m_lowpassFrequencyMax;
-	float                            m_lowpassFrequencyMin;
+	float                        m_lowpassFrequencyMax;
+	float                        m_lowpassFrequencyMin;
 
-	FMOD::Studio::EventInstance*     m_pInstance;
-	FMOD::ChannelGroup*              m_pMasterTrack;
-	FMOD::DSP*                       m_pLowpass;
-	FMOD::Studio::ParameterInstance* m_pOcclusionParameter;
-	FMOD::Studio::ParameterInstance* m_pAbsoluteVelocityParameter;
+	FMOD::Studio::EventInstance* m_pInstance;
+	FMOD::ChannelGroup*          m_pMasterTrack;
+	FMOD::DSP*                   m_pLowpass;
 
-	std::atomic_bool                 m_toBeRemoved;
+	std::atomic_bool             m_toBeRemoved;
+	bool                         m_isPaused;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
-	bool               m_isFadingOut;
-	CBaseObject const& m_baseObject;
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
+	bool           m_isFadingOut;
+	CObject const& m_object;
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 };
 } // namespace Fmod
 } // namespace Impl

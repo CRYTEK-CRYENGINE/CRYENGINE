@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "NetworkCVars.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 CNetworkCVars* CNetworkCVars::s_pThis = 0;
 

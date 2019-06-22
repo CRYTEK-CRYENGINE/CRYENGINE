@@ -217,7 +217,7 @@ void CWeapon::OnShoot(EntityId shooterId, EntityId ammoId, IEntityClass* pAmmoTy
 		{
 			if (IAIObject *pAIObject = pActor->GetEntity()->GetAI())
 			{
-				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnEnableFire(), pAIObject->GetAIObjectID());
+				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnEnableFire(), pAIObject->GetEntityID());
 				gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_LEADER, pSignal);
 			}
 
@@ -294,7 +294,7 @@ void CWeapon::OnStartReload(EntityId shooterId, IEntityClass* pAmmoType)
 		{
 			if (gEnv->pAISystem)
 			{
-				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnReload(), pAIObject->GetAIObjectID());
+				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnReload(), pAIObject->GetEntityID());
 				gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 			}
 		}
@@ -340,7 +340,7 @@ void CWeapon::OnEndReload(EntityId shooterId, IEntityClass* pAmmoType)
 		{
 			if (gEnv->pAISystem)
 			{
-				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnReloadDone(), pAIObject->GetAIObjectID());
+				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnReloadDone(), pAIObject->GetEntityID());
 				gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 			}
 		}

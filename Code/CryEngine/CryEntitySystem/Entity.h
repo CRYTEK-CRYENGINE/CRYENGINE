@@ -192,8 +192,8 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 
-	virtual void SetTimer(ISimpleEntityEventListener* pListener, EntityId id, const CryGUID& componentInstanceGUID, uint8 timerId, int timeInMilliseconds) final;
-	virtual void KillTimer(ISimpleEntityEventListener* pListener, uint8 timerId) final;
+	virtual void SetTimer(ISimpleEntityEventListener* pListener, EntityId id, const CryGUID& componentInstanceGUID, uint32 timerId, int timeInMilliseconds) final;
+	virtual void KillTimer(ISimpleEntityEventListener* pListener, uint32 timerId) final;
 	virtual void KillAllTimers(ISimpleEntityEventListener* pListener) final;
 
 	virtual void  Hide(bool bHide, EEntityHideFlags hideFlags = ENTITY_HIDE_NO_FLAG) final;
@@ -208,7 +208,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	virtual const IAIObject* GetAI() const final                 { return m_aiObjectID ? GetAIObject() : nullptr; }
 	virtual IAIObject*       GetAI() final                       { return m_aiObjectID ? GetAIObject() : nullptr; }
-	virtual bool             HasAI() const final                 { return m_aiObjectID != 0; }
+	virtual bool             HasAI() const final                 { return (m_flags & ENTITY_FLAG_HAS_AI) != 0; }
 	virtual tAIObjectID      GetAIObjectID() const final         { return m_aiObjectID; }
 	virtual void             SetAIObjectID(tAIObjectID id) final { m_aiObjectID = id; }
 	//////////////////////////////////////////////////////////////////////////

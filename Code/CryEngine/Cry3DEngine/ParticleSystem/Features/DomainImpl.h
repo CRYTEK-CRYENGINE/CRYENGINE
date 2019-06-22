@@ -13,7 +13,7 @@ struct SelfSource
 	SelfSource(const CParticleComponentRuntime& runtime) {}
 	static const CParticleContainer& Container(const CParticleComponentRuntime& runtime)
 	{
-		return runtime.GetContainer();
+		return runtime.Container();
 	}
 	TParticleGroupId Id(TParticleGroupId id) const
 	{
@@ -24,10 +24,10 @@ struct SelfSource
 struct ParticleParentSource
 {
 	ParticleParentSource(const CParticleComponentRuntime& runtime)
-		: parentIds(runtime.GetContainer().IStream(EPDT_ParentId)) {}
+		: parentIds(runtime.IStream(EPDT_ParentId)) {}
 	static const CParticleContainer& Container(const CParticleComponentRuntime& runtime)
 	{
-		return runtime.GetParentContainer();
+		return runtime.ParentContainer();
 	}
 	TParticleIdv Id(TParticleGroupId id) const
 	{
@@ -38,13 +38,13 @@ private:
 	IPidStream parentIds;
 };
 
-struct InstanceParentSource
+struct SpawnerParentSource
 {
-	InstanceParentSource(const CParticleComponentRuntime& runtime)
-		: runtime(runtime) {}
+	SpawnerParentSource(const CParticleComponentRuntime& runtime)
+		: parentIds(runtime.IStream(ESDT_ParentId)) {}
 	static const CParticleContainer& Container(const CParticleComponentRuntime& runtime)
 	{
-		return runtime.GetParentContainer();
+		return runtime.ParentContainer();
 	}
 	TParticleIdv Id(TParticleGroupId id) const
 	{
@@ -56,11 +56,11 @@ struct InstanceParentSource
 	}
 
 private:
-	const CParticleComponentRuntime& runtime;
+	IPidStream parentIds;
 
-	TParticleId ParentId(uint instanceId) const
+	TParticleId ParentId(uint spawnerId) const
 	{
-		return instanceId < runtime.GetNumInstances() ? runtime.GetInstance(instanceId).m_parentId: gInvalidId;
+		return parentIds.SafeLoad(spawnerId);
 	}
 };
 
@@ -91,10 +91,10 @@ class CParentAgeSampler
 public:
 	CParentAgeSampler(const CParticleComponentRuntime& runtime)
 		: deltaTime(ToFloatv(runtime.DeltaTime()))
-		, selfAges(runtime.GetContainer().GetIFStream(EPDT_NormalAge))
-		, parentAges(runtime.GetParentContainer().GetIFStream(EPDT_NormalAge))
-		, parentInvLifeTimes(runtime.GetParentContainer().GetIFStream(EPDT_InvLifeTime))
-		, parentIds(runtime.GetContainer().GetIPidStream(EPDT_ParentId))
+		, selfAges(runtime.IStream(EPDT_NormalAge))
+		, parentAges(runtime.ParentContainer().IStream(EPDT_NormalAge))
+		, parentInvLifeTimes(runtime.ParentContainer().IStream(EPDT_InvLifeTime))
+		, parentIds(runtime.IStream(EPDT_ParentId))
 	{}
 	ILINE floatv Sample(TParticleGroupId particleId) const
 	{
@@ -217,32 +217,71 @@ private:
 	SChaosKeyV& m_chaos;
 };
 
-struct SpawnId
+namespace NSpawnId
 {
+	struct SamplerBase
+	{
+		SamplerBase(uint modulus)
+			: m_modulus(convert<uint32v>(modulus))
+			, m_scale(convert<floatv>(rcp(float(modulus))))
+		{
+		}
+		ILINE floatv Convert(uint32v spawnId) const
+		{
+			const uint32v mod = spawnId % m_modulus;
+			return convert<floatv>(mod) * m_scale;
+		}
+	private:
+		uint32v m_modulus;
+		floatv  m_scale;
+	};
+
 	template<typename Source>
-	struct Sampler: Source
+	struct Sampler: Source, SamplerBase
 	{
 		Sampler(const CParticleComponentRuntime& runtime, uint modulus)
 			: Source(runtime)
-			, m_scale(convert<floatv>(rcp(float(modulus))))
+			, SamplerBase(modulus)
+			, m_spawnIds(Source::Container(runtime).IStream(EPDT_SpawnId))
+		{}
+		ILINE floatv Sample(TParticleGroupId particleId) const
 		{
-			uint32 idOffset = Source::Container(runtime).GetSpawnIdOffset();
-			#ifdef CRY_PFX2_USE_SSE
-				m_idOffsets = convert<uint32v>(idOffset) + convert<uint32v>(0, 1, 2, 3);
-			#else
-				m_idOffsets = idOffset;
-			#endif
+			const TParticleIdv spawnId = m_spawnIds.SafeLoad(Source::Id(particleId));
+			return Convert(spawnId);
+		}
+	private:
+		IPidStream m_spawnIds;
+	};
+
+	template<>
+	struct Sampler<SelfSource>: SelfSource, SamplerBase
+	{
+		Sampler(const CParticleComponentRuntime& runtime, uint modulus)
+			: SelfSource(runtime)
+			, SamplerBase(modulus)
+		{
+			uint32 idOffset = SelfSource::Container(runtime).GetSpawnIdOffset();
+			idOffset %= modulus;
+		#ifdef CRY_PFX2_USE_SSE
+			m_idOffsets = convert<uint32v>(idOffset) + convert<uint32v>(0, 1, 2, 3);
+		#else
+			m_idOffsets = idOffset;
+		#endif
 		}
 		ILINE floatv Sample(TParticleGroupId particleId) const
 		{
-			const TParticleIdv index = convert<uint32v>(+Source::Id(particleId)) + m_idOffsets;
-			const floatv number = convert<floatv>(index) * m_scale;
-			return frac(number);
+			const uint32v spawnId = convert<uint32v>(+SelfSource::Id(particleId)) + m_idOffsets;
+			return Convert(spawnId);
 		}
 	private:
-		uint32v  m_idOffsets;
-		floatv m_scale;
+		uint32v m_idOffsets;
 	};
+};
+
+struct SpawnId
+{
+	// Hack because specializing a struct is not allowed in class scope.
+	template<typename Source> using Sampler = NSpawnId::Sampler<Source>;
 };
 
 
@@ -319,10 +358,10 @@ template<typename Child, typename T, typename TFrom>
 template<typename S, typename ...Args>
 void TModFunction<Child, T, TFrom>::ModifyFromSampler(const CParticleComponentRuntime& runtime, const SUpdateRange& range, TIOStream<T> stream, EDataDomain domain, Args ...args) const
 {
-	if (domain & EDD_PerInstance)
+	if (domain & EDD_Spawner)
 		Child().DoModify(
 			runtime, range, stream,
-			typename S::template Sampler<detail::InstanceParentSource>(runtime, args...));
+			typename S::template Sampler<detail::SpawnerParentSource>(runtime, args...));
 	else if (m_sourceOwner == EDomainOwner::Parent)
 		Child().DoModify(
 			runtime, range, stream,
@@ -369,7 +408,7 @@ void TModFunction<Child, T, TFrom>::Modify(const CParticleComponentRuntime& runt
 		ModifyFromSampler<detail::Speed>(runtime, range, stream, domain);
 		break;
 	case EDomain::Age:
-		if (domain & EDD_PerParticle && m_sourceOwner == EDomainOwner::Parent)
+		if (domain & EDD_Particle && m_sourceOwner == EDomainOwner::Parent)
 		{
 			Child().DoModify(
 				runtime, range, stream,

@@ -403,7 +403,7 @@ bool CGameRulesSPDamageHandling::SvOnHitScaled(const HitInfo& hitInfo)
 				//
 				// isDead = result from Lua function IsDead in victim entity script
 
-				CRY_PROFILE_REGION(PROFILE_GAME, "SvOnHitScaled IsDead scope");
+				CRY_PROFILE_SECTION(PROFILE_GAME, "SvOnHitScaled IsDead scope");
 
 				HSCRIPTFUNCTION isDeadFunc = NULL;
 				if (victimScript->GetValue("IsDead", isDeadFunc))
@@ -766,7 +766,7 @@ void CGameRulesSPDamageHandling::SvOnCollision(const IEntity* pVictimEntity, con
 
 	if (pOffenderEntity)
 	{
-		CRY_PROFILE_REGION(PROFILE_GAME, "Filter out recent collisions");
+		CRY_PROFILE_SECTION(PROFILE_GAME, "Filter out recent collisions");
 
 		EntityCollisionRecords::const_iterator collisionRecordIter = m_entityCollisionRecords.find(victimID);
 		if (collisionRecordIter != m_entityCollisionRecords.end())
@@ -783,7 +783,7 @@ void CGameRulesSPDamageHandling::SvOnCollision(const IEntity* pVictimEntity, con
 	//Notify object movement to AI
 	if (pVictimEntity)
 	{
-		CRY_PROFILE_REGION(PROFILE_GAME, "Notify object movement to AI");
+		CRY_PROFILE_SECTION(PROFILE_GAME, "Notify object movement to AI");
 	
 		if (stl::find(m_entityClassesWithTrackedMovement, pVictimEntity->GetClass()))
 		{
@@ -1073,7 +1073,7 @@ void CGameRulesSPDamageHandling::SvOnCollision(const IEntity* pVictimEntity, con
 			}	
 			else if (pVictimScript)
 			{
-				CRY_PROFILE_REGION(PROFILE_GAME, "Call to OnHit");
+				CRY_PROFILE_SECTION(PROFILE_GAME, "Call to OnHit");
 
 				if (!IsDead(victimActor, pVictimScript))
 				{
@@ -1279,7 +1279,7 @@ void CGameRulesSPDamageHandling::DelegateServerHit(IScriptTable* victimScript, c
 				}
 				else // Hit was not deadly
 				{
-					CRY_PROFILE_REGION(PROFILE_GAME, "Trigger hit reaction");
+					CRY_PROFILE_SECTION(PROFILE_GAME, "Trigger hit reaction");
 
 					// Trigger hit reaction
 					bool hitReactionProcessed = false;
@@ -1357,7 +1357,7 @@ bool CGameRulesSPDamageHandling::IsDead(CActor* actor, IScriptTable* actorScript
 		//
 		// isDead = result from Lua function IsDead in victim entity script
 
-		CRY_PROFILE_REGION(PROFILE_GAME, "SvOnCollision IsDead scope");
+		CRY_PROFILE_SECTION(PROFILE_GAME, "SvOnCollision IsDead scope");
 
 		HSCRIPTFUNCTION isDeadFunc = NULL;
 		if (actorScript->GetValue("IsDead", isDeadFunc))

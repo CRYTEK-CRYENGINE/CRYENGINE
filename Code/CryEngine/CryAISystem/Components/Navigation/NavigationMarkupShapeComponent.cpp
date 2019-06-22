@@ -115,7 +115,7 @@ Cry::Entity::EventFlags CAINavigationMarkupShapeComponent::GetEventMask() const
 
 void CAINavigationMarkupShapeComponent::OnNavigationEvent(const INavigationSystem::ENavigationEvent event)
 {
-	if (event == INavigationSystem::NavigationCleared)
+	if (event == INavigationSystem::ENavigationEvent::NavigationCleared)
 	{
 		gEnv->pAISystem->GetNavigationSystem()->UnregisterEntityMarkups(*GetEntity());
 		m_runtimeData.clear();

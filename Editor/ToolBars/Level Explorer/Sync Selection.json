@@ -1,0 +1,12 @@
+{
+    "toolBar": [
+        {
+            "command": "general.toggle_sync_selection",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "toggle_sync_selection",
+            "type": 0
+        }
+    ],
+    "version": 2
+}

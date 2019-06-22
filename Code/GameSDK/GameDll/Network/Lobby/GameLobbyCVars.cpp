@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "GameLobbyCVars.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #define GAME_LOBBY_IGNORE_BAD_SERVERS_LIST 0
 

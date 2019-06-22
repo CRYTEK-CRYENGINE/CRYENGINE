@@ -1,11 +1,10 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __SCENETREE_H__
-#define __SCENETREE_H__
+#pragma once
 
 #if defined(FEATURE_SVO_GI)
 
-	#pragma pack(push,4)
+#pragma pack(push,4)
 
 typedef std::unordered_map<uint64, std::pair<byte, byte>> PvsMap;
 typedef std::set<class CVoxelSegment*>                    VsSet;
@@ -204,8 +203,6 @@ public:
 	PodArrayRT<ColorB> m_arrRTPoolInds;
 };
 
-	#pragma pack(pop)
-
-#endif
+#pragma pack(pop)
 
 #endif

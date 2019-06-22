@@ -13,7 +13,7 @@
 #include "RemoteCommandHelpers.h"
 #include <CryNetwork/CrySocks.h>
 #include <CryCore/CryEndian.h>
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 //-----------------------------------------------------------------------------
 

@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __INCLUDE_CRY3DENGINE_CLIPVOLUMEMANAGER_H
-#define __INCLUDE_CRY3DENGINE_CLIPVOLUMEMANAGER_H
+#pragma once
 
 class CClipVolume;
 
@@ -42,7 +41,4 @@ public:
 private:
 	std::vector<SClipVolumeInfo> m_clipVolumes;
 	std::vector<SClipVolumeInfo> m_deletedClipVolumes;
-
 };
-
-#endif //__INCLUDE_CRY3DENGINE_CLIPVOLUMEMANAGER_H

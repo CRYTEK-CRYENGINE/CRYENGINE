@@ -43,7 +43,7 @@ COPStick::COPStick(float fStickDistance, float fEndAccuracy, float fDuration, in
 		AIWarning("COPStick::COPStick: Negative stick distance provided.");
 	}
 
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPStick::COPStick %p", this);
 
 	m_smoothedTargetVel.zero();
@@ -137,7 +137,7 @@ COPStick::COPStick(const XmlNodeRef& node) :
 		}
 	}
 
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPStick::COPStick %p", this);
 
 	m_lastVisibleTime.SetValue(0);
@@ -164,7 +164,7 @@ COPStick::~COPStick()
 	SAFE_DELETE(m_pPathfindDirective);
 	SAFE_DELETE(m_pTraceDirective);
 
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPStick::~COPStick %p", this);
 }
 
@@ -172,7 +172,7 @@ COPStick::~COPStick()
 //----------------------------------------------------------------------------------------------------------
 void COPStick::Reset(CPipeUser* pPipeUser)
 {
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPStick::Reset %s", GetNameSafe(pPipeUser));
 
 	m_refStickTarget.Reset();
@@ -350,7 +350,7 @@ void COPStick::RegeneratePath(CPipeUser* pPipeUser, const Vec3& vDestination)
 	if (!pPipeUser)
 		return;
 
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPStick::RegeneratePath %s", GetNameSafe(pPipeUser));
 
 	m_pPathfindDirective->Reset(pPipeUser);
@@ -599,7 +599,7 @@ EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 	{
 		CCCPOINT(COPStick_Execute_TargetRemoved);
 
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 			AILogAlways("COPStick::Execute (%p) resetting due stick/sight target removed", this);
 
 		Reset(NULL);
@@ -630,7 +630,7 @@ EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 	if (!m_bContinuous && pPipeUser->m_nPathDecision == PATHFINDER_NOPATH)
 	{
 
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 			AILogAlways("COPStick::Execute (%p) resetting due to non-continuous and no path %s", this, GetNameSafe(pPipeUser));
 
 		Reset(pPipeUser);
@@ -647,7 +647,7 @@ EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 	if (!m_pTraceDirective)
 	{
 
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 			AILogAlways("COPStick::Execute (%p) returning true due to no trace directive %s", this, GetNameSafe(pPipeUser));
 
 		Reset(pPipeUser);
@@ -776,7 +776,7 @@ EGoalOpResult COPStick::Execute(CPipeUser* pPipeUser)
 
 	//////////////////////////////////////////////////////////////////////////
 	{
-		CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Execute(): Final Path Processing!")
+		CRY_PROFILE_SECTION(PROFILE_AI, "OPStick::Execute(): Final Path Processing!")
 
 		int nPathDecision = pPipeUser->m_nPathDecision;
 
@@ -857,7 +857,7 @@ bool COPStick::GetStickAndSightTargets_CreatePathfindAndTraceGoalOps(CPipeUser* 
 		}
 		else
 		{
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 				AILogAlways("COPStick::Execute resetting due to no stick target %s", GetNameSafe(pPipeUser));
 
 			// no target, nothing to stick to
@@ -891,11 +891,11 @@ bool COPStick::GetStickAndSightTargets_CreatePathfindAndTraceGoalOps(CPipeUser* 
 
 	// Create pathfinder operation
 	{
-		CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Execute(): Create Pathfinder/Tracer!");
+		CRY_PROFILE_SECTION(PROFILE_AI, "OPStick::Execute(): Create Pathfinder/Tracer!");
 
 		Vec3 vStickPos = pStickTarget->GetPhysicsPos();
 
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 			AILogAlways("COPStick::Execute (%p) Creating pathfind/trace directives to (%5.2f, %5.2f, %5.2f) %s", this,
 			            vStickPos.x, vStickPos.y, vStickPos.z, GetNameSafe(pPipeUser));
 
@@ -932,7 +932,7 @@ bool COPStick::Trace(CPipeUser* pPipeUser, CAIObject* pStickTarget, EGoalOpResul
 		return false;
 	}
 
-	CRY_PROFILE_REGION(PROFILE_AI, "OPStick::Trace(): Tracer Execute!");
+	CRY_PROFILE_SECTION(PROFILE_AI, "OPStick::Trace(): Tracer Execute!");
 
 	// if using AdjustSpeed then force sprint at this point - will get overridden later
 	bool bAdjustSpeed = !m_bConstantSpeed && (m_pTraceDirective->m_Maneuver == COPTrace::eMV_None);
@@ -954,7 +954,7 @@ bool COPStick::Trace(CPipeUser* pPipeUser, CAIObject* pStickTarget, EGoalOpResul
 		if (!m_bContinuous && (m_eTraceEndMode != eTEM_MinimumDistance))
 		{
 
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 				AILogAlways("COPStick::Execute (%p) finishing due to non-continuous and finished tracing %s", this, GetNameSafe(pPipeUser));
 
 			Reset(pPipeUser);
@@ -1010,7 +1010,7 @@ bool COPStick::HandleHijack(CPipeUser* pPipeUser, const Vec3& vStickTargetPos, f
 				m_fApproachTime = -1.f;
 				m_fHijackDistance = -1.f;
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 					AILogAlways("COPStick::Execute (%p) finishing due to non-continuous and finished tracing %s", this, GetNameSafe(pPipeUser));
 
 				Reset(pPipeUser);
@@ -1138,7 +1138,7 @@ EGoalOpResult COPStick::HandlePathDecision(CPipeUser* pPipeUser, int nPathDecisi
 		}
 		else
 		{
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 				AILogAlways("COPStick::Execute (%p) resetting due to no path %s", this, GetNameSafe(pPipeUser));
 
 			Reset(pPipeUser);
@@ -1164,7 +1164,7 @@ EGoalOpResult COPStick::HandlePathDecision(CPipeUser* pPipeUser, int nPathDecisi
 				{
 					AISignals::AISignalExtraData* pData = new AISignals::AISignalExtraData;
 					pData->fValue = fDistance - m_fStickDistance;
-					pPipeUser->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnEndPathOffset_DEPRECATED(), pPipeUser->GetAIObjectID(), pData));
+					pPipeUser->SetSignal(GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnEndPathOffset_DEPRECATED(), pPipeUser->GetEntityID(), pData));
 				}
 				else
 				{

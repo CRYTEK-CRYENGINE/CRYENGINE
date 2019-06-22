@@ -329,7 +329,7 @@ namespace Cry
 
 			virtual bool GetCubemapTextures(const char* path, ITexture** pSpecular, ITexture** pDiffuse, bool bLoadFromDisk = true) const
 			{
-				stack_string specularCubemap = PathUtil::ReplaceExtension(path, ".dds");
+				CryPathString specularCubemap = PathUtil::ReplaceExtension(path, ".dds");
 
 				int strIndex = specularCubemap.find("_diff");
 				if (strIndex >= 0)
@@ -337,13 +337,13 @@ namespace Cry
 					specularCubemap = specularCubemap.substr(0, strIndex) + specularCubemap.substr(strIndex + 5, specularCubemap.length());
 				}
 
-				char diffuseCubemap[ICryPak::g_nMaxPath];
-				cry_sprintf(diffuseCubemap, "%s%s%s.%s", PathUtil::AddSlash(PathUtil::GetPathWithoutFilename(specularCubemap)).c_str(),
+				CryPathString diffuseCubemap;
+				diffuseCubemap.Format("%s%s%s.%s", PathUtil::AddSlash(PathUtil::GetPathWithoutFilename(specularCubemap)).c_str(),
 					PathUtil::GetFileName(specularCubemap).c_str(), "_diff", PathUtil::GetExt(specularCubemap));
 
 				// '\\' in filename causing texture duplication
-				stack_string specularCubemapUnix = PathUtil::ToUnixPath(specularCubemap.c_str());
-				stack_string diffuseCubemapUnix = PathUtil::ToUnixPath(diffuseCubemap);
+				CryPathString specularCubemapUnix = PathUtil::ToUnixPath(specularCubemap.c_str());
+				CryPathString diffuseCubemapUnix = PathUtil::ToUnixPath(diffuseCubemap);
 
 				if (bLoadFromDisk)
 				{

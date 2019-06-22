@@ -162,7 +162,7 @@ CFlowSystem::CFlowSystem()
 	, m_nextNodeTypeID(InvalidFlowNodeTypeId)
 	, m_bRegisteredDefaultNodes(false)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	LoadBlacklistedFlownodeXML();
 
@@ -173,7 +173,7 @@ CFlowSystem::CFlowSystem()
 
 void CFlowSystem::PreInit()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	m_pModuleManager = new CFlowGraphModuleManager();
 	RegisterAllNodeTypes();
@@ -538,7 +538,7 @@ void CFlowSystem::Update()
 #endif
 
 	{
-		CRY_PROFILE_REGION(PROFILE_ACTION, "CFlowSystem::Update()");
+		CRY_PROFILE_SECTION(PROFILE_ACTION, "CFlowSystem::Update()");
 		if (m_cVars.m_enableUpdates == 0)
 		{
 			/*
@@ -589,7 +589,7 @@ void CFlowSystem::Update()
 //////////////////////////////////////////////////////////////////////////
 void CFlowSystem::UpdateGraphs()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CFlowSystem::UpdateGraphs");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CFlowSystem::UpdateGraphs");
 
 	// Determine if graphs should be updated (Debug control)
 	bool bUpdateGraphs = true;

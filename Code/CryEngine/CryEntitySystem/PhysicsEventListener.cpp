@@ -16,7 +16,6 @@
 #include <CryPhysics/IPhysics.h>
 #include <CryParticleSystem/IParticles.h>
 #include <CryParticleSystem/ParticleParams.h>
-#include <CryAISystem/IAISystem.h>
 
 #include <CrySystem/ICodeCheckpointMgr.h>
 

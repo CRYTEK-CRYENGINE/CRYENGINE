@@ -1,7 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __Basemark_BenchmarkRendererSensor__
-#define __Basemark_BenchmarkRendererSensor__
 #pragma once
 
 #ifdef ENABLE_BENCHMARK_SENSOR
@@ -120,5 +118,3 @@ protected:
 };
 
 #endif //ENABLE_BENCHMARK_SENSOR
-
-#endif

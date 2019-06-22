@@ -1,18 +1,8 @@
-cmake_minimum_required(VERSION 3.6.2)
-
-set(TOOLS_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
-
-# Bootstrap support
-if(EXISTS "${TOOLS_CMAKE_DIR}/Bootstrap.cmake")
-	include("${TOOLS_CMAKE_DIR}/Bootstrap.cmake")
-	if(OPTION_AUTO_BOOTSTRAP)
-		set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "bootstrap.dat")
-	endif()
-elseif(EXISTS "${TOOLS_CMAKE_DIR}/DownloadSDKs.cmake")
-	include("${TOOLS_CMAKE_DIR}/DownloadSDKs.cmake")
-endif()
-
-include("${TOOLS_CMAKE_DIR}/Configure.cmake")
+include_guard(GLOBAL)
+# Header guard to avoid duplicate execution when configuring (template) projects with OPTION_ENGINE
+# Templates include Configure.cmake and add_subdirectory(${CRYENGINE_DIR}) which also includes Configure.cmake
+# Templates do need Configure.cmake to set up some defines.
+# In order to not have duplicate add_subdirectory calls (which causes errors), we need an include guard here.
 
 if(OPTION_ENGINE OR OPTION_SHADERCACHEGEN OR OPTION_SCALEFORMHELPER OR OPTION_SANDBOX OR OPTION_PAKTOOLS OR OPTION_DOXYGEN_EXAMPLES)
 	# Add custom project with just listing of cmake files
@@ -30,7 +20,7 @@ if (OPTION_SANDBOX AND OPTION_STATIC_LINKING)
 endif()
 
 if (OPTION_SANDBOX AND WINDOWS)
-	set(QT_DIR "${SDK_DIR}/Qt/5.12.0/msvc2017_64/Qt")
+	set(QT_DIR "${SDK_DIR}/Qt/5.12.3/msvc2017_64/Qt")
 	set(Qt5_DIR "${QT_DIR}")
 
 	find_package(Qt5 COMPONENTS Core Gui OpenGL Widgets REQUIRED PATHS "${QT_DIR}" NO_DEFAULT_PATH)

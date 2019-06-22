@@ -234,7 +234,6 @@ static void PrintControllerInfo(
 	const SBoneCompressionValues bc = desc.GetBoneCompressionValues(pBoneName, platform.m_compressionMultiplier);
 
 	{
-		const char* const pName = (pBoneName ? pBoneName : "<no name>");
 		const char* pPos = 
 			(bc.m_eAutodeletePos == SBoneCompressionValues::eDelete_Yes ? "Delete    " : (bc.m_eAutodeletePos == SBoneCompressionValues::eDelete_No ? "DontDelete" : "AutoDelete"));
 		const char* pRot = 

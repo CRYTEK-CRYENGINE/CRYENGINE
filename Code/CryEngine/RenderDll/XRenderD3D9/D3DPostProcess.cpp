@@ -172,7 +172,8 @@ void CPostEffectsMgr::Begin()
 
 	//gcpRendD3D->RT_SetViewport(0, 0, gcpRendD3D->GetWidth(), gcpRendD3D->GetHeight());
 
-	SPostEffectsUtils::m_fWaterLevel = gRenDev->m_p3DEngineCommon.m_OceanInfo.m_fWaterLevel;
+	auto threadID = gRenDev->GetRenderThreadID();
+	SPostEffectsUtils::m_fWaterLevel = gRenDev->m_p3DEngineCommon[threadID].m_OceanInfo.m_fWaterLevel;
 
 	PostProcessUtils().UpdateOverscanBorderAspectRatio();
 }

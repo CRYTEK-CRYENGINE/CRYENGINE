@@ -8,31 +8,29 @@ using namespace Cry::AI::CollisionAvoidance;
 
 CCollisionAvoidanceAgent::~CCollisionAvoidanceAgent()
 {
-	Release();
+	Unregister();
 }
 
-void CCollisionAvoidanceAgent::Initialize(IEntity* pEntity)
+bool CCollisionAvoidanceAgent::Register(IEntity* pEntity)
 {
-	if (m_pAttachedEntity != pEntity)
-	{
-		Release();
-	}
-
-	m_pAttachedEntity = pEntity;
-
 	if (pEntity)
 	{
-		gEnv->pAISystem->GetCollisionAvoidanceSystem()->RegisterAgent(this);
+		m_pAttachedEntity = pEntity;
+		return gEnv->pAISystem->GetCollisionAvoidanceSystem()->RegisterAgent(this);
 	}
+	CRY_ASSERT_MESSAGE(pEntity, "Parameter 'pEntity' must be non-null.");
+	return false;
 }
 
-void CCollisionAvoidanceAgent::Release()
+bool CCollisionAvoidanceAgent::Unregister()
 {
 	if (m_pAttachedEntity)
 	{
-        gEnv->pAISystem->GetCollisionAvoidanceSystem()->UnregisterAgent(this);
 		m_pAttachedEntity = nullptr;
+		return gEnv->pAISystem->GetCollisionAvoidanceSystem()->UnregisterAgent(this);
 	}
+	CRY_ASSERT_MESSAGE(m_pAttachedEntity, "Can't unregister an agent who was not registered.");
+	return false;
 }
 
 NavigationAgentTypeID CCollisionAvoidanceAgent::GetNavigationTypeId() const

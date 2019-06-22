@@ -160,7 +160,6 @@ CDeviceResourceSetDesc::EDirtyFlags CDeviceResourceSetDesc::SetResources(const C
 	{
 		auto insertResult = m_resources.insert(it);
 
-		SResourceBinding&   existingBinding = insertResult.first->second;
 		SResourceBindPoint& existingBindPoint = insertResult.first->first;
 
 		if (m_invalidateCallback)

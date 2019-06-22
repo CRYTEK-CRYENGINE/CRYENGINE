@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _INTROMOVIERENDERER_H_
-#define _INTROMOVIERENDERER_H_
+#pragma once
 
 #include <CrySystem/Scaleform/IFlashPlayer.h>
 
@@ -48,5 +47,3 @@ protected:
 	std::shared_ptr<IFlashPlayer> m_pFlashPlayer;
 
 };
-
-#endif // _INTROMOVIERENDERER_H_

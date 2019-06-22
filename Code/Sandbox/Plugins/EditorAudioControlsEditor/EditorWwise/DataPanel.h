@@ -52,7 +52,6 @@ private:
 	CItemModel* const        m_pModel;
 	CTreeView* const         m_pTreeView;
 	QFilteringPanel*         m_pFilteringPanel;
-	int const                m_nameColumn;
 };
 } // namespace Wwise
 } // namespace Impl

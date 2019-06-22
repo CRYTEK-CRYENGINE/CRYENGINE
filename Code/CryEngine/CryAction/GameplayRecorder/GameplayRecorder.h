@@ -23,6 +23,7 @@
 #include "IMetadataRecorder.h"
 
 #include "CompositeData.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 enum EDataTags4CC
 {

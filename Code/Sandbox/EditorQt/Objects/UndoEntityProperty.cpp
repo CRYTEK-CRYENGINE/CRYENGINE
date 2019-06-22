@@ -5,11 +5,11 @@
 #include "EntityObject.h"
 
 CUndoEntityProperty::CUndoEntityProperty(const char* pEntityName, const char* pPropertyName, const char* pUndoDescription)
+	: m_entityName(pEntityName)
+	, m_propertyName(pPropertyName)
+	, m_undoDescription(pUndoDescription)
+	, m_undo(PyGetEntityProperty(pEntityName, pPropertyName))
 {
-	m_entityName = pEntityName;
-	m_propertyName = pPropertyName;
-	m_undoDescription = pUndoDescription;
-	m_undo = PyGetEntityProperty(pEntityName, pPropertyName);
 }
 
 const char* CUndoEntityProperty::GetDescription()

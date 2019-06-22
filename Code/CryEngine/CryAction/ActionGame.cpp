@@ -16,7 +16,6 @@
 #include <CryEntitySystem/IBreakableGlassSystem.h>
 #include "IPlayerProfiles.h"
 #include "IGameSessionHandler.h"
-#include "DialogSystem/DialogSystem.h"
 #include <Cry3DEngine/ITimeOfDay.h>
 #include "TimeOfDayScheduler.h"
 #include "PersistantDebug.h"
@@ -28,6 +27,7 @@
 #include "Network/ObjectSelector.h"
 
 #include <CrySystem/Scaleform/IFlashUI.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CActionGame* CActionGame::s_this = 0;
 int CActionGame::g_procedural_breaking = 0;
@@ -405,7 +405,7 @@ void CActionGame::BackupGameStartParams(const SGameStartParams* pGameStartParams
 
 bool CActionGame::Init(const SGameStartParams* pGameStartParams)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "ActionGame::Init");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "ActionGame::Init");
 
 	if (!pGameStartParams)
 	{
@@ -969,8 +969,8 @@ CActionGame::eInitTaskState CActionGame::NonBlockingConnect(BlockingConditionFun
 
 bool CActionGame::BlockingConnect(BlockingConditionFunction condition, bool requireClientChannel, const char* conditionText)
 {
-	LOADING_TIME_PROFILE_SECTION
-	  MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "BlockingConnect");
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "BlockingConnect");
 
 	bool ok = false;
 
@@ -4294,7 +4294,7 @@ void CActionGame::HideBrokenObjectsByIndex(uint16* pObjectIndicies, int32 iNumOb
 			if (m_brokenObjs[i].itype == PHYS_FOREIGN_ID_STATIC)
 			{
 				//CryLogAlways("Hide & remove decals from original pBrush 0x%p at index %d", m_brokenObjs[i].pBrush, i);
-				m_brokenObjs[i].pBrush->Hide(true);
+				m_brokenObjs[i].pBrush->SetRndFlags(ERF_HIDDEN, true);
 
 				//At the moment there is no code support for hiding decals for later re-display. This means that to avoid
 				//	decals being left floating in mid air, we need to remove them when the killcam starts
@@ -4330,7 +4330,7 @@ void CActionGame::UnhideBrokenObjectsByIndex(uint16* pObjectIndicies, int32 iNum
 			if (m_brokenObjs[i].itype == PHYS_FOREIGN_ID_STATIC)
 			{
 				BreakLogAlways("UNHIDING original pBrush 0x%p at index %d", m_brokenObjs[i].pBrush, i);
-				m_brokenObjs[i].pBrush->Hide(false);
+				m_brokenObjs[i].pBrush->SetRndFlags(ERF_HIDDEN, false);
 
 				//At the moment there is no code support for hiding decals for later re-display. This means that to avoid
 				//	decals being left floating in mid air, we need to remove them when the killcam starts
@@ -4689,7 +4689,7 @@ void CActionGame::FixBrokenObjects(bool bRestoreBroken)
 
 void CActionGame::OnEditorSetGameMode(bool bGameMode)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	FixBrokenObjects(true);
 	ClearBreakHistory();
 
@@ -4729,15 +4729,6 @@ void CActionGame::OnEditorSetGameMode(bool bGameMode)
 	pCryAction->GetTimeOfDayScheduler()->Reset();
 	gEnv->pFlowSystem->Reset(false);
 	if (gEnv->pFlashUI) gEnv->pFlashUI->Reload();
-	CDialogSystem* pDS = pCryAction->GetDialogSystem();
-	if (pDS)
-	{
-		pDS->Reset(false);
-		if (bGameMode && CDialogSystem::sAutoReloadScripts != 0)
-		{
-			pDS->ReloadScripts();
-		}
-	}
 
 	pCryAction->GetPersistantDebug()->Reset();
 }

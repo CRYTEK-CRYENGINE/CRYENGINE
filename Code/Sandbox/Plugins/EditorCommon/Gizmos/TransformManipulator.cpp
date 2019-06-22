@@ -451,9 +451,8 @@ void CTransformManipulator::Display(SDisplayContext& dc)
 
 		if (editMode == CLevelEditorSharedState::EditMode::Move && !dc.display2D)
 		{
-			// TODO: Use SHIFT+G key for this, make it a polled key
 			bool bClickedShift = QtUtil::IsModifierKeyDown(Qt::ShiftModifier);
-			if (bClickedShift && m_highlightAxis)
+			if (bClickedShift)
 			{
 				m_pAxisHelperExtended.DrawAxes(dc, m_matrix);
 			}
@@ -476,9 +475,8 @@ void CTransformManipulator::Display(SDisplayContext& dc)
 
 		if (!dc.display2D)
 		{
-			//TODO: Use SHIFT+G key for this, make it a polled key
 			bool bClickedShift = QtUtil::IsModifierKeyDown(Qt::ShiftModifier);
-			if (bClickedShift && m_highlightAxis)
+			if (bClickedShift)
 			{
 				m_pAxisHelperExtended.DrawAxes(dc, m_matrix);
 			}

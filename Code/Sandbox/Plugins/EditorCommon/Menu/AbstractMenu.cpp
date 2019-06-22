@@ -5,6 +5,7 @@
 #include "QtUtil.h"
 #include "IEditor.h"
 #include "Commands/ICommandManager.h"
+#include "Commands/QCommandAction.h"
 #include <CrySystem/ISystem.h>
 #include <QAction>
 
@@ -118,10 +119,15 @@ int CAbstractMenu::GetMaxPriority(int section) const
 	CRY_ASSERT(!IsEmpty());
 	CRY_ASSERT(section >= eSections_Min);
 	const std::pair<int, int> adj(section + 1, ePriorities_Min);
-	auto maxItemInSection = --std::lower_bound(m_sortedItems.begin(), m_sortedItems.end(), adj, [](const auto& lhp, const auto& adj)
+	auto itemInSelection = std::lower_bound(m_sortedItems.begin(), m_sortedItems.end(), adj, [](const auto& lhp, const auto& adj)
 	{
 		return lhp->MakeKey() < adj;
 	});
+	if (itemInSelection == m_sortedItems.begin())
+	{
+		return (*itemInSelection)->m_priority;
+	}
+	auto maxItemInSection = --itemInSelection;
 	return (*maxItemInSection)->m_priority;
 }
 
@@ -152,16 +158,26 @@ void CAbstractMenu::AddAction(QAction* pAction, int sectionHint, int priorityHin
 	const int section = GetSectionFromHint(sectionHint);
 	m_actionItems.emplace_back(new SActionItem(pAction, GetPriorityFromHint(priorityHint, section), section));
 	InsertItem(m_actionItems.back().get());
-	signalActionAdded();
+	signalActionAdded(pAction);
+	signalDescendantModified(CActionAddedEvent(pAction));
 }
 
-void CAbstractMenu::AddCommandAction(const char* szCommand, int sectionHint /*= eSections_Default*/, int priorityHint /*= ePriorities_Append*/)
+QCommandAction* CAbstractMenu::CreateCommandAction(const char* szCommand, int sectionHint /*= eSections_Default*/, int priorityHint /*= ePriorities_Append*/)
 {
-	QAction* pAction = GetIEditor()->GetICommandManager()->GetAction(szCommand);
+	QCommandAction* pAction = GetIEditor()->GetICommandManager()->CreateNewAction(szCommand);
 
 	if (!pAction)
-		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR_DBGBRK, "Command not found");
+	{
+		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR_DBGBRK, "Unable to add unregistered command to menu: %s", szCommand);
+		return nullptr;
+	}
 
+	AddCommandAction(pAction, sectionHint, priorityHint);
+	return pAction;
+}
+
+void CAbstractMenu::AddCommandAction(QCommandAction* pAction, int sectionHint /*= eSections_Default*/, int priorityHint /*= ePriorities_Append*/)
+{
 	AddAction(pAction, sectionHint, priorityHint);
 }
 
@@ -181,6 +197,19 @@ QAction* CAbstractMenu::CreateAction(const QIcon& icon, const QString& name, int
 	return pAction;
 }
 
+void CAbstractMenu::OnMenuAdded(CAbstractMenu* pMenu)
+{
+	pMenu->signalMenuAdded.Connect([this, pMenu](CAbstractMenu* pNewMenu)
+	{
+		OnMenuAdded(pNewMenu);
+	});
+
+	pMenu->signalActionAdded.Connect([this](QAction* pAction)
+	{
+		signalDescendantModified(CActionAddedEvent(pAction));
+	});
+}
+
 CAbstractMenu* CAbstractMenu::CreateMenu(const char* szName, int sectionHint, int priorityHint)
 {
 	m_subMenus.emplace_back(new CAbstractMenu(szName));
@@ -195,6 +224,8 @@ CAbstractMenu* CAbstractMenu::CreateMenu(const char* szName, int sectionHint, in
 	m_subMenuItems.push_back(std::move(pSubMenuItem));
 
 	signalMenuAdded(pSubMenu);
+
+	OnMenuAdded(pSubMenu);
 
 	return pSubMenu;
 }
@@ -225,6 +256,30 @@ CAbstractMenu* CAbstractMenu::FindMenuRecursive(const char* szName)
 		}
 		queue.insert(queue.end(), queue.front()->m_subMenus.begin(), queue.front()->m_subMenus.end());
 		queue.pop_front();
+	}
+	return nullptr;
+}
+
+QCommandAction* CAbstractMenu::FindAction(const QString& name) const
+{
+	if (name.isEmpty())
+	{
+		return nullptr;
+	}
+	std::deque<const CAbstractMenu*> queue = { this };
+	while (!queue.empty())
+	{
+		auto pMenu = queue.front();
+		queue.pop_front();
+		for (const auto& pActionItem : pMenu->m_actionItems)
+		{
+			// TODO: replace with pActionItem->m_pAction->GetCommand() once we remove QAction from abstract menu.
+			if (pActionItem->m_pAction->property("QCommandAction").toString() == name)
+			{
+				return static_cast<QCommandAction*>(pActionItem->m_pAction);
+			}
+		}
+		queue.insert(queue.end(), m_subMenus.begin(), m_subMenus.end());
 	}
 	return nullptr;
 }

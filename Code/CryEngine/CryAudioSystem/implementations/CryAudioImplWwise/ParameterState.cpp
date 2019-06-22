@@ -2,11 +2,11 @@
 
 #include "stdafx.h"
 #include "ParameterState.h"
-#include "BaseObject.h"
+#include "Object.h"
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	#include <Logger.h>
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 #include <AK/SoundEngine/Common/AkSoundEngine.h>
 
@@ -19,9 +19,9 @@ namespace Wwise
 //////////////////////////////////////////////////////////////////////////
 void CParameterState::Set(IObject* const pIObject)
 {
-	auto const pBaseObject = static_cast<CBaseObject const*>(pIObject);
+	auto const pObject = static_cast<CObject const*>(pIObject);
 
-	AK::SoundEngine::SetRTPCValue(m_id, m_rtpcValue, pBaseObject->GetId());
+	AK::SoundEngine::SetRTPCValue(m_id, m_rtpcValue, pObject->GetId());
 }
 
 //////////////////////////////////////////////////////////////////////////

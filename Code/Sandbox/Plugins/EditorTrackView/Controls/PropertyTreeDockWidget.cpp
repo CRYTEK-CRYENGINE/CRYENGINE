@@ -7,13 +7,13 @@
 #include "TrackViewPlugin.h"
 #include "SequenceTabWidget.h"
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <QLayout>
 #include <QString>
 
 #include "Serialization.h"
 #include <CrySerialization/IArchive.h>
-#include "Serialization/PropertyTree/Serialization.h"
+#include "Serialization/PropertyTreeLegacy/Serialization.h"
 
 #include <CryMovie/AnimKey.h>
 #include "Objects/EntityObject.h"
@@ -100,7 +100,7 @@ CTrackViewPropertyTreeWidget::CTrackViewPropertyTreeWidget(CTrackViewCore* pTrac
 	: CTrackViewCoreComponent(pTrackViewCore, true)
 	, m_bUndoPush(false)
 {
-	m_pPropertyTree = new QPropertyTree();
+	m_pPropertyTree = new QPropertyTreeLegacy();
 	m_pPropertyTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	m_pPropertyTree->setAutoRevert(false);
 	m_pPropertyTree->setUndoEnabled(false);
@@ -115,9 +115,9 @@ CTrackViewPropertyTreeWidget::CTrackViewPropertyTreeWidget(CTrackViewCore* pTrac
 	setObjectName(QString("keyPropertiesDock"));
 	setWindowTitle(QString("Properties"));
 
-	connect(m_pPropertyTree, &QPropertyTree::signalBeginUndo, this, &CTrackViewPropertyTreeWidget::OnPropertiesBeginUndo);
-	connect(m_pPropertyTree, &QPropertyTree::signalChanged, this, &CTrackViewPropertyTreeWidget::OnPropertiesChanged);
-	connect(m_pPropertyTree, &QPropertyTree::signalEndUndo, this, &CTrackViewPropertyTreeWidget::OnPropertiesEndUndo);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalBeginUndo, this, &CTrackViewPropertyTreeWidget::OnPropertiesBeginUndo);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalChanged, this, &CTrackViewPropertyTreeWidget::OnPropertiesChanged);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalEndUndo, this, &CTrackViewPropertyTreeWidget::OnPropertiesEndUndo);
 }
 
 void CTrackViewPropertyTreeWidget::OnPropertiesBeginUndo()

@@ -46,6 +46,7 @@ using namespace BehaviorTree;
 %typemap(csbase) MNM::Constants::Edges "uint"
 %typemap(csbase) EMNMDangers "uint"
 %typemap(csbase) ICoverUser::EStateFlags "byte"
+%typemap(csbase) INavigationSystem::EMeshFlag "uint"
 
 %ignore IAIEngineModule;
 

@@ -17,10 +17,10 @@ namespace Audio
 {
 namespace DefaultComponents
 {
-struct SParameterSerializeHelper
+struct SParameterSerializeHelper final
 {
 	void Serialize(Serialization::IArchive& archive);
-	bool operator==(SParameterSerializeHelper const& other) const { return m_name == other.m_name; }
+	bool operator==(SParameterSerializeHelper const& other) const { return m_id == other.m_id; }
 
 	CryAudio::ControlId m_id = CryAudio::InvalidControlId;
 	string              m_name;
@@ -34,10 +34,10 @@ protected:
 	static void Register(Schematyc::CEnvRegistrationScope& componentScope);
 
 	// IEntityComponent
-	virtual void   Initialize() override;
-	virtual void   OnShutDown() override {}
+	virtual void                    Initialize() override;
+	virtual void                    OnShutDown() override {}
 	virtual Cry::Entity::EventFlags GetEventMask() const override;
-	virtual void   ProcessEvent(const SEntityEvent& event) override;
+	virtual void                    ProcessEvent(const SEntityEvent& event) override;
 	// ~IEntityComponent
 
 public:
@@ -66,7 +66,7 @@ inline void ReflectType(Schematyc::CTypeDesc<SParameterSerializeHelper>& desc)
 //////////////////////////////////////////////////////////////////////////
 inline void SParameterSerializeHelper::Serialize(Serialization::IArchive& archive)
 {
-	archive(Serialization::AudioRTPC<string>(m_name), "parameterName", "^");
+	archive(Serialization::AudioParameter<string>(m_name), "parameterName", "^");
 
 	if (archive.isInput())
 	{

@@ -23,35 +23,24 @@ REGISTER_ASSET_TYPE(CPrefabAssetType)
 namespace Private_PrefabAssetType
 {
 
-bool MakeFromSelection(INewAsset& asset, const ISelectionGroup& selectedItems)
+CPrefabItem* const CreatePrefabItem(INewAsset& prefabAsset)
 {
-	CRY_ASSERT(selectedItems.GetCount());
-
-	const string dataFilePath = PathUtil::RemoveExtension(asset.GetMetadataFile());
+	const string dataFilePath = PathUtil::RemoveExtension(prefabAsset.GetMetadataFile());
 
 	CPrefabManager* const pPrefabManager = GetIEditor()->GetPrefabManager();
-	CPrefabItem* const pPrefab = (CPrefabItem*)pPrefabManager->CreateItem(dataFilePath);
-	if (!pPrefab)
+	CPrefabItem* const pPrefabItem = (CPrefabItem*)pPrefabManager->CreateItem(dataFilePath);
+	if (!pPrefabItem)
 	{
-		return false;
+		return nullptr;
 	}
 
-	CSelectionGroup selectionGroup;
-	for (size_t i = 0, n = selectedItems.GetCount(); i < n; ++i)
-	{
-		selectionGroup.AddObject(selectedItems.GetObject(i));
-	}
+	pPrefabItem->SetName(prefabAsset.GetName());
+	pPrefabItem->Update();
+	pPrefabItem->GetLibrary()->Save();
+	prefabAsset.SetGUID(pPrefabItem->GetGUID());
+	prefabAsset.AddFile(pPrefabItem->GetLibrary()->GetFilename());
 
-	pPrefab->SetName(asset.GetName());
-	pPrefab->MakeFromSelection(selectionGroup);
-	pPrefab->Update();
-
-	pPrefabManager->SetSelectedItem(pPrefab);
-	pPrefab->GetLibrary()->Save();
-
-	asset.SetGUID(pPrefab->GetGUID());
-	asset.AddFile(pPrefab->GetLibrary()->GetFilename());
-	return true;
+	return pPrefabItem;
 }
 
 }
@@ -79,17 +68,40 @@ void CPrefabAssetType::PreDeleteAssetFiles(const CAsset& asset) const
 
 bool CPrefabAssetType::OnCreate(INewAsset& asset, const SCreateParams* pCreateParams) const
 {
-	using namespace Private_PrefabAssetType;
-
-	const ISelectionGroup* const pSelectedItems = pCreateParams ? static_cast<const SPrefabCreateParams*>(pCreateParams)->pGroup : GetIEditor()->GetISelectionGroup();
-	if (!pSelectedItems || pSelectedItems->IsEmpty())
+	//First find out if we have creation params
+	const SPrefabCreateParams* pPrefabCreateParams = pCreateParams ? static_cast<const SPrefabCreateParams*>(pCreateParams) : nullptr;
+	
+	//Then check out if we need to also create a Prefab object from a selection
+	//Note that this is mainly for legacy support, an asset type should only create assets and item, then the calling code can instantiate a prefab object
+	const ISelectionGroup* pSelectionToUse = nullptr;
+	if (pPrefabCreateParams)
 	{
-		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "Creating a New Prefab: No object is selected.\n"
-		                                                       "Place several objects in the level that you wish to change to a prefab. Select all the objects that you require.");
-		return false;
+		//if we have creation params try to use this selection 
+		pSelectionToUse = pPrefabCreateParams->pNewMembersSelection; 
+	}
+	else
+	{
+		//if not use the global selection 
+		pSelectionToUse = GetIEditor()->GetISelectionGroup();
 	}
 
-	return MakeFromSelection(asset, *pSelectedItems);
+	//Create the item
+	CPrefabItem* pNewItem = Private_PrefabAssetType::CreatePrefabItem(asset);
+
+	//Create the prefab object
+	//If item has been created and we have a valid selection proceed to create a new prefab object with the selection and serialize it to prefab
+	if (pNewItem && pSelectionToUse && pSelectionToUse->GetCount())
+	{
+		CSelectionGroup selectionGroup;
+		for (size_t i = 0, n = pSelectionToUse->GetCount(); i < n; ++i)
+		{
+			selectionGroup.AddObject(pSelectionToUse->GetObject(i));
+		}
+
+		pNewItem->MakeFromSelection(selectionGroup);
+	}
+
+	return pNewItem != nullptr;
 }
 
 bool CPrefabAssetType::OnCopy(INewAsset& asset, CAsset& assetToCopy) const

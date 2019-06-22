@@ -25,9 +25,11 @@
 #include "QtUtil.h"
 #include "ThreadingUtils.h"
 
+#include <Cry3DEngine/I3DEngine.h>
+#include <Cry3DEngine/ITimeOfDay.h>
+
 #include <Controls/QuestionDialog.h>
 #include <QDirIterator> 
-
 
 REGISTER_ASSET_TYPE(CLevelType)
 
@@ -68,7 +70,7 @@ std::vector<SAssetDependencyInfo> GetDependencies(const IEditableAsset& level)
 	std::vector<CAssetType*> types(pAssetManager->GetAssetTypes());
 	types.erase(std::remove_if(types.begin(), types.end(), [](const auto x)
 	{
-		return strcmp(x->GetTypeName(), "Level") == 0;
+		return strcmp(x->GetTypeName(), "Level") == 0 || strcmp(x->GetTypeName(), "Environment") == 0;
 	}), types.end());
 
 	std::sort(types.begin(), types.end(), [](const auto a, const auto b)
@@ -80,12 +82,22 @@ std::vector<SAssetDependencyInfo> GetDependencies(const IEditableAsset& level)
 	dependencies.reserve(32);
 
 	const string gameFolder(PathUtil::AddSlash(gEnv->pCryPak->GetGameFolder()));
+	const string assetPath(PathUtil::AddSlash(PathUtil::GetGameProjectAssetsPath()));
 
 	IResourceList* pResList = gEnv->pCryPak->GetResourceList(ICryPak::RFOM_Level);
 	for (const char* szFilename = pResList->GetFirst(); szFilename; szFilename = pResList->GetNext())
 	{
 		// Make relative to the game folder
-		if (strnicmp(szFilename, gameFolder.c_str(), gameFolder.size()) == 0)
+		if (gEnv->pCryPak->IsAbsPath(szFilename))
+		{
+			if (strnicmp(szFilename, assetPath.c_str(), assetPath.size()) != 0)
+			{
+				// Ignore data files located outside the asset folder
+				continue;
+			}
+			szFilename += assetPath.size();
+		}
+		else if (strnicmp(szFilename, gameFolder.c_str(), gameFolder.size()) == 0)
 		{
 			szFilename += gameFolder.size();
 		}
@@ -110,8 +122,21 @@ std::vector<SAssetDependencyInfo> GetDependencies(const IEditableAsset& level)
 		dependencies.emplace_back(szFilename,0);
 	}
 
-	// Filter sub-dependencies out. 
+	// We use a special handling of env presets because GetResourceList may not catch them.
+	ITimeOfDay* pTimeOfDay = GetIEditorImpl()->Get3DEngine()->GetTimeOfDay();
+	const int presetCount = pTimeOfDay->GetPresetCount();
+	if (presetCount)
+	{
+		dependencies.reserve(dependencies.size() + presetCount);
+		std::vector<ITimeOfDay::SPresetInfo> presetInfos(presetCount);
+		pTimeOfDay->GetPresetsInfos(presetInfos.data(), presetCount);
+		std::transform(presetInfos.cbegin(), presetInfos.cend(), std::back_inserter(dependencies), [](auto& preset)
+		{
+			return SAssetDependencyInfo(preset.szName, 1);
+		});
+	}
 
+	// Filter sub-dependencies out. 
 	std::sort(dependencies.begin(), dependencies.end(), [](const auto& a, const auto& b) 
 	{
 		return a.path < b.path;
@@ -178,9 +203,9 @@ CAssetEditor* CLevelType::Edit(CAsset* pAsset) const
 	return nullptr;
 }
 
-std::vector<string> CLevelType::GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute, bool includeThumbnail) const
+std::vector<string> CLevelType::GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute, bool includeThumbnail, bool includeDerived) const
 {
-	std::vector<string> files = CAssetType::GetAssetFiles(asset, includeSourceFile, makeAbsolute, includeThumbnail);
+	std::vector<string> files = CAssetType::GetAssetFiles(asset, includeSourceFile, makeAbsolute, includeThumbnail, includeDerived);
 
 	if (makeAbsolute)
 	{
@@ -302,9 +327,6 @@ bool CLevelType::OnCreate(INewAsset& editAsset, const SCreateParams* pCreatePara
 		}
 		params = dialog.GetResult();
 	}
-
-	// Waiting for levels removal to complete.
-	CAssetManager::GetInstance()->WaitAsyncProcess();
 
 	const string levelFolder = GetLevelFolder(editAsset);
 	

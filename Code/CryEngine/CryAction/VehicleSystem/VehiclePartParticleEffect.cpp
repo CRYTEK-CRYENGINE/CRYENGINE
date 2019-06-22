@@ -21,8 +21,6 @@
 #include <CryAnimation/ICryAnimation.h>
 #include <IActorSystem.h>
 #include <CryNetwork/ISerialize.h>
-#include <CryAISystem/IAgent.h>
-
 #include "CryAction.h"
 #include "Vehicle.h"
 #include "VehiclePartParticleEffect.h"

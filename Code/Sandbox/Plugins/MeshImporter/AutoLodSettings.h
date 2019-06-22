@@ -12,11 +12,11 @@ public:
 	{
 		sGlobalParams()
 		{
-			m_fViewreSolution = 26.6932144;
+			m_fViewreSolution = 26.6932144f;
 			m_iViewsAround = 12;
 			m_iViewElevations = 3;
-			m_fSilhouetteWeight = 5.0;
-			m_fVertexWelding = 0.001;
+			m_fSilhouetteWeight = 5.0f;
+			m_fVertexWelding = 0.001f;
 			m_bCheckTopology = true;
 			m_bObjectHasBase = false;
 		}
@@ -37,7 +37,7 @@ public:
 		{
 			m_bAutoGenerate = false;
 			m_iLodCount = 3;
-			m_fPercent = 0.5;
+			m_fPercent = 0.5f;
 		}
 
 		sNodeParam(bool bAutoGenerate, int iLodCount, float fPercent) :

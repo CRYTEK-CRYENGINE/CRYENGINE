@@ -886,7 +886,9 @@ public:
 					goto CreateCam;
 				return 0;
 			}
-			pab.qHostPivot = !pHost->GetRotation() * Quat(Matrix33(GetISystem()->GetViewCamera().GetMatrix()));
+			const CCamera& cam = GetISystem()->GetViewCamera();
+			pab.posHostPivot = (cam.GetPosition() - pHost->GetPos()) * pHost->GetRotation();
+			pab.qHostPivot = !pHost->GetRotation() * Quat(Matrix33(cam.GetMatrix()));
 			pCam->GetPhysics()->SetParams(&pab);
 			return pCam;
 		}
@@ -922,6 +924,8 @@ CreateCam:
 			pCam->GetPhysics()->SetParams(&pp);
 			pab.pHost = pHost->GetPhysics();
 			pab.posHostPivot = (cam.GetPosition() - pHost->GetPos()) * pHost->GetRotation();
+			if (pab.posHostPivot.len2() > 100)
+				pab.posHostPivot = Vec3(0, 0, 1.7f);
 			pab.qHostPivot = !pHost->GetRotation() * qcam;
 			pCam->GetPhysics()->SetParams(&pab);
 			return pCam;
@@ -1737,7 +1741,15 @@ public:
 					(params = gEnv->pScriptSystem->CreateTable())->AddRef();
 				params->Clear();
 				for(int i=1; m_inputs[i].name; i++)
-					if (m_activeMask & 1ull << (i-1))
+				{
+					bool non0 = false;
+					switch (GetPortType(pActInfo, i))
+					{
+						case eFDT_Int    : non0 = !!GetPortInt(pActInfo, i); break;
+						case eFDT_Float  : non0 = !!GetPortFloat(pActInfo, i); break;
+						case eFDT_Vec3   : non0 = !!GetPortVec3(pActInfo, i).len2(); break;
+					}
+					if (m_activeMask & 1ull << (i-1) || non0)
 						switch (GetPortType(pActInfo, i))
 						{
 							case eFDT_Int    : params->SetValue(m_params[i-1], GetPortInt(pActInfo, i)); break;
@@ -1746,6 +1758,7 @@ public:
 							case eFDT_Bool   : params->SetValue(m_params[i-1], GetPortBool(pActInfo, i)); break;
 							case eFDT_String : params->SetValue(m_params[i-1], GetPortString(pActInfo, i).c_str()); break;
 						}
+				}
 				IEntityScriptComponent *pScript0 = pActInfo->pEntity->GetComponent<IEntityScriptComponent>(), *pScript = pScript0;
 				if (!pScript)
 					pScript = pActInfo->pEntity->CreateComponent<IEntityScriptComponent>();

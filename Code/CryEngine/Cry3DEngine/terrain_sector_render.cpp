@@ -157,12 +157,12 @@ CTerrainUpdateDispatcher::CTerrainUpdateDispatcher()
 
 CTerrainUpdateDispatcher::~CTerrainUpdateDispatcher()
 {
-	SyncAllJobs(true, SRenderingPassInfo::CreateGeneralPassRenderingInfo(gEnv->p3DEngine->GetRenderingCamera()));
+	SyncAllJobs(true, SRenderingPassInfo::CreateGeneralPassRenderingInfo(SGraphicsPipelineKey::BaseGraphicsPipelineKey, gEnv->p3DEngine->GetRenderingCamera()));
 	if (m_queuedJobs.size() || m_arrRunningJobs.size())
 	{
 		CryFatalError(
-		  "CTerrainUpdateDispatcher::~CTerrainUpdateDispatcher(): instance still has jobs "
-		  "queued while being destructed!\n");
+			"CTerrainUpdateDispatcher::~CTerrainUpdateDispatcher(): instance still has jobs "
+			"queued while being destructed!\n");
 	}
 
 	m_pHeap = NULL;
@@ -418,7 +418,7 @@ void CTerrainNode::DrawArray(const SRenderingPassInfo& passInfo)
 		if (!GetObjManager()->AddOrCreatePersistentRenderObject(pTempData, pTerrainRenderObject, &lodValue, objMat, passInfo))
 		{
 			pTerrainRenderObject->m_pRenderNode = this;
-			pTerrainRenderObject->SetAmbientColor(Get3DEngine()->GetSkyColor(), passInfo);
+			pTerrainRenderObject->SetAmbientColor(Get3DEngine()->GetSkyColor());
 			pTerrainRenderObject->m_fDistance = m_arrfDistance[passInfo.GetRecursiveLevel()];
 
 			pTerrainRenderObject->m_ObjFlags |= FOB_TRANS_TRANSLATE | FOB_TRANS_SCALE;
@@ -447,7 +447,7 @@ void CTerrainNode::DrawArray(const SRenderingPassInfo& passInfo)
 	if (!GetObjManager()->AddOrCreatePersistentRenderObject(pTempData, pTerrainRenderObject, &lodValue, objMat, passInfo))
 	{
 		pTerrainRenderObject->m_pRenderNode = nullptr;
-		pTerrainRenderObject->SetAmbientColor(Get3DEngine()->GetSkyColor(), passInfo);
+		pTerrainRenderObject->SetAmbientColor(Get3DEngine()->GetSkyColor());
 		pTerrainRenderObject->m_fDistance = m_arrfDistance[passInfo.GetRecursiveLevel()];
 
 		pTerrainRenderObject->m_ObjFlags |= FOB_TRANS_TRANSLATE | FOB_ALLOW_TERRAIN_LAYER_BLEND | FOB_ALLOW_DECAL_BLEND;
@@ -506,7 +506,7 @@ void CTerrainNode::DrawArray(const SRenderingPassInfo& passInfo)
 					continue;
 
 				pDetailObj->m_pRenderNode = nullptr;
-				pDetailObj->SetAmbientColor(Get3DEngine()->GetSkyColor(), passInfo);
+				pDetailObj->SetAmbientColor(Get3DEngine()->GetSkyColor());
 				pDetailObj->m_fDistance = m_arrfDistance[passInfo.GetRecursiveLevel()];
 
 				pDetailObj->m_ObjFlags |= passInfo.IsGeneralPass() ? FOB_NO_FOG : FOB_NONE; // enable fog on recursive rendering (per-vertex)
@@ -600,10 +600,10 @@ void CTerrainNode::UpdateRenderMesh(CStripsInfo* pArrayInfo)
 	gEnv->pRenderer->EF_Query(EFQ_MultiGPUEnabled, bMultiGPU);
 
 	pRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-	  m_pUpdateTerrainTempData->m_lstTmpVertArray.GetElements(), m_pUpdateTerrainTempData->m_lstTmpVertArray.Count(), EDefaultInputLayouts::P2S_N4B_C4B_T1F,
-	  pArrayInfo->idx_array.GetElements(), pArrayInfo->idx_array.Count(),
-	  prtTriangleList, "TerrainSector", "TerrainSector", eRMType, 1,
-	  m_nTexSet.nTex0, NULL, NULL, false, true, lstTangents.Count() ? lstTangents.GetElements() : NULL);
+		m_pUpdateTerrainTempData->m_lstTmpVertArray.GetElements(), m_pUpdateTerrainTempData->m_lstTmpVertArray.Count(), EDefaultInputLayouts::P2S_N4B_C4B_T1F,
+		pArrayInfo->idx_array.GetElements(), pArrayInfo->idx_array.Count(),
+		prtTriangleList, "TerrainSector", "TerrainSector", eRMType, 1,
+		m_nTexSet.nTex0, NULL, NULL, false, true, lstTangents.Count() ? lstTangents.GetElements() : NULL);
 	AABB boxWS = GetBBox();
 	pRenderMesh->SetBBox(boxWS.min, boxWS.max);
 
@@ -783,9 +783,9 @@ bool CTerrainNode::RenderSector(const SRenderingPassInfo& passInfo)
 	for (int i = 0; i < m_lstSurfaceTypeInfo.Count() && !bDetailLayersReady; ++i)
 	{
 		bDetailLayersReady =
-		  m_lstSurfaceTypeInfo[i].HasRM() ||
-		  m_lstSurfaceTypeInfo[i].pSurfaceType ||
-		  !m_lstSurfaceTypeInfo[i].pSurfaceType->HasMaterial();
+			m_lstSurfaceTypeInfo[i].HasRM() ||
+			m_lstSurfaceTypeInfo[i].pSurfaceType ||
+			!m_lstSurfaceTypeInfo[i].pSurfaceType->HasMaterial();
 	}
 
 	// just draw if everything is up to date already
@@ -810,7 +810,7 @@ void CTerrainNode::RenderSectorUpdate_Finish(const SRenderingPassInfo& passInfo)
 	assert(m_pUpdateTerrainTempData != NULL);
 	if (passInfo.IsGeneralPass())
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "Sync_UpdateTerrain");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "Sync_UpdateTerrain");
 		gEnv->GetJobManager()->WaitForJob(m_pUpdateTerrainTempData->m_JobStateBuildIndices);
 		gEnv->GetJobManager()->WaitForJob(m_pUpdateTerrainTempData->m_JobStateBuildVertices);
 
@@ -925,7 +925,7 @@ int GetVecProjectId(const Vec3& vNorm)
 void CTerrainNode::GenerateIndicesForAllSurfaces(IRenderMesh* pRM, int arrpNonBorderIdxNum[SRangeInfo::e_max_surface_types][4], int nBorderStartIndex, SSurfaceTypeInfo* pSurfaceTypeInfos, CUpdateTerrainTempData* pUpdateTerrainTempData)
 {
 	FUNCTION_PROFILER_3DENGINE;
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "CTerrainNode::GenerateIndicesForAllSurfaces");
+	MEMSTAT_CONTEXT(EMemStatContextType::Terrain, "CTerrainNode::GenerateIndicesForAllSurfaces");
 
 	byte arrMat3DFlag[SRangeInfo::e_max_surface_types];
 
@@ -1169,8 +1169,8 @@ void CTerrainNode::UpdateSurfaceRenderMeshes(const _smart_ptr<IRenderMesh> pSrcR
 			eRMType = eRMT_Dynamic;
 
 		pMatRM = GetRenderer()->CreateRenderMeshInitialized(
-		  NULL, 0, EDefaultInputLayouts::P2S_N4B_C4B_T1F, NULL, 0,
-		  prtTriangleList, szComment, szComment, eRMType, 1, 0, NULL, NULL, false, false);
+			NULL, 0, EDefaultInputLayouts::P2S_N4B_C4B_T1F, NULL, 0,
+			prtTriangleList, szComment, szComment, eRMType, 1, 0, NULL, NULL, false, false);
 	}
 
 	uint8 szProj[] = "XYZ";
@@ -1309,14 +1309,14 @@ _smart_ptr<IRenderMesh> CTerrainNode::GetSharedRenderMesh()
 	}
 
 	m_pTerrain->m_pSharedRenderMesh = GetRenderer()->CreateRenderMeshInitialized(
-	  arrVertices.GetElements(),
-	  arrVertices.Count(),
-	  EDefaultInputLayouts::P2S_N4B_C4B_T1F,
-	  arrIndices.GetElements(),
-	  arrIndices.Count(),
-	  prtTriangleList,
-	  "TerrainSectorSharedRenderMesh", "TerrainSectorSharedRenderMesh",
-	  eRMT_Static);
+		arrVertices.GetElements(),
+		arrVertices.Count(),
+		EDefaultInputLayouts::P2S_N4B_C4B_T1F,
+		arrIndices.GetElements(),
+		arrIndices.Count(),
+		prtTriangleList,
+		"TerrainSectorSharedRenderMesh", "TerrainSectorSharedRenderMesh",
+		eRMT_Static);
 
 	m_pTerrain->m_pSharedRenderMesh->SetChunk(NULL, 0, arrVertices.Count(), 0, arrIndices.Count(), 1.0f, 0);
 

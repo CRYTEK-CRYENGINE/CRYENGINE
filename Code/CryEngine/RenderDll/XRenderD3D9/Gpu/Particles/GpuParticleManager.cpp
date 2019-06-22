@@ -32,7 +32,7 @@ IParticleComponentRuntime* CManager::CreateParticleContainer(const SComponentPar
 
 void CManager::RenderThreadUpdate(CRenderView* pRenderView)
 {
-	const bool bAsynchronousCompute = CRenderer::CV_r_D3D12AsynchronousCompute & BIT((eStage_ComputeParticles - eStage_FIRST_ASYNC_COMPUTE)) ? true : false;
+	const bool bAsynchronousCompute = CRenderer::CV_r_D3D12AsynchronousCompute& BIT((eStage_ComputeParticles - eStage_FIRST_ASYNC_COMPUTE)) ? true : false;
 	const bool bReadbackBoundingBox = CRenderer::CV_r_GpuParticlesConstantRadiusBoundingBoxes ? false : true;
 
 	if (!CRenderer::CV_r_GpuParticles)
@@ -74,7 +74,7 @@ void CManager::RenderThreadUpdate(CRenderView* pRenderView)
 		{
 			for (auto& pRuntime : GetReadRuntimes())
 			{
-				pRuntime->Initialize();
+				pRuntime->Initialize(pRenderView->GetGraphicsPipeline().get());
 			}
 		}
 
@@ -156,7 +156,7 @@ void CManager::RenderThreadPostUpdate(CRenderView* pRenderView)
 
 #if (CRY_RENDERER_DIRECT3D >= 111)
 			const UINT numRanges = 1;
-			const D3D11_RECT uavRange = { 0, 0, numRuntimes, 0 };
+			const D3D11_RECT uavRange = { 0, 0, numRuntimes, 1 };
 
 			m_clearRegionPass->Execute(&m_counter.GetBuffer(), nulls, numRanges, &uavRange);
 			m_clearRegionPass->Execute(&m_scratch.GetBuffer(), nulls, numRanges, &uavRange);
@@ -168,10 +168,10 @@ void CManager::RenderThreadPostUpdate(CRenderView* pRenderView)
 	}
 }
 
-gpu::CBitonicSort* CManager::GetBitonicSort()
+gpu::CBitonicSort* CManager::GetBitonicSort(CGraphicsPipeline* pGraphicsPipeline)
 {
 	if (!m_pBitonicSort)
-		m_pBitonicSort = std::unique_ptr<gpu::CBitonicSort>(new gpu::CBitonicSort());
+		m_pBitonicSort = std::unique_ptr<gpu::CBitonicSort>(new gpu::CBitonicSort(pGraphicsPipeline));
 	return m_pBitonicSort.get();
 }
 

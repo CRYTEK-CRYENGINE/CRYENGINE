@@ -327,6 +327,9 @@ template<typename DestinationType, typename SourceType> inline DestinationType a
 
 }
 
+void CryDebugBreak();
+#include <CryCore/Assert/CryAssert.h>
+
 // CryModule memory manager routines must always be included.
 // They are used by any module which doesn't define NOT_USE_CRY_MEMORY_MANAGER
 // No Any STL includes must be before this line.
@@ -359,11 +362,6 @@ inline int IsHeapValid()
 	#define IF_DEBUG(expr)
 #endif
 
-// Assert dialog box macros
-#include <CryCore/Assert/CryAssert.h>
-
-// Platform dependent functions that emulate Win32 API. Mostly used only for debugging!
-
 enum EQuestionResult
 {
 	eQR_None,
@@ -387,7 +385,7 @@ enum EMessageBox
 //! Loads CrySystem from disk and initializes the engine, commonly called from the Launcher implementation
 //! \param bManualEngineLoop Whether or not the caller will start and maintain the engine loop themselves. Otherwise the loop is started and engine shut down automatically inside the function.
 bool			CryInitializeEngine(struct SSystemInitParams& startupParams, bool bManualEngineLoop = false);
-void            CryDebugBreak();
+
 void            CrySleep(unsigned int dwMilliseconds);
 void            CryLowLatencySleep(unsigned int dwMilliseconds);
 EQuestionResult CryMessageBox(const char* lpText, const char* lpCaption, EMessageBox uType = eMB_Info);
@@ -501,31 +499,6 @@ struct NoMove
 	NoMove& operator=(const NoMove&) = default;
 	NoMove(NoMove&&) = delete;
 	NoMove& operator=(NoMove&&) = delete;
-};
-
-//! ZeroInit: base class to zero the memory of the derived class before initialization, so local objects initialize the same as static.
-//! Usage:
-//!     class MyClass: ZeroInit<MyClass> {...}
-//!     class MyChild: public MyClass, ZeroInit<MyChild> {...}		// ZeroInit must be the last base class.
-template<class TDerived>
-struct ZeroInit
-{
-#if CRY_COMPILER_CLANG || CRY_COMPILER_GCC
-	bool __dummy;             //!< Dummy var to create non-zero size, ensuring proper placement in TDerived.
-#endif
-
-	ZeroInit(bool bZero = true)
-	{
-		// Optional bool arg to selectively disable zeroing.
-		if (bZero)
-		{
-			// Infer offset of this base class by static casting to derived class.
-			// Zero only the additional memory of the derived class.
-			TDerived* struct_end = static_cast<TDerived*>(this) + 1;
-			size_t memory_size = (char*)struct_end - (char*)this;
-			memset(this, 0, memory_size);
-		}
-	}
 };
 
 // Quick const-manipulation macros

@@ -7,7 +7,6 @@
 #include <CryRenderer/IRenderer.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryRenderer/IMeshBaking.h>
-#include <CryRenderer/IColorGradingController.h>
 #include <CrySystem/Scaleform/IFlashPlayer.h>
 #include <CryRenderer/IStereoRenderer.h>
 #include <CryRenderer/IImage.h>
@@ -111,7 +110,6 @@ public:
 // ~hacky enum definitions
 %include "../../../../CryEngine/CryCommon/CryRenderer/IRenderAuxGeom.h"
 %include "../../../../CryEngine/CryCommon/CryRenderer/RenderElements/CREMesh.h"
-%include "../../../../CryEngine/CryCommon/CryRenderer/IColorGradingController.h"
 
 %include "../../../../CryEngine/CryCommon/CrySystem/Scaleform/IFlashPlayer.h"
 %include "../../../../CryEngine/CryCommon/CryRenderer/IStereoRenderer.h"

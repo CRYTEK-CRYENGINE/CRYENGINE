@@ -23,7 +23,7 @@ namespace Cry
 			virtual void SetStatus(const char* status) override;
 			virtual void SetPresence(const SRichPresence& presence) override;
 
-			virtual ITexture* GetAvatar(EAvatarSize size) const override;
+			virtual TextureId GetAvatar(EAvatarSize size) const override;
 			virtual IAccount* GetAccount(const ServiceIdentifier& svcId) const override;
 			virtual bool HasAccount(const IAccount& account) const override;
 			// ~IUser

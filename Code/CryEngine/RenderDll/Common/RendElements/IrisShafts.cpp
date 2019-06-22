@@ -84,8 +84,9 @@ void IrisShafts::Load(IXmlNode* pNode)
 		{
 			if (baseTextureName && baseTextureName[0])
 			{
-				ITexture* pTexture = std::move(gEnv->pRenderer->EF_LoadTexture(baseTextureName));
-				SetBaseTex((CTexture*)pTexture);
+				ITexture* pTexture = gEnv->pRenderer->EF_LoadTexture(baseTextureName);
+				m_pBaseTex.reset();
+				m_pBaseTex.Assign_NoAddRef(static_cast<CTexture*>(pTexture));
 			}
 		}
 
@@ -94,8 +95,9 @@ void IrisShafts::Load(IXmlNode* pNode)
 		{
 			if (gradientTexName && gradientTexName[0])
 			{
-				ITexture* pTexture = std::move(gEnv->pRenderer->EF_LoadTexture(gradientTexName));
-				SetSpectrumTex((CTexture*)pTexture);
+				ITexture* pTexture = gEnv->pRenderer->EF_LoadTexture(gradientTexName);
+				m_pSpectrumTex.reset();
+				m_pSpectrumTex.Assign_NoAddRef(static_cast<CTexture*>(pTexture));
 			}
 		}
 

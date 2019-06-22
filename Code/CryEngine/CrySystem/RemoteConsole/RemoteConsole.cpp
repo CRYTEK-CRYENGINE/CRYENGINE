@@ -14,6 +14,7 @@
 
 #ifdef USE_REMOTE_CONSOLE
 	#include <CryGame/IGameFramework.h>
+	#include <CrySystem/ConsoleRegistration.h>
 	#include <../CryAction/ILevelSystem.h>
 	#if 0                       // currently no stroboscope support
 		#include "Stroboscope/Stroboscope.h"

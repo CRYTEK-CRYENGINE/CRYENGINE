@@ -16,4 +16,13 @@ void SendFinishedTriggerInstanceRequest(
 	void* const pUserDataOwner = nullptr);
 
 void ExecuteDefaultTriggerConnections(Control const* const pControl, TriggerConnections const& connections);
+
+void ConstructGlobalTriggerInstance(
+	ControlId const triggerId,
+	uint16 const numPlayingConnectionInstances,
+	uint16 const numPendingConnectionInstances,
+	ERequestFlags const flags,
+	void* const pOwner,
+	void* const pUserData,
+	void* const pUserDataOwner);
 } // namespace CryAudio

@@ -22,6 +22,7 @@ struct TParticleStats
 {
 	TElementCounts<F> emitters;
 	TElementCounts<F> components;
+	TElementCounts<F> spawners;
 
 	struct ParticleStats
 		: INumberVector<F, 5, ParticleStats>

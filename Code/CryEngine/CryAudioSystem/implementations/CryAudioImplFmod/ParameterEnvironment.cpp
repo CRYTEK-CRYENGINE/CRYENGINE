@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "ParameterEnvironment.h"
 #include "Common.h"
-#include "BaseObject.h"
+#include "Object.h"
 
 namespace CryAudio
 {
@@ -14,17 +14,17 @@ namespace Fmod
 //////////////////////////////////////////////////////////////////////////
 CParameterEnvironment::~CParameterEnvironment()
 {
-	for (auto const pBaseObject : g_constructedObjects)
+	for (auto const pObject : g_constructedObjects)
 	{
-		pBaseObject->RemoveParameter(m_id);
+		pObject->RemoveParameter(m_parameterInfo);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CParameterEnvironment::Set(IObject* const pIObject, float const amount)
 {
-	auto const pBaseObject = static_cast<CBaseObject*>(pIObject);
-	pBaseObject->SetParameter(m_id, m_multiplier * amount + m_shift);
+	auto const pObject = static_cast<CObject*>(pIObject);
+	pObject->SetParameter(m_parameterInfo, m_multiplier * amount + m_shift);
 }
 } // namespace Fmod
 } // namespace Impl

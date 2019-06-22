@@ -225,14 +225,11 @@ static int bind(CRYSOCKET s, const CRYSOCKADDR* addr, CRYSOCKLEN_T addrlen)
 //! \retval <0  An error occurred - see eCrySocketError.
 static int IsRecvPending(CRYSOCKET s, CRYTIMEVAL* timeout)
 {
-	CRYFD_SET emptySet;
-	FD_ZERO(&emptySet);
-
 	CRYFD_SET readSet;
 	FD_ZERO(&readSet);
 	FD_SET(s, &readSet);
 
-	int ret = ::select(s + 1, &readSet, &emptySet, &emptySet, timeout);
+	int ret = ::select(s + 1, &readSet, nullptr, nullptr, timeout);
 
 	if (ret >= 0)
 	{
@@ -252,14 +249,11 @@ static int IsRecvPending(CRYSOCKET s, CRYTIMEVAL* timeout)
 //! \retval <0  An error occurred - see eCrySocketError.
 static int WaitForWritableSocket(CRYSOCKET s, CRYTIMEVAL* timeout)
 {
-	CRYFD_SET emptySet;
-	FD_ZERO(&emptySet);
-
 	CRYFD_SET writeSet;
 	FD_ZERO(&writeSet);
 	FD_SET(s, &writeSet);
 
-	int ret = ::select(s + 1, &emptySet, &writeSet, &emptySet, timeout);
+	int ret = ::select(s + 1, nullptr, &writeSet, nullptr, timeout);
 
 	if (ret >= 0)
 	{

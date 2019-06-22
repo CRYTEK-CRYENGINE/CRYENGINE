@@ -76,23 +76,23 @@ public:
 		return value.toString().contains(regexp);
 	}
 
-	QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> filter) override
+	QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter, const QStringList* pAttributeValues) override
 	{
 		auto widget = new QLineEdit();
-		auto currentValue = filter->GetFilterValue();
+		auto currentValue = pFilter->GetFilterValue();
 
 		if (currentValue.type() == QVariant::String)
 		{
 			widget->setText(currentValue.toString());
 		}
 
-		QWidget::connect(widget, &QLineEdit::editingFinished, [filter, widget]()
+		QWidget::connect(widget, &QLineEdit::editingFinished, [pFilter, widget]()
 			{
 				QRegExp regexp;
 				regexp.setPatternSyntax(QRegExp::FixedString);
 				regexp.setCaseSensitivity(Qt::CaseInsensitive);
 				regexp.setPattern(widget->text());
-				filter->SetFilterValue(regexp);
+				pFilter->SetFilterValue(regexp);
 		  });
 
 		return widget;
@@ -131,24 +131,24 @@ public:
 class CBaseIntOperator : public IAttributeFilterOperator
 {
 public:
-	QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> filter) override
+	QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter, const QStringList* pAttributeValues) override
 	{
-		auto widget = new QNumericBox();
-		widget->setRestrictToInt();
+		auto pWidget = new QNumericBox();
+		pWidget->setRestrictToInt();
 
-		auto currentValue = filter->GetFilterValue();
+		auto currentValue = pFilter->GetFilterValue();
 
 		if (currentValue.isValid())
-			widget->setValue(currentValue.toInt());
+			pWidget->setValue(currentValue.toInt());
 		else
-			widget->setValue(0);
+			pWidget->setValue(0);
 
-		QWidget::connect(widget, &QNumericBox::valueSubmitted, [=]()
+		QWidget::connect(pWidget, &QNumericBox::valueSubmitted, [=]()
 		{
-			filter->SetFilterValue((int)widget->value());
+			pFilter->SetFilterValue((int)pWidget->value());
 		});
 
-		return widget;
+		return pWidget;
 	}
 
 	void UpdateWidget(QWidget* widget, const QVariant& value) override
@@ -162,22 +162,22 @@ public:
 class CBaseFloatOperator : public IAttributeFilterOperator
 {
 public:
-	QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> filter) override
+	QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter, const QStringList* pAttributeValues) override
 	{
-		auto widget = new QNumericBox();
-		auto currentValue = filter->GetFilterValue();
+		auto pWidget = new QNumericBox();
+		auto currentValue = pFilter->GetFilterValue();
 
 		if (currentValue.isValid())
-			widget->setValue(currentValue.toDouble());
+			pWidget->setValue(currentValue.toDouble());
 		else
-			widget->setValue(0);
+			pWidget->setValue(0);
 
-		QWidget::connect(widget, &QNumericBox::valueSubmitted, [=]()
+		QWidget::connect(pWidget, &QNumericBox::valueSubmitted, [=]()
 		{
-			filter->SetFilterValue(widget->value());
+			pFilter->SetFilterValue(pWidget->value());
 		});
 
-		return widget;
+		return pWidget;
 	}
 
 	void UpdateWidget(QWidget* widget, const QVariant& value) override
@@ -254,24 +254,24 @@ public:
 		return false;
 	}
 
-	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> filter) override
+	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter, const QStringList* pAttributeValues) override
 	{
-		auto widget = new QCheckBox();
-		auto currentValue = filter->GetFilterValue();
-		widget->setChecked(currentValue.toBool());
-		widget->setText(currentValue.toBool() ? "True" : "False");
+		auto pWidget = new QCheckBox();
+		auto currentValue = pFilter->GetFilterValue();
+		pWidget->setChecked(currentValue.toBool());
+		pWidget->setText(currentValue.toBool() ? "True" : "False");
 
-		QWidget::connect(widget, &QCheckBox::stateChanged, [=](int newState)
+		QWidget::connect(pWidget, &QCheckBox::stateChanged, [=](int newState)
 			{
 				switch (newState)
 				{
 				case Qt::Unchecked:
-					filter->SetFilterValue(false);
-					widget->setText("False");
+					pFilter->SetFilterValue(false);
+					pWidget->setText("False");
 					break;
 				case Qt::Checked:
-					filter->SetFilterValue(true);
-					widget->setText("True");
+					pFilter->SetFilterValue(true);
+					pWidget->setText("True");
 					break;
 				default:
 					assert(0); //Not handled
@@ -279,16 +279,16 @@ public:
 				}
 		  });
 
-		return widget;
+		return pWidget;
 	}
 
 	void UpdateWidget(QWidget* widget, const QVariant& value) override
 	{
-		QCheckBox* checkBox = qobject_cast<QCheckBox*>(widget);
-		if (checkBox && value.type() == QVariant::Bool)
+		QCheckBox* pCheckBox = qobject_cast<QCheckBox*>(widget);
+		if (pCheckBox && value.type() == QVariant::Bool)
 		{
-			checkBox->setChecked(value.toBool());
-			checkBox->setText(value.toBool() ? "True" : "False");
+			pCheckBox->setChecked(value.toBool());
+			pCheckBox->setText(value.toBool() ? "True" : "False");
 		}
 	}
 };
@@ -321,35 +321,42 @@ public:
 		}
 	}
 
-	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> filter) override
+	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter, const QStringList* pAttributeValues) override
 	{
-		QMenuComboBox* cb = new QMenuComboBox();
-		cb->SetMultiSelect(true);
-		cb->SetCanHaveEmptySelection(true);
+		QMenuComboBox* pComboBox = new QMenuComboBox();
+		pComboBox->SetMultiSelect(true);
+		pComboBox->SetCanHaveEmptySelection(true);
 
-		CItemModelAttributeEnum* attr = static_cast<CItemModelAttributeEnum*>(filter->GetAttribute());
-		cb->AddItems(attr->GetEnumEntries());
+		if (pAttributeValues)
+		{
+			pComboBox->AddItems(*pAttributeValues);
+		}
+		else
+		{
+			CItemModelAttributeEnum* attr = static_cast<CItemModelAttributeEnum*>(pFilter->GetAttribute());
+			pComboBox->AddItems(attr->GetEnumEntries());
+		}
 
-		QVariant& val = filter->GetFilterValue();
+		QVariant& val = pFilter->GetFilterValue();
 		if (val.isValid())
 		{
 			bool ok = false;
 			int valToI = val.toInt(&ok);
 			if (ok)
-				cb->SetChecked(valToI);
+				pComboBox->SetChecked(valToI);
 			else
 			{
 				QStringList items = val.toString().split(", ");
-				cb->SetChecked(items);
+				pComboBox->SetChecked(items);
 			}
 		}
 
-		cb->signalItemChecked.Connect([cb, filter]()
+		pComboBox->signalItemChecked.Connect([pComboBox, pFilter]()
 			{
-				filter->SetFilterValue(cb->GetCheckedItems());
+				pFilter->SetFilterValue(pComboBox->GetCheckedItems());
 		  });
 
-		return cb;
+		return pComboBox;
 	}
 
 	void UpdateWidget(QWidget* widget, const QVariant& value) override

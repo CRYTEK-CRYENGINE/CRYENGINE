@@ -22,10 +22,11 @@ static CryIcon s_pakFileFolderIcon;
 static CryIcon s_pakFileIcon;
 static CryIcon s_pakFolderIcon;
 
+static CryIcon s_contextActiveIcon;
+
 enum class ERoles : CryAudio::EnumFlagsType
 {
 	Id = Qt::UserRole + 1,
-	Name,
 	InternalPointer,
 	IsDefaultControl,
 	IsPlaceholder,
@@ -53,6 +54,8 @@ inline void InitIcons()
 	s_pakFileFolderIcon = CryIcon("icons:General/Pakfile_Folder.ico");
 	s_pakFileIcon = CryIcon("icons:General/Pakfile.ico");
 	s_pakFolderIcon = CryIcon("icons:General/Folder.ico");
+
+	s_contextActiveIcon = CryIcon("icons:General/colour_green.ico");
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -61,23 +64,29 @@ inline CryIcon const& GetItemNotificationIcon(EItemStatus const status)
 	switch (status)
 	{
 	case EItemStatus::Placeholder:
-		return s_placeholderIcon;
-		break;
+		{
+			return s_placeholderIcon;
+		}
 	case EItemStatus::NoConnection:
-		return s_noConnectionIcon;
-		break;
+		{
+			return s_noConnectionIcon;
+		}
 	case EItemStatus::NoControl:
-		return s_noControlIcon;
-		break;
+		{
+			return s_noControlIcon;
+		}
 	case EItemStatus::Localized:
-		return s_localizedIcon;
-		break;
+		{
+			return s_localizedIcon;
+		}
 	case EItemStatus::NotificationHeader:
-		return s_notificationHeaderIcon;
-		break;
+		{
+			return s_notificationHeaderIcon;
+		}
 	default:
-		return s_errorIcon;
-		break;
+		{
+			return s_errorIcon;
+		}
 	}
 }
 

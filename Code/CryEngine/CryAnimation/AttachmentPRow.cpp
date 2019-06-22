@@ -20,7 +20,7 @@ void CAttachmentPROW::UpdateRow(Skeleton::CPoseData& rPoseData)
 
 #ifdef EDITOR_PCDEBUGCODE
 	//ERROR-CHECK: check if bones and x-axis align
-	if (pSkelInstance->m_CharEditMode & CA_CharacterTool)
+	if (pSkelInstance->m_CharEditMode & CA_CharacterAuxEditor)
 	{
 		QuatTS rPhysLocation = pSkelInstance->m_location;
 		g_pAuxGeom->SetRenderFlags(SAuxGeomRenderFlags(e_Def3DPublicRenderflags));

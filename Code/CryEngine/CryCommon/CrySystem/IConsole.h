@@ -8,8 +8,8 @@
 #include <initializer_list>
 
 struct ICVar;
+struct ITexture;
 class ICrySizer;
-class ITexture;
 
 enum class ECVarType
 {
@@ -694,7 +694,3 @@ private:
 	IConsole*              m_pConsole;
 	ELoadConfigurationType m_prevType;
 };
-
-// Inclusion for backwards compatibility
-// Ideally to be removed to reduce header dependencies
-#include "ConsoleRegistration.h"

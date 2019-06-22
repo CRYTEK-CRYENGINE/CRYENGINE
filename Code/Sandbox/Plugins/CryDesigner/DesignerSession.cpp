@@ -110,14 +110,11 @@ void DesignerSession::SetBaseObject(CBaseObject* pBaseObject)
 
 void DesignerSession::OnEditorNotifyEvent(EEditorNotifyEvent event)
 {
-	bool bExclusiveModeBeforeSave = false;
 	ElementSet* pSelected = GetSelectedElements();
 	switch (event)
 	{
 	case eNotify_OnBeginGameMode:
 	case eNotify_OnBeginBindViewport:
-		gDesignerSettings.bExclusiveMode = false;
-		gExclusiveModeSettings.EnableExclusiveMode(gDesignerSettings.bExclusiveMode);
 		pSelected->Clear();
 		gDesignerSettings.Update(true);
 		signalDesignerEvent(eDesignerNotify_SettingsChanged, nullptr);
@@ -127,23 +124,6 @@ void DesignerSession::OnEditorNotifyEvent(EEditorNotifyEvent event)
 	case eNotify_OnBeginNewScene:
 	case eNotify_OnBeginSceneOpen:
 		EndSession();
-	// fall through
-	case eNotify_OnBeginSceneSave:
-		bExclusiveModeBeforeSave = gDesignerSettings.bExclusiveMode;
-		if (gDesignerSettings.bExclusiveMode)
-		{
-			gDesignerSettings.bExclusiveMode = false;
-			gExclusiveModeSettings.EnableExclusiveMode(gDesignerSettings.bExclusiveMode);
-		}
-		break;
-
-	case eNotify_OnEndSceneSave:
-		if (bExclusiveModeBeforeSave)
-		{
-			gDesignerSettings.bExclusiveMode = true;
-			gExclusiveModeSettings.EnableExclusiveMode(gDesignerSettings.bExclusiveMode);
-			bExclusiveModeBeforeSave = false;
-		}
 		break;
 	case eNotify_OnSelectionChange:
 		{
@@ -314,19 +294,6 @@ void DesignerSession::BeginSession()
 		model = GetModel();
 		model->SetShelf(eShelf_Base);
 
-		if (gDesignerSettings.bExclusiveMode)
-		{
-			if (model && model->IsEmpty())
-			{
-				gDesignerSettings.bExclusiveMode = false;
-				gDesignerSettings.Update(true);
-			}
-			else
-			{
-				gExclusiveModeSettings.EnableExclusiveMode(true);
-			}
-		}
-
 		signalDesignerEvent(eDesignerNotify_BeginDesignerSession, nullptr);
 
 		m_bActiveSession = true;
@@ -380,7 +347,6 @@ void DesignerSession::EndSession()
 			GetIEditor()->GetLevelEditorSharedState()->SetEditTool(nullptr);
 		}
 
-		gExclusiveModeSettings.EnableExclusiveMode(false);
 		signalDesignerEvent(eDesignerNotify_EndDesignerSession, nullptr);
 		ClearCache();
 	}

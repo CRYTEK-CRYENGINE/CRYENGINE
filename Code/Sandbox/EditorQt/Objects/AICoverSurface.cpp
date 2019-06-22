@@ -71,7 +71,7 @@ bool CAICoverSurface::CreateGameObject()
 
 void CAICoverSurface::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 	if (m_sampler)
 	{
 		m_sampler->Release();

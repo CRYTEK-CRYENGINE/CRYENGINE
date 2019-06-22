@@ -28,9 +28,9 @@ public:
 		int32 inputBlockSize;
 	};
 
-	CMergeSort(uint32 maxElements);
+	CMergeSort(CGraphicsPipeline* pGraphicsPipeline, uint32 maxElements);
 	// numElements needs to be power-of-two and <= maxElements
-	void Sort(uint32 numElements, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void        Sort(uint32 numElements, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 	CGpuBuffer& GetBuffer() { return m_data.Get().GetBuffer(); }
 
 private:

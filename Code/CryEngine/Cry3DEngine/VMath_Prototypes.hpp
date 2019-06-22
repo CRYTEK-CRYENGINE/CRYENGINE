@@ -1,17 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  Version:     v1.00
-//  Created:     Michael Kopietz
-//  Description: unified vector math lib
-// -------------------------------------------------------------------------
-//  History:		- created 1999  for Katmai and K3
-//							-	...
-//							-	integrated into cryengine
-//
-////////////////////////////////////////////////////////////////////////////
-#ifndef __D_VMATH_H__
-#define __D_VMATH_H__
+#pragma once
 
 ILINE vec4   Vec4(float x);
 ILINE vec4   Vec4(float x, float y, float z, float w);
@@ -44,5 +33,3 @@ ILINE vec4   Or(vec4 V0, vec4 V1);
 ILINE vec4   Xor(vec4 V0, vec4 V1);
 ILINE vec4   Select(vec4 V0, vec4 V1, vec4 M);
 ILINE vec4   SelectSign(vec4 V0, vec4 V1, vec4 M);
-
-#endif

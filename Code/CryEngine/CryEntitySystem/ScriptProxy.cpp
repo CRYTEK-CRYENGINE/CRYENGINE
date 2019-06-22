@@ -690,7 +690,7 @@ void CEntityComponentLuaScript::GameSerialize(TSerialize ser)
 
 	if (ser.GetSerializationTarget() != eST_Network)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Script proxy serialization");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Script proxy serialization");
 
 		if (NeedGameSerialize())
 		{

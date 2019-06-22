@@ -152,6 +152,23 @@ namespace Schematyc2
 	}
 
 	//////////////////////////////////////////////////////////////////////////
+	// Helper functions to avoid unused-variable warning
+	static void AddInputOpDebug(CLibFunction& libFunction, size_t posOp, const SGUID& originGuid, const char* szOriginInput)
+	{
+#if SCHEMATYC2_DEBUGGING
+		libFunction.AddDebugOperationSymbolInput(posOp, originGuid, szOriginInput);
+#endif		
+	}
+
+	static void AddNodeOpDebug(CLibFunction& libFunction, size_t posOp, const SGUID& originGuid)
+	{
+#if SCHEMATYC2_DEBUGGING
+		libFunction.AddDebugOperationSymbolNode(posOp, originGuid);
+#endif		
+	}
+
+
+	//////////////////////////////////////////////////////////////////////////
 	CDocGraphNodeCompiler::CDocGraphNodeCompiler(const IScriptFile& file, const IDocGraph& docGraph, CLib& lib, CLibClass& libClass, CLibFunction& libFunction)
 		: m_file(file)
 		, m_docGraph(docGraph)
@@ -325,9 +342,7 @@ namespace Schematyc2
 #else
 		size_t pos = m_libFunction.AddOp(SVMBranchOp(0));
 		m_branches.push_back(SBranch(node.GetGUID(), label, pos));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, node.GetGUID());
-#endif
+		AddNodeOpDebug(m_libFunction, pos, node.GetGUID());
 #endif
 	}
 
@@ -340,9 +355,7 @@ namespace Schematyc2
 #else
 		size_t pos = m_libFunction.AddOp(SVMBranchIfZeroOp(0));
 		m_branches.push_back(SBranch(node.GetGUID(), label, pos));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, node.GetGUID());
-#endif
+		AddNodeOpDebug(m_libFunction, pos, node.GetGUID());
 #endif
 	}
 
@@ -355,9 +368,7 @@ namespace Schematyc2
 #else
 		size_t pos = m_libFunction.AddOp(SVMBranchIfNotZeroOp(0));
 		m_branches.push_back(SBranch(node.GetGUID(), label, pos));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, node.GetGUID());
-#endif
+		AddNodeOpDebug(m_libFunction, pos, node.GetGUID());
 #endif
 	}
 
@@ -382,10 +393,7 @@ namespace Schematyc2
 		{
 			m_stack.push_back(SStackVariable());
 			size_t posOp = m_libFunction.AddOp(SVMPushOp(m_libFunction.AddConstValue(*iVariant)));
-
-#ifdef SCHEMATYC2_DEBUGGING
-			m_libFunction.AddDebugOperationSymbolInput(posOp, originGuid, originInput);
-#endif
+			AddInputOpDebug(m_libFunction, posOp, originGuid, originInput);
 
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 			string			previewLine = "PUSH ";
@@ -414,9 +422,7 @@ namespace Schematyc2
 		for(TVariantVector::const_iterator iVariant = variants.begin(), iEndVariant = variants.end(); iVariant != iEndVariant; ++ iVariant)
 		{
 			size_t posOp = m_libFunction.AddOp(SVMSetOp(pos, m_libFunction.AddConstValue(*iVariant)));
-#ifdef SCHEMATYC2_DEBUGGING
-			m_libFunction.AddDebugOperationSymbolInput(posOp, originGuid, originInput);
-#endif
+			AddInputOpDebug(m_libFunction, posOp, originGuid, originInput);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 			string	previewLine = "SET ";
 			char		stringBuffer[256] = "";
@@ -490,9 +496,7 @@ namespace Schematyc2
 				++ dstPos;
 			}
 
-#ifdef SCHEMATYC2_DEBUGGING
-			m_libFunction.AddDebugOperationSymbolInput(posOp, originGuid, originInput);
-#endif
+			AddInputOpDebug(m_libFunction, posOp, originGuid, originInput);
 		}
 	}
 
@@ -551,9 +555,7 @@ namespace Schematyc2
 				CVariantVectorOutputArchive	archive(variants);
 				archive(*pLibVariableValue, "", "");
 				const size_t	pos = m_libFunction.AddOp(SVMStoreOp(libVariable.GetVariantPos(), variants.size()));
-#ifdef SCHEMATYC2_DEBUGGING
-				m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+				AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 				m_previewLines.push_back("STORE ? ?");
 #endif
@@ -746,9 +748,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::StartTimer(const SGUID& guid, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMStartTimerOp(guid));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("START_TIMER ?");
 #endif
@@ -758,9 +758,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::StopTimer(const SGUID& guid, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMStopTimerOp(guid));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("STOP_TIMER ?");
 #endif
@@ -770,9 +768,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::ResetTimer(const SGUID& guid, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMResetTimerOp(guid));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("RESET_TIMER ?");
 #endif
@@ -782,9 +778,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::SendSignal(const SGUID& guid, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMSendSignalOp(guid));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("SEND_SIGNAL ?");
 #endif
@@ -794,9 +788,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::BroadcastSignal(const SGUID& guid, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMBroadcastSignalOp(guid));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("BROADCAST_SIGNAL ?");
 #endif
@@ -810,9 +802,7 @@ namespace Schematyc2
 		if(pGlobalFunction)
 		{
 			size_t pos = m_libFunction.AddOp(SVMCallGlobalFunctionOp(m_libFunction.AddGlobalFunction(pGlobalFunction)));
-#ifdef SCHEMATYC2_DEBUGGING
-			m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+			AddNodeOpDebug(m_libFunction, pos, originGuid);
 		}
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		IGlobalFunctionConstPtr	pGlobalFunction = gEnv->pSchematyc2->GetEnvRegistry().GetGlobalFunction(guid);
@@ -826,9 +816,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::CallEnvAbstractInterfaceFunction(const SGUID& abstractInterfaceGUID, const SGUID& functionGUID, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMCallEnvAbstractInterfaceFunctionOp(abstractInterfaceGUID, functionGUID));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("CALL_ENV_ABSTRACT_INTERFACE_FUNCTION ? ?");
 #endif
@@ -838,9 +826,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::CallLibAbstractInterfaceFunction(const SGUID& abstractInterfaceGUID, const SGUID& functionGUID, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMCallLibAbstractInterfaceFunctionOp(abstractInterfaceGUID, functionGUID));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		ILibAbstractInterfaceConstPtr					pAbstractInterface = m_lib.GetAbstractInterface(abstractInterfaceGUID);
 		ILibAbstractInterfaceFunctionConstPtr	pFunction = m_lib.GetAbstractInterfaceFunction(functionGUID);
@@ -860,9 +846,7 @@ namespace Schematyc2
 		if(pComponentMemberFunction)
 		{
 			size_t pos = m_libFunction.AddOp(SVMCallComponentMemberFunctionOp(m_libFunction.AddComponentMemberFunction(pComponentMemberFunction)));
-#ifdef SCHEMATYC2_DEBUGGING
-			m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+			AddNodeOpDebug(m_libFunction, pos, originGuid);
 		}
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("CALL_COMPONENT_MEMBER_FUNCTION ?");
@@ -877,9 +861,7 @@ namespace Schematyc2
 		if(pActionMemberFunction)
 		{
 			size_t pos = m_libFunction.AddOp(SVMCallActionMemberFunctionOp(m_libFunction.AddActionMemberFunction(pActionMemberFunction)));
-#ifdef SCHEMATYC2_DEBUGGING
-			m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+			AddNodeOpDebug(m_libFunction, pos, originGuid);
 		}
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("CALL_ACTION_MEMBER_FUNCTION ?");
@@ -890,9 +872,7 @@ namespace Schematyc2
 	void CDocGraphNodeCompiler::CallLibFunction(const LibFunctionId& libFunctionId, const SGUID& originGuid)
 	{
 		size_t pos = m_libFunction.AddOp(SVMCallLibFunctionOp(libFunctionId));
-#ifdef SCHEMATYC2_DEBUGGING
-		m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+		AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 		m_previewLines.push_back("CALL_LIB_FUNCTION ?");
 #endif
@@ -905,9 +885,7 @@ namespace Schematyc2
 		if(!pLastOp || (pLastOp->opCode != SVMOp::RETURN))
 		{
 			size_t pos = m_libFunction.AddOp(SVMReturnOp());
-#ifdef SCHEMATYC2_DEBUGGING
-			m_libFunction.AddDebugOperationSymbolNode(pos, originGuid);
-#endif
+			AddNodeOpDebug(m_libFunction, pos, originGuid);
 #if SCHEMATYC2_COMPILER_PREVIEW_OUTPUT
 			m_previewLines.push_back("RETURN");
 #endif
@@ -916,9 +894,9 @@ namespace Schematyc2
 
 	void CDocGraphNodeCompiler::SetDebugInput(const SGUID& originGuid, const char* originInput)
 	{
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 		const size_t currentPos = m_libFunction.GetSize();
-		m_libFunction.AddDebugOperationSymbolInput(currentPos, originGuid, originInput);
+		AddInputOpDebug(m_libFunction, currentPos, originGuid, originInput);
 #endif
 	}
 
@@ -1137,7 +1115,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	ILibPtr CCompiler::Compile(const IScriptFile& scriptFile)
 	{
-		LOADING_TIME_PROFILE_SECTION_ARGS(scriptFile.GetFileName());
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, scriptFile.GetFileName());
 
 		const char* szScriptFileName = scriptFile.GetFileName();
 		SCHEMATYC2_COMPILER_ASSERT(szScriptFileName);
@@ -1155,7 +1133,7 @@ namespace Schematyc2
 			}
 
 			{
-				MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Collect And Compile Abstract Interfaces");
+				MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Collect And Compile Abstract Interfaces");
 
 				// Collect and compile abstract interfaces.
 				TScriptAbstractInterfaceConstVector scriptAbstractInterfaces;
@@ -1184,12 +1162,12 @@ namespace Schematyc2
 				}
 
 				{
-					MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Pre-compile Graph Sequences");
+					MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Pre-compile Graph Sequences");
 
 					// Pre-compile graph sequences.
 					for(TDocGraphSequenceVector::iterator iDocGraphSequence = docGraphSequences.begin(), iEndDocGraphSequence = docGraphSequences.end(); iDocGraphSequence != iEndDocGraphSequence; ++ iDocGraphSequence)
 					{
-						MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Precompile Sequence");
+						MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Precompile Sequence");
 
 						SDocGraphSequence&	docGraphSequence = *iDocGraphSequence;
 						docGraphSequence.libFunctionId	= docGraphSequence.pLibClass->AddFunction(docGraphSequence.pDocGraph->GetGUID());
@@ -1208,7 +1186,7 @@ namespace Schematyc2
 					}
 
 					{
-						MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile Graph Sequences And Link");
+						MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile Graph Sequences And Link");
 
 						// Compile graph sequences.
 						for(TDocGraphSequenceVector::const_iterator iDocGraphSequence = docGraphSequences.begin(), iEndDocGraphSequence = docGraphSequences.end(); iDocGraphSequence != iEndDocGraphSequence; ++ iDocGraphSequence)
@@ -1234,6 +1212,9 @@ namespace Schematyc2
 							const IScriptClass&	scriptClass = *(*itScriptClass);
 							LinkClass(scriptFile, scriptClass, *pLib, *pLib->GetClass(scriptClass.GetGUID()));
 						}
+
+						pLib->CompactMemory();
+
 						return pLib;
 					}
 				}
@@ -1248,8 +1229,8 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CCompiler::CompileAll()
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile All");
-		LOADING_TIME_PROFILE_SECTION;
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile All");
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		gEnv->pSchematyc2->GetScriptRegistry().VisitFiles(ScriptFileVisitor::FromMemberFunction<CCompiler, &CCompiler::VisitAndCompileScriptFile>(*this));
 	}
@@ -1268,7 +1249,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	EVisitStatus CCompiler::VisitAndCompileScriptFile(IScriptFile& scriptFile)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile Script File");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile Script File");
 		if(ILibPtr pLib = Compile(scriptFile))
 		{
 			gEnv->pSchematyc2->GetLibRegistry().RegisterLib(pLib);
@@ -1279,7 +1260,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CCompiler::CompileSignal(const IScriptFile& scriptFile, const IScriptSignal& scriptSignal, CLib& lib)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile Signal");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile Signal");
 		// Add signal to library.
 		CSignalPtr	pSignal = lib.AddSignal(scriptSignal.GetGUID(), SGUID(), scriptSignal.GetName());
 		SCHEMATYC2_COMPILER_ASSERT(pSignal);
@@ -1300,7 +1281,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CCompiler::CompileAbstractInterface(const IScriptFile& scriptFile, const IScriptAbstractInterface& scriptAbstractInterface, CLib& lib)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile Abstract Interface");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile Abstract Interface");
 		// Add abstract interface to library.
 		lib.AddAbstractInterface(scriptAbstractInterface.GetGUID(), scriptAbstractInterface.GetName());
 	}
@@ -1308,7 +1289,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CCompiler::CompileAbstractInterfaceFunction(const IScriptFile& scriptFile, const IScriptAbstractInterfaceFunction& scriptAbstractInterfaceFunction, CLib& lib)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile Abstract Interface Function");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile Abstract Interface Function");
 		// Add abstract interface function to library.
 		CLibAbstractInterfaceFunctionPtr	pAbstracInterfaceFunction = lib.AddAbstractInterfaceFunction(scriptAbstractInterfaceFunction.GetGUID(), scriptAbstractInterfaceFunction.GetName());
 		SCHEMATYC2_COMPILER_ASSERT(pAbstracInterfaceFunction);
@@ -1338,7 +1319,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CCompiler::CompileClass(const IScriptFile& scriptFile, const IScriptClass& scriptClass, CLib& lib, TDocGraphSequenceVector& docGraphSequences)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile Class");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile Class");
 		const SGUID classGUID = scriptClass.GetGUID();
 		SGUID       foundationGUID = scriptClass.GetFoundationGUID();
 		// Get foundation and base class.
@@ -1397,8 +1378,8 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CCompiler::CompileClass(const IScriptFile& scriptFile, const IScriptClass& scriptClass, CLib& lib, CLibClass& libClass, TDocGraphSequenceVector& docGraphSequences)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Compile Class");
-		LOADING_TIME_PROFILE_SECTION_ARGS(scriptClass.GetName());
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Compile Class");
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, scriptClass.GetName());
 
 		struct SPendingGraph // #SchematycTODO : Move this outside of the function!!!
 		{

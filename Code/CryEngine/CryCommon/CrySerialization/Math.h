@@ -21,6 +21,10 @@
 //
 #include <CrySerialization/Forward.h>
 #include <CryMath/Cry_Math.h>
+#include <CryMath/Range.h>
+
+template<typename T>
+bool Serialize(Serialization::IArchive& ar, TRange<T>& range, const char* name, const char* label);
 
 template<typename T>
 bool Serialize(Serialization::IArchive& ar, struct Vec2_tpl<T>& v, const char* name, const char* label);

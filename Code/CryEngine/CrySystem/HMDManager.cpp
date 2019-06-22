@@ -53,7 +53,7 @@ void CHmdManager::OnVirtualRealityDeviceChanged(ICVar *pCVar)
 // ------------------------------------------------------------------------
 void CHmdManager::SetupAction(EHmdSetupAction cmd)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	switch (cmd)
 	{
 	case EHmdSetupAction::eHmdSetupAction_CreateCvars:

@@ -19,7 +19,7 @@
 
 #include "StdAfx.h"
 
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CryInput/IInput.h>
 #include <CrySystem/ISystem.h>
 #include <CrySystem/ITimer.h>
@@ -54,6 +54,8 @@ void SetMouseUseSystemCursorCVar(ICVar* pVar)
 }
 #endif //CRY_PLATFORM_WINDOWS
 
+float CHardwareMouse::s_MouseCursorSoftwareOffsetX = 0.0f;
+float CHardwareMouse::s_MouseCursorSoftwareOffsetY = 0.0f;
 int CHardwareMouse::s_MouseControllerEmulation = 1;
 
 //-----------------------------------------------------------------------------------------------------
@@ -84,6 +86,8 @@ CHardwareMouse::CHardwareMouse(bool bVisibleByDefault)
 		"Sets the image (dds file) to be displayed as the mouse cursor",
 		SetMouseCursorIconCVar);
 
+	REGISTER_CVAR2("r_MouseCursorSoftwareOffsetX", &s_MouseCursorSoftwareOffsetX, 0.0f, VF_NULL, "X offset for the mouse cursor to render at (Software cursor only)");
+	REGISTER_CVAR2("r_MouseCursorSoftwareOffsetY", &s_MouseCursorSoftwareOffsetY, 0.0f, VF_NULL, "Y offset for the mouse cursor to render at (Software cursor only)");
 	REGISTER_CVAR2("r_MouseControllerEmulation", &s_MouseControllerEmulation, 1, VF_NULL, "Should the controller be used to emulate mouse input?");
 
 #if CRY_PLATFORM_WINDOWS
@@ -203,11 +207,7 @@ void CHardwareMouse::ShowHardwareMouse(bool bShow)
 		CryLogAlways("HM: ShowHardwareMouse = %d", bShow);
 	}
 
-	if (bShow)
-	{
-		SetHardwareMousePosition(m_fCursorX, m_fCursorY);
-	}
-	else
+	if (!bShow)
 	{
 		GetHardwareMousePosition(&m_fCursorX, &m_fCursorY);
 	}
@@ -855,6 +855,8 @@ void CHardwareMouse::Render()
 		const float fSizeY = float(m_pCursorTexture->GetHeight());
 		float fPosX, fPosY;
 		GetHardwareMouseClientPosition(&fPosX, &fPosY);
+		fPosX += s_MouseCursorSoftwareOffsetX;
+		fPosY += s_MouseCursorSoftwareOffsetY;
 		IRenderAuxImage::Draw2dImage(fPosX * fScalerX, fPosY * fScalerY, fSizeX * fScalerX, fSizeY * fScalerY, m_pCursorTexture->GetTextureID(), 0, 1, 1, 0, 0, 1, 1, 1, 1, 0);
 	}
 }
@@ -896,6 +898,11 @@ void CHardwareMouse::Hide(bool hide)
 void CHardwareMouse::UseSystemCursor(bool useSystemCursor)
 {
 	m_shouldUseSystemCursor = useSystemCursor;
+
+	ICVar* cvMouseCursor = gEnv->pConsole->GetCVar("r_MouseCursorTexture");
+	m_curCursorPath = (cvMouseCursor && !useSystemCursor) ? cvMouseCursor->GetString() : "";
+	SetCursor(m_curCursorPath);
+
 }
 
 //-----------------------------------------------------------------------------------------------------

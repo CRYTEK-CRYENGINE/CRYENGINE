@@ -8,7 +8,8 @@ half4 ReflectionPassPS( v2f_hs IN, half4 vNormal )
 	// Do the specular reflection with ray marching.
 	half4 specularRefl = half4(0,0,0,0);
 	half  specularPrec = 0;
-
+	
+#if %SSREFL
 	{
 		const float3 vPositionWS = IN.vPosWS.xyz;
 		const float2 ScreenTC = MapViewportToRaster(IN.baseTC.xy);
@@ -88,6 +89,7 @@ half4 ReflectionPassPS( v2f_hs IN, half4 vNormal )
 
 		specularRefl.a = specularPrec;
 	}
+#endif
 
 	return specularRefl;
 }

@@ -1256,7 +1256,7 @@ void CCTPEndpoint::SendPacketsIfNecessary(CTimeValue nTime, bool isDisconnecting
 void CCTPEndpoint::Update(CTimeValue nTime, bool isDisconnecting, bool bAllowUserSend, bool bForce, bool bFlush)
 {
 	ASSERT_GLOBAL_LOCK;
-	CRY_PROFILE_REGION(PROFILE_NETWORK, "CCTPEndpoint:Update");
+	CRY_PROFILE_SECTION(PROFILE_NETWORK, "CCTPEndpoint:Update");
 
 	if (m_emptyMode)
 		return;
@@ -1421,7 +1421,7 @@ public:
 		uint32 nCurrentSeqTag = UnseqBytes[normBytes[1]];
 
 		nCurrent = (inputSeq & ~SequenceNumberMask) | nCurrentSeqTag;
-		if (inputSeq >= SequenceNumberRadius && nCurrent < SSeqNumber(inputSeq.value - SequenceNumberRadius))
+		if (nCurrent < SSeqNumber(inputSeq.value - SequenceNumberRadius))
 			nCurrent.value += SequenceNumberDiameter;
 		else if (nCurrent > inputSeq + SequenceNumberRadius)
 			nCurrent.value -= SequenceNumberDiameter;
@@ -1718,8 +1718,8 @@ void CCTPEndpoint::ProcessPacket(CTimeValue nTime, CAutoFreeHandle& hdl, bool bQ
 #endif
 
 	ASSERT_GLOBAL_LOCK;
-	CRY_PROFILE_REGION(PROFILE_NETWORK, "CCTPEndpoint:ProcessPacket");
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CCTPEndpoint:ProcessPacket");
+	CRY_PROFILE_SECTION(PROFILE_NETWORK, "CCTPEndpoint:ProcessPacket");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CCTPEndpoint:ProcessPacket");
 
 #if ENABLE_CORRUPT_PACKET_DUMP
 	CAutoSetCorruptPacketDumpData autoSetCorruptPacketDumpData(m_corruptPacketDumpData, hdl.Peek(), inSync);
@@ -2357,7 +2357,7 @@ uint32 CCTPEndpoint::SendPacket(CTimeValue nTime, const SSendPacketParams& param
 	ASSERT_GLOBAL_LOCK;
 	MMM_REGION(m_pMMM);
 
-	CRY_PROFILE_REGION(PROFILE_NETWORK, "CCTPEndpoint:SendPacket");
+	CRY_PROFILE_SECTION(PROFILE_NETWORK, "CCTPEndpoint:SendPacket");
 
 	SSchedulingParams schedParams;
 	schedParams.now = nTime;

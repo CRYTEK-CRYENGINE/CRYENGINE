@@ -435,7 +435,7 @@ GeomCacheWriterStats GeomCacheWriter::FinishWriting()
 	for (auto iter = m_frameWriteFutures.begin(); iter != m_frameWriteFutures.end(); ++iter)
 	{
 		uint64 blockSize = (*iter)->GetSize();
-		animationBytesWritten += (*iter)->GetSize();
+		animationBytesWritten += blockSize;
 	}
 
 	stats.m_headerDataSize = m_headerWriteFuture.GetSize() + m_frameInfosWriteFuture.GetSize() + m_staticNodeDataFuture.GetSize();

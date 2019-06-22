@@ -86,7 +86,7 @@ CVoxStreamEngine::CVoxStreamEngineThread::CVoxStreamEngineThread(CVoxStreamEngin
 
 void CVoxStreamEngine::CVoxStreamEngineThread::ThreadEntry()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "VoxStreamEngine");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "VoxStreamEngine");
 
 	while (m_bRun)
 	{
@@ -335,7 +335,7 @@ void CVoxelSegment::RenderMesh(PodArray<SVF_P3F_C4B_T2F>& arrVertsOut)
 
 bool CVoxelSegment::LoadVoxels(byte* pDataRead, int dataSize)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "LoadVoxels");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "LoadVoxels");
 
 	byte* pData = (byte*)pDataRead;
 
@@ -1381,7 +1381,7 @@ ColorF CVoxelSegment::GetBilinearAt(float iniX, float iniY, const ColorB* pImg, 
 
 void CVoxelSegment::VoxelizeMeshes(int threadId, bool bUseMT)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "VoxelizeMeshes");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "VoxelizeMeshes");
 
 	m_vCropBoxMin.Set(0, 0, 0);
 	m_vCropTexSize.Set(SVO_VOX_BRICK_MAX_SIZE, SVO_VOX_BRICK_MAX_SIZE, SVO_VOX_BRICK_MAX_SIZE);
@@ -1933,6 +1933,7 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 			{
 				PodArray<IRenderNode*> arrRenderNodes;
 
+				// TODO: query for non-hidden objects only
 				Get3DEngine()->GetObjectsByTypeGlobal(arrRenderNodes, (EERType)objType, &cloudBoxEX, bAllowStartStreaming ? &bSuccess : 0, ERF_GI_MODE_BIT0);
 				if (Get3DEngine()->GetVisAreaManager())
 					Get3DEngine()->GetVisAreaManager()->GetObjectsByType(arrRenderNodes, (EERType)objType, &cloudBoxEX, bAllowStartStreaming ? &bSuccess : 0, ERF_GI_MODE_BIT0);
@@ -1949,7 +1950,7 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 					if (pNode->GetRndFlags() & (ERF_COLLISION_PROXY | ERF_RAYCAST_PROXY | ERF_PENDING_DELETE))
 						continue;
 
-					if (!GetCVars()->e_svoTI_VoxelizeHiddenObjects && (pNode->GetRndFlags() & ERF_HIDDEN))
+					if (!GetCVars()->e_svoTI_VoxelizeHiddenObjects && pNode->IsHidden())
 						continue;
 
 					if (bThisIsLowLodNode)
@@ -2079,7 +2080,7 @@ bool CVoxelSegment::CheckCollectObjectsForVoxelization(const AABB& cloudBoxWS, P
 
 void CVoxelSegment::FindTrianglesForVoxelization(PodArray<int>*& rpNodeTrisXYZ)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "FindTrianglesForVoxelization");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "FindTrianglesForVoxelization");
 
 	AABB cloudBoxWS;
 	cloudBoxWS.min = m_boxOS.min + m_vSegOrigin;
@@ -2274,8 +2275,8 @@ void CVoxelSegment::FindTrianglesForVoxelization(PodArray<int>*& rpNodeTrisXYZ)
 
 			arrTris.Clear();
 			nodeHitInfo.pHitTris = &arrTris;
+			nodeHitInfo.useBoxIntersection = true;
 
-			nodeHitInfo.fMinHitOpacity = GetCVars()->e_svoTI_MinVoxelOpacity;
 			int minVoxelOpacity = (int)(GetCVars()->e_svoTI_MinVoxelOpacity * 255.f);
 
 			float timeRayIntersection = Cry3DEngineBase::GetTimer()->GetAsyncCurTime();
@@ -3231,7 +3232,7 @@ void SSuperMesh::AddSuperTriangle(SRayHitTriangle& htIn, PodArray<SMINDEX> arrVe
 
 void SSuperMesh::AddSuperMesh(SSuperMesh& smIn, float vertexOffset)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "AddSuperMesh");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "AddSuperMesh");
 
 	if (!smIn.m_pVertInArea || !smIn.m_pTrisInArea || !smIn.m_pTrisInArea->Count())
 		return;

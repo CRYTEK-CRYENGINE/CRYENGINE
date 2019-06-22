@@ -35,6 +35,7 @@ struct SProjectDescription
 	string  language;     // Can be empty, used by statistics only
 
 	string  fullPathToCryProject; // Used in Sandbox only
+	bool    startupProject;
 
 	CryIcon icon;
 };
@@ -50,8 +51,10 @@ public:
 	const std::vector<SProjectDescription>& GetHiddenProjects() const;
 
 	const SProjectDescription*              GetLastUsedProject() const;
+	string                                  GetStartupProject() const;
 	void                                    ImportProject(const string& fullPathToProject);
 	void                                    AddProject(const SProjectDescription& projectDescr); // Create from template
+	void                                    ToggleStartupProperty(const SProjectDescription& projectDescr);
 	void                                    DeleteProject(const SProjectDescription& projectDescr, bool removeFromDisk);
 	bool                                    SetCurrentTime(const SProjectDescription& projectDescr);
 

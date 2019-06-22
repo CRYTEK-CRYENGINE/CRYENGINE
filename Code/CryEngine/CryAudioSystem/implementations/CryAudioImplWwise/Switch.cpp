@@ -2,11 +2,11 @@
 
 #include "stdafx.h"
 #include "Switch.h"
-#include "BaseObject.h"
+#include "Object.h"
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	#include <Logger.h>
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 #include <AK/SoundEngine/Common/AkSoundEngine.h>
 
@@ -19,17 +19,17 @@ namespace Wwise
 //////////////////////////////////////////////////////////////////////////
 void CSwitch::Set(IObject* const pIObject)
 {
-	auto const pBaseObject = static_cast<CBaseObject const*>(pIObject);
+	auto const pObject = static_cast<CObject const*>(pIObject);
 
-	AK::SoundEngine::SetSwitch(m_switchGroupId, m_switchId, pBaseObject->GetId());
+	AK::SoundEngine::SetSwitch(m_switchGroupId, m_switchId, pObject->GetId());
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CSwitch::SetGlobally()
 {
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	Cry::Audio::Log(ELogType::Warning, "Wwise - Switches cannot get set globally! Tried to set \"%s: %s\"", m_switchGroupName.c_str(), m_switchName.c_str());
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 }
 } // namespace Wwise
 } // namespace Impl

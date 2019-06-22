@@ -51,7 +51,8 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 			// Don't need to load the map in editor
 			if (!gEnv->IsEditor())
 			{
-				gEnv->pConsole->ExecuteString("map example", false, true);
+				// Load the example map in client server mode
+				gEnv->pConsole->ExecuteString("map example s", false, true);
 			}
 		}
 		break;
@@ -79,6 +80,12 @@ void CGamePlugin::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lp
 			}
 		}
 		break;
+		
+		case ESYSTEM_EVENT_LEVEL_POST_UNLOAD:
+		{
+			m_players.clear();
+		}
+		break;
 	}
 }
 
@@ -87,12 +94,13 @@ bool CGamePlugin::OnClientConnectionReceived(int channelId, bool bIsReset)
 	// Connection received from a client, create a player entity and component
 	SEntitySpawnParams spawnParams;
 	spawnParams.pClass = gEnv->pEntitySystem->GetClassRegistry()->GetDefaultClass();
-	string player_name = string().Format("Player%" PRISIZE_T, m_players.size());
-	spawnParams.sName = player_name;
-	spawnParams.vPosition = CSpawnPointComponent::GetFirstSpawnPointPos();
-
+	
+	// Set a unique name for the player entity
+	const string playerName = string().Format("Player%" PRISIZE_T, m_players.size());
+	spawnParams.sName = playerName;
+	
 	// Set local player details
-	if (m_players.size() == 0 && !gEnv->IsDedicated())
+	if (m_players.empty() && !gEnv->IsDedicated())
 	{
 		spawnParams.id = LOCAL_PLAYER_ENTITY_ID;
 		spawnParams.nFlags |= ENTITY_FLAG_LOCAL_PLAYER;
@@ -107,8 +115,11 @@ bool CGamePlugin::OnClientConnectionReceived(int channelId, bool bIsReset)
 		// Create the player component instance
 		CPlayerComponent* pPlayer = pPlayerEntity->GetOrCreateComponent<CPlayerComponent>();
 
-		// Push the component into our map, with the channel id as the key
-		m_players.emplace(std::make_pair(channelId, pPlayerEntity->GetId()));
+		if (pPlayer != nullptr)
+		{
+			// Push the component into our map, with the channel id as the key
+			m_players.emplace(std::make_pair(channelId, pPlayerEntity->GetId()));
+		}
 	}
 
 	return true;
@@ -124,7 +135,7 @@ bool CGamePlugin::OnClientReadyForGameplay(int channelId, bool bIsReset)
 		{
 			if (CPlayerComponent* pPlayer = pPlayerEntity->GetComponent<CPlayerComponent>())
 			{
-				pPlayer->Revive();
+				pPlayer->OnReadyForGameplayOnServer();
 			}
 		}
 	}
@@ -141,6 +152,20 @@ void CGamePlugin::OnClientDisconnected(int channelId, EDisconnectionCause cause,
 		gEnv->pEntitySystem->RemoveEntity(it->second);
 
 		m_players.erase(it);
+	}
+}
+
+void CGamePlugin::IterateOverPlayers(std::function<void(CPlayerComponent& player)> func) const
+{
+	for (const std::pair<int, EntityId>& playerPair : m_players)
+	{
+		if (IEntity* pPlayerEntity = gEnv->pEntitySystem->GetEntity(playerPair.second))
+		{
+			if (CPlayerComponent* pPlayer = pPlayerEntity->GetComponent<CPlayerComponent>())
+			{
+				func(*pPlayer);
+			}
+		}
 	}
 }
 

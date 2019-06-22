@@ -1063,7 +1063,7 @@ bool CObjectLayerManager::InitLayerSwitches(bool isOnlyClear)
 						if (pRenderNode)
 						{
 							pRenderNode->SetLayerId(0);
-							pRenderNode->SetRndFlags(pRenderNode->GetRndFlags() & ~ERF_NO_PHYSICS);
+							pRenderNode->SetRndFlags(ERF_NO_PHYSICS, false);
 						}
 					}
 				}
@@ -1212,7 +1212,7 @@ void CObjectLayerManager::SetupLayerSwitches(bool isOnlyClear, bool isOnlyRender
 					{
 						pRenderNode->SetLayerId(pLayer->GetLayerID());
 						if (!pLayer->HasPhysics())
-							pRenderNode->SetRndFlags(pRenderNode->GetRndFlags() | ERF_NO_PHYSICS);
+							pRenderNode->SetRndFlags(ERF_NO_PHYSICS, true);
 					}
 				}
 			}

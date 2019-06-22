@@ -1,19 +1,12 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//////////////////////////////////////////////////////////////////////
-
-#ifndef __OPTICSMANAGER_H__
-#define __OPTICSMANAGER_H__
+#pragma once
 
 #include <CryRenderer/IFlares.h>
 
 class COpticsManager : public Cry3DEngineBase, public IOpticsManager
 {
 public:
-
-	~COpticsManager(){}
-
 	void                Reset();
 
 	IOpticsElementBase* Create(EFlareType type) const;
@@ -38,5 +31,3 @@ private:
 	// All flare list which has already been searched for.
 	std::set<string>                   m_SearchedOpticsSet;
 };
-
-#endif //__OPTICSMANAGER_H__

@@ -212,7 +212,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocLogicGraph::Refresh(const SScriptRefreshParams& params)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		RefreshInputsAndOutputs();
 		CDocGraphBase::Refresh(params);
@@ -221,7 +221,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocLogicGraph::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		switch(SerializationContext::GetPass(archive))
 		{
@@ -353,7 +353,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	IScriptGraphNodePtr CDocLogicGraph::CreateNode(const SGUID& guid, EScriptGraphNodeType type, const SGUID& contextGUID, const SGUID& refGUID, Vec2 pos)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Create Node(Doc Logic Graph)");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Create Node(Doc Logic Graph)");
 		switch(type)
 		{
 		case EScriptGraphNodeType::Begin:
@@ -506,7 +506,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	bool CDocLogicGraph::RefreshInputsAndOutputs()
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		// #SchematycTODO : Clean up this function, there's a lot of duplicated code here.
 		switch(CDocGraphBase::GetType())
 		{

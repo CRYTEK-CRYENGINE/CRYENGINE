@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <string.h>
+#include <cstring>
 
 #define LOCAL_FALLBACK_DOMAIN ".intern.crytek.de" // On connection error try to fallback to this domain
 

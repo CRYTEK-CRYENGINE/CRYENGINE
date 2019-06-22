@@ -7,6 +7,7 @@
 #include <CrySerialization/Forward.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySystem/File/ICryPak.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "CVars.h"
 #include "Script/ScriptSerializationUtils.h"
@@ -87,12 +88,12 @@ namespace Schematyc2
 	CScriptRegistry::CScriptRegistry()
 	{
 		m_pRoot.reset(new CScriptRoot(ScriptRegistryUtils::g_dummyScriptFile));
-		REGISTER_COMMAND("sc_SaveAllScriptFiles", ScriptRegistryUtils::SaveAllScriptFilesCommand, VF_NULL, "Save all Schematyc script file regardless of whether they have been modified");
+		REGISTER_COMMAND("sc2_SaveAllScriptFiles", ScriptRegistryUtils::SaveAllScriptFilesCommand, VF_NULL, "Save all Schematyc script file regardless of whether they have been modified");
 	}
 
 	IScriptFile* CScriptRegistry::LoadFile(const char* szFileName)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Load Script Registry File");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Load Script Registry File");
 		SCHEMATYC2_SYSTEM_ASSERT(szFileName);
 		if(szFileName)
 		{
@@ -397,29 +398,29 @@ namespace Schematyc2
 
 	bool CScriptRegistry::Load()
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Load Script Registry");
-		LOADING_TIME_PROFILE_SECTION;
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Load Script Registry");
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		// Load old script files.
 		{
-			MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Load Old Script Files");
+			MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Load Old Script Files");
 
 			stack_string extension = "*.";
 			extension.append(gEnv->pSchematyc2->GetOldScriptExtension());
 			FileUtils::EFileEnumFlags fileEnumFlags = FileUtils::EFileEnumFlags::Recursive;
-			if(CVars::sc_IgnoreUnderscoredFolders)
+			if(CVars::sc2_IgnoreUnderscoredFolders)
 			{
 				fileEnumFlags |= FileUtils::EFileEnumFlags::IgnoreUnderscoredFolders;
 			}
 			FileUtils::EnumFilesInFolder(gEnv->pSchematyc2->GetOldScriptsFolder(), extension.c_str(), FileUtils::FileEnumCallback::FromMemberFunction<CScriptRegistry, &CScriptRegistry::EnumFile>(*this), fileEnumFlags);
 			for(FilesByCRC::iterator itFile = m_filesByCRC.begin(), itEndFile = m_filesByCRC.end(); itFile != itEndFile; ++ itFile)
 			{
-				MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Refresh Script Files");
+				MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Refresh Script Files");
 				itFile->second->Refresh(SScriptRefreshParams(EScriptRefreshReason::Load));
 			}
 		}
 
 		{
-			MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Load New Script Files");
+			MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Load New Script Files");
 
 			// Load new script files.
 			// #SchematycTODO : How do we avoid loading files twice?
@@ -427,10 +428,10 @@ namespace Schematyc2
 			if(gEnv->pSchematyc2->IsExperimentalFeatureEnabled("QtEditor"))
 			{
 				{
-					MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Enumerate Files");
+					MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Enumerate Files");
 					// Configure file enumeration flags.
 					FileUtils::EFileEnumFlags fileEnumFlags = FileUtils::EFileEnumFlags::Recursive;
-					if(CVars::sc_IgnoreUnderscoredFolders)
+					if(CVars::sc2_IgnoreUnderscoredFolders)
 					{
 						fileEnumFlags |= FileUtils::EFileEnumFlags::IgnoreUnderscoredFolders;
 					}
@@ -476,7 +477,7 @@ namespace Schematyc2
 					FileUtils::EnumFilesInFolder(szScriptFolder, "*.xml", FileUtils::FileEnumCallback::FromLambdaFunction(loadXmlFile), fileEnumFlags);
 					// #SchematycTODO : Create ProcessInputBlocks() function!
 					{
-						MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Pre-load Elements");
+						MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Pre-load Elements");
 						// Unroll element blocks.
 						ScriptInputElementPtrs elements;
 						elements.reserve(100);
@@ -727,7 +728,7 @@ namespace Schematyc2
 
 	CScriptFilePtr CScriptRegistry::CreateFile(const char* szFileName, const SGUID& guid, EScriptFileFlags flags)
 	{
-		LOADING_TIME_PROFILE_SECTION(szFileName);
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(szFileName);
 		SCHEMATYC2_SYSTEM_ASSERT(szFileName);
 		if(szFileName)
 		{
@@ -766,9 +767,9 @@ namespace Schematyc2
 
 	void CScriptRegistry::EnumFile(const char* szFileName, unsigned attributes)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		const bool bOnDisk = (attributes & _A_IN_CRYPAK) == 0;
-		if(bOnDisk || !CVars::sc_IgnorePAKFiles)
+		if(bOnDisk || !CVars::sc2_IgnorePAKFiles)
 		{
 			CScriptFilePtr pFile = CreateFile(szFileName, SGUID(), bOnDisk ? EScriptFileFlags::OnDisk : EScriptFileFlags::None);
 			if(pFile)

@@ -17,14 +17,14 @@
         "separator",
         {
             "command": "group.create_from_selection",
-            "iconPath": "icons:General/Group.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "create_from_selection",
             "type": 0
         },
         {
             "command": "group.ungroup",
-            "iconPath": "icons:General/UnGroup.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "ungroup",
             "type": 0
@@ -52,17 +52,17 @@
         },
         "separator",
         {
-            "command": "selection.make_objects_uneditable",
+            "command": "selection.lock_objects",
             "iconPath": "",
             "m_IsCustom": false,
-            "name": "Freeze Selection",
+            "name": "lock_objects",
             "type": 0
         },
         {
-            "command": "object.make_all_editable",
+            "command": "object.unlock_all",
             "iconPath": "",
             "m_IsCustom": false,
-            "name": "Unfreeze All",
+            "name": "unlock_all",
             "type": 0
         }
     ],

@@ -8,6 +8,7 @@
 
 #include "shared/IString.h"
 #include "shared/String.h"
+#include "shared/ITimeMetadata.h"
 
 #include "core/IRenderPrimitiveCollection.h"
 #include "core/ILogMessageCollection.h"
@@ -17,8 +18,8 @@
 #include "core/ITree.h"
 #include "core/ITreeManager.h"
 #include "core/IRecursiveSyncObject.h"
-#include "core/IHub.h"
 
+#include "IUDRSystem.h"
 #include "IUDR.h"
 
 #include "shared/RecursiveSyncObjectAutoLock.h"

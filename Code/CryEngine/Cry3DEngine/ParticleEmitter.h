@@ -1,18 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ParticleEmitter.h
-//  Version:     v1.00
-//  Created:     18/7/2003 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __particleemitter_h__
-#define __particleemitter_h__
 #pragma once
 
 #include "ParticleEffect.h"
@@ -84,7 +71,7 @@ public:
 	virtual int                    GetVersion() const final { return 1; }
 	virtual void                   SetEffect(IParticleEffect const* pEffect) final;
 	virtual const IParticleEffect* GetEffect() const final
-	{ return m_pTopEffect.get(); };
+	{ return m_pTopEffect.get(); }
 
 	virtual QuatTS        GetLocation() const final
 	{ return CParticleSource::GetLocation(); }
@@ -333,5 +320,3 @@ private:
 	void                AddEffect(CParticleContainer* pParentContainer, CParticleEffect const* pEffect, bool bUpdate = true);
 	CParticleContainer* AddContainer(CParticleContainer* pParentContainer, const CParticleEffect* pEffect);
 };
-
-#endif // __particleemitter_h__

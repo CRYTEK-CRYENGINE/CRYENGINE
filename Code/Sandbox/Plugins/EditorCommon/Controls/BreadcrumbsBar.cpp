@@ -39,7 +39,7 @@ CBreadcrumbsBar::CBreadcrumbsBar()
 	m_hoverWidget->setObjectName("HoverWidget");
 
 	auto layout = new QHBoxLayout();
-	layout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+	layout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 	layout->addWidget(m_dropDownButton);
 	layout->addLayout(m_breadCrumbsLayout);
 	layout->addWidget(m_hoverWidget);

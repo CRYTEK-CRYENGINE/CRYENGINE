@@ -41,6 +41,8 @@ public:
 	void   Reset();
 	void   OnBeforeReload();
 	void   OnAfterReload();
+	void   OnFileImporterOpened();
+	void   OnFileImporterClosed();
 
 private slots:
 
@@ -92,6 +94,5 @@ private:
 	bool                              m_isReloading;
 	bool                              m_isCreatedFromMenu;
 	bool                              m_suppressRenaming;
-	int const                         m_nameColumn;
 };
 } // namespace ACE

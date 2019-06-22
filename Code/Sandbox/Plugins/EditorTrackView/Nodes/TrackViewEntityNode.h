@@ -88,7 +88,7 @@ private:
 
 	// IAnimNodeOwner
 	virtual void OnNodeVisibilityChanged(IAnimNode* pNode, const bool bHidden) override;
-	virtual void OnNodeReset(IAnimNode* pNode) override;
+	virtual bool OnNodeReset(IAnimNode* pNode) override;
 	// ~IAnimNodeOwner
 
 	IAnimEntityNode*   m_pAnimEntityNode;

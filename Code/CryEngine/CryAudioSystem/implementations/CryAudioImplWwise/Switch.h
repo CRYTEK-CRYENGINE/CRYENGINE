@@ -23,7 +23,7 @@ public:
 	CSwitch& operator=(CSwitch const&) = delete;
 	CSwitch& operator=(CSwitch&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	explicit CSwitch(
 		AkUInt32 const switchGroupId,
 		AkUInt32 const switchId,
@@ -41,7 +41,7 @@ public:
 		: m_switchGroupId(switchGroupId)
 		, m_switchId(switchId)
 	{}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 	virtual ~CSwitch() override = default;
 
@@ -55,10 +55,10 @@ private:
 	AkUInt32 const m_switchGroupId;
 	AkUInt32 const m_switchId;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_switchGroupName;
 	CryFixedStringT<MaxControlNameLength> const m_switchName;
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 };
 } // namespace Wwise
 } // namespace Impl

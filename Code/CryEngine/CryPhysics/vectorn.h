@@ -92,24 +92,24 @@ public:
 
 	vectorn_tpl& operator=(const vector_scalar_product_tpl<ftype> &src) {
 		for(int i=0;i<src.len;i++)
-			data[i] = src.data[i];
+			data[i] = src.data[i]*src.op;
 		return *this;
 	}
 	vectorn_tpl& operator+=(const vector_scalar_product_tpl<ftype> &src) {
 		for(int i=0;i<src.len;i++)
-			data[i] += src.data[i];
+			data[i] += src.data[i]*src.op;
 		return *this;
 	}
 	vectorn_tpl& operator-=(const vector_scalar_product_tpl<ftype> &src) {
 		for(int i=0;i<src.len;i++)
-			data[i] -= src.data[i];
+			data[i] -= src.data[i]*src.op;
 		return *this;
 	}
 
 	ftype len2() { ftype res=0; for(int i=0;i<len;i++) res += data[i]*data[i]; return res; }
 
 	ftype& operator[](int idx) const { return data[idx]; }
-	operator ftype*() { return data; }
+	//explicit operator ftype*() { return data; }
 	vectorn_tpl& zero() { for(int i=0;i<len;i++) data[i]=0; return *this; }
 	vectorn_tpl& allocate() { 
 		if (flags & mtx_foreign_data) {
@@ -164,6 +164,11 @@ vectorn_tpl<ftype1> operator-(const vectorn_tpl<ftype1> &op1, const vectorn_tpl<
 
 template<class ftype1,class ftype2>
 vectorn_tpl<ftype1>& operator+=(vectorn_tpl<ftype1> &op1, const vectorn_tpl<ftype2> &op2) {
+	for(int i=0;i<op1.len;i++) op1.data[i] += op2.data[i];
+	return op1;
+}
+template<class ftype1,class ftype2>
+vectorn_tpl<ftype1>& operator+=(vectorn_tpl<ftype1> &&op1, const vectorn_tpl<ftype2> &op2) {
 	for(int i=0;i<op1.len;i++) op1.data[i] += op2.data[i];
 	return op1;
 }

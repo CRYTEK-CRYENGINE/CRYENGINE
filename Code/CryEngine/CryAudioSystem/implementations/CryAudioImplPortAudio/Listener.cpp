@@ -12,9 +12,9 @@ namespace PortAudio
 //////////////////////////////////////////////////////////////////////////
 void CListener::SetName(char const* const szName)
 {
-#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE)
 	m_name = szName;
-#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE
 }
 } // namespace PortAudio
 } // namespace Impl

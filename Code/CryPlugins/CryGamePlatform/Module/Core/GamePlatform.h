@@ -18,7 +18,7 @@ namespace Cry
 				CRYINTERFACE_ADD(Cry::IEnginePlugin)
 			CRYINTERFACE_END()
 
-			CRYGENERATE_SINGLETONCLASS_GUID(CPlugin, "Plugin_GamePlatform", "{D1579580-15AB-458C-81AB-05068B275483}"_cry_guid)
+			CRYGENERATE_SINGLETONCLASS_GUID(CPlugin, "Plugin_CryGamePlatform", "{D1579580-15AB-458C-81AB-05068B275483}"_cry_guid)
 
 		public:
 			CPlugin();
@@ -27,7 +27,7 @@ namespace Cry
 			// Cry::IEnginePlugin
 			virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override;
 			virtual void MainUpdate(float frameTime) override;
-			virtual const char* GetName() const override { return "GamePlatform"; }
+			virtual const char* GetName() const override { return "CryGamePlatform"; }
 			virtual const char* GetCategory() const override { return "GamePlatform"; }
 			// ~Cry::IEnginePlugin
 
@@ -41,6 +41,10 @@ namespace Cry
 			virtual IUser* GetUserById(const AccountIdentifier& accountId) const override;
 
 			virtual const DynArray<IUser*>& GetFriends() const override;
+#if CRY_GAMEPLATFORM_EXPERIMENTAL
+			virtual const DynArray<IUser*>& GetBlockedUsers() const override;
+			virtual const DynArray<IUser*>& GetMutedUsers() const override;
+#endif // CRY_GAMEPLATFORM_EXPERIMENTAL
 
 			virtual IServer* CreateServer(bool bLocal) override;
 			virtual IServer* GetLocalServer() const override;
@@ -71,6 +75,7 @@ namespace Cry
 			virtual void OnPersonaStateChanged(const IAccount& account, CEnumFlags<EPersonaChangeFlags> changeFlags) override {}
 			virtual void OnGetSteamAuthTicketResponse(bool success, uint32 authTicket) override {}
 			virtual void OnAuthTokenReceived(bool success, const char* szToken) override {}
+			virtual void OnNetworkStatusChanged(const EConnectionStatus& connectionStatus) override {}
 			// ~IService::IListener
 
 			// ISystemEventListener
@@ -107,6 +112,10 @@ namespace Cry
 			// Index '0' is reserved for local user
 			mutable std::vector<std::unique_ptr<CUser>> m_users;
 			mutable DynArray<IUser*> m_friends;
+#if CRY_GAMEPLATFORM_EXPERIMENTAL
+			mutable DynArray<IUser*> m_blockedUsers;
+			mutable DynArray<IUser*> m_mutedUsers;
+#endif // CRY_GAMEPLATFORM_EXPERIMENTAL
 		};
 	}
 }

@@ -262,9 +262,9 @@ void CameraOrbs::ApplyAdvancedShadingFlag(uint64& rtFlags) const
 		rtFlags |= g_HWSR_MaskBit[HWSR_SAMPLE2];
 }
 
-void CameraOrbs::ApplyAdvancedShadingParams(SShaderParams& shaderParams, CRenderPrimitive& primitive, const ColorF& ambDiffuseRGBK, float absorptance, float transparency, float scattering) const
+void CameraOrbs::ApplyAdvancedShadingParams(CGraphicsPipeline* pGraphicsPipeline, SShaderParams& shaderParams, CRenderPrimitive& primitive, const ColorF& ambDiffuseRGBK, float absorptance, float transparency, float scattering) const
 {
-	CTexture* pAmbTex = CRendererResources::s_ptexSceneTarget;
+	CTexture* pAmbTex = pGraphicsPipeline->GetPipelineResources().m_pTexSceneTarget;
 
 	shaderParams.ambientDiffuseRGBK = Vec4(ambDiffuseRGBK.r, ambDiffuseRGBK.g, ambDiffuseRGBK.b, ambDiffuseRGBK.a);
 	shaderParams.advShadingParams = Vec4(absorptance, transparency, scattering, 0);
@@ -285,7 +285,7 @@ bool CameraOrbs::PreparePrimitives(const SPreparePrimitivesContext& context)
 	ApplyAdvancedShadingFlag(rtFlags);
 	ApplyOcclusionBokehFlag(rtFlags);
 	ApplyOrbFlags(rtFlags, m_bOrbDetailShading);
-
+	
 	m_GlowPrimitive.SetTechnique(CShaderMan::s_ShaderLensOptics, techCameraOrbs, rtFlags);
 	m_GlowPrimitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 
@@ -309,7 +309,7 @@ bool CameraOrbs::PreparePrimitives(const SPreparePrimitivesContext& context)
 		if (m_globalOcclusionBokeh)
 			ApplyOcclusionPattern(constants, m_GlowPrimitive);
 		if (m_bAdvancedShading)
-			ApplyAdvancedShadingParams(constants, m_GlowPrimitive, GetAmbientDiffuseRGBK(), GetAbsorptance(), GetTransparency(), GetScatteringStrength());
+			ApplyAdvancedShadingParams(context.pGraphicsPipeline, constants, m_GlowPrimitive, GetAmbientDiffuseRGBK(), GetAbsorptance(), GetTransparency(), GetScatteringStrength());
 
 		const ColorF lightColor = m_globalFlareBrightness * m_globalColor * m_globalColor.a;
 		constants->lightColorInfo[0] = lightColor.r;

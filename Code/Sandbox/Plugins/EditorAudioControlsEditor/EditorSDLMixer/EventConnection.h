@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BaseConnection.h"
+#include "../Common/IConnection.h"
 
 #include <PoolObject.h>
 #include <CryAudioImplSDLMixer/GlobalData.h>
@@ -13,7 +13,7 @@ namespace Impl
 {
 namespace SDLMixer
 {
-class CEventConnection final : public CBaseConnection, public CryAudio::CPoolObject<CEventConnection, stl::PSyncNone>
+class CEventConnection final : public IConnection, public CryAudio::CPoolObject<CEventConnection, stl::PSyncNone>
 {
 public:
 
@@ -31,7 +31,7 @@ public:
 	CEventConnection& operator=(CEventConnection&&) = delete;
 
 	explicit CEventConnection(ControlId const id)
-		: CBaseConnection(id)
+		: m_id(id)
 		, m_actionType(EActionType::Start)
 		, m_volume(-14.0f)
 		, m_fadeInTime(CryAudio::Impl::SDL_mixer::g_defaultFadeInTime)
@@ -47,7 +47,9 @@ public:
 	virtual ~CEventConnection() override = default;
 
 	// CBaseConnection
-	virtual void Serialize(Serialization::IArchive& ar) override;
+	virtual ControlId GetID() const override final         { return m_id; }
+	virtual bool      HasProperties() const override final { return true; }
+	virtual void      Serialize(Serialization::IArchive& ar) override;
 	// ~CBaseConnection
 
 	void        SetActionType(EActionType const type)         { m_actionType = type; }
@@ -80,16 +82,17 @@ public:
 
 private:
 
-	EActionType m_actionType;
-	float       m_volume;
-	float       m_fadeInTime;
-	float       m_fadeOutTime;
-	float       m_minAttenuation;
-	float       m_maxAttenuation;
-	bool        m_isPanningEnabled;
-	bool        m_isAttenuationEnabled;
-	bool        m_isInfiniteLoop;
-	uint32      m_loopCount;
+	ControlId const m_id;
+	EActionType     m_actionType;
+	float           m_volume;
+	float           m_fadeInTime;
+	float           m_fadeOutTime;
+	float           m_minAttenuation;
+	float           m_maxAttenuation;
+	bool            m_isPanningEnabled;
+	bool            m_isAttenuationEnabled;
+	bool            m_isInfiniteLoop;
+	uint32          m_loopCount;
 };
 } // namespace SDLMixer
 } // namespace Impl

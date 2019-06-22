@@ -25,8 +25,7 @@ void CDeviceObjectFactory::FreeBackingStorage(void* base_ptr)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 #if BUFFER_ENABLE_DIRECT_ACCESS
-	HRESULT hr = D3DFreeGraphicsMemory(base_ptr);
-	assert(hr == S_OK);
+	CRY_VERIFY(D3DFreeGraphicsMemory(base_ptr) == S_OK);
 #endif
 }
 
@@ -263,7 +262,7 @@ bool CDurangoGPUMemoryManager::Init(size_t maximumSize, size_t bankSize, size_t 
 
 #if CAPTURE_REPLAY_LOG
 	#if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	#else
 		MEMREPLAY_HIDE_BANKALLOC();
 	#endif
@@ -319,7 +318,7 @@ void CDurangoGPUMemoryManager::DeInit()
 	{
 #if CAPTURE_REPLAY_LOG
 	#if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	#else
 		MEMREPLAY_HIDE_BANKALLOC();
 	#endif
@@ -410,7 +409,7 @@ CDurangoGPUMemoryManager::AllocateResult CDurangoGPUMemoryManager::AllocatePinne
 	AllocateResult ret;
 
 #if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 #endif
 
 	IDefragAllocator::AllocatePinnedResult apr = m_pAllocator->AllocateAlignedPinned(amount, align, "");
@@ -424,7 +423,7 @@ CDurangoGPUMemoryManager::AllocateResult CDurangoGPUMemoryManager::AllocatePinne
 
 			{
 				PREFAST_SUPPRESS_WARNING(6246)
-					MEMREPLAY_HIDE_BANKALLOC();
+				MEMREPLAY_HIDE_BANKALLOC();
 				hr = D3DAllocateGraphicsMemory(1ull << m_bankShift, 64 * 1024, 0, m_memType, &newBank.pBase);
 			}
 
@@ -464,6 +463,9 @@ CDurangoGPUMemoryManager::AllocateResult CDurangoGPUMemoryManager::AllocatePinne
 		pBaseAddress = (char*)bank.pBase + bankRelOffset;
 		ret.hdl = SGPUMemHdl(apr.hdl);
 		ret.baseAddress = pBaseAddress;
+#if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
+		MEMREPLAY_SCOPE_ALLOC(pBaseAddress, amount, align);
+#endif
 	}
 	else if (m_allowAdditionalBanks)
 	{
@@ -472,6 +474,7 @@ CDurangoGPUMemoryManager::AllocateResult CDurangoGPUMemoryManager::AllocatePinne
 #endif
 
 		// Try and just allocate memory from D3D directly.
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "CDurangoGPUMemoryManager::AllocatePinned Overflow");
 		HRESULT hr = D3DAllocateGraphicsMemory(Align(amount, MinD3DAlignment), max(align, (size_t)MinD3DAlignment), 0, m_memType, &pBaseAddress);
 		if (!FAILED(hr))
 		{
@@ -481,12 +484,6 @@ CDurangoGPUMemoryManager::AllocateResult CDurangoGPUMemoryManager::AllocatePinne
 			m_overflowAllocationMap[pBaseAddress] = amount;
 		}
 	}
-
-#if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-	if (pBaseAddress)
-		MEMREPLAY_SCOPE_ALLOC(pBaseAddress, amount, align);
-#endif
-
 	return ret;
 }
 
@@ -518,7 +515,7 @@ void CDurangoGPUMemoryManager::FreeUnused(SGPUMemHdl hdl)
 	CryAutoLock<CryCriticalSectionNonRecursive> lock(m_lock);
 
 #if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 #endif
 
 	void* pBaseAddress = NULL;
@@ -535,7 +532,9 @@ void CDurangoGPUMemoryManager::FreeUnused(SGPUMemHdl hdl)
 
 		pBaseAddress = (char*)bank.pBase + bankRelOffset;
 #endif
-
+#if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
+		MEMREPLAY_SCOPE_FREE(pBaseAddress);
+#endif
 		m_pAllocator->Free(daHdl);
 	}
 	else
@@ -548,10 +547,6 @@ void CDurangoGPUMemoryManager::FreeUnused(SGPUMemHdl hdl)
 		m_overflowAllocationMap.erase(pBaseAddress);
 		D3DFreeGraphicsMemory(pBaseAddress);
 	}
-
-#if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-	MEMREPLAY_SCOPE_FREE(pBaseAddress);
-#endif
 }
 
 void CDurangoGPUMemoryManager::BindContext(SGPUMemHdl hdl, CDeviceTexture* pDevTex)
@@ -567,7 +562,9 @@ void* CDurangoGPUMemoryManager::WeakPin(SGPUMemHdl hdl)
 		UINT_PTR offset = m_pAllocator->WeakPin(hdl.GetHandle());
 
 		UINT_PTR bankRelOffset = offset & ((1ull << m_bankShift) - 1);
+		CRY_ASSERT((offset >> m_bankShift) < m_banks.size());
 		Bank& bank = m_banks[offset >> m_bankShift];
+		CRY_ASSERT(((char*)bank.pBase + bankRelOffset) != nullptr);
 
 		return (char*)bank.pBase + bankRelOffset;
 	}
@@ -584,7 +581,9 @@ void* CDurangoGPUMemoryManager::Pin(SGPUMemHdl hdl)
 		UINT_PTR offset = m_pAllocator->Pin(hdl.GetHandle());
 
 		UINT_PTR bankRelOffset = offset & ((1ull << m_bankShift) - 1);
+		CRY_ASSERT((offset >> m_bankShift) < m_banks.size());
 		Bank& bank = m_banks[offset >> m_bankShift];
+		CRY_ASSERT(((char*)bank.pBase + bankRelOffset) != nullptr);
 
 		return (char*)bank.pBase + bankRelOffset;
 	}
@@ -727,7 +726,7 @@ void CDurangoGPUMemoryManager::TickFrees_Locked()
 		if (pf.fence != ~0ull && !gcpRendD3D->GetPerformanceDevice().IsFencePending(pf.fence))
 		{
 #if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-			MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+			MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 #endif
 
 			void* pBaseAddress = NULL;
@@ -963,8 +962,6 @@ void CDurangoGPUMemoryManager::QueueCopy(const CopyDesc& copy)
 
 void CDurangoGPUMemoryManager::Relocate_Int(CDeviceTexture* pDevTex, char* pOldTexBase, char* pTexBase, UINT_PTR size)
 {
-//	pDevTex->Unbind();
-
 	const SDeviceTextureDesc* pDesc = pDevTex->GetTDesc();
 
 #ifndef _RELEASE
@@ -975,16 +972,19 @@ void CDurangoGPUMemoryManager::Relocate_Int(CDeviceTexture* pDevTex, char* pOldT
 #endif
 
 	ID3D11Texture2D* pD3DTex = NULL;
-	HRESULT hr = gcpRendD3D->GetPerformanceDevice().CreatePlacementTexture2D(&pDesc->d3dDesc, pDesc->xgTileMode, 0, pTexBase, &pD3DTex);
+
 #ifndef _RELEASE
+	HRESULT hr = gcpRendD3D->GetPerformanceDevice().CreatePlacementTexture2D(&pDesc->d3dDesc, pDesc->xgTileMode, 0, pTexBase, &pD3DTex);
 	if (FAILED(hr))
 		__debugbreak();
+#else
+	gcpRendD3D->GetPerformanceDevice().CreatePlacementTexture2D(&pDesc->d3dDesc, pDesc->xgTileMode, 0, pTexBase, &pD3DTex);
 #endif
 
 	pDevTex->ReplaceTexture(pD3DTex);
 
 #if defined(MEMREPLAY_INSTRUMENT_TEXTUREPOOL)
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	MEMREPLAY_SCOPE_REALLOC(pOldTexBase, pTexBase, size, AllocAlign);
 #endif
 }
@@ -1005,8 +1005,12 @@ void CDurangoGPUMemoryManager::ScheduleCopies(CopyDesc* descriptions, size_t nco
 
 	uint64 fence = ~0ull;
 
+	// NOTE: if the source in in WC memory this would be bad and the GPU-side copy should be used
 	if (CRenderer::CV_r_texturesstreampooldefragmentation == 2)
 	{
+		CryAutoLock<CryCriticalSection> dmaLock(GetDeviceObjectFactory().m_dma1Lock);
+		ID3D11DmaEngineContextX* pDMA = GetDeviceObjectFactory().m_pDMA1;
+
 		UINT_PTR bankRelMask = (1ull << m_bankShift) - 1;
 
 		for (size_t i = 0; i < ncopies; ++i)
@@ -1025,7 +1029,8 @@ void CDurangoGPUMemoryManager::ScheduleCopies(CopyDesc* descriptions, size_t nco
 			srcBox.right = (UINT)(srcBankOffs + copy.size);
 			srcBox.bottom = 1;
 			srcBox.back = 1;
-			gcpRendD3D->GetDeviceContext().CopySubresourceRegion(
+
+			pDMA->CopySubresourceRegion(
 				m_banks[dstBank].pBuffer,
 				0,
 				(UINT)dstBankOffs,
@@ -1033,10 +1038,12 @@ void CDurangoGPUMemoryManager::ScheduleCopies(CopyDesc* descriptions, size_t nco
 				0,
 				m_banks[srcBank].pBuffer,
 				0,
-				&srcBox);
+				&srcBox,
+				D3D11_COPY_NO_OVERWRITE);
 		}
 
-		fence = gcpRendD3D->GetPerformanceDeviceContext().InsertFence();
+		fence = pDMA->InsertFence(D3D11_INSERT_FENCE_NO_KICKOFF);
+		pDMA->Submit();
 
 		for (size_t i = 0; i < ncopies; ++i)
 		{
@@ -1057,8 +1064,10 @@ void CDurangoGPUMemoryManager::ScheduleCopies(CopyDesc* descriptions, size_t nco
 		for (size_t i = 0; i < ncopies; ++i)
 		{
 			CopyDesc &copy = descriptions[i];
+			void* pSrc = GetPhysicalAddress(copy.src);
 			void* pDst = GetPhysicalAddress(copy.dst);
-			memcpy(pDst, GetPhysicalAddress(copy.src), copy.size);
+
+			memcpy(pDst, pSrc, copy.size);
 
 #if defined(TEXTURES_IN_CACHED_MEM)
 			D3DFlushCpuCache(pDst, copy.size);
@@ -1082,6 +1091,14 @@ CDurangoGPURingMemAllocator::CDurangoGPURingMemAllocator()
 {
 }
 
+CDurangoGPURingMemAllocator::~CDurangoGPURingMemAllocator()
+{
+	if (m_pCPUAddr)
+	{
+		D3DFreeGraphicsMemory(m_pCPUAddr);
+	}
+}
+
 bool CDurangoGPURingMemAllocator::Init(ID3D11DmaEngineContextX* pContext, uint32 size)
 {
 #ifndef _RELEASE
@@ -1091,6 +1108,7 @@ bool CDurangoGPURingMemAllocator::Init(ID3D11DmaEngineContextX* pContext, uint32
 	}
 #endif
 
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CDurangoGPURingMemAllocator");
 	HRESULT hr = D3DAllocateGraphicsMemory(
 		size,
 		BaseAlignment,
@@ -1311,7 +1329,6 @@ HRESULT CDeviceObjectFactory::BeginTileFromLinear2D(CDeviceTexture* pDst, const 
 		const void* pLinSurfaceSrc = pSubresources[nSRI].pLinSurfaceSrc;
 
 		int nDstMip = nDstSubResource % dstDesc.MipLevels;
-		int nDstSlice = nDstSubResource / dstDesc.MipLevels;
 
 		D3D11_TEXTURE2D_DESC subResDesc;
 		ZeroStruct(subResDesc);
@@ -1339,17 +1356,25 @@ HRESULT CDeviceObjectFactory::BeginTileFromLinear2D(CDeviceTexture* pDst, const 
 
 		if (!bSrcInGPUMemory || (pDstAddr <= pLinSurfaceSrc && pLinSurfaceSrc < pDstAddrEnd))
 		{
-			pRingAllocBase = m_textureStagingRing.BeginAllocate((uint32)pLyt->SizeBytes, (uint32)pLyt->BaseAlignmentBytes, allocCtxs[nAllocCtxs++]);
-			if (!pRingAllocBase)
+			if (CRendererCVars::CV_r_TexturesStagingRingEnabled)
 			{
+				pRingAllocBase = m_textureStagingRing.BeginAllocate((uint32)pLyt->SizeBytes, (uint32)pLyt->BaseAlignmentBytes, allocCtxs[nAllocCtxs++]);
+				if (!pRingAllocBase)
+				{
 #ifndef _RELEASE
-				__debugbreak();
+					__debugbreak();
 #endif
 
-				return E_OUTOFMEMORY;
-			}
+					return E_OUTOFMEMORY;
+				}
 
-			pGPUSrcAddr = pRingAllocBase;
+				pGPUSrcAddr = pRingAllocBase;
+			}
+			else
+			{
+				CryFatalError("Tried to use the texture staging ring while it was disabled!\n"
+				              "enabling r_TexturesStagingRingEnabled will resolve this but consume r_TexturesStagingRingSize MB additional memory.");
+			}
 		}
 		else
 		{
@@ -1425,7 +1450,15 @@ HRESULT CDeviceObjectFactory::BeginTileFromLinear2D(CDeviceTexture* pDst, const 
 
 	for (size_t i = 0; i < nAllocCtxs; ++i)
 	{
-		m_textureStagingRing.EndAllocate(allocCtxs[i], fence);
+		if (CRendererCVars::CV_r_TexturesStagingRingEnabled)
+		{
+			m_textureStagingRing.EndAllocate(allocCtxs[i], fence);
+		}
+		else
+		{
+			CryFatalError("Tried to use the texture staging ring while it was disabled!\n"
+			              "enabling r_TexturesStagingRingEnabled will resolve this but consume r_TexturesStagingRingSize MB additional memory.");
+		}
 	}
 
 	fenceOut = fence;

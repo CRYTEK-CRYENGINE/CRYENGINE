@@ -1,0 +1,264 @@
+{
+	"Audio Controls Editor": {
+        "layout": {
+            "editorContent": {
+				"isLocked": true,
+				"toolBarArea": [
+					{
+						"items": [
+							{
+								"index": 0,
+								"name": "GeneralToolBar",
+								"type": 0,
+								"visible": true
+							}
+						]
+					},
+					{
+						"items": [
+						]
+					},
+					{
+						"items": [
+						]
+					},
+					{
+						"items": [
+						]
+					}
+				],
+				"toolBars": [
+					{
+						"area": 0,
+						"name": "GeneralToolBar"
+					}
+				]
+			}
+        }
+    },
+	"Asset Browser": {
+        "layout": {
+            "adaptiveLayout": true,
+            "editorContent": {
+                "isLocked": true,
+                "toolBarArea": [
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                            {
+                                "index": 0,
+                                "spacerType": 0,
+                                "type": 1
+                            },
+                            {
+                                "index": 1,
+                                "name": "View - AdvancedToolBar",
+                                "type": 0,
+                                "visible": true
+                            },
+                            {
+                                "index": 2,
+                                "spacerType": 1,
+                                "type": 1
+                            },
+                            {
+                                "index": 3,
+                                "name": "ViewToolBar",
+                                "type": 0,
+                                "visible": true
+                            }
+                        ]
+                    }
+                ],
+                "toolBars": [
+                    {
+                        "area": 3,
+                        "name": "ViewToolBar"
+                    },
+                    {
+                        "area": 3,
+                        "name": "View - AdvancedToolBar"
+                    }
+                ]
+            }
+        }
+    },
+    "CAssetPicker": {
+        "layout": {
+            "adaptiveLayout": true,
+            "editorContent": {
+                "isLocked": true,
+                "toolBarArea": [
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                            {
+                                "index": 0,
+                                "spacerType": 0,
+                                "type": 1
+                            },
+                            {
+                                "index": 1,
+                                "name": "View - AdvancedToolBar",
+                                "type": 0,
+                                "visible": true
+                            },
+                            {
+                                "index": 2,
+                                "spacerType": 1,
+                                "type": 1
+                            },
+                            {
+                                "index": 3,
+                                "name": "ViewToolBar",
+                                "type": 0,
+                                "visible": true
+                            }
+                        ]
+                    }
+                ],
+                "toolBars": [
+                    {
+                        "area": 3,
+                        "name": "ViewToolBar"
+                    },
+                    {
+                        "area": 3,
+                        "name": "View - AdvancedToolBar"
+                    }
+                ]
+            }
+        },
+		"pos": {
+            "x": 461,
+            "y": 235
+        },
+        "size": {
+            "height": 546,
+            "width": 825
+        }
+    },
+	"Level Explorer": {
+        "layout": {
+            "adaptiveLayout": true,
+            "editorContent": {
+                "isLocked": true,
+                "toolBarArea": [
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                            {
+                                "index": 0,
+                                "name": "ViewToolBar",
+                                "type": 0,
+                                "visible": true
+                            },
+                            {
+                                "index": 1,
+                                "spacerType": 0,
+                                "type": 1
+                            },
+                            {
+                                "index": 2,
+                                "name": "Sync SelectionToolBar",
+                                "type": 0,
+                                "visible": true
+                            }
+                        ]
+                    },
+                    {
+                        "items": [
+                        ]
+                    },
+                    {
+                        "items": [
+                        ]
+                    }
+                ],
+                "toolBars": [
+                    {
+                        "area": 1,
+                        "name": "ViewToolBar"
+                    },
+                    {
+                        "area": 1,
+                        "name": "Sync SelectionToolBar"
+                    }
+                ]
+            },
+            "syncSelection": true
+        }
+    },
+	"Particle Editor": {
+        "layout": {
+            "editorContent": {
+				"isLocked": true,
+				"toolBarArea": [
+					{
+						"items": [
+							{
+								"index": 0,
+								"name": "EffectToolBar",
+								"type": 0,
+								"visible": true
+							},
+							{
+								"index": 1,
+								"name": "LibraryToolBar",
+								"type": 0,
+								"visible": true
+							}
+						]
+					},
+					{
+						"items": [
+						]
+					},
+					{
+						"items": [
+						]
+					},
+					{
+						"items": [
+						]
+					}
+				],
+				"toolBars": [
+					{
+						"area": 0,
+						"name": "EffectToolBar"
+					},
+					{
+						"area": 0,
+						"name": "LibraryToolBar"
+					}
+				]
+			}
+        }
+    }
+}

@@ -761,7 +761,6 @@ void CrashHandler::WriteMinidump(EXCEPTION_POINTERS* const pExceptionInfo)
 		hDll = CryLoadLibrary(DBGHELP_DLL_NAME);
 	}
 
-	LPCTSTR szResult = NULL;
 	FixedString<MAX_PATH + 200> strResult;
 
 	if (hDll)

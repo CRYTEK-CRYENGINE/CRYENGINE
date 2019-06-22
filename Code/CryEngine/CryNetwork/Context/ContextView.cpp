@@ -2185,7 +2185,7 @@ bool CContextView::HaveAuthorityOfObject(SNetObjectID id) const
 
 bool CContextView::UpdateAspect(NetworkAspectID i, TSerialize ser, uint32 nCurSeq, uint32 nOldSeq, uint32 timeFraction32)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CContextView::UpdateAspect");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CContextView::UpdateAspect");
 
 	if (IsLocal())
 	{

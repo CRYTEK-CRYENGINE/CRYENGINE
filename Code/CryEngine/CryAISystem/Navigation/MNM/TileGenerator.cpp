@@ -3,23 +3,24 @@
 #include "StdAfx.h"
 #include "TileGenerator.h"
 #include "Voxelizer.h"
+#include "MNMUtils.h"
 
 //#pragma optimize("", off)
 //#pragma inline_depth(0)
 
 namespace MNM
 {
-//Code relies on the ordering (specifically we must list l/r/u/d cyclically before corners)
+//Code relies on the ordering (specifically we must list u/r/d/l cyclically before corners)
 static const int NeighbourOffset_TileGenerator[8][2] =
 {
-	{ 0,  1  },
-	{ -1, 0  },
-	{ 1,  0  },
-	{ 0,  -1 },
-	{ -1, -1 },
-	{ 1,  -1 },
-	{ 1,  1  },
-	{ -1, 1  },
+	{ 0, -1 },
+	{ 1,  0 },
+	{ 0,  1 },
+	{-1,  0 },
+	{-1, -1 },
+	{ 1, -1 },
+	{ 1,  1 },
+	{-1,  1 },
 };
 
 /*
@@ -87,31 +88,29 @@ static uchar s_CornerTable[3][3][3] =
 
 namespace DistanceTransform
 {
-	static const size_t KStraight = 2;
-	static const size_t KDiagonal = 3;
+static const size_t KStraight = 2;
+static const size_t KDiagonal = 3;
 
-	struct SSweepElement
-	{
-		int x;
-		int y;
-		int k;
-	};
+struct SSweepElement
+{
+	int x;
+	int y;
+	int k;
+};
 
-	static const size_t SweepPixelCount = 4;
-	static const SSweepElement downSweep[SweepPixelCount] =
-	{
-		{ -1, 0,  KStraight },
-		{ -1, -1, KDiagonal },
-		{ 0,  -1, KStraight },
-		{ 1,  -1, KDiagonal },
-	};
-	const SSweepElement upSweep[SweepPixelCount] =
-	{
-		{ 1,  0, KStraight },
-		{ 1,  1, KDiagonal },
-		{ 0,  1, KStraight },
-		{ -1, 1, KDiagonal },
-	};
+static const size_t SweepPixelCount = 4;
+static const SSweepElement downSweep[SweepPixelCount] =
+{
+	{ -1, 0,  KStraight },
+	{ -1, -1, KDiagonal },
+	{ 0,  -1, KStraight },
+	{ 1,  -1, KDiagonal }, };
+const SSweepElement upSweep[SweepPixelCount] =
+{
+	{ 1,  0, KStraight },
+	{ 1,  1, KDiagonal },
+	{ 0,  1, KStraight },
+	{ -1, 1, KDiagonal }, };
 }
 
 namespace PinchCornerTable
@@ -160,19 +159,19 @@ static const uint8 s_PaintPinchCornerTable[3][3][3] =
 {
 	//*INDENT-OFF* - disable uncrustify's indenting, as I want to preserve specific comment formatting.
 	{// D1
-	 //  D1, SP, D2
+		//  D1, SP, D2
 		{ 0, 0, 1 }, // D1
 		{ 1, 0, 1 }, // SP
 		{ 1, 1, 1 }, // D2
 	},
 	{// SP
-	 //  D1, SP, D2
+		//  D1, SP, D2
 		{ 0, 1, 1 }, // D1
 		{ 0, 0, 0 }, // SP
 		{ 1, 1, 0 }, // D2
 	},
 	{// D2
-	 //  D1, SP, D2
+		//  D1, SP, D2
 		{ 1, 1, 1 }, // D1
 		{ 1, 0, 1 }, // SP
 		{ 1, 0, 0 }, // D2
@@ -182,15 +181,14 @@ static const uint8 s_PaintPinchCornerTable[3][3][3] =
 
 } // namespace PinchCornerTable
 
-
 /*static */ size_t CTileGenerator::BorderSizeH(const Params& params)
 {
-	return (params.flags & Params::NoBorder) ? 0 : params.agent.GetPossibleAffectedSizeH();
+	return (params.flags & Params::NoBorder) ? 0 : params.agent.GetPossibleAffectedSizeHorizontal();
 }
 
 /*static */ size_t CTileGenerator::BorderSizeV(const Params& params)
 {
-	return (params.flags & Params::NoBorder) ? 0 : params.agent.GetPossibleAffectedSizeV();
+	return (params.flags & Params::NoBorder) ? 0 : params.agent.GetPossibleAffectedSizeVertical();
 }
 
 void CTileGenerator::Clear()
@@ -256,7 +254,7 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, SMetaData& tile
 		}
 
 		BoundingVolume::ExtendedOverlap ioverlap =
-		  m_params.boundary ? m_params.boundary->Contains(aabb) : BoundingVolume::FullOverlap;
+			m_params.boundary ? m_params.boundary->Contains(aabb) : BoundingVolume::FullOverlap;
 
 		if (ioverlap == BoundingVolume::NoOverlap)
 			return false;
@@ -313,7 +311,7 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, SMetaData& tile
 				}
 			}
 		}
-		
+
 		AABB tileAABBExpanded(aabb);
 		tileAABBExpanded.Expand(float(params.agent.radius) * params.voxelSize);
 		for (size_t mIdx = 0; mIdx < m_params.markupsCount; ++mIdx)
@@ -376,10 +374,7 @@ bool CTileGenerator::Generate(const Params& params, STile& tile, SMetaData& tile
 	uint32 hashValue = 0;
 	size_t triCount = VoxelizeVolume(aabb, hashSeed, &hashValue);
 
-	const uint32 oldHashValueForTest =
-	  m_params.flags & Params::NoHashTest
-	  ? 0
-	  : m_params.hashValue;
+	const uint32 oldHashValueForTest = m_params.flags & Params::NoHashTest ? 0 : m_params.hashValue;
 
 	if (tileHash)
 		*tileHash = hashValue;
@@ -460,13 +455,14 @@ size_t CTileGenerator::VoxelizeVolume(const AABB& volume, uint32 hashValueSeed, 
 
 struct CTileGenerator::SFilterWalkableParams
 {
-	SFilterWalkableParams(CompactSpanGrid& grid, const AABB& aabb, const bool fullyContained, const CTileGenerator::Params& params)
+	SFilterWalkableParams(CompactSpanGrid& grid, const AABB& aabb, const bool fullyContained, const CTileGenerator::Params& params, const size_t minValidHeightVoxelCount)
 		: spanGrid(grid)
 		, aabb(aabb)
 		, bFullyContained(fullyContained)
 		, gridWidth(spanGrid.GetWidth())
 		, gridHeight(spanGrid.GetHeight())
 		, heightVoxelCount(params.agent.height)
+		, minValidHeightVoxelCount(minValidHeightVoxelCount)
 		, climbableVoxelCount(params.agent.climbableHeight)
 		, border(CTileGenerator::BorderSizeH(params))
 		, climbableInclineGradient(params.agent.climbableInclineGradient)
@@ -486,6 +482,7 @@ struct CTileGenerator::SFilterWalkableParams
 	const size_t     gridHeight;
 
 	const size_t     heightVoxelCount;
+	const size_t     minValidHeightVoxelCount;
 	const size_t     climbableVoxelCount;
 	const size_t     border;
 	const float      climbableInclineGradient;
@@ -524,13 +521,17 @@ bool CTileGenerator::GenerateFromVoxelizedVolume(const AABB& aabb, const bool fu
 	if (!m_spanGrid.GetSpanCount())
 		return false;
 
-	ComputeDistanceTransform();
-	//BlurDistanceTransform();
+	LabelBorders();
+
+	CalcPaintValues(aabb);
 
 	if (!ExtractContours(aabb))
 		return false;
 
 	FilterBadRegions(m_params.minWalkableArea);
+
+	ReleaseSpanExtraInfo();
+
 	SimplifyContours();
 	Triangulate();
 
@@ -541,10 +542,47 @@ void CTileGenerator::FilterWalkable(const AABB& aabb, bool fullyContained)
 {
 	m_profiler.StartTimer(Filter);
 
-	const SFilterWalkableParams filterParams(m_spanGrid, aabb, fullyContained, m_params);
+	size_t minValidHeight = m_params.agent.height;
+	for (const MNM::SAgentSettings::SLowerHeightArea& lowerHeightArea : m_params.agent.lowerHeightAreas)
+	{
+		minValidHeight = std::min<size_t>(minValidHeight, lowerHeightArea.height);
+	}
+
+	const SFilterWalkableParams filterParams(m_spanGrid, aabb, fullyContained, m_params, minValidHeight);
 
 	size_t nonWalkableCount = 0;
 
+	// First pass - clearance is set here
+	nonWalkableCount += FilterWalkable_CheckBackfaceDepthAndClearance(filterParams);
+
+	// Second pass - clearance is used when checking neighbouring spans
+	nonWalkableCount += FilterWalkable_CheckNeighboursAndInclination(filterParams);
+
+	// Apply navigation area and exclude area boundaries
+	if (!fullyContained)
+	{
+		nonWalkableCount += FilterWalkable_CheckBoundaries(aabb, filterParams.gridWidth, filterParams.gridHeight);
+	}
+
+	CompactSpanGrid compact;
+	compact.CompactExcluding(m_spanGrid, NotWalkable, m_spanGrid.GetSpanCount() - nonWalkableCount);
+
+	m_profiler.AddMemory(CompactSpanGridMemory, compact.GetMemoryUsage());
+
+	compact.Swap(m_spanGrid);
+
+	m_profiler.StopTimer(Filter);
+
+	if (m_params.flags & Params::DebugInfo)
+		m_spanGridFlagged.Swap(compact);
+	else
+		m_profiler.FreeMemory(CompactSpanGridMemory, compact.GetMemoryUsage());
+}
+
+size_t CTileGenerator::FilterWalkable_CheckBackfaceDepthAndClearance(const SFilterWalkableParams& filterParams)
+{
+	size_t nonWalkableCount = 0;
+	
 	for (size_t y = 0; y < filterParams.gridHeight; ++y)
 	{
 		const size_t ymult = y * filterParams.gridWidth;
@@ -565,104 +603,298 @@ void CTileGenerator::FilterWalkable(const AABB& aabb, bool fullyContained)
 
 					span.flags |= boundaryFlag;
 
-					if (FilterWalkable_CheckSpanBackface(span))
+					if (!FilterWalkableSpanAndSetClearance(span, spanCoord, cell, filterParams))
 					{
 						span.flags |= NotWalkable;
 						++nonWalkableCount;
-						DebugAddNonWalkableReason(spanCoord, "backface");
-						continue;
 					}
+				} // for s
+			} // if cell
+		} // for x
+	}// for y
 
-					if (FilterWalkable_CheckSpanWaterDepth(span, m_params))
-					{
-						span.flags |= NotWalkable;
-						++nonWalkableCount;
-						DebugAddNonWalkableReason(spanCoord, "water");
-						continue;
-					}
+	return nonWalkableCount;
+}
 
-					const SSpanClearance spanClearance(spanCoord, span, cell, filterParams, m_spanGrid);
-					if (spanClearance.Clearance() < filterParams.heightVoxelCount)
-					{
-						span.flags |= NotWalkable;
-						++nonWalkableCount;
-						DebugAddNonWalkableReason(spanCoord, "clearance");
+size_t CTileGenerator::FilterWalkable_CheckNeighboursAndInclination(const SFilterWalkableParams& filterParams)
+{
+	size_t nonWalkableCount = 0;
+	
+	for (size_t y = 0; y < filterParams.gridHeight; ++y)
+	{
+		const size_t ymult = y * filterParams.gridWidth;
+
+		for (size_t x = 0; x < filterParams.gridWidth; ++x)
+		{
+			if (const CompactSpanGrid::Cell cell = m_spanGrid[x + ymult])
+			{
+				const size_t count = cell.count;
+
+				for (size_t s = 0; s < count; ++s)
+				{
+					CompactSpanGrid::Span& span = m_spanGrid.GetSpan(cell.index + s);
+					if (span.flags & NotWalkable)
 						continue;
-					}
+
+					const SSpanCoord spanCoord(x, y, s, cell.index + s);
 
 					SNonWalkableNeighbourReason* pNeighbourReason = nullptr;
 #if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
 					SNonWalkableNeighbourReason neighbourReason;
-					IF_UNLIKELY (m_params.flags & Params::DebugInfo)
+					IF_UNLIKELY(m_params.flags & Params::DebugInfo)
 					{
 						pNeighbourReason = &neighbourReason;
 					}
 #endif
 
-					if (FilterWalkable_CheckNeighbours(spanCoord, spanClearance, filterParams, pNeighbourReason))
+					const size_t spanTop = span.bottom + span.height;
+					if (FilterWalkableSpan_CheckNeighbours(spanCoord, spanTop, spanTop + span.clearance, filterParams, pNeighbourReason))
 					{
-						span.flags |= NotWalkable;
-						++nonWalkableCount;
-#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
 						if (pNeighbourReason)
 						{
-							m_debugNonWalkableReasonMap[spanCoord] = SNonWalkableReason("neighbour", *pNeighbourReason);
+							DebugAddNonWalkableReason(spanCoord, SNonWalkableReason("neighbour", *pNeighbourReason));
 						}
-#endif
-						continue;
+
+						span.flags |= NotWalkable;
+						++nonWalkableCount;
 					}
 				} // for s
-			}   // if cell
-		}     // for x
-	}       // for y
+			} // if cell
+		} // for x
+	} // for y
 
-	// apply boundaries
-	if (!fullyContained)
-	{
-		FilterWalkable_CheckBoundaries(aabb, filterParams.gridWidth, filterParams.gridHeight);
-	}
-
-	// TODO pavloi 2016.03.10: CheckBoundaries is not adding to nonWalkableCount, so new compact grid will
-	// reserve more spans than required.
-	CompactSpanGrid compact;
-	compact.CompactExcluding(m_spanGrid, NotWalkable, m_spanGrid.GetSpanCount() - nonWalkableCount);
-
-	m_profiler.AddMemory(CompactSpanGridMemory, compact.GetMemoryUsage());
-
-	// TODO pavloi 2016.03.10: m_spanGrid is used to visualize "Raw voxels", but actually contains
-	// only walkable voxels after this point. m_spanGridFlagged contains all (but already flagged) voxels.
-	compact.Swap(m_spanGrid);
-
-	m_profiler.StopTimer(Filter);
-
-	if (m_params.flags & Params::DebugInfo)
-		m_spanGridFlagged.Swap(compact);
-	else
-		m_profiler.FreeMemory(CompactSpanGridMemory, compact.GetMemoryUsage());
+	return nonWalkableCount;
 }
 
-/*static*/ bool CTileGenerator::FilterWalkable_CheckSpanBackface(const CompactSpanGrid::Span& span)
+bool CTileGenerator::FilterWalkableSpanAndSetClearance(CompactSpanGrid::Span& span, const SSpanCoord& spanCoord, const CompactSpanGrid::Cell& cell, const SFilterWalkableParams& filterParams)
+{
+	if (FilterWalkableSpan_CheckBackface(span))
+	{
+		DebugAddNonWalkableReason(spanCoord, "backface");
+		return false;
+	}
+
+	if (FilterWalkableSpan_CheckWaterDepth(span, m_params))
+	{
+		DebugAddNonWalkableReason(spanCoord, "water");
+		return false;
+	}
+
+	const SSpanClearance spanClearance(spanCoord, span, cell, filterParams, m_spanGrid);
+	const size_t clearanceValue = spanClearance.Clearance();
+	span.clearance = clearanceValue;
+	if (clearanceValue < filterParams.heightVoxelCount)
+	{
+		if (clearanceValue >= filterParams.minValidHeightVoxelCount)
+		{
+			span.flags |= LessThanAgentHeight;
+		}
+		else
+		{
+			DebugAddNonWalkableReason(spanCoord, "clearance");
+			return false;
+		}
+	}
+	return true;
+}
+
+/*static*/ bool CTileGenerator::FilterWalkableSpan_CheckBackface(const CompactSpanGrid::Span& span)
 {
 	return span.backface;
 }
 
-/*static*/ bool CTileGenerator::FilterWalkable_CheckSpanWaterDepth(const CompactSpanGrid::Span& span, const Params& params)
+/*static*/ bool CTileGenerator::FilterWalkableSpan_CheckWaterDepth(const CompactSpanGrid::Span& span, const Params& params)
 {
 	return span.depth > params.agent.maxWaterDepth;
 }
 
-/*static*/ bool CTileGenerator::FilterWalkable_CheckNeighbours(const SSpanCoord& spanCoord, const SSpanClearance& spanClearance, const SFilterWalkableParams& filterParams, SNonWalkableNeighbourReason* pOutReason)
+struct CTileGenerator::SWalkableProbeCheckParams
+{
+	SWalkableProbeCheckParams(const SSpanCoord& spanCoord, const SFilterWalkableParams& filterParams, const size_t originTop, SNonWalkableNeighbourReason* pOutReason)
+		: spanCoord(spanCoord)
+		, filterParams(filterParams)
+		, originTop(originTop)
+		, pOutReason(pOutReason)
+		, dir(0), firstProbeSpanTop(0), firstProbeSpanNextBottom(0), firstSpanTopDiffAbsolute(0), firstSpanTopDiffSigned(0)
+	{}
+	
+	const SSpanCoord& spanCoord;
+	const SFilterWalkableParams& filterParams;
+	const size_t originTop;
+	SNonWalkableNeighbourReason* pOutReason;
+	size_t dir;
+	size_t firstProbeSpanTop;
+	size_t firstProbeSpanNextBottom;
+	size_t firstSpanTopDiffAbsolute;
+	int firstSpanTopDiffSigned;
+};
+
+/*static*/ bool CTileGenerator::CheckWalkableProbeStep(const SWalkableProbeCheckParams& params)
+{
+	const size_t stepTestCount = size_t(ceil(params.firstSpanTopDiffAbsolute * params.filterParams.climbableStepRatio));
+	const size_t stepTestTolerance = size_t(ceil(stepTestCount * params.filterParams.climbableStepRatio)) - 1;
+
+	bool failedStepTest = false;
+
+	size_t probeSpansTopDiffMax = params.firstSpanTopDiffAbsolute;
+	size_t lastSpanTop = params.firstProbeSpanTop;
+	size_t lastSpanNextBottom = params.firstProbeSpanNextBottom;
+
+	// The first neighbour to the starting span is checked already, start with the next one
+	for (size_t probeIdx = 2; probeIdx <= stepTestCount; ++probeIdx)
+	{
+		const size_t px = params.spanCoord.cellX + NeighbourOffset_TileGenerator[params.dir][0] * probeIdx;
+		const size_t py = params.spanCoord.cellY + NeighbourOffset_TileGenerator[params.dir][1] * probeIdx;
+
+		const CompactSpanGrid::Cell pcell = params.filterParams.spanGrid.GetCell(px, py);
+
+		if (!pcell)
+			break; //Empty neighbour - stop probe (but no fail)
+
+		const size_t pcount = pcell.count;
+		const size_t pindex = pcell.index;
+
+		bool isCellValid = false;
+
+		for (size_t ps = 0; ps < pcount; ++ps)
+		{
+			const size_t psindex = pindex + ps;
+			const CompactSpanGrid::Span& probeSpan = params.filterParams.spanGrid.GetSpan(psindex);
+
+			const size_t probeSpanTop = probeSpan.bottom + probeSpan.height;
+			const size_t probeSpanNextBottom = probeSpanTop + probeSpan.clearance;
+
+			const int probeSpanTopDiffSigned = probeSpanTop - lastSpanTop;
+			const size_t probeSpanTopDiffAbsolute = abs(probeSpanTopDiffSigned);
+
+			//Test validity
+			if (probeSpanTopDiffAbsolute <= params.filterParams.climbableVoxelCount
+				&& min(lastSpanNextBottom, probeSpanNextBottom) >= max(lastSpanTop, probeSpanTop) + params.filterParams.minValidHeightVoxelCount)
+			{
+				const size_t pTopOffs = abs(int(probeSpanTop - params.originTop));
+				probeSpansTopDiffMax = max(probeSpansTopDiffMax, pTopOffs);
+
+				lastSpanTop = probeSpanTop;
+				lastSpanNextBottom = probeSpanNextBottom;
+
+				isCellValid = true;
+
+				break;
+			}
+		}
+
+		if (!isCellValid)
+			break;
+
+		if (probeSpansTopDiffMax > stepTestTolerance + params.firstSpanTopDiffAbsolute)
+		{
+			failedStepTest = true;
+		}
+	} // for all probes in the direction
+
+	if (failedStepTest && (probeSpansTopDiffMax > params.filterParams.climbableVoxelCount))
+	{
+		return false;
+	}
+	return true;
+}
+
+/*static*/ bool CTileGenerator::CheckWalkableProbeIncline(const SWalkableProbeCheckParams& params, float* probeInclinationVars)
+{
+	const size_t probeTestCount = params.filterParams.inclineTestCount;
+
+	size_t probeSpansTopMin = params.firstProbeSpanTop;
+	size_t probeSpansTopMax = params.firstProbeSpanTop;
+	size_t lastSpanTop = params.firstProbeSpanTop;
+	size_t lastSpanNextBottom = params.firstProbeSpanNextBottom;
+
+	// The first neighbour to the starting span is checked already, start with the next one
+	size_t probeIdx = 2;
+	for (; probeIdx <= probeTestCount; ++probeIdx)
+	{
+		const size_t px = params.spanCoord.cellX + NeighbourOffset_TileGenerator[params.dir][0] * probeIdx;
+		const size_t py = params.spanCoord.cellY + NeighbourOffset_TileGenerator[params.dir][1] * probeIdx;
+
+		const CompactSpanGrid::Cell probeCell = params.filterParams.spanGrid.GetCell(px, py);
+
+		if (!probeCell)
+			break; //Empty neighbour - stop probe (but no fail)
+
+		bool isCellValid = false;
+
+		const size_t pcount = probeCell.count;
+		const size_t pindex = probeCell.index;
+
+		for (size_t ps = 0; ps < pcount; ++ps)
+		{
+			const size_t psindex = pindex + ps;
+			const CompactSpanGrid::Span& probeSpan = params.filterParams.spanGrid.GetSpan(psindex);
+
+			const size_t probeSpanTop = probeSpan.bottom + probeSpan.height;
+			const size_t probeSpanNextBottom = probeSpanTop + probeSpan.clearance;
+
+			const int probeSpanTopDiffSigned = probeSpanTop - lastSpanTop;
+			const size_t probeSpanTopDiffAbsolute = abs(probeSpanTopDiffSigned);
+
+			//Test validity
+			if (probeSpanTopDiffAbsolute <= params.filterParams.climbableVoxelCount
+				&& min(lastSpanNextBottom, probeSpanNextBottom) >= max(lastSpanTop, probeSpanTop) + params.filterParams.minValidHeightVoxelCount)
+			{
+				if (probeSpanTopDiffSigned > params.firstSpanTopDiffSigned + 1 || probeSpanTopDiffSigned < params.firstSpanTopDiffSigned - 1)
+				{
+					// stop probe (but no fail)
+					break;
+				}
+				
+				// Track range of tops in probe
+				probeSpansTopMin = min(probeSpansTopMin, probeSpanTop);
+				probeSpansTopMax = max(probeSpansTopMax, probeSpanTop);
+
+				lastSpanTop = probeSpanTop;
+				lastSpanNextBottom = probeSpanNextBottom;
+
+				isCellValid = true;
+
+				break;
+			}
+		}
+
+		if (!isCellValid)
+			break;
+
+	} // for all probes in the direction
+
+	const size_t checkedProbesDist = probeIdx - 2;
+	if (checkedProbesDist > 0)
+	{
+		const float inclinationValue = float(probeSpansTopMax - probeSpansTopMin) / checkedProbesDist;
+		if (inclinationValue > params.filterParams.climbableInclineGradient)
+			return false;
+
+		probeInclinationVars[params.dir] = inclinationValue;
+	}
+	return true;
+}
+
+#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
+#define MNM_SET_NONWALKABLE_FAIL_REASON(pOutReason, szReasonName) \
+IF_UNLIKELY(pOutReason) { pOutReason->szReason = szReasonName; }
+#else
+#define MNM_SET_NONWALKABLE_FAIL_REASON 
+#endif
+
+/*static*/ bool CTileGenerator::FilterWalkableSpan_CheckNeighbours(const SSpanCoord& spanCoord, const size_t originTop, const size_t originNextBottom, const SFilterWalkableParams& filterParams, SNonWalkableNeighbourReason* pOutReason)
 {
 	const size_t axisNeighbourCount = 4;
 
-	bool neighbourTest(true);
+	SWalkableProbeCheckParams probesParams(spanCoord, filterParams, originTop, pOutReason);
 
 	float probeInclinationVars[axisNeighbourCount] = { 0.0f };
 
-	for (size_t n = 0; n < axisNeighbourCount; ++n)
+	for (size_t dir = 0; dir < axisNeighbourCount; ++dir)
 	{
-		const size_t nx = spanCoord.cellX + NeighbourOffset_TileGenerator[n][0];
-		const size_t ny = spanCoord.cellY + NeighbourOffset_TileGenerator[n][1];
+		const size_t nx = spanCoord.cellX + NeighbourOffset_TileGenerator[dir][0];
+		const size_t ny = spanCoord.cellY + NeighbourOffset_TileGenerator[dir][1];
 
 		// Neighbour off grid - pass
 		// NOTE: (0 - 1) will underflow to size_t::max, which is also > gridWidth.
@@ -674,218 +906,92 @@ void CTileGenerator::FilterWalkable(const AABB& aabb, bool fullyContained)
 		if (!ncell)
 		{
 			//Empty neighbour on grid - fail
-			neighbourTest = false;
-#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
-			IF_UNLIKELY (pOutReason)
-			{
-				pOutReason->szReason = "empty";
-			}
-#endif
-			break;
+			MNM_SET_NONWALKABLE_FAIL_REASON(pOutReason, "empty");
+			return true;
 		}
 
 		const size_t ncount = ncell.count;
 		const size_t nindex = ncell.index;
 
-		size_t ptopLast;
-		size_t pnextBottomLast;
-		size_t dpTopFirst;
-		size_t dpTopLast;
-
-		int sdpTopFirst;
-		int sdpTopLast;
-
-		// Assume this neighbour cell is not valid. Succeed when we find just one valid adjacent span
-		bool nCellValid(false);
+		// Assume this neighbour cell is not valid. Succeed when we find just one valid adjacent span.
+		bool isCellValid = false;
 
 		for (size_t ns = 0; ns < ncount; ++ns)
 		{
 			const size_t nsindex = nindex + ns;
 			const CompactSpanGrid::Span& nspan = filterParams.spanGrid.GetSpan(nsindex);
 
-			const SSpanCoord neighbourCoord(nx, ny, ns, nsindex);
-			const SSpanClearance neighbourClearance(neighbourCoord, nspan, ncell, filterParams, filterParams.spanGrid);
+			const size_t nSpanTop = nspan.bottom + nspan.height;
+			const size_t nSpanNextBottom = nSpanTop + nspan.clearance;
 
-			const size_t dTop = (size_t)abs((int)(neighbourClearance.top - spanClearance.top));
+			const int sdTop = nSpanTop - originTop;
+			const size_t dTop = abs(sdTop);
 
-			//Test validity
+			// Test validity of neighbour span.
 			if (dTop <= filterParams.climbableVoxelCount
-			    && min(spanClearance.nextBottom, neighbourClearance.nextBottom) >= max(spanClearance.top, neighbourClearance.top) + filterParams.heightVoxelCount)
+			    && min(originNextBottom, nSpanNextBottom) >= max(originTop, nSpanTop) + filterParams.minValidHeightVoxelCount)
 			{
-				ptopLast = neighbourClearance.top;
-				pnextBottomLast = neighbourClearance.nextBottom;
-				dpTopFirst = dpTopLast = dTop;
-
-				sdpTopFirst = sdpTopLast = int(neighbourClearance.top) - int(spanClearance.top);
-
-				nCellValid = true;
-
+				probesParams.firstProbeSpanTop = nSpanTop;
+				probesParams.firstProbeSpanNextBottom = nSpanNextBottom;
+				probesParams.firstSpanTopDiffAbsolute = dTop;
+				probesParams.firstSpanTopDiffSigned = sdTop;
+				probesParams.dir = dir;
+				isCellValid = true;
 				break;
 			}
 		}
 
-		if (!nCellValid)
+		if (!isCellValid)
 		{
-			neighbourTest = false;
-#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
-			IF_UNLIKELY (pOutReason)
-			{
-				pOutReason->szReason = "clearance";
-			}
-#endif
-			break;
+			// It's not possible to move to neighbour span in this direction.
+			MNM_SET_NONWALKABLE_FAIL_REASON(pOutReason, "clearance");
+			return true;
 		}
 
-		if (dpTopFirst > 0)
+		// Skip this direction if the neighbouring span is in the same level
+		// TODO: this doesn't work well with lower inclineGradient (less than 1.0) and when spans of a slope don't raise so quickly.
+		if(probesParams.firstSpanTopDiffAbsolute <= 0)
+			continue;
+
+		const bool isStep = probesParams.firstSpanTopDiffAbsolute > (filterParams.climbableInclineGradientLowerBound + 1);
+		if (isStep)
 		{
-			size_t const stepTestCount((size_t)ceil(dpTopFirst * filterParams.climbableStepRatio));
-			size_t const stepTestTolerance(stepTestCount - 1);
-			bool const isStep(dpTopFirst > (filterParams.climbableInclineGradientLowerBound + 1));
-			bool stepTest(true);
-
-			AIAssert(stepTestCount <= filterParams.inclineTestCount);
-
-			size_t ptopMin(ptopLast);
-			size_t ptopMax(ptopLast);
-
-			size_t pTopOffsMax(dpTopFirst);
-
-			size_t pc(2);
-
-			for (; pc <= filterParams.inclineTestCount; ++pc)
+			// The change in the levels is too big - a step up/down needs to be done in order to move to neighbour span
+			// Check whether the steepness of the surface after the step isn't bigger than 'climbableStepRatio'.
+			if (!CheckWalkableProbeStep(probesParams))
 			{
-				size_t px = spanCoord.cellX + NeighbourOffset_TileGenerator[n][0] * pc;
-				size_t py = spanCoord.cellY + NeighbourOffset_TileGenerator[n][1] * pc;
-
-				const CompactSpanGrid::Cell pcell = filterParams.spanGrid.GetCell(px, py);
-
-				if (!pcell)
-				{
-					//Empty neighbour - stop probe (but no fail)
-					break;
-				}
-
-				const size_t pcount = pcell.count;
-				const size_t pindex = pcell.index;
-
-				for (size_t ps = 0; ps < pcount; ++ps)
-				{
-					const size_t psindex = pindex + ps;
-					const CompactSpanGrid::Span& pspan = filterParams.spanGrid.GetSpan(psindex);
-
-					const SSpanCoord probeCoord(px, py, ps, psindex);
-					const SSpanClearance probeClearance(probeCoord, pspan, pcell, filterParams, filterParams.spanGrid);
-
-					const size_t dpTop = (size_t)abs((int)(probeClearance.top - ptopLast));
-
-					//Test validity
-					if (dpTop <= filterParams.climbableVoxelCount
-					    && min(pnextBottomLast, probeClearance.nextBottom) >= max(ptopLast, probeClearance.top) + filterParams.heightVoxelCount)
-					{
-						// Track range of tops in probe
-						ptopMin = min(ptopMin, probeClearance.top);
-						ptopMax = max(ptopMax, probeClearance.top);
-
-						const size_t pTopOffs = (size_t)abs(int(probeClearance.top) - int(spanClearance.top));
-						pTopOffsMax = max(pTopOffsMax, pTopOffs);
-
-						sdpTopLast = (int)(probeClearance.top - ptopLast);
-
-						ptopLast = probeClearance.top;
-						pnextBottomLast = probeClearance.nextBottom;
-						dpTopLast = dpTop;
-
-						nCellValid = true;
-
-						break;
-					}
-				}
-
-				if (!nCellValid)
-				{
-					break;
-				}
-
-				if (isStep)
-				{
-					if (pc <= stepTestCount
-					    && pTopOffsMax > stepTestTolerance + dpTopFirst)
-					{
-						stepTest = false;
-					}
-				}
-				else
-				{
-					if (sdpTopLast > sdpTopFirst + 1
-					    || sdpTopLast < sdpTopFirst - 1)
-					{
-						// stop probe (but no fail)
-						break;
-					}
-
-					probeInclinationVars[n] = (float)(ptopMax - ptopMin);
-				}
-			}
-
-			if (isStep
-			    && !stepTest
-			    && (pTopOffsMax > filterParams.climbableVoxelCount))
-			{
-				neighbourTest = false;
-
-#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
-				IF_UNLIKELY (pOutReason)
-				{
-					pOutReason->szReason = "step test";
-				}
-#endif
-			}
-			else
-			{
-				probeInclinationVars[n] /= pc - 1;
+				MNM_SET_NONWALKABLE_FAIL_REASON(pOutReason, "step test");
+				return true;
 			}
 		}
-	}
+		else
+		{
+			// Check the steepness of the surface and whether it isn't bigger than 'climbableInclineGradient'.
+			if (!CheckWalkableProbeIncline(probesParams, probeInclinationVars))
+			{
+				MNM_SET_NONWALKABLE_FAIL_REASON(pOutReason, "inclination");
+				return true;
+			}
+		}
 
-	if (neighbourTest)
+	} // for all directions
+
 	{
-		float previousProbeGainSquared(probeInclinationVars[axisNeighbourCount - 1] * probeInclinationVars[axisNeighbourCount - 1]);
-
-		// Test for probe pairs at 90degrees giving a net incline above tolerance
-
-		// TODO pavloi 2016.03.10: I do not fully understand the meaning of the metric we have here, but
-		// I think, there may be an error. Neighbours in the NeighbourOffset_TileGenerator are listed in order y, -x, x, -y,
-		// so the compared probe pairs are (y, -y), (-x, y), (x, -x), (-y, x).
-		// I think, expected order is something like (x, y), (y, -x), (-x, -y), (-y, x), so there are never cases,
-		// when we compare (y, -y) and (x, -x).
-		// I don't see any other piece of code, which depends on the order of first four elements of NeighbourOffset_TileGenerator, so
-		// should be save to reorder them.
-		// But still, a comment before NeighbourOffset_TileGenerator states, that this order is really expected. Who to belive?
-
-		// TODO pavloi 2016.03.11: if we perform stepTest for neighbours, then all probeInclinationVars will stay 0 and condition in this loop
-		// will never be true, so neighbourTest will also stay true. This whole loop is not required then.
-		for (size_t n = 0; n < axisNeighbourCount; ++n)
+		// Compute average gradients from partial gradients.
+		const float gradientX = 0.5f * (probeInclinationVars[0] + probeInclinationVars[2]);
+		const float gradientY = 0.5f * (probeInclinationVars[1] + probeInclinationVars[3]);
+		
+		const Vec2 gradient(gradientX, gradientY);
+		if (gradient.GetLengthSquared() > filterParams.climbableInclineGradientSquared)
 		{
-			float thisProbeGainSquared(probeInclinationVars[n] * probeInclinationVars[n]);
-			if ((float)(thisProbeGainSquared + previousProbeGainSquared) > filterParams.climbableInclineGradientSquared)
-			{
-				neighbourTest = false;
-#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
-				IF_UNLIKELY (pOutReason)
-				{
-					pOutReason->szReason = "inclination";
-				}
-#endif
-				break;
-			}
-			previousProbeGainSquared = thisProbeGainSquared;
+			MNM_SET_NONWALKABLE_FAIL_REASON(pOutReason, "inclination");
+			return true;
 		}
 	}
-
-	return !neighbourTest;
+	return false;
 }
 
-void CTileGenerator::FilterWalkable_CheckBoundaries(const AABB& aabb, const size_t gridWidth, const size_t gridHeight)
+size_t CTileGenerator::FilterWalkable_CheckBoundaries(const AABB& aabb, const size_t gridWidth, const size_t gridHeight)
 {
 	const float convX = 1.0f / m_params.voxelSize.x;
 	const float convY = 1.0f / m_params.voxelSize.y;
@@ -895,6 +1001,8 @@ void CTileGenerator::FilterWalkable_CheckBoundaries(const AABB& aabb, const size
 	const Vec3 halfVoxel = m_params.voxelSize * 0.5f;
 
 	const Vec3 bmax = aabb.max - aabb.min;
+
+	size_t nonWalkableCount = 0;
 
 	for (size_t e = 0; e < m_params.exclusionCount; ++e)
 	{
@@ -937,13 +1045,10 @@ void CTileGenerator::FilterWalkable_CheckBoundaries(const AABB& aabb, const size
 
 								if (exclusion.Contains(point))
 								{
+									++nonWalkableCount;
 									span.flags |= NotWalkable;
-#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
-									IF_UNLIKELY (m_params.flags & Params::DebugInfo)
-									{
-										m_debugNonWalkableReasonMap[SSpanCoord(x, y, s, cell.index + s)] = SNonWalkableReason("exclusion");
-									}
-#endif
+
+									DebugAddNonWalkableReason(SSpanCoord(x, y, s, cell.index + s), "exclusion");
 								}
 							}
 						}
@@ -980,19 +1085,17 @@ void CTileGenerator::FilterWalkable_CheckBoundaries(const AABB& aabb, const size
 
 						if (!boundary.Contains(point))
 						{
+							++nonWalkableCount;
 							span.flags |= NotWalkable;
-#if DEBUG_MNM_GATHER_NONWALKABLE_REASONS
-							IF_UNLIKELY (m_params.flags & Params::DebugInfo)
-							{
-								m_debugNonWalkableReasonMap[SSpanCoord(x, y, s, cell.index + s)] = SNonWalkableReason("boundary");
-							}
-#endif
+							DebugAddNonWalkableReason(SSpanCoord(x, y, s, cell.index + s), "boundary");
 						}
 					}
 				}
 			}
 		}
 	}
+
+	return nonWalkableCount;
 }
 
 inline bool IsBorderLabel(uint16 label)
@@ -1005,12 +1108,151 @@ inline bool IsLabelValid(uint16 label)
 	return (label < CTileGenerator::FirstInvalidLabel);
 }
 
-/*	inline uint16 ConsolidateLabel(uint16 label)
-   {
-    if (label < TileGenerator::FirstInvalidLabel)
-      return label;
-    return TileGenerator::FirstInvalidLabel;
-   }*/
+CRY_FORCE_INLINE uint16 ComputeMinSweepValueForPaintExpand(
+	const CompactSpanGrid& spanGrid,
+	const size_t x, const size_t y, const size_t top, const size_t climbableVoxelCount,
+	CTileGenerator::SpanExtraInfo& distances,
+	const DistanceTransform::SSweepElement* sweepMask)
+{
+	uint16 minimum = CTileGenerator::NoLabel;
+	for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
+	{
+		const size_t nx = x + sweepMask[p].x;
+		const size_t ny = y + sweepMask[p].y;
+
+		size_t nindex;
+		if (spanGrid.GetSpanAt(nx, ny, top, climbableVoxelCount, nindex))
+		{
+			const uint16 sweepValue = distances[nindex] + sweepMask[p].k;
+			if (sweepValue < minimum)
+			{
+				minimum = sweepValue;
+			}
+		}
+	}
+	return minimum;
+}
+
+CRY_FORCE_INLINE uint16 ComputeMinSweepValueForErosion(
+	const CompactSpanGrid& spanGrid,
+	const size_t x, const size_t y, const size_t top, const size_t climbableVoxelCount,
+	CTileGenerator::SpanExtraInfo& distances,
+	const DistanceTransform::SSweepElement* sweepMask)
+{
+	uint16 minimum = CTileGenerator::NoLabel;
+	for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
+	{
+		const size_t nx = x + sweepMask[p].x;
+		const size_t ny = y + sweepMask[p].y;
+
+		size_t nindex;
+		if (spanGrid.GetSpanAt(nx, ny, top, climbableVoxelCount, nindex) && (spanGrid.GetSpan(nindex).flags & CTileGenerator::NotWalkable) == 0)
+		{
+			const uint16 sweepValue = distances[nindex] + sweepMask[p].k;
+			if (sweepValue < minimum)
+			{
+				minimum = sweepValue;
+			}
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	return minimum;
+}
+
+void CTileGenerator::ExpandAreaForPaint(const uint16 paint)
+{
+	m_profiler.StartTimer(DistanceTransform);
+
+	const size_t borderH = max(size_t(0), BorderSizeH(m_params) - m_params.agent.radius);
+
+	const size_t gridWidth = m_spanGrid.GetWidth();
+	const size_t gridHeight = m_spanGrid.GetHeight();
+	const size_t spanCount = m_spanGrid.GetSpanCount();
+
+	const size_t climbableVoxelCount = m_params.agent.climbableHeight;
+
+	SpanExtraInfo distances;
+	distances.resize(spanCount);
+
+	std::fill(distances.begin(), distances.end(), NoLabel);
+
+	for (size_t y = 0; y < gridHeight; ++y)
+	{
+		for (size_t x = 0; x < gridWidth; ++x)
+		{
+			if (const CompactSpanGrid::Cell cell = m_spanGrid.GetCell(x, y))
+			{
+				const size_t index = cell.index;
+				const size_t count = cell.count;
+
+				for (size_t s = 0; s < count; ++s)
+				{
+					if (m_paint[index + s] == paint)
+						distances[index + s] = 0;
+				}
+			}
+		}
+	}
+
+	for (size_t y = borderH; y < gridHeight - borderH; ++y)
+	{
+		for (size_t x = borderH; x < gridWidth - borderH; ++x)
+		{
+			if (const CompactSpanGrid::Cell cell = m_spanGrid.GetCell(x, y))
+			{
+				const size_t index = cell.index;
+				const size_t count = cell.count;
+
+				for (size_t s = 0; s < count; ++s)
+				{
+					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index + s);
+					const size_t top = span.bottom + span.height;
+
+					const uint16 minimum = ComputeMinSweepValueForPaintExpand(m_spanGrid, x, y, top, climbableVoxelCount, distances, DistanceTransform::downSweep);
+					const uint16 current = distances[index + s];
+					if (minimum < current)
+						distances[index + s] = minimum;
+				}
+			}
+		}
+	}
+
+	for (size_t y = gridHeight - 1 - borderH; y >= borderH; --y)
+	{
+		for (size_t x = gridWidth - 1 - borderH; x >= borderH; --x)
+		{
+			if (const CompactSpanGrid::Cell cell = m_spanGrid.GetCell(x, y))
+			{
+				const size_t index = cell.index;
+				const size_t count = cell.count;
+
+				for (size_t s = 0; s < count; ++s)
+				{
+					const size_t spanIdx = index + s;
+					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(spanIdx);
+					const size_t top = span.bottom + span.height;
+
+					const uint16 minSweepValue = ComputeMinSweepValueForPaintExpand(m_spanGrid, x, y, top, climbableVoxelCount, distances, DistanceTransform::upSweep);
+					const uint16 current = distances[spanIdx];
+					if (minSweepValue < current)
+						distances[spanIdx] = minSweepValue;
+				}
+			}
+		}
+	}
+
+	const size_t erosion = m_params.flags & Params::NoErosion ? 0 : (m_params.agent.radius << 1) + DistanceTransform::KStraight;
+	for (size_t index = 0, count = distances.size(); index < count; ++index)
+	{
+		if (distances[index] < erosion)
+			m_paint[index] = paint;
+	}
+
+	m_profiler.StopTimer(DistanceTransform);
+}
 
 void CTileGenerator::ComputeDistanceTransform()
 {
@@ -1042,34 +1284,14 @@ void CTileGenerator::ComputeDistanceTransform()
 
 				for (size_t s = 0; s < count; ++s)
 				{
-					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index + s);
-
+					const size_t spanIdx = index + s;
+					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(spanIdx);
 					const size_t top = span.bottom + span.height;
-					const uint16 current = m_distances[index + s];
 
-					uint16 sweepValues[DistanceTransform::SweepPixelCount];
-
-					for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
-					{
-						sweepValues[p] = 0;
-
-						const size_t nx = x + DistanceTransform::downSweep[p].x;
-						const size_t ny = y + DistanceTransform::downSweep[p].y;
-
-						size_t nindex;
-						if (m_spanGrid.GetSpanAt(nx, ny, top, climbableVoxelCount, nindex))
-							sweepValues[p] = m_distances[nindex] + DistanceTransform::downSweep[p].k;
-					}
-
-					uint16 minimum = sweepValues[0];
-
-					for (size_t p = 1; p < DistanceTransform::SweepPixelCount; ++p)
-					{
-						minimum = std::min<uint16>(minimum, sweepValues[p]);
-					}
-
+					const uint16 minimum = ComputeMinSweepValueForErosion(m_spanGrid, x, y, top, climbableVoxelCount, m_distances, DistanceTransform::downSweep);
+					const uint16 current = m_distances[spanIdx];
 					if (minimum < current)
-						m_distances[index + s] = minimum;
+						m_distances[spanIdx] = minimum;
 				}
 			}
 		}
@@ -1077,8 +1299,7 @@ void CTileGenerator::ComputeDistanceTransform()
 
 	for (size_t y = gridHeight - 1; y; --y)
 	{
-		// TODO pavloi 2016.03.15: out of bounds read? Shouldn't we start at gridWidth-1. There is a check below in GetCell()
-		for (size_t x = gridWidth; x; --x)
+		for (size_t x = gridWidth - 1; x; --x)
 		{
 			if (const CompactSpanGrid::Cell cell = m_spanGrid.GetCell(x, y))
 			{
@@ -1087,34 +1308,14 @@ void CTileGenerator::ComputeDistanceTransform()
 
 				for (size_t s = 0; s < count; ++s)
 				{
-					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index + s);
-
+					const size_t spanIdx = index + s;
+					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(spanIdx);
 					const size_t top = span.bottom + span.height;
-					const uint16 current = m_distances[index + s];
 
-					uint16 sweepValues[DistanceTransform::SweepPixelCount];
-
-					for (size_t p = 0; p < DistanceTransform::SweepPixelCount; ++p)
-					{
-						sweepValues[p] = 0;
-
-						const size_t nx = x + DistanceTransform::upSweep[p].x;
-						const size_t ny = y + DistanceTransform::upSweep[p].y;
-
-						size_t nindex;
-						if (m_spanGrid.GetSpanAt(nx, ny, top, climbableVoxelCount, nindex))
-							sweepValues[p] = m_distances[nindex] + DistanceTransform::upSweep[p].k;
-					}
-
-					uint16 minimum = sweepValues[0];
-
-					for (size_t p = 1; p < DistanceTransform::SweepPixelCount; ++p)
-					{
-						minimum = std::min<uint16>(minimum, sweepValues[p]);
-					}
-
+					const uint16 minimum = ComputeMinSweepValueForErosion(m_spanGrid, x, y, top, climbableVoxelCount, m_distances, DistanceTransform::upSweep);
+					const uint16 current = m_distances[spanIdx];
 					if (minimum < current)
-						m_distances[index + s] = minimum;
+						m_distances[spanIdx] = minimum;
 				}
 			}
 		}
@@ -1123,203 +1324,16 @@ void CTileGenerator::ComputeDistanceTransform()
 	m_profiler.StopTimer(DistanceTransform);
 }
 
-void CTileGenerator::BlurDistanceTransform()
+void CTileGenerator::LabelBorders()
 {
-	if (!m_params.blurAmount)
-		return;
+	m_labels.resize(m_spanGrid.GetSpanCount());
 
-	m_profiler.StartTimer(Blur);
+	m_profiler.AddMemory(SegmentationMemory, m_labels.size() * sizeof(SpanExtraInfo::value_type));
+	std::fill(m_labels.begin(), m_labels.end(), NoLabel);
 
-	const size_t threshold = 1;
-	const size_t gridWidth = m_spanGrid.GetWidth();
-	const size_t gridHeight = m_spanGrid.GetHeight();
+	const size_t borderH = BorderSizeH(m_params);
+	const size_t borderV = BorderSizeV(m_params);
 
-	const size_t climbableVoxelCount = m_params.agent.climbableHeight;
-
-	m_labels.resize(m_distances.size());
-
-	for (size_t i = 0; i < m_params.blurAmount; ++i)
-	{
-		for (size_t y = 0; y < gridHeight; ++y)
-		{
-			for (size_t x = 0; x < gridWidth; ++x)
-			{
-				if (const CompactSpanGrid::Cell cell = m_spanGrid.GetCell(x, y))
-				{
-					size_t index = cell.index;
-					size_t count = cell.count;
-
-					for (size_t s = 0; s < count; ++s)
-					{
-						const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index + s);
-						const uint16 orig = m_distances[index + s];
-
-						if (orig > threshold)
-						{
-							const size_t top = span.bottom + span.height;
-							size_t accum = orig;
-
-							for (size_t n = 0; n < 8; ++n)
-							{
-								const size_t nx = x + NeighbourOffset_TileGenerator[n][0];
-								const size_t ny = y + NeighbourOffset_TileGenerator[n][1];
-
-								size_t nindex;
-								if (m_spanGrid.GetSpanAt(nx, ny, top, climbableVoxelCount, nindex))
-									accum += m_distances[nindex];
-								else
-									accum += orig;
-							}
-
-							const uint16 c = static_cast<uint16>((accum + 5) / 9);          // round
-							m_labels[index + s] = c;
-						}
-						else
-							m_labels[index + s] = orig;
-					}
-				}
-			}
-		}
-
-		if ((i & 1) == 0)
-			m_labels.swap(m_distances);
-	}
-
-	m_profiler.StopTimer(Blur);
-}
-
-struct StreamElement
-{
-	StreamElement(size_t _x, size_t _y, size_t _span)
-		: x(static_cast<uint16>(_x))
-		, y(static_cast<uint16>(_y))
-		, span(_span)
-	{}
-
-	uint16 x;
-	uint16 y;
-	size_t span;
-
-	bool operator==(const StreamElement& other) const
-	{
-		return (x == other.x) && (y == other.y) && (span == other.span);
-	}
-
-	bool operator<(const StreamElement& other) const
-	{
-		if (x == other.x)
-		{
-			if (y == other.y)
-				return (span < other.span);
-			return (y < other.y);
-		}
-
-		return x < other.x;
-	}
-};
-
-typedef std::vector<StreamElement> LinearStream;
-
-size_t RunStream(const CompactSpanGrid& spanGrid, size_t climbableVoxelCount, LinearStream& unexplored,
-                 const StreamElement& first, LinearStream& stream, const uint16* data, size_t erosion, uint16* labels)
-{
-	stream.clear();
-	stream.push_back(first);
-
-	unexplored.clear();
-	unexplored.push_back(first);
-
-	while (!unexplored.empty())
-	{
-		const StreamElement y = unexplored.back();
-		unexplored.pop_back();
-
-		const size_t yx = y.x;
-		const size_t yy = y.y;
-
-		const CompactSpanGrid::Span& yspan = spanGrid.GetSpan(first.span);
-		const size_t ytop = yspan.bottom + yspan.height;
-
-		size_t minimum = erosion;
-		bool bfirst = true;
-
-		while (bfirst)
-		{
-			for (size_t n = 0; n < 4; ++n)
-			{
-				size_t nx = yx + NeighbourOffset_TileGenerator[n][0];
-				size_t ny = yy + NeighbourOffset_TileGenerator[n][1];
-
-				size_t nindex;
-				if (spanGrid.GetSpanAt(nx, ny, ytop, climbableVoxelCount, nindex))
-				{
-					uint16 label = labels[nindex];
-
-					if (!IsBorderLabel(label))
-					{
-						uint16 ndata = data[nindex];
-						if (ndata > minimum)
-							minimum = ndata;
-					}
-				}
-			}
-
-			size_t zx = ~0ul;
-			size_t zy = ~0ul;
-			size_t zspan = 0;
-
-			for (size_t n = 0; n < 4; ++n)
-			{
-				const size_t nx = yx + NeighbourOffset_TileGenerator[n][0];
-				const size_t ny = yy + NeighbourOffset_TileGenerator[n][1];
-
-				size_t nindex;
-				if (spanGrid.GetSpanAt(nx, ny, ytop, climbableVoxelCount, nindex))
-				{
-					uint16 label = labels[nindex];
-
-					if (!IsBorderLabel(label))
-					{
-						if (data[nindex] == minimum)
-						{
-							const StreamElement probe(nx, ny, nindex);
-
-							if (std::find(stream.begin(), stream.end(), probe) == stream.end())
-							{
-								zx = nx;
-								zy = ny;
-								zspan = nindex;
-								break;
-							}
-						}
-					}
-				}
-			}
-
-			if (zx == ~0ul)
-				break;
-
-			if (IsLabelValid(labels[zspan]))
-				return labels[zspan];
-			else
-			{
-				if (data[zspan] > data[y.span])
-				{
-					unexplored.clear();
-					bfirst = false;
-				}
-
-				stream.push_back(StreamElement(zx, zy, zspan));
-				unexplored.push_back(StreamElement(zx, zy, zspan));
-			}
-		}
-	}
-
-	return CTileGenerator::NoLabel;
-}
-
-void CTileGenerator::PaintBorder(uint16* data, size_t borderH, size_t borderV)
-{
 	const size_t width = m_spanGrid.GetWidth();
 	const size_t height = m_spanGrid.GetHeight();
 
@@ -1340,7 +1354,7 @@ void CTileGenerator::PaintBorder(uint16* data, size_t borderH, size_t borderV)
 
 						for (size_t s = 0; s < count; ++s)
 						{
-							data[index + s] |= BorderLabelH;
+							m_labels[index + s] |= BorderLabelH;
 						}
 					}
 				}
@@ -1364,7 +1378,7 @@ void CTileGenerator::PaintBorder(uint16* data, size_t borderH, size_t borderV)
 
 						for (size_t s = 0; s < count; ++s)
 						{
-							data[index + s] |= BorderLabelH;
+							m_labels[index + s] |= BorderLabelH;
 						}
 					}
 				}
@@ -1397,7 +1411,7 @@ void CTileGenerator::PaintBorder(uint16* data, size_t borderH, size_t borderV)
 						// border? What about voxels between volume top and tile top (upper borderV)? I think, they will not be
 						// marked as BorderLabelV.
 						if ((top < borderV) || (top >= maxTop))
-							data[index + s] |= BorderLabelV;
+							m_labels[index + s] |= BorderLabelV;
 					}
 				}
 			}
@@ -1487,7 +1501,7 @@ bool CTileGenerator::GatherSurroundingInfo(const Vec2i& vertex, const Vec2i& dir
 	if (m_spanGrid.GetSpanAt(external.x, external.y, top, climbableVoxelCount, index))
 	{
 		const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index);
-		maximize<size_t>(height, span.bottom + span.height);
+		Utils::maximize<size_t>(height, span.bottom + span.height);
 
 		front.label = m_labels[index];
 		front.flags = span.flags;
@@ -1499,7 +1513,7 @@ bool CTileGenerator::GatherSurroundingInfo(const Vec2i& vertex, const Vec2i& dir
 	if (m_spanGrid.GetSpanAt(external.x, external.y, top, climbableVoxelCount, index))
 	{
 		const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index);
-		maximize<size_t>(height, span.bottom + span.height);
+		Utils::maximize<size_t>(height, span.bottom + span.height);
 
 		frontLeft.label = m_labels[index];
 		frontLeft.flags = span.flags;
@@ -1512,7 +1526,7 @@ bool CTileGenerator::GatherSurroundingInfo(const Vec2i& vertex, const Vec2i& dir
 	if (m_spanGrid.GetSpanAt(external.x, external.y, top, climbableVoxelCount, index))
 	{
 		const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index);
-		maximize<size_t>(height, span.bottom + span.height);
+		Utils::maximize<size_t>(height, span.bottom + span.height);
 
 		left.label = m_labels[index];
 		left.flags = span.flags;
@@ -1527,7 +1541,7 @@ inline bool IsPaintPinchPoint(const size_t index, const size_t lIndex, const siz
 {
 	enum NeighbourPinchClassification
 	{
-		SamePaint = 1,
+		SamePaint       = 1,
 		DifferentPaint1 = 0,
 		DifferentPaint2 = 2,
 	};
@@ -1572,11 +1586,10 @@ inline bool IsPaintPinchPoint(const size_t index, const size_t lIndex, const siz
 void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& direction, const uint16 top,
                                             const uint16 climbableVoxelCount, ContourVertex& contourVertex, const bool bInternalContour, SContourVertexDebugInfo* pDebugInfo) const
 {
-	const size_t xoffs = (direction.x == 1) | (direction.y == -1);
-	const size_t yoffs = (direction.y == 1) | (direction.x == 1);
+	const Vec2i spanToContourVertexOffset = SpanToContourVertexOffset(direction);
 
-	const size_t cx = vertex.x + xoffs;
-	const size_t cy = vertex.y + yoffs;
+	const size_t cx = vertex.x + spanToContourVertexOffset.x;
+	const size_t cy = vertex.y + spanToContourVertexOffset.y;
 	size_t cz = top;
 
 	size_t index = -1;
@@ -1606,7 +1619,7 @@ void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& di
 	// TODO pavloi 2016.03.15: in TraceContour() we alread asses these neighbours. Maybe we can store
 	// their span indices, so we don't have to search for them again. But it will require more memory to store Tracer.
 	GatherSurroundingInfo(vertex, direction, top, climbableVoxelCount, cz, left, front, frontLeft);
-	minimize(cz, borderV + Top(m_params));
+	Utils::minimize(cz, borderV + Top(m_params));
 
 	size_t flags = 0;
 
@@ -1698,13 +1711,13 @@ void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& di
 					flags |= ContourVertex::Unremovable;
 					DebugAddContourVertexUnremovableReason(pDebugInfo, "BndV CornerTbl");
 				}
-				else if ((borderBit == 7) && (borderBitH && borderBitV))
+				else if (borderBitH && borderBit == 7)
 				{
 					flags |= ContourVertex::Unremovable;
 					DebugAddContourVertexUnremovableReason(pDebugInfo, "BndV Border");
 				}
-				// If neighbours are are actually belong to different borders.
-				else if (borderBitH & ((borderBitV << 1) | (borderBitV >> 1)))
+				// If neighbours actually belong to different borders.
+				else if (borderBitH && borderBitH != borderBitV)
 				{
 					flags |= ContourVertex::Unremovable;
 					DebugAddContourVertexUnremovableReason(pDebugInfo, "BndV BorderChange");
@@ -1737,9 +1750,8 @@ void CTileGenerator::DetermineContourVertex(const Vec2i& vertex, const Vec2i& di
 	contourVertex.flags = static_cast<uint16>(flags);
 }
 
-void CTileGenerator::AssessNeighbour(NeighbourInfo& info, size_t erosion, size_t climbableVoxelCount)
+void CTileGenerator::AssessNeighbour(NeighbourInfo& info, const size_t climbableVoxelCount)
 {
-	// TODO pavloi 2016.03.15: erosion is not used.
 	if (info.isValid = m_spanGrid.GetSpanAt(info.pos.x, info.pos.y, info.top, climbableVoxelCount, info.index))
 	{
 		const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(info.index);
@@ -1749,10 +1761,8 @@ void CTileGenerator::AssessNeighbour(NeighbourInfo& info, size_t erosion, size_t
 	}
 }
 
-void CTileGenerator::TraceContour(CTileGenerator::TracerPath& path, const Tracer& start, size_t erosion, size_t climbableVoxelCount, const NeighbourInfoRequirements& contourReq)
+void CTileGenerator::TraceContour(CTileGenerator::TracerPath& path, const Tracer& start, const size_t climbableVoxelCount, const NeighbourInfoRequirements& contourReq)
 {
-	// TODO pavloi 2016.03.15: erosion is not used in AssessNeighbour and so is not used here.
-
 	Tracer tracer = start;
 	path.steps.clear();
 	path.steps.reserve(2048);
@@ -1767,9 +1777,9 @@ void CTileGenerator::TraceContour(CTileGenerator::TracerPath& path, const Tracer
 		NeighbourInfo frontLeft(tracer.GetFrontLeft());
 		NeighbourInfo front(tracer.GetFront());
 
-		AssessNeighbour(left, erosion, climbableVoxelCount);
-		AssessNeighbour(frontLeft, erosion, climbableVoxelCount);
-		AssessNeighbour(front, erosion, climbableVoxelCount);
+		AssessNeighbour(left, climbableVoxelCount);
+		AssessNeighbour(frontLeft, climbableVoxelCount);
+		AssessNeighbour(front, climbableVoxelCount);
 
 		if (left.Check(contourReq))
 		{
@@ -1952,51 +1962,42 @@ void CTileGenerator::TidyUpContourEnd(Contour& contour)
 	}
 }
 
-uint16 CTileGenerator::GetPaintVal(const AABB& aabb, size_t x, size_t y, size_t z, size_t index, size_t borderH, size_t borderV, size_t erosion)
-{
-	// TODO pavloi 2016.03.15: there is already a function bool IsWalkable(uint16 label, uint16 distance, size_t erosion)
-	// which returns false exactly when we apply BadPaint here.
-
-	if (m_distances[index] < erosion)
-		return BadPaint;
-
-	// TODO pavloi 2016.03.15: if we suppose, that caller is properly written and never passes coords in borderH zone,
-	// then this check for BorderLabelH should never happen. But BorderLabelV could for upper border zone.
-	if (m_labels[index] & (CTileGenerator::BorderLabelH | CTileGenerator::BorderLabelV))
-		return BadPaint;
-
-	return OkPaintStart;
-}
-
 void CTileGenerator::CreatePaintPalette()
 {
 	// Sort markup areas by area type
-	std::sort(m_markups.begin(), m_markups.end(), [](const MarkupData& a, const MarkupData& b) {
-		return a.pVolume->areaAnnotation.GetType() < b.pVolume->areaAnnotation.GetType();
-	});
-	
-	m_paintPalette.reserve(m_markups.size() + 1);
-	m_paintPalette.push_back(PaintData{ m_params.defaultAreaAnotation, -1 });
-	
+	std::sort(m_markups.begin(), m_markups.end(), [](const MarkupData& a, const MarkupData& b)
+		{
+			return a.pVolume->areaAnnotation.GetType() < b.pVolume->areaAnnotation.GetType();
+		});
+
+	m_paintPalette.reserve(m_params.agent.lowerHeightAreas.size() + m_markups.size() + 3);
+	m_paintPalette.push_back(PaintData{ 0, -1, PaintData::Type::Default });                             // NoPaint
+	m_paintPalette.push_back(PaintData{ 0, -1, PaintData::Type::Default });                             // BadPaint
+	m_paintPalette.push_back(PaintData{ m_params.defaultAreaAnotation, -1, PaintData::Type::Default }); // OkPaintStart
+
+	for (int i = 0; i < m_params.agent.lowerHeightAreas.size(); ++i)
+	{
+		m_lowerHeightAreas.push_back(SLowAreaData{ i, uint16(m_paintPalette.size()) });
+		m_paintPalette.emplace_back(PaintData{ m_params.agent.lowerHeightAreas[i].annotation, i, PaintData::Type::LowHeightArea });
+	}
+
 	for (MarkupData& markupData : m_markups)
 	{
 		if (markupData.pVolume->bStoreTriangles)
 		{
 			// Create unique paint value
-			markupData.paintIdx = m_paintPalette.size();
-			m_paintPalette.emplace_back(PaintData{ markupData.pVolume->areaAnnotation, markupData.markupIdx });
+			markupData.paintIdx = uint16(m_paintPalette.size());
+			m_paintPalette.emplace_back(PaintData{ markupData.pVolume->areaAnnotation, markupData.markupIdx, PaintData::Type::Markup });
 		}
 		else
 		{
 			// Try to find non-unique paint value with the same area annotation
 			uint16 pId = 0;
-			uint16 count = uint16(m_paintPalette.size());
+			const uint16 count = uint16(m_paintPalette.size());
 			for (; pId < count; ++pId)
 			{
-				if (m_paintPalette[pId].markupIdx == -1 && markupData.pVolume->areaAnnotation == m_paintPalette[pId].areaAnotation)
-				{
+				if (m_paintPalette[pId].dataIdx == -1 && markupData.pVolume->areaAnnotation == m_paintPalette[pId].areaAnotation)
 					break;
-				}
 			}
 			if (pId < count)
 			{
@@ -2006,8 +2007,49 @@ void CTileGenerator::CreatePaintPalette()
 			{
 				// Create non-unique paint value
 				markupData.paintIdx = m_paintPalette.size();
-				m_paintPalette.emplace_back(PaintData{ markupData.pVolume->areaAnnotation, -1 });
+				m_paintPalette.emplace_back(PaintData{ markupData.pVolume->areaAnnotation, -1, PaintData::Type::Markup });
 			}
+		}
+	}
+}
+
+void CTileGenerator::PaintLowerHeightAreas()
+{
+	if (m_lowerHeightAreas.empty())
+		return;
+
+	const auto& lowerHeightAreasParams = m_params.agent.lowerHeightAreas;
+	for (int idx = lowerHeightAreasParams.size() - 1; idx >= 0; --idx)
+	{
+		bool isPainted = false;
+		const uint32 minHeight = lowerHeightAreasParams[idx].height;
+		const uint16 areaPaint = m_lowerHeightAreas[idx].paintIdx;
+
+		for (size_t spanIdx = 0, count = m_spanGrid.GetSpanCount(); spanIdx < count; ++spanIdx)
+		{
+			CompactSpanGrid::Span& span = m_spanGrid.GetSpan(spanIdx);
+			if (span.flags & LessThanAgentHeight)
+			{
+				if (span.clearance < minHeight)
+					continue;
+
+				if (m_paintPalette[m_paint[spanIdx]].type == PaintData::Type::Markup)
+				{
+					// Don't paint over markup areas
+					span.flags |= NotWalkable;
+				}
+				else
+				{
+					m_paint[spanIdx] = areaPaint;
+					isPainted = true;
+				}
+				span.flags &= ~LessThanAgentHeight;
+			}
+		}
+
+		if (isPainted)
+		{
+			ExpandAreaForPaint(areaPaint);
 		}
 	}
 }
@@ -2016,14 +2058,14 @@ void CTileGenerator::PaintMarkups(const AABB& tileAabb)
 {
 	if (!m_markups.size())
 		return;
-	
+
 	const int borderH = (int)BorderSizeH(m_params);
 	const Vec2i canvasSize(m_spanGrid.GetWidth(), m_spanGrid.GetHeight());
-	const Vec2i borderSize(borderH, borderH);
+	const Vec2i borderSize(borderH - m_params.agent.radius, borderH - m_params.agent.radius);
 
 	const Vec3 voxelSize = m_params.voxelSize;
 	const Vec3 voxelSizeInv = Vec3(1.0f / voxelSize.x, 1.0f / voxelSize.y, 1.0f / voxelSize.z);
-	
+
 	for (const MarkupData& markupData : m_markups)
 	{
 		if (markupData.pVolume->bExpandByAgentRadius)
@@ -2051,7 +2093,7 @@ void CTileGenerator::PaintMarkupDirect(const MarkupData& markupData, const AABB&
 
 	AABB tranformedAABB = markupData.pVolume->aabb;
 	tranformedAABB.Move(-tileAabb.min);
-	
+
 	const int yStart = max(borderSize.y, int(tranformedAABB.min.y * voxelSizeInv.y));
 	const int yEnd = min(paintEnd.y, int(tranformedAABB.max.y * voxelSizeInv.y));
 
@@ -2064,9 +2106,9 @@ void CTileGenerator::PaintMarkupDirect(const MarkupData& markupData, const AABB&
 	for (int y = yStart; y < yEnd; ++y)
 	{
 		xPositions.clear();
-		
+
 		float yLine = y * voxelSize.y;
-		
+
 		for (size_t i = 0, j = count - 1; i < count; j = i++)
 		{
 			const Vec3& p0 = tranformedVertices[j];
@@ -2080,7 +2122,7 @@ void CTileGenerator::PaintMarkupDirect(const MarkupData& markupData, const AABB&
 		}
 
 		const size_t xCount = xPositions.size();
-		if(xCount == 0)
+		if (xCount == 0)
 			continue;
 
 		CRY_ASSERT((xCount & 2) != 0);
@@ -2100,7 +2142,7 @@ void CTileGenerator::PaintMarkupDirect(const MarkupData& markupData, const AABB&
 
 		for (i = 0; i < xCount; i += 2)
 		{
-			if(xPositions[i] >= paintEnd.x)
+			if (xPositions[i] >= paintEnd.x)
 				break;
 
 			if (xPositions[i + 1] < borderSize.x)
@@ -2123,7 +2165,7 @@ void CTileGenerator::PaintMarkupDirect(const MarkupData& markupData, const AABB&
 
 					if (spanTop >= zStart && spanTop <= zEnd)
 					{
-						m_paint[index] = OkPaintStart + markupData.paintIdx;
+						m_paint[index] = markupData.paintIdx;
 					}
 				}
 			}
@@ -2134,11 +2176,11 @@ void CTileGenerator::PaintMarkupDirect(const MarkupData& markupData, const AABB&
 struct MarkupCanvas
 {
 public:
-	Vec2i m_paintMin;
-	Vec2i m_paintMax;
-	Vec2i m_size;
-	int m_agentRadius;
-	uint16 m_paintIdx;
+	Vec2i               m_paintMin;
+	Vec2i               m_paintMax;
+	Vec2i               m_size;
+	int                 m_agentRadius;
+	uint16              m_paintIdx;
 	std::vector<uint16> m_paint;
 	std::vector<uint16> m_distances;
 
@@ -2159,7 +2201,7 @@ public:
 	void Rasterize(const std::vector<Vec3>& vertices, const Vec3& voxelSize, const Vec3& voxelSizeInv)
 	{
 		const size_t count = vertices.size();
-		
+
 		std::vector<int> xPositions;
 		xPositions.reserve(count);
 
@@ -2218,7 +2260,7 @@ public:
 				for (int x = xPositions[i]; x <= xPositions[i + 1]; ++x)
 				{
 					const size_t index = (yCanvas * m_size.x) + x;
-					m_paint[index] = CTileGenerator::OkPaintStart + m_paintIdx;
+					m_paint[index] = m_paintIdx;
 					m_distances[index] = 0;
 				}
 			}
@@ -2286,7 +2328,7 @@ public:
 				const size_t index = (y * m_size.x) + x;
 				if (m_distances[index] < erosion)
 				{
-					m_paint[index] = CTileGenerator::OkPaintStart + m_paintIdx;
+					m_paint[index] = m_paintIdx;
 				}
 			}
 		}
@@ -2303,8 +2345,8 @@ void CTileGenerator::PaintMarkupExpanded(const MarkupData& markupData, const AAB
 	tranformedAABB.Expand(maxExpand);
 	tranformedAABB.Move(-tileAabb.min);
 
-	const Vec2i rasterMin(max(0, int(tranformedAABB.min.x * voxelSizeInv.x)), max(0, int(tranformedAABB.min.y * voxelSizeInv.y)));
-	const Vec2i rasterMax(min(canvasSize.x, int(tranformedAABB.max.x * voxelSizeInv.x)), min(canvasSize.y, int(tranformedAABB.max.y * voxelSizeInv.y)));
+	const Vec2i rasterMin(max(0, int(tranformedAABB.min.x* voxelSizeInv.x)), max(0, int(tranformedAABB.min.y* voxelSizeInv.y)));
+	const Vec2i rasterMax(min(canvasSize.x, int(tranformedAABB.max.x* voxelSizeInv.x)), min(canvasSize.y, int(tranformedAABB.max.y* voxelSizeInv.y)));
 
 	if (rasterMin.x >= rasterMax.x || rasterMin.y >= rasterMax.y)
 		return;
@@ -2330,12 +2372,12 @@ void CTileGenerator::PaintMarkupExpanded(const MarkupData& markupData, const AAB
 		{
 			const size_t markupIndex = y * markupCanvas.m_size.x + x;
 			const uint16 paint = markupCanvas.m_paint[markupIndex];
-			if(paint == NoPaint)
+			if (paint == NoPaint)
 				continue;
 
 			const size_t spanX = x + markupCanvas.m_paintMin.x;
 			const size_t spanY = y + markupCanvas.m_paintMin.y;
-			if(spanX < tilePaintMin.x || spanX >= tilePaintMax.x || spanY < tilePaintMin.y || spanY >= tilePaintMax.y)
+			if (spanX < tilePaintMin.x || spanX >= tilePaintMax.x || spanY < tilePaintMin.y || spanY >= tilePaintMax.y)
 				continue;
 
 			const size_t spanGridIndex = (spanY * canvasSize.x) + spanX;
@@ -2348,7 +2390,7 @@ void CTileGenerator::PaintMarkupExpanded(const MarkupData& markupData, const AAB
 
 				if (spanTop >= zStart && spanTop <= zEnd)
 				{
-					m_paint[index] = OkPaintStart + markupData.paintIdx;
+					m_paint[index] = markupData.paintIdx;
 				}
 			}
 		}
@@ -2361,44 +2403,34 @@ void CTileGenerator::CalcPaintValues(const AABB& aabb)
 	// Different paint values represent different walkable regions that should NOT be merged.
 	// We can add surface type filtering in here too.
 
-	// NOTE pavloi 2016.03.15: this was integrated from HF2 (Christian is reviewer).
-	// m_paint effectively contains BadPaint or OkPaintStart (and some NoPaint in border zones).
-	// My understanding that OkPaintStart supposed to be a starting enum value for all kinds of different markers, but is
-	// not actually used in this version of code. Might have used by HF2.
-
-	const size_t gridWidth = m_spanGrid.GetWidth();
-	const size_t gridHeight = m_spanGrid.GetHeight();
-
-	// TODO pavloi 2016.03.15: looks like m_paint is never accounted in memory profiler.
-
 	CreatePaintPalette();
 
-	m_paint.resize(m_distances.size());
+	m_paint.resize(m_spanGrid.GetSpanCount());
 	std::fill(m_paint.begin(), m_paint.end(), NoPaint);
+	m_profiler.AddMemory(SegmentationMemory, m_paint.size() * sizeof(SpanExtraInfo::value_type));
 
 	PaintMarkups(aabb);
 
-	const size_t borderH = BorderSizeH(m_params);
-	const size_t erosion = m_params.flags & Params::NoErosion ? 0 : m_params.agent.radius << 1;
+	PaintLowerHeightAreas();
 
-	for (size_t y = borderH; y < gridHeight - borderH; ++y)
+	ComputeDistanceTransform();
+
+	const uint16 erosion = m_params.flags & Params::NoErosion ? 0 : m_params.agent.radius << 1;
+	for (size_t spanIdx = 0, count = m_spanGrid.GetSpanCount(); spanIdx < count; ++spanIdx)
 	{
-		for (size_t x = borderH; x < gridWidth - borderH; ++x)
+		if (m_distances[spanIdx] < erosion)
 		{
-			const size_t spanGridIndex = (y * gridWidth) + x;
-			const CompactSpanGrid::Cell& cell = m_spanGrid[spanGridIndex];
-			for (size_t s = 0; s < cell.count; ++s)
-			{
-				const size_t index = cell.index + s;
-				if (m_distances[index] < erosion || IsBorderLabel(m_labels[index]))
-				{
-					m_paint[index] = BadPaint;
-				}
-				else if(m_paint[index] == NoPaint)
-				{
-					m_paint[index] = OkPaintStart;
-				}
-			}
+			m_paint[spanIdx] = BadPaint;
+		}
+		else if (m_paint[spanIdx] == NoPaint)
+		{
+			// Paint with default value
+			m_paint[spanIdx] = OkPaintStart;
+		}
+
+		if (IsBorderLabel(m_labels[spanIdx]))
+		{
+			m_paint[spanIdx] |= PaintBorderFlag;
 		}
 	}
 }
@@ -2410,27 +2442,13 @@ size_t CTileGenerator::ExtractContours(const AABB& aabb)
 	const size_t gridWidth = m_spanGrid.GetWidth();
 	const size_t gridHeight = m_spanGrid.GetHeight();
 
-	m_labels.resize(m_distances.size());
-
-	m_profiler.AddMemory(SegmentationMemory, m_labels.size() * sizeof(SpanExtraInfo::value_type));
-
 	const size_t borderH = BorderSizeH(m_params);
-	const size_t borderV = BorderSizeV(m_params);
-
-	std::fill(m_labels.begin(), m_labels.end(), NoLabel);
-	PaintBorder(&m_labels.front(), borderH, borderV);
-
-	CalcPaintValues(aabb);
 
 	uint16 regionCount = 0;
 	m_regions.reserve(128);
 
 	TracerPath path;
 
-	// TODO pavloi 2016.03.15: same erosion calculated in CalcPaintValues. And it's not even required here - see
-	// comments in AssessNeighbour and TraceContour.
-	// Or it is required, in LabelTracerPath() - DetermineContourVertex(), where it's calcluated again.
-	const size_t erosion = m_params.flags & Params::NoErosion ? 0 : m_params.agent.radius << 1;
 	const size_t climbableVoxelCount = m_params.agent.climbableHeight;
 
 	for (size_t y = borderH; y < gridHeight - borderH; ++y)
@@ -2459,12 +2477,12 @@ size_t CTileGenerator::ExtractContours(const AABB& aabb)
 				const size_t top = span.bottom + span.height;
 
 				NeighbourInfo prev(Vec2i(x - 1, y), top);
-				AssessNeighbour(*&prev, erosion, climbableVoxelCount);
+				AssessNeighbour(*&prev, climbableVoxelCount);
 
 				const uint16 prevLabelSafe = (prev.label & NoLabel);
 
-				const bool walkable = (paint >= OkPaintStart);
-				const bool prevwalkable = (prev.paint >= OkPaintStart);
+				const bool walkable = (paint >= OkPaintStart) && (paint & PaintBorderFlag) == 0;
+				const bool prevwalkable = (prev.paint >= OkPaintStart) && (prev.paint & PaintBorderFlag) == 0;
 				const bool bothwalkable = (walkable && prevwalkable);
 				const bool paintcontinuation = (paint == prev.paint);
 
@@ -2493,7 +2511,7 @@ size_t CTileGenerator::ExtractContours(const AABB& aabb)
 						NeighbourInfoRequirements contourReq;
 						contourReq.paint = paint;
 
-						TraceContour(path, startTracer, erosion, climbableVoxelCount, contourReq);
+						TraceContour(path, startTracer, climbableVoxelCount, contourReq);
 						if (path.turns > 0)
 						{
 							// Store for Debugging.
@@ -2520,7 +2538,7 @@ size_t CTileGenerator::ExtractContours(const AABB& aabb)
 									NeighbourInfoRequirements holeReq;
 									holeReq.notPaint = prev.paint;
 
-									TraceContour(path, startTracer, erosion, climbableVoxelCount, holeReq);
+									TraceContour(path, startTracer, climbableVoxelCount, holeReq);
 									LabelTracerPath(path, climbableVoxelCount, holeRegion, holeRegion.holes.back(), NoLabel, InternalContour, prev.label, true);
 
 									// Store for Debugging.
@@ -2546,7 +2564,7 @@ size_t CTileGenerator::ExtractContours(const AABB& aabb)
 					// Trace the new region
 					NeighbourInfoRequirements contourReq;
 					contourReq.paint = paint;
-					TraceContour(path, startTracer, erosion, climbableVoxelCount, contourReq);
+					TraceContour(path, startTracer, climbableVoxelCount, contourReq);
 
 					if (path.turns > 0)
 					{
@@ -2583,7 +2601,7 @@ size_t CTileGenerator::ExtractContours(const AABB& aabb)
 							NeighbourInfoRequirements holeReq;
 							holeReq.notPaint = prev.paint;
 
-							TraceContour(path, startTracer, erosion, climbableVoxelCount, holeReq);
+							TraceContour(path, startTracer, climbableVoxelCount, holeReq);
 							LabelTracerPath(path, climbableVoxelCount, holeRegion, holeRegion.holes.back(), NoLabel, InternalContour, prev.label, true);
 
 							// Store for Debugging.
@@ -2617,18 +2635,6 @@ size_t CTileGenerator::ExtractContours(const AABB& aabb)
 
 		m_profiler.AddMemory(RegionMemory, memory);
 	}
-
-	if ((m_params.flags & Params::DebugInfo) == 0)
-	{
-		SpanExtraInfo().swap(m_labels);
-
-		m_profiler.FreeMemory(SegmentationMemory, m_labels.capacity() * sizeof(SpanExtraInfo::value_type));
-
-		SpanExtraInfo().swap(m_distances);
-
-		m_profiler.FreeMemory(SegmentationMemory, m_distances.capacity() * sizeof(SpanExtraInfo::value_type));
-	}
-
 	return regionCount;
 }
 
@@ -2649,9 +2655,9 @@ size_t CTileGenerator::InsertUniqueVertex(VertexIndexLookUp& lookUp, size_t x, s
 	if (inserted)
 	{
 		const size_t idx = m_mesh.InsertVertex(Tile::Vertex(
-		                                         Tile::Vertex::value_type(x * m_params.voxelSize.x),
-		                                         Tile::Vertex::value_type(y * m_params.voxelSize.y),
-		                                         Tile::Vertex::value_type(z * m_params.voxelSize.z)));
+																						 Tile::Vertex::value_type(x * m_params.voxelSize.x),
+																						 Tile::Vertex::value_type(y * m_params.voxelSize.y),
+																						 Tile::Vertex::value_type(z * m_params.voxelSize.z)));
 
 		index = static_cast<uint16>(idx);
 	}
@@ -2667,9 +2673,158 @@ void CTileGenerator::FilterBadRegions(size_t minSpanCount)
 
 		if (((region.flags & (Region::TileBoundary | Region::TileBoundaryV)) == 0)
 		    && (region.spanCount && (region.spanCount <= minSpanCount))
-			&& region.paint <= Paint::OkPaintStart)
+		    && region.paint <= Paint::OkPaintStart)
 		{
 			Region().swap(region);
+		}
+	}
+
+	for (const SLowAreaData& lowArea : m_lowerHeightAreas)
+	{
+		const size_t minRegionSize = m_params.agent.lowerHeightAreas[lowArea.lowAreaIdx].minAreaSize;
+		if (minRegionSize > 0)
+		{
+			RemoveSmallRegionByPaint(m_params.agent.lowerHeightAreas[lowArea.lowAreaIdx].minAreaSize, lowArea.paintIdx);
+		}
+	}
+}
+
+void CTileGenerator::RemoveSmallRegionByPaint(size_t minRegionSize, uint16 paint)
+{
+	const uint16 climableVoxelCount = static_cast<uint16>(m_params.agent.climbableHeight);
+	for (size_t i = 0; i < m_regions.size(); ++i)
+	{
+		Region& removeRegion = m_regions[i];
+
+		if (removeRegion.paint != paint || removeRegion.spanCount == 0 || removeRegion.spanCount >= minRegionSize)
+			continue;
+
+		if (removeRegion.flags & (Region::TileBoundary | Region::TileBoundaryV))
+			continue;
+
+		std::vector<uint16> regionsToCheck;
+		std::vector<size_t> spansToClear;
+		for (size_t currIdx = 0, prevIdx = removeRegion.contour.size() - 1; currIdx < removeRegion.contour.size(); prevIdx = currIdx++)
+		{
+			const ContourVertex& vertex = removeRegion.contour[currIdx];
+
+			if (vertex.flags & ContourVertex::Unremovable)
+			{
+				const ContourVertex& prevVertex = removeRegion.contour[prevIdx];
+				const Vec2i direction(sgn(vertex.x - prevVertex.x), sgn(vertex.y - prevVertex.y));
+
+				const Vec2i contourVertexToSpanOffset = -SpanToContourVertexOffset(direction);
+
+				const size_t spanX = vertex.x + contourVertexToSpanOffset.x;
+				const size_t spanY = vertex.y + contourVertexToSpanOffset.y;
+
+				size_t index;
+				if (m_spanGrid.GetSpanAt(spanX, spanY, vertex.z, climableVoxelCount, index))
+				{
+					CRY_ASSERT(m_paint[index] == removeRegion.paint);
+
+					spansToClear.push_back(index);
+
+					const uint16 label = m_labels[index] & NoLabel;
+					const CompactSpanGrid::Span& span = m_spanGrid.GetSpan(index);
+					size_t cz = span.bottom + span.height;
+
+					SurroundingSpanInfo front(NoLabel, ~0ul, NotWalkable);
+					SurroundingSpanInfo frontLeft(NoLabel, ~0ul, NotWalkable);
+					SurroundingSpanInfo left(NoLabel, ~0ul, NotWalkable);
+
+					GatherSurroundingInfo(Vec2i(spanX, spanY), direction, cz, climableVoxelCount, cz, left, front, frontLeft);
+					const uint16 leftRegionIdx = left.label & NoLabel;
+					const uint16 frontRegionIdx = front.label & NoLabel;
+					const uint16 frontLeftRegionIdx = frontLeft.label & NoLabel;
+
+					if (leftRegionIdx != label && leftRegionIdx != NoLabel)
+					{
+						stl::push_back_unique(regionsToCheck, leftRegionIdx);
+					}
+					if (frontRegionIdx != label && frontRegionIdx != NoLabel)
+					{
+						stl::push_back_unique(regionsToCheck, frontRegionIdx);
+					}
+					if (frontLeftRegionIdx != label && frontLeftRegionIdx != NoLabel)
+					{
+						stl::push_back_unique(regionsToCheck, frontLeftRegionIdx);
+					}
+				}
+			}
+		}
+
+		// Don't remove regions that possibly connect more regions
+		if (spansToClear.size() > 2)
+			continue;
+
+		// Remove the region
+		Region().swap(removeRegion);
+
+		// Clear labels and paint near of the spans near unremovable contour vertices, but keep special flags set
+		for (size_t index : spansToClear)
+		{
+			m_labels[index] = m_labels[index] & ~NoLabel;
+			m_paint[index] = BadPaint | (m_paint[index] & PaintBorderFlag);
+		}
+
+		// Update contours, unremovable flags can be removed from the vertices
+		for (uint16 regionIdx : regionsToCheck)
+		{
+			Region& region = m_regions[regionIdx];
+			UpdateContourUnremovableVertices(region.contour, false);
+
+			for (Contour& holeContour : region.holes)
+			{
+				UpdateContourUnremovableVertices(holeContour, true);
+			}
+		}
+	}
+}
+
+void CTileGenerator::ReleaseSpanExtraInfo()
+{
+	if ((m_params.flags & Params::DebugInfo) == 0)
+	{
+		SpanExtraInfo().swap(m_labels);
+
+		m_profiler.FreeMemory(SegmentationMemory, m_labels.capacity() * sizeof(SpanExtraInfo::value_type));
+
+		SpanExtraInfo().swap(m_distances);
+
+		m_profiler.FreeMemory(SegmentationMemory, m_distances.capacity() * sizeof(SpanExtraInfo::value_type));
+
+		SpanExtraInfo().swap(m_paint);
+
+		m_profiler.FreeMemory(SegmentationMemory, m_paint.capacity() * sizeof(SpanExtraInfo::value_type));
+	}
+}
+
+void CTileGenerator::UpdateContourUnremovableVertices(Contour& contour, const bool isHole) const
+{
+	const uint16 climableVoxelCount = static_cast<uint16>(m_params.agent.climbableHeight);
+	const size_t count = contour.size();
+	for (size_t currIdx = 0, prevIdx = count - 1; currIdx < count; prevIdx = currIdx++)
+	{
+		const ContourVertex& vertex = contour[currIdx];
+
+		if (vertex.flags & ContourVertex::Unremovable)
+		{
+			const ContourVertex& prevVertex = contour[prevIdx];
+			const Vec2i direction(sgn(vertex.x - prevVertex.x), sgn(vertex.y - prevVertex.y));
+
+			const Vec2i contourVertexToSpanOffset = -SpanToContourVertexOffset(direction);
+
+			const size_t spanX = vertex.x + contourVertexToSpanOffset.x;
+			const size_t spanY = vertex.y + contourVertexToSpanOffset.y;
+
+			ContourVertex newVertex;
+			DetermineContourVertex(Vec2i(spanX, spanY), direction, vertex.z, climableVoxelCount, newVertex, isHole, nullptr);
+
+			if ((newVertex.flags & ContourVertex::Unremovable) == 0)
+			{
+				contour[currIdx].flags &= ~ContourVertex::Unremovable;
+			}
 		}
 	}
 }
@@ -2745,7 +2900,7 @@ bool CTileGenerator::SimplifyContour(const Contour& contour, const real_t& toler
 		simplified[simplifiedCount++] = static_cast<uint16>(maxVertex);
 	}
 
-	for (size_t s0 = 0; s0 < simplifiedCount; )
+	for (size_t s0 = 0; s0 < simplifiedCount;)
 	{
 		const size_t s1 = (s0 + 1) % simplifiedCount;
 		const size_t i0 = simplified[s0];
@@ -2828,7 +2983,7 @@ bool CTileGenerator::SimplifyContour(const Contour& contour, const real_t& toler
 	}
 
 	// Remove degenerate verts for [a,b,c] where: a==c or a==b.
-	for (size_t a = (simplifiedCount - 2), b = (simplifiedCount - 1), c = 0; simplifiedCount > 2 && c < simplifiedCount; )
+	for (size_t a = (simplifiedCount - 2), b = (simplifiedCount - 1), c = 0; simplifiedCount > 2 && c < simplifiedCount;)
 	{
 		const uint16 as = simplified[a];
 		const uint16 bs = simplified[b];
@@ -3584,9 +3739,10 @@ size_t CTileGenerator::Triangulate()
 		{
 			size_t triStart = m_mesh.GetTriangles().size() - newTriCount;
 			size_t triEnd = m_mesh.GetTriangles().size() - 1;
-			m_mesh.SetAnotationForTriangles(triStart, triEnd, m_paintPalette[polygon.paint - Paint::OkPaintStart]);
+			CRY_ASSERT((polygon.paint & Paint::PaintBorderFlag) == 0);
+			m_mesh.SetAnotationForTriangles(triStart, triEnd, m_paintPalette[polygon.paint]);
 		}
-		
+
 		//////////////////////////////////////////////////////////////////////////
 
 		triCount += newTriCount;
@@ -3855,8 +4011,8 @@ void CTileGenerator::BuildBVTree()
 		}
 
 		bvTri.aabb = aabb_t(
-		  vector3_t::minimize(vertices[0], vertices[1], vertices[2]),
-		  vector3_t::maximize(vertices[0], vertices[1], vertices[2]));
+			vector3_t::minimize(vertices[0], vertices[1], vertices[2]),
+			vector3_t::maximize(vertices[0], vertices[1], vertices[2]));
 		bvTri.centroid = bvTri.aabb.center();
 		bvTri.triangleID = static_cast<uint16>(i);
 
@@ -3898,7 +4054,7 @@ void CTileGenerator::CGeneratedMesh::Clear()
 	Triangles().swap(m_triangles);
 	TileVertexIndexLookUp().swap(m_vertexIndexLookUp);
 
-	const size_t maxVertexCount = MNM::Constants::TileTrianglesMaxCount * 3;
+	const size_t maxVertexCount = MNM::Constants::TileTrianglesMaxCount* 3;
 	m_vertexIndexLookUp.reset(maxVertexCount, maxVertexCount);
 }
 
@@ -3965,9 +4121,9 @@ bool CTileGenerator::CGeneratedMesh::AddTrianglesWorld(const Triangle* pTriangle
 
 	const size_t existingTrianglesCount = m_triangles.size();
 	const size_t amountOfTrianglesLeft =
-	  (MNM::Constants::TileTrianglesMaxCount > existingTrianglesCount)
-	  ? MNM::Constants::TileTrianglesMaxCount - existingTrianglesCount
-	  : 0;
+		(MNM::Constants::TileTrianglesMaxCount > existingTrianglesCount)
+		? MNM::Constants::TileTrianglesMaxCount - existingTrianglesCount
+		: 0;
 	const size_t newTrianglesCount = count;
 	const size_t trianglesToAddCount = std::min(newTrianglesCount, amountOfTrianglesLeft);
 
@@ -4049,7 +4205,6 @@ uint32 CTileGenerator::CGeneratedMesh::CompleteAndGetHashValue()
 	return m_hashComputer.GetValue();
 }
 
-
 void CTileGenerator::CGeneratedMesh::CopyMetaData(SMetaData& tileMetaData)
 {
 	tileMetaData = std::move(m_metaData);
@@ -4064,15 +4219,15 @@ void CTileGenerator::CGeneratedMesh::SetAnotationForTriangles(const size_t index
 		m_triangles[i].areaAnnotation = paintData.areaAnotation;
 	}
 
-	if (paintData.markupIdx != -1)
+	if (paintData.type == PaintData::Type::Markup && paintData.dataIdx != -1)
 	{
-		uint16 markupIdx = (uint16)paintData.markupIdx;
-		size_t count = indexEnd - indexStart + 1;
+		const uint16 markupIdx = (uint16)paintData.dataIdx;
+		const size_t count = indexEnd - indexStart + 1;
 
 		auto it = std::find_if(m_metaData.markupTriangles.begin(), m_metaData.markupTriangles.end(), [markupIdx](const SMetaData::SMarkupTriangles& markupTriangles)
-		{
-			return markupTriangles.markupIdx == markupIdx;
-		});
+			{
+				return markupTriangles.markupIdx == markupIdx;
+			});
 
 		if (it == m_metaData.markupTriangles.end())
 		{
@@ -4095,14 +4250,14 @@ void CTileGenerator::CGeneratedMesh::CreateConnectivityData()
 	if (!triCount)
 		return;
 
-	const size_t MaxLinkCount = MNM::Constants::TileTrianglesMaxCount * 6;
+	const size_t MaxLinkCount = MNM::Constants::TileTrianglesMaxCount* 6;
 	Tile::SLink links[MaxLinkCount];
 	size_t linkCount = 0;
 
 	const vector3_t tileSize(m_tileAabb.GetSize());
 
 	m_metaData.connectivityData.ComputeTriangleAdjacency(m_triangles.data(), triCount, m_vertices.data(), vertexCount, tileSize);
-	
+
 	// Create internal links
 	for (size_t triangleIdx = 0; triangleIdx < triCount; ++triangleIdx)
 	{

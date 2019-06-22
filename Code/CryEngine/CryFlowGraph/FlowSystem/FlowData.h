@@ -185,7 +185,7 @@ ILINE void CFlowData::CompleteActivationInfo(IFlowNode::SActivationInfo* pActInf
 
 ILINE void CFlowData::Activated(IFlowNode::SActivationInfo* pActInfo, IFlowNode::EFlowEvent event)
 {
-	//	CRY_PROFILE_REGION(PROFILE_ACTION, m_type.c_str());
+	//	CRY_PROFILE_SECTION(PROFILE_ACTION, m_type.c_str());
 	if (m_hasEntity && (m_getFlowgraphForwardingEntity || m_failedGettingFlowgraphForwardingEntity))
 	{
 		if (ForwardingActivated(pActInfo, event))
@@ -207,7 +207,7 @@ ILINE void CFlowData::Activated(IFlowNode::SActivationInfo* pActInfo, IFlowNode:
 
 ILINE void CFlowData::Update(IFlowNode::SActivationInfo* pActInfo)
 {
-	//	CRY_PROFILE_REGION(PROFILE_ACTION, m_type.c_str());
+	//	CRY_PROFILE_SECTION(PROFILE_ACTION, m_type.c_str());
 	CompleteActivationInfo(pActInfo);
 	if (m_hasEntity && (m_getFlowgraphForwardingEntity || m_failedGettingFlowgraphForwardingEntity))
 		if (ForwardingActivated(pActInfo, IFlowNode::eFE_Update))

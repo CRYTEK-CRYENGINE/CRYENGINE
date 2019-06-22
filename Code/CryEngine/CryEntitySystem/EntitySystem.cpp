@@ -33,12 +33,11 @@
 #include <CrySystem/ILog.h>
 #include <CrySystem/ITimer.h>
 #include <CrySystem/ISystem.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CryPhysics/IPhysics.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryLiveCreate/ILiveCreateHost.h>
 #include <CryMath/Cry_Camera.h>
-#include <CryAISystem/IAgent.h>
-#include <CryAISystem/IAIActorProxy.h>
 #include <CrySystem/File/IResourceManager.h>
 #include <CryPhysics/IDeferredCollisionEvent.h>
 #include <CryNetwork/IRemoteCommand.h>
@@ -149,6 +148,8 @@ void SEntityLoadParams::RemoveRef()
 
 //////////////////////////////////////////////////////////////////////
 CEntitySystem::CEntitySystem(ISystem* pSystem)
+	: m_pPartitionGrid(nullptr)
+	, m_pProximityTriggerSystem(nullptr)
 {
 	// Assign allocators.
 	g_Alloc_EntitySlot = new stl::PoolAllocatorNoMT<sizeof(CEntitySlot), 16>(stl::FHeap().FreeWhenEmpty(true));
@@ -173,8 +174,11 @@ CEntitySystem::CEntitySystem(ISystem* pSystem)
 
 	m_pEntityLoadManager = new CEntityLoadManager();
 
-	m_pPartitionGrid = new CPartitionGrid;
-	m_pProximityTriggerSystem = new CProximityTriggerSystem;
+	if (CVar::es_UseProximityTriggerSystem)
+	{
+		m_pPartitionGrid = new CPartitionGrid;
+		m_pProximityTriggerSystem = new CProximityTriggerSystem;
+	}
 
 #if defined(USE_GEOM_CACHES)
 	m_pGeomCacheAttachmentManager = new CGeomCacheAttachmentManager;
@@ -228,7 +232,7 @@ CEntitySystem::~CEntitySystem()
 //////////////////////////////////////////////////////////////////////
 bool CEntitySystem::Init(ISystem* pSystem)
 {
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 	if (!pSystem)
 		return false;
 
@@ -248,9 +252,12 @@ bool CEntitySystem::Init(ISystem* pSystem)
 	if (pSystem->GetIPhysicalWorld())
 		m_pPhysicsEventListener = new CPhysicsEventListener(pSystem->GetIPhysicalWorld());
 
-	//////////////////////////////////////////////////////////////////////////
-	// Should reallocate grid if level size change.
-	m_pPartitionGrid->AllocateGrid(4096, 4096);
+	if (CVar::es_UseProximityTriggerSystem)
+	{
+		//////////////////////////////////////////////////////////////////////////
+		// Should reallocate grid if level size change.
+		m_pPartitionGrid->AllocateGrid(4096, 4096);
+	}
 
 	m_bLocked = false;
 
@@ -297,7 +304,7 @@ void CEntitySystem::UnregisterPhysicCallbacks()
 //////////////////////////////////////////////////////////////////////
 void CEntitySystem::Unload()
 {
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 	if (gEnv->p3DEngine)
 	{
 		IDeferredPhysicsEventManager* pDeferredPhysicsEventManager = gEnv->p3DEngine->GetDeferredPhysicsEventManager();
@@ -328,10 +335,13 @@ void CEntitySystem::PurgeHeaps()
 
 void CEntitySystem::Reset()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
-	m_pPartitionGrid->BeginReset();
-	m_pProximityTriggerSystem->BeginReset();
+	if (CVar::es_UseProximityTriggerSystem)
+	{
+		m_pPartitionGrid->BeginReset();
+		m_pProximityTriggerSystem->BeginReset();
+	}
 
 	// Flush the physics linetest and events queue
 	if (gEnv->pPhysicalWorld)
@@ -394,8 +404,11 @@ void CEntitySystem::Reset()
 
 	m_timersMap.clear();
 
-	m_pProximityTriggerSystem->Reset();
-	m_pPartitionGrid->Reset();
+	if (CVar::es_UseProximityTriggerSystem)
+	{
+		m_pProximityTriggerSystem->Reset();
+		m_pPartitionGrid->Reset();
+	}
 
 	m_pEntityLoadManager->Reset();
 }
@@ -503,18 +516,19 @@ bool CEntitySystem::ValidateSpawnParameters(SEntitySpawnParams& params)
 
 IEntity* CEntitySystem::SpawnPreallocatedEntity(CEntity* pPrecreatedEntity, SEntitySpawnParams& params, bool bAutoInit)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS((params.pClass ? params.pClass->GetName() : "Unknown"));
-	CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_ENTITY, (params.pClass ? params.pClass->GetName() : "Unknown"));
 
 	if (!ValidateSpawnParameters(params))
 	{
+		params.spawnResult = EEntitySpawnResult::Error;
 		return nullptr;
 	}
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, EMemStatContextFlags::MSF_Instance, "SpawnEntity %s", params.pClass->GetName());
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "SpawnEntity %s", params.pClass->GetName());
 
 	if (!OnBeforeSpawn(params))
 	{
+		params.spawnResult = EEntitySpawnResult::Skipped;
 		return nullptr;
 	}
 
@@ -535,6 +549,7 @@ IEntity* CEntitySystem::SpawnPreallocatedEntity(CEntity* pPrecreatedEntity, SEnt
 		if (!params.id)
 		{
 			EntityWarning("CEntitySystem::SpawnEntity Failed, Can't spawn entity %s. ID range is full (internal error)", params.sName);
+			params.spawnResult = EEntitySpawnResult::Error;
 			return nullptr;
 		}
 	}
@@ -586,7 +601,8 @@ IEntity* CEntitySystem::SpawnPreallocatedEntity(CEntity* pPrecreatedEntity, SEnt
 		{
 			if (!InitEntity(pEntity, params))   // calls DeleteEntity() on failure
 			{
-				return NULL;
+				params.spawnResult = EEntitySpawnResult::Error;
+				return nullptr;
 			}
 		}
 	}
@@ -596,6 +612,7 @@ IEntity* CEntitySystem::SpawnPreallocatedEntity(CEntity* pPrecreatedEntity, SEnt
 		CryLog("CEntitySystem::SpawnEntity %s %s 0x%x", pEntity ? pEntity->GetClass()->GetName() : "null", pEntity ? pEntity->GetName() : "null", pEntity ? pEntity->GetId() : 0);
 	}
 
+	params.spawnResult = EEntitySpawnResult::Success;
 	return pEntity;
 }
 
@@ -927,16 +944,19 @@ int CEntitySystem::GetPhysicalEntitiesInBox(const Vec3& origin, float radius, IP
 //////////////////////////////////////////////////////////////////////////
 int CEntitySystem::QueryProximity(SEntityProximityQuery& query)
 {
-	SPartitionGridQuery q;
-	q.aabb = query.box;
-	q.nEntityFlags = query.nEntityFlags;
-	q.pEntityClass = query.pEntityClass;
-	m_pPartitionGrid->GetEntitiesInBox(q);
-	query.pEntities = 0;
-	query.nCount = (int)q.pEntities->size();
-	if (q.pEntities && query.nCount > 0)
+	if (CVar::es_UseProximityTriggerSystem)
 	{
-		query.pEntities = q.pEntities->data();
+		SPartitionGridQuery q;
+		q.aabb = query.box;
+		q.nEntityFlags = query.nEntityFlags;
+		q.pEntityClass = query.pEntityClass;
+		m_pPartitionGrid->GetEntitiesInBox(q);
+		query.pEntities = 0;
+		query.nCount = (int)q.pEntities->size();
+		if (q.pEntities && query.nCount > 0)
+		{
+			query.pEntities = q.pEntities->data();
+		}
 	}
 	return query.nCount;
 }
@@ -944,8 +964,8 @@ int CEntitySystem::QueryProximity(SEntityProximityQuery& query)
 //////////////////////////////////////////////////////////////////////
 void CEntitySystem::PrePhysicsUpdate()
 {
-	CRY_PROFILE_REGION(PROFILE_ENTITY, "EntitySystem::PrePhysicsUpdate");
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+	CRY_PROFILE_SECTION(PROFILE_ENTITY, "EntitySystem::PrePhysicsUpdate");
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 
 	SEntityEvent event(ENTITY_EVENT_PREPHYSICSUPDATE);
 	event.fParam[0] = gEnv->pTimer->GetFrameTime();
@@ -997,8 +1017,8 @@ void CEntitySystem::PrePhysicsUpdate()
 //////////////////////////////////////////////////////////////////////
 void CEntitySystem::Update()
 {
-	CRY_PROFILE_REGION(PROFILE_ENTITY, "EntitySystem::Update");
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+	CRY_PROFILE_SECTION(PROFILE_ENTITY, "EntitySystem::Update");
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 
 	const float fFrameTime = gEnv->pTimer->GetFrameTime();
 	if (fFrameTime > FLT_EPSILON)
@@ -1012,8 +1032,11 @@ void CEntitySystem::Update()
 
 		UpdateEntityComponents(fFrameTime);
 
-		// Update info on proximity triggers.
-		m_pProximityTriggerSystem->Update();
+		if (CVar::es_UseProximityTriggerSystem)
+		{
+			// Update info on proximity triggers.
+			m_pProximityTriggerSystem->Update();
+		}
 
 		// Now update area manager to send enter/leave events from areas.
 		m_pAreaManager->Update();
@@ -1150,7 +1173,7 @@ std::array<const char*, static_cast<size_t>(Cry::Entity::EEvent::Count)> s_event
 //////////////////////////////////////////////////////////////////////////
 void CEntitySystem::UpdateEntityComponents(float fFrameTime)
 {
-	CRY_PROFILE_REGION(PROFILE_ENTITY, "EntitySystem::UpdateEntityComponents");
+	CRY_PROFILE_SECTION(PROFILE_ENTITY, "EntitySystem::UpdateEntityComponents");
 
 	SEntityUpdateContext ctx = { fFrameTime, gEnv->pTimer->GetCurrTime(), gEnv->nMainFrameID };
 
@@ -1477,7 +1500,7 @@ void CEntitySystem::OnEditorSimulationModeChanged(EEditorSimulationMode mode)
 //////////////////////////////////////////////////////////////////////////
 void CEntitySystem::OnLevelLoaded()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	const SEntityEvent event(ENTITY_EVENT_LEVEL_LOADED);
 
@@ -1498,7 +1521,7 @@ void CEntitySystem::OnLevelLoaded()
 //////////////////////////////////////////////////////////////////////////
 void CEntitySystem::OnLevelGameplayStart()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	const SEntityEvent event(ENTITY_EVENT_START_GAME);
 
@@ -1674,7 +1697,7 @@ void CEntitySystem::UpdateTimers()
 	if (last != first)
 	{
 		{
-			CRY_PROFILE_REGION(PROFILE_ENTITY, "Split");
+			CRY_PROFILE_SECTION(PROFILE_ENTITY, "Split");
 			// Make a separate list, because OnTrigger call can modify original timers map.
 			m_currentTimers.clear();
 			m_currentTimers.reserve(std::distance(first, last));
@@ -1692,7 +1715,7 @@ void CEntitySystem::UpdateTimers()
 		}
 
 		{
-			CRY_PROFILE_REGION(PROFILE_ENTITY, "SendEvent");
+			CRY_PROFILE_SECTION(PROFILE_ENTITY, "SendEvent");
 			SEntityEvent entityEvent;
 			entityEvent.event = ENTITY_EVENT_TIMER;
 
@@ -1775,8 +1798,8 @@ bool CEntitySystem::OnLoadLevel(const char* szLevelPath)
 //////////////////////////////////////////////////////////////////////////
 void CEntitySystem::LoadEntities(XmlNodeRef& objectsNode, bool bIsLoadingLevelFile)
 {
-	LOADING_TIME_PROFILE_SECTION;
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 
 	//Update loading screen and important tick functions
 	SYNCHRONOUS_LOADING_TICK();
@@ -3433,7 +3456,7 @@ void CEntitySystem::LinkLayerChildren()
 //////////////////////////////////////////////////////////////////////////
 void CEntitySystem::LoadLayers(const char* dataFile)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	ClearLayers();
 	XmlNodeRef root = GetISystem()->LoadXmlFromFile(dataFile);
@@ -3506,7 +3529,7 @@ CEntityLayer* CEntitySystem::GetLayerForEntity(EntityId id)
 //////////////////////////////////////////////////////////////////////////
 void CEntitySystem::EnableDefaultLayers(bool isSerialized)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (!gEnv->p3DEngine->IsAreaActivationInUse())
 		return;
@@ -3520,7 +3543,7 @@ void CEntitySystem::EnableDefaultLayers(bool isSerialized)
 
 void CEntitySystem::EnableLayer(const char* szLayer, bool isEnable, bool isSerialized)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(szLayer);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, szLayer);
 	if (!gEnv->p3DEngine->IsAreaActivationInUse())
 		return;
 	IEntityLayer* pLayer = FindLayer(szLayer);
@@ -3532,7 +3555,7 @@ void CEntitySystem::EnableLayer(const char* szLayer, bool isEnable, bool isSeria
 
 void CEntitySystem::EnableLayer(IEntityLayer* pLayer, bool bIsEnable, bool bIsSerialized, bool bAffectsChildren)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(pLayer->GetName());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, pLayer->GetName());
 	const bool bEnableChange = pLayer->IsEnabledBrush() != bIsEnable;
 
 #if ENABLE_STATOSCOPE

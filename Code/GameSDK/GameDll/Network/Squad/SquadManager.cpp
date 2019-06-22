@@ -16,6 +16,7 @@
 #include "SquadManager.h"
 
 #include <CryCore/TypeInfo_impl.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "Utility/CryWatch.h"
 #include <CryString/StringUtils.h>

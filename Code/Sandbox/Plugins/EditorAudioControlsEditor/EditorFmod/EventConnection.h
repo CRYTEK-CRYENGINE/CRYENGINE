@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BaseConnection.h"
+#include "../Common/IConnection.h"
 
 #include <PoolObject.h>
 
@@ -12,7 +12,7 @@ namespace Impl
 {
 namespace Fmod
 {
-class CEventConnection final : public CBaseConnection, public CryAudio::CPoolObject<CEventConnection, stl::PSyncNone>
+class CEventConnection final : public IConnection, public CryAudio::CPoolObject<CEventConnection, stl::PSyncNone>
 {
 public:
 
@@ -29,23 +29,30 @@ public:
 		Pause,
 		Resume, };
 
-	explicit CEventConnection(ControlId const id, EActionType const actionType = EActionType::Start)
-		: CBaseConnection(id)
+	explicit CEventConnection(ControlId const id, EActionType const actionType)
+		: m_id(id)
 		, m_actionType(actionType)
+	{}
+
+	explicit CEventConnection(ControlId const id)
+		: m_id(id)
+		, m_actionType(EActionType::Start)
 	{}
 
 	virtual ~CEventConnection() override = default;
 
 	// CBaseConnection
-	virtual bool HasProperties() const override { return true; }
-	virtual void Serialize(Serialization::IArchive& ar) override;
+	virtual ControlId GetID() const override final   { return m_id; }
+	virtual bool      HasProperties() const override { return true; }
+	virtual void      Serialize(Serialization::IArchive& ar) override;
 	// ~CBaseConnection
 
 	EActionType GetActionType() const { return m_actionType; }
 
 private:
 
-	EActionType m_actionType;
+	ControlId const m_id;
+	EActionType     m_actionType;
 };
 } // namespace Fmod
 } // namespace Impl

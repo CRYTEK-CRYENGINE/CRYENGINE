@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef PARTICLE_H
-#define PARTICLE_H
+#pragma once
 
 #include "ParticleEffect.h"
 #include "ParticleMemory.h"
@@ -398,5 +397,3 @@ private:
 #endif
 
 };
-
-#endif // PARTICLE

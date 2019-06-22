@@ -4,16 +4,17 @@
 #include <QWidget>
 #include <CrySerialization/StringList.h>
 
-//! Serializable object that is used to translate the CMaterial into a property-tree UI
+class QPropertyTree;
+
+//! Serializable object used to expose CMaterial properties into a property-tree UI
 class CMaterialSerializer : public _reference_target_t
 {
 public:
 	CMaterialSerializer(CMaterial* pMaterial, bool readOnly);
 
-	void     Serialize(Serialization::IArchive& ar);
+	void            Serialize(Serialization::IArchive& ar);
 
-	QWidget* CreateLegacyPropertyTree();
-	QWidget* CreatePropertyTree();
+	QPropertyTree* CreatePropertyTree();
 
 	//Shader param info
 	struct SShaderParamInfo
@@ -39,7 +40,6 @@ public:
 
 private:
 
-	class CMaterialLegacyPropertyTree;
 	class CMaterialPropertyTree;
 
 	//////////////////////////////////////////////////////////////////////////

@@ -250,28 +250,20 @@ void GlobalMemoryStatus(LPMEMORYSTATUS lpmem)
 	lpmem->dwAvailPhys = 16 * 1024 * 1024;
 	lpmem->dwTotalPageFile = 16 * 1024 * 1024;
 	lpmem->dwAvailPageFile = 16 * 1024 * 1024;
+	//see ~$ man proc
+	// or https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/deployment_guide/s2-proc-meminfo
 	f = ::fopen("/proc/meminfo", "r");
 	if (f)
 	{
 		char buffer[256];
 		memset(buffer, '0', 256);
-		int total, used, free, shared, buffers, cached;
+		int total, free, buffers, cached;
 
 		lpmem->dwLength = sizeof(MEMORYSTATUS);
 		lpmem->dwTotalPhys = lpmem->dwAvailPhys = 0;
 		lpmem->dwTotalPageFile = lpmem->dwAvailPageFile = 0;
 		while (fgets(buffer, sizeof(buffer), f))
 		{
-			if (sscanf(buffer, "Mem: %d %d %d %d %d %d", &total, &used, &free, &shared, &buffers, &cached))
-			{
-				lpmem->dwTotalPhys += total;
-				lpmem->dwAvailPhys += free + buffers + cached;
-			}
-			if (sscanf(buffer, "Swap: %d %d %d", &total, &used, &free))
-			{
-				lpmem->dwTotalPageFile += total;
-				lpmem->dwAvailPageFile += free;
-			}
 			if (sscanf(buffer, "MemTotal: %d", &total))
 				lpmem->dwTotalPhys = total * 1024;
 			if (sscanf(buffer, "MemFree: %d", &free))

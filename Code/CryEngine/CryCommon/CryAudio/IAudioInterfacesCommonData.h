@@ -8,6 +8,7 @@
 #include "../CryCore/Platform/platform.h"
 #include "../CryCore/CryEnumMacro.h"
 #include "../CryCore/CryCrc32.h"
+#include "../CryCore/Containers/CryArray.h"
 
 #define CRY_AUDIO_DATA_ROOT "audio"
 
@@ -18,20 +19,26 @@ using ControlId = IdType;
 using SwitchStateId = IdType;
 using EnvironmentId = IdType;
 using PreloadRequestId = IdType;
-using FileEntryId = IdType;
+using FileId = IdType;
 using TriggerInstanceId = IdType;
 using EnumFlagsType = IdType;
 using AuxObjectId = IdType;
 using LibraryId = IdType;
+using ContextId = IdType;
+using ListenerId = IdType;
+
+using ListenerIds = DynArray<ListenerId>;
 
 constexpr ControlId InvalidControlId = 0;
 constexpr SwitchStateId InvalidSwitchStateId = 0;
 constexpr EnvironmentId InvalidEnvironmentId = 0;
 constexpr PreloadRequestId InvalidPreloadRequestId = 0;
-constexpr FileEntryId InvalidFileEntryId = 0;
+constexpr FileId InvalidFileId = 0;
 constexpr TriggerInstanceId InvalidTriggerInstanceId = 0;
 constexpr AuxObjectId InvalidAuxObjectId = 0;
 constexpr AuxObjectId DefaultAuxObjectId = 1;
+constexpr ContextId InvalidContextId = 0;
+constexpr ListenerId InvalidListenerId = 0;
 constexpr uint8 MaxInfoStringLength = 128;
 constexpr uint8 MaxControlNameLength = 128;
 constexpr uint8 MaxFileNameLength = 128;
@@ -40,6 +47,10 @@ constexpr uint16 MaxObjectNameLength = 256;
 constexpr uint16 MaxMiscStringLength = 512;
 constexpr uint32 InvalidCRC32 = 0xFFFFffff;
 constexpr float FloatEpsilon = 1.0e-3f;
+
+constexpr char const* g_szImplCVarName = "s_ImplName";
+constexpr char const* g_szListenersCVarName = "s_Listeners";
+constexpr char const* g_szDefaultListenerName = "Default Listener";
 
 constexpr char const* g_szLoseFocusTriggerName = "lose_focus";
 constexpr char const* g_szGetFocusTriggerName = "get_focus";
@@ -85,7 +96,11 @@ constexpr char const* g_szDataLoadType = "autoload";
 
 constexpr char const* g_szConfigFolderName = "ace";
 constexpr char const* g_szAssetsFolderName = "assets";
-constexpr char const* g_szLevelsFolderName = "levels";
+constexpr char const* g_szContextsFolderName = "contexts";
+
+constexpr char const* g_szGlobalContextName = "global";
+
+constexpr char const* g_szSwitchStateSeparator = "/";
 
 /**
  * A utility function to convert a string value to an Id.
@@ -99,6 +114,10 @@ constexpr IdType StringToId(char const* const szSource)
 
 constexpr PreloadRequestId GlobalPreloadRequestId = StringToId(g_szGlobalPreloadRequestName);
 constexpr LibraryId DefaultLibraryId = StringToId(g_szDefaultLibraryName);
+constexpr ContextId GlobalContextId = StringToId(g_szGlobalContextName);
+constexpr ListenerId DefaultListenerId = StringToId("ThisIsTheHopefullyUniqueIdForTheDefaultListener");
+
+static ListenerIds const g_defaultListenerIds{ DefaultListenerId };
 
 /**
  * @enum CryAudio::ERequestFlags

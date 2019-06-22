@@ -11,7 +11,7 @@
 #include <QViewportConsumer.h>
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CrySerialization/IArchiveHost.h>
-#include <QAdvancedPropertyTree.h>
+#include <QAdvancedPropertyTreeLegacy.h>
 
 #include "Objects/DisplayContext.h"
 #include "QViewportEvents.h"
@@ -25,7 +25,7 @@ CPreviewSettingsWidget::CPreviewSettingsWidget(CPreviewWidget& previewWidget)
 {
 	QVBoxLayout* pLayout = new QVBoxLayout(this);
 
-	m_pPropertyTree = new QAdvancedPropertyTree("Preview Settings");
+	m_pPropertyTree = new QAdvancedPropertyTreeLegacy("Preview Settings");
 	m_pPropertyTree->setExpandLevels(4);
 	m_pPropertyTree->setValueColumnWidth(0.6f);
 	m_pPropertyTree->setAutoRevert(false);
@@ -77,8 +77,12 @@ void CGizmoTranslateOp::OnRelease()
 CPreviewWidget::CPreviewWidget(QWidget* pParent)
 	: QWidget(pParent)
 {
+	IRenderer::SGraphicsPipelineDescription graphicsPipelineDesc;
+	graphicsPipelineDesc.type = EGraphicsPipelineType::Minimum;
+	graphicsPipelineDesc.shaderFlags = SHDF_SECONDARY_VIEWPORT | SHDF_ALLOWHDR | SHDF_FORWARD_MINIMAL;
+
 	m_pMainLayout = new QBoxLayout(QBoxLayout::TopToBottom);
-	m_pViewport = new QViewport(gEnv, this);
+	m_pViewport = new QViewport(gEnv, graphicsPipelineDesc, this);
 
 	m_viewportSettings.rendering.fps = false;
 	m_viewportSettings.grid.showGrid = true;

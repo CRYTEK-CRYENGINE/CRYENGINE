@@ -10,7 +10,7 @@
 
 
 class CBaseObject;
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 struct CObjectEvent;
 
@@ -35,7 +35,7 @@ public:
 private:
 	struct SBaseObjectSerializer;
 
-	typedef std::unique_ptr<QPropertyTree>     PropertyTreePtr;
+	typedef std::unique_ptr<QPropertyTreeLegacy>     PropertyTreePtr;
 	typedef std::vector<SBaseObjectSerializer> SerializerList;
 
 	void UnregisterObjects();

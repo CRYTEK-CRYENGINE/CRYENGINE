@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __ChunkFileComponents_h__
-#define __ChunkFileComponents_h__
+#pragma once
 
 #include <Cry3DEngine/CGF/CryHeaders.h>
 
@@ -232,5 +231,3 @@ static inline uint32 ConvertChunkTypeTo0x745(uint32 type)
 }
 
 } // namespace ChunkFile
-
-#endif

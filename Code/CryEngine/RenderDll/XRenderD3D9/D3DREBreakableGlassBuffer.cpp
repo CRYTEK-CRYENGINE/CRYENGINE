@@ -313,7 +313,6 @@ bool CREBreakableGlassBuffer::RT_DrawBuffer(const uint32 id, const EBufferType b
 {
 	const uint32 cyclicId = id % NumBufferSlots;
 	const SBuffer& buffer = m_buffer[buffType][cyclicId];
-	const SVertexConst& bufferConsts = s_bufferConsts[buffType];
 
 	bool success = false;
 

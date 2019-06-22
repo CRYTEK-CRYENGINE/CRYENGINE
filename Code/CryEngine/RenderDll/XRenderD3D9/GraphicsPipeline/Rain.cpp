@@ -21,17 +21,28 @@ struct SSceneRainCB
 };
 }
 
-CRainStage::CRainStage()
+CRainStage::CRainStage(CGraphicsPipeline& graphicsPipeline)
+	: CGraphicsPipelineStage(graphicsPipeline)
+	, m_passCopyGBufferNormal(&graphicsPipeline)
+	, m_passCopyGBufferSpecular(&graphicsPipeline)
+	, m_passCopyGBufferDiffuse(&graphicsPipeline)
+	, m_passDeferredRainGBuffer(&graphicsPipeline)
+	, m_passRainOcclusionAccumulation(&graphicsPipeline)
+	, m_passRainOcclusionBlur(&graphicsPipeline)
 {
 	std::fill(std::begin(m_pRainRippleTex), std::end(m_pRainRippleTex), nullptr);
 }
 
 CRainStage::~CRainStage()
 {
+	Destroy();
 }
 
 void CRainStage::Init()
 {
+	if (!CRendererCVars::IsRainEnabled())
+		return;
+
 	CRY_ASSERT(m_pSurfaceFlowTex == nullptr);
 	m_pSurfaceFlowTex = CTexture::ForNamePtr("%ENGINE%/EngineAssets/Textures/Rain/surface_flow_ddn.tif", FT_DONT_STREAM, eTF_Unknown);
 
@@ -140,25 +151,43 @@ void CRainStage::Destroy()
 	if (m_rainVertexBuffer != ~0u)
 	{
 		gRenDev->m_DevBufMan.Destroy(m_rainVertexBuffer);
+		m_rainVertexBuffer = ~0u;
+	}
+
+	m_pSurfaceFlowTex.reset();
+	m_pRainSpatterTex.reset();
+	m_pPuddleMaskTex.reset();
+	m_pHighFreqNoiseTex.reset();
+	m_pRainfallTex.reset();
+	m_pRainfallNormalTex.reset();
+
+	for (auto& pTex : m_pRainRippleTex)
+	{
+		pTex.reset();
 	}
 }
 
 void CRainStage::Update()
 {
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-	const auto shouldApplyOcclusion = rd->m_bDeferredRainOcclusionEnabled;
-
-	// Create/release the occlusion texture on demand
-	if (!shouldApplyOcclusion && CTexture::IsTextureExist(CRendererResources::s_ptexRainOcclusion))
-		CRendererResources::s_ptexRainOcclusion->ReleaseDeviceTexture(false);
-	else if (shouldApplyOcclusion && !CTexture::IsTextureExist(CRendererResources::s_ptexRainOcclusion))
-		CRendererResources::s_ptexRainOcclusion->CreateRenderTarget(eTF_R8, Clr_Neutral);
-
 	if (RenderView()->GetCurrentEye() != CCamera::eEye_Right)
 	{
+		auto threadID = gRenDev->GetRenderThreadID();
+		CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 		// TODO: improve this dependency and make it double-buffer.
 		// copy rain info to member variable every frame.
-		m_RainVolParams = rd->m_p3DEngineCommon.m_RainInfo;
+		m_RainVolParams = rd->m_p3DEngineCommon[threadID].m_RainInfo;
+	}
+}
+
+void CRainStage::OnCVarsChanged(const CCVarUpdateRecorder& cvarUpdater)
+{
+	const bool enabled = CRendererCVars::IsRainEnabled();
+	if (enabled != Initialized())
+	{
+		if (enabled)
+			Init();
+		else
+			Destroy();
 	}
 }
 
@@ -169,15 +198,15 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
-	CTexture* CRendererResources__s_ptexSceneSpecular = CRendererResources::s_ptexSceneSpecular;
+	CTexture* CRendererResources__s_ptexSceneSpecular = m_graphicsPipelineResources.m_pTexSceneSpecular;
 #if defined(DURANGO_USE_ESRAM)
-	CRendererResources__s_ptexSceneSpecular = CRendererResources::s_ptexSceneSpecularESRAM;
+	CRendererResources__s_ptexSceneSpecular = m_graphicsPipelineResources.m_pTexSceneSpecularESRAM;
 #endif
 
 	// TODO: Try avoiding the copy by directly accessing UAVs
-	m_passCopyGBufferNormal.Execute(CRendererResources::s_ptexSceneNormalsMap, CRendererResources::s_ptexSceneNormalsBent);
-	m_passCopyGBufferSpecular.Execute(CRendererResources__s_ptexSceneSpecular, CRendererResources::s_ptexSceneSpecularTmp);
-	m_passCopyGBufferDiffuse.Execute(CRendererResources::s_ptexSceneDiffuse, CRendererResources::s_ptexSceneDiffuseTmp);
+	m_passCopyGBufferNormal.Execute(m_graphicsPipelineResources.m_pTexSceneNormalsMap, m_graphicsPipelineResources.m_pTexSceneNormalsBent);
+	m_passCopyGBufferSpecular.Execute(CRendererResources__s_ptexSceneSpecular, m_graphicsPipelineResources.m_pTexSceneSpecularTmp);
+	m_passCopyGBufferDiffuse.Execute(m_graphicsPipelineResources.m_pTexSceneDiffuse, m_graphicsPipelineResources.m_pTexSceneDiffuseTmp);
 
 	const auto& viewInfo = GetCurrentViewInfo();
 
@@ -185,7 +214,7 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 	const auto shouldApplyOcclusion = rd->m_bDeferredRainOcclusionEnabled;
 
 	CTexture* pDepthStencilTex = RenderView()->GetDepthTarget();
-	CTexture* pOcclusionTex = shouldApplyOcclusion ? CRendererResources::s_ptexRainOcclusion : CRendererResources::s_ptexBlack;
+	CTexture* pOcclusionTex = shouldApplyOcclusion ? m_graphicsPipelineResources.m_pTexRainOcclusion : CRendererResources::s_ptexBlack;
 
 	uint64 rtMask = 0;
 	if (shouldApplyOcclusion)
@@ -204,14 +233,14 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 
 		pass.SetState(GS_NODEPTHTEST);
 
-		pass.SetRenderTarget(0, CRendererResources::s_ptexSceneNormalsMap);
+		pass.SetRenderTarget(0, m_graphicsPipelineResources.m_pTexSceneNormalsMap);
 		pass.SetRenderTarget(1, CRendererResources__s_ptexSceneSpecular);
-		pass.SetRenderTarget(2, CRendererResources::s_ptexSceneDiffuse);
+		pass.SetRenderTarget(2, m_graphicsPipelineResources.m_pTexSceneDiffuse);
 
-		pass.SetTexture(0, CRendererResources::s_ptexLinearDepth);
-		pass.SetTexture(1, CRendererResources::s_ptexSceneNormalsBent);
-		pass.SetTexture(2, CRendererResources::s_ptexSceneSpecularTmp);
-		pass.SetTexture(3, CRendererResources::s_ptexSceneDiffuseTmp);
+		pass.SetTexture(0, m_graphicsPipelineResources.m_pTexLinearDepth);
+		pass.SetTexture(1, m_graphicsPipelineResources.m_pTexSceneNormalsBent);
+		pass.SetTexture(2, m_graphicsPipelineResources.m_pTexSceneSpecularTmp);
+		pass.SetTexture(3, m_graphicsPipelineResources.m_pTexSceneDiffuseTmp);
 		pass.SetTexture(4, m_pSurfaceFlowTex);
 		pass.SetTexture(5, m_pRainSpatterTex);
 		pass.SetTexture(6, m_pPuddleMaskTex);
@@ -234,7 +263,7 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 	if (!rd->m_bPauseTimer)
 	{
 		// flip rain ripple texture
-		const float elapsedTime = GetGraphicsPipeline().GetAnimationTime().GetSeconds();
+		const float elapsedTime = m_graphicsPipeline.GetAnimationTime().GetSeconds();
 		CRY_ASSERT(elapsedTime >= 0.0f);
 		const float AnimTexFlipTime = 0.05f;
 		m_rainRippleTexIndex = (uint32)(elapsedTime / AnimTexFlipTime) % m_pRainRippleTex.size();
@@ -254,7 +283,7 @@ void CRainStage::ExecuteDeferredRainGBuffer()
 	Vec3 windVec = gEnv->p3DEngine->GetGlobalWind(false);
 
 	// Animated puddles
-	const float fTime = GetGraphicsPipeline().GetAnimationTime().GetSeconds() * 0.333f;
+	const float fTime = m_graphicsPipeline.GetAnimationTime().GetSeconds() * 0.333f;
 	const float puddleWindScale = -0.15f;
 	const float puddleOffsX = fTime * puddleWindScale * windVec.x;
 	const float puddleOffsY = fTime * puddleWindScale * windVec.y;
@@ -314,10 +343,10 @@ void CRainStage::Execute()
 	if (shouldApplyOcclusion)
 	{
 		if (rainVolParams.areaAABB.IsReset() ||
-			!CTexture::IsTextureExist(CRendererResources::s_ptexRainOcclusion))
+			!CTexture::IsTextureExist(m_graphicsPipelineResources.m_pTexRainOcclusion))
 			return;
 
-		if (!(CTexture::IsTextureExist(CRendererResources::s_ptexRainSSOcclusion[0]) && CTexture::IsTextureExist(CRendererResources::s_ptexRainSSOcclusion[1])))
+		if (!(CTexture::IsTextureExist(m_graphicsPipelineResources.m_pTexRainSSOcclusion[0]) && CTexture::IsTextureExist(m_graphicsPipelineResources.m_pTexRainSSOcclusion[1])))
 		{
 			// Render targets not generated yet
 			// - Better to skip and have no rain than it render over everything
@@ -341,21 +370,21 @@ void CRainStage::Execute()
 
 			auto& pass = m_passRainOcclusionAccumulation;
 
-			CTexture* pOcclusionTex = CRendererResources::s_ptexRainOcclusion;
+			CTexture* pOcclusionTex = m_graphicsPipelineResources.m_pTexRainOcclusion;
 
 			if (pass.IsDirty())
 			{
 				static CCryNameTSCRC pSceneRainOccAccTechName("SceneRainOccAccumulate");
 				pass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_VS);
 				pass.SetTechnique(CShaderMan::s_shPostEffectsGame, pSceneRainOccAccTechName, 0);
-				pass.SetRenderTarget(0, CRendererResources::s_ptexRainSSOcclusion[0]);
+				pass.SetRenderTarget(0, m_graphicsPipelineResources.m_pTexRainSSOcclusion[0]);
 
 				pass.SetState(GS_NODEPTHTEST);
 
 				pass.SetRequirePerViewConstantBuffer(true);
 				pass.SetRequireWorldPos(true);
 
-				pass.SetTexture(0, CRendererResources::s_ptexLinearDepthScaled[2]);
+				pass.SetTexture(0, m_graphicsPipelineResources.m_pTexLinearDepthScaled[2]);
 				pass.SetTexture(1, pOcclusionTex);
 				pass.SetTexture(2, m_pHighFreqNoiseTex);
 
@@ -378,11 +407,11 @@ void CRainStage::Execute()
 			PROFILE_LABEL_SCOPE("BLUR");
 
 			const float fDist = 8.0f;
-			m_passRainOcclusionBlur.Execute(CRendererResources::s_ptexRainSSOcclusion[0], CRendererResources::s_ptexRainSSOcclusion[1], 1.0f, fDist);
+			m_passRainOcclusionBlur.Execute(m_graphicsPipelineResources.m_pTexRainSSOcclusion[0], m_graphicsPipelineResources.m_pTexRainSSOcclusion[1], 1.0f, fDist);
 		}
 	}
 
-	auto* pRenderTarget = CRendererResources::s_ptexHDRTarget;
+	auto* pRenderTarget = m_graphicsPipelineResources.m_pTexHDRTarget;
 
 	D3DViewPort viewport;
 	viewport.TopLeftX = 0.0f;
@@ -411,7 +440,7 @@ void CRainStage::Execute()
 	uint64 rtMask = 0;
 	rtMask |= shouldApplyOcclusion ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
 
-	auto pPerViewCB = rd->GetGraphicsPipeline().GetMainViewConstantBuffer();
+	auto pPerViewCB = m_graphicsPipeline.GetMainViewConstantBuffer();
 
 	for (int32 nCurLayer = 0; nCurLayer < nLayers; ++nCurLayer)
 	{
@@ -420,12 +449,12 @@ void CRainStage::Execute()
 		prim.SetFlags(CRenderPrimitive::eFlags_None);
 		prim.SetTechnique(CShaderMan::s_shPostEffectsGame, pSceneRainTechName, rtMask);
 
-		prim.SetTexture(0, CRendererResources::s_ptexLinearDepth);
+		prim.SetTexture(0, m_graphicsPipelineResources.m_pTexLinearDepth);
 		prim.SetTexture(1, m_pRainfallTex);
 		prim.SetTexture(2, m_pRainfallNormalTex);
-		prim.SetTexture(3, CRendererResources::s_ptexHDRFinalBloom);
+		prim.SetTexture(3, m_graphicsPipelineResources.m_pTexHDRFinalBloom);
 
-		auto* pSSOcclusionTex = shouldApplyOcclusion ? CRendererResources::s_ptexRainSSOcclusion[0] : CRendererResources::s_ptexBlack;
+		auto* pSSOcclusionTex = shouldApplyOcclusion ? m_graphicsPipelineResources.m_pTexRainSSOcclusion[0] : CRendererResources::s_ptexBlack;
 		prim.SetTexture(4, pSSOcclusionTex);
 
 		// Bind average luminance
@@ -468,23 +497,24 @@ void CRainStage::Execute()
 
 void CRainStage::ExecuteRainOcclusion()
 {
+	auto threadID = gRenDev->GetRenderThreadID();
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
 	// TODO: m_RainInfo needs to be unique for each view-port if the engine supports multi view-port rendering.
-	SRainParams& rainVolParams = rd->m_p3DEngineCommon.m_RainInfo;
+	SRainParams& rainVolParams = rd->m_p3DEngineCommon[threadID].m_RainInfo;
 	const auto gpuId = rd->RT_GetCurrGpuID();
 
 	if (rainVolParams.areaAABB.IsReset() ||
-		rd->m_p3DEngineCommon.m_RainOccluders.m_bProcessed[gpuId])
+		rd->m_p3DEngineCommon[threadID].m_RainOccluders.m_bProcessed[gpuId])
 		return;
 
-	const auto& arrOccluders = rd->m_p3DEngineCommon.m_RainOccluders.m_arrCurrOccluders[gRenDev->GetRenderThreadID()];
-	if (arrOccluders.empty()) 
+	const auto& arrOccluders = rd->m_p3DEngineCommon[threadID].m_RainOccluders.m_arrOccluders;
+	if (arrOccluders.empty())
 		return;
 
 	ExecuteRainOcclusionGen();
 
-	rd->m_p3DEngineCommon.m_RainOccluders.m_bProcessed[gpuId] = true;
+	rd->m_p3DEngineCommon[threadID].m_RainOccluders.m_bProcessed[gpuId] = true;
 
 	// store occlusion transformation matrix when occlusion map is updated.
 	// TODO: make this variable class member variable after porting all rain features to new graphics pipeline.
@@ -494,6 +524,7 @@ void CRainStage::ExecuteRainOcclusion()
 
 void CRainStage::ExecuteRainOcclusionGen()
 {
+	auto threadID = gRenDev->GetRenderThreadID();
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	SRainParams& rainVolParams = m_RainVolParams;
 
@@ -501,7 +532,7 @@ void CRainStage::ExecuteRainOcclusionGen()
 	CTexture* pTmpDepthSurface = CRendererResources::CreateDepthTarget(RAIN_OCC_MAP_SIZE, RAIN_OCC_MAP_SIZE, Clr_FarPlane, eTF_Unknown);
 
 	// clear buffers
-	CClearSurfacePass::Execute(CRendererResources::s_ptexRainOcclusion, Clr_Neutral);
+	CClearSurfacePass::Execute(m_graphicsPipelineResources.m_pTexRainOcclusion, Clr_Neutral);
 	CClearSurfacePass::Execute(pTmpDepthSurface, CLEAR_ZBUFFER, Clr_FarPlane.r, Val_Unused);
 
 	// render occluders to rain occlusion texture
@@ -511,12 +542,12 @@ void CRainStage::ExecuteRainOcclusionGen()
 		D3DViewPort viewport;
 		viewport.TopLeftX = 0.0f;
 		viewport.TopLeftY = 0.0f;
-		viewport.Width = static_cast<float>(CRendererResources::s_ptexRainOcclusion->GetWidth());
-		viewport.Height = static_cast<float>(CRendererResources::s_ptexRainOcclusion->GetHeight());
+		viewport.Width = static_cast<float>(m_graphicsPipelineResources.m_pTexRainOcclusion->GetWidth());
+		viewport.Height = static_cast<float>(m_graphicsPipelineResources.m_pTexRainOcclusion->GetHeight());
 		viewport.MinDepth = 0.0f;
 		viewport.MaxDepth = 1.0f;
 
-		pass.SetRenderTarget(0, CRendererResources::s_ptexRainOcclusion);
+		pass.SetRenderTarget(0, m_graphicsPipelineResources.m_pTexRainOcclusion);
 		pass.SetDepthTarget(pTmpDepthSurface);
 		pass.SetViewport(viewport);
 		pass.BeginAddingPrimitives();
@@ -530,7 +561,7 @@ void CRainStage::ExecuteRainOcclusionGen()
 
 		static CCryNameTSCRC techName("RainOcclusion");
 
-		const auto& arrOccluders = rd->m_p3DEngineCommon.m_RainOccluders.m_arrCurrOccluders[gRenDev->GetRenderThreadID()];
+		const auto& arrOccluders = rd->m_p3DEngineCommon[threadID].m_RainOccluders.m_arrOccluders;
 		int32 index = 0;
 		auto countPrimitives = m_rainOccluderPrimitives.size();
 		for (auto& it : arrOccluders)
@@ -540,7 +571,7 @@ void CRainStage::ExecuteRainOcclusionGen()
 
 			if (pRenderMesh)
 			{
-				pRenderMesh->RT_CheckUpdate(pRenderMesh->_GetVertexContainer(),pRenderMesh->_GetVertexFormat(), 0);
+				pRenderMesh->RT_CheckUpdate(pRenderMesh->_GetVertexContainer(), pRenderMesh->_GetVertexFormat(), 0);
 				buffer_handle_t hVertexStream = pRenderMesh->_GetVBStream(VSF_GENERAL);
 				buffer_handle_t hIndexStream = pRenderMesh->_GetIBStream();
 

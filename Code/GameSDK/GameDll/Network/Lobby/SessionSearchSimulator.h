@@ -40,7 +40,7 @@ public:
 	const char* GetCurrentFilepath() { return m_currentFilepath.c_str(); }
 
 private:
-	CryFixedStringT< ICryPak::g_nMaxPath >	m_currentFilepath;
+	CryPathString m_currentFilepath;
 
 	XmlNodeRef	m_sessionListXML;
 	int	m_currentNode;

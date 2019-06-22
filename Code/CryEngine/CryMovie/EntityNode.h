@@ -262,6 +262,8 @@ private:
 			ComponentProperty
 		};
 
+		virtual ~IPropertyParamInfo() {}
+
 		virtual EType GetType() const = 0;
 
 		SParamInfo animNodeParamInfo;

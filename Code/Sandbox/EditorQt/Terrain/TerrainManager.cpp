@@ -43,7 +43,7 @@ int CTerrainManager::AddSurfaceType(CSurfaceType* srf)
 
 void CTerrainManager::RemoveAllSurfaceTypes()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	GetIEditorImpl()->SetModifiedFlag(TRUE);
 	m_surfaceTypes.clear();
 }
@@ -104,7 +104,7 @@ void CTerrainManager::ConsolidateSurfaceTypes()
 
 void CTerrainManager::ReloadSurfaceTypes(bool bUpdateEngineTerrain, bool bUpdateHeightmap)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	CXmlArchive ar;
 	XmlNodeRef node = XmlHelpers::CreateXmlNode("SurfaceTypes_Editor");
@@ -167,7 +167,7 @@ void CTerrainManager::InvalidateLayers()
 
 void CTerrainManager::ClearLayers()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	SelectLayer(s_invalidLayerIndex);
 
 	for (CLayer* pLayer : m_layers)
@@ -549,7 +549,7 @@ CRGBLayer* CTerrainManager::GetRGBLayer()
 
 void CTerrainManager::Save(bool bBackup)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	CTempFileHelper helper(GetIEditorImpl()->GetLevelDataFolder() + kHeightmapFile);
 
 	CXmlArchive xmlAr;
@@ -561,7 +561,7 @@ void CTerrainManager::Save(bool bBackup)
 
 bool CTerrainManager::Load()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	string filename = GetIEditorImpl()->GetLevelDataFolder() + kHeightmapFile;
 	CXmlArchive xmlAr;
 	xmlAr.bLoading = true;
@@ -576,7 +576,7 @@ bool CTerrainManager::Load()
 
 void CTerrainManager::SaveTexture(bool bBackup)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	CTempFileHelper helper(GetIEditorImpl()->GetLevelDataFolder() + kTerrainTextureFile);
 
 	XmlNodeRef root;

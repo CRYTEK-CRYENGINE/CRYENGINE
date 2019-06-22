@@ -93,7 +93,7 @@ bool COpticsManager::Load(const char* fullFlareName, int& nOutIndex)
 	if (rootNode == (IXmlNode*)NULL)
 		return false;
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "%s", fullFlareName);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "%s", fullFlareName);
 
 	string opticsLibName = strFullFlareName.substr(nPos + 1, restLength);
 	m_SearchedOpticsSet.insert(fullFlareName);

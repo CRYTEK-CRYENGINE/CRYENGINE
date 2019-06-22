@@ -9,10 +9,11 @@
 #include <CrySystem/IEngineModule.h>
 #include <CryExtension/ICryFactory.h>
 #include <CryExtension/ClassWeaver.h>
+#include <CrySystem/ConsoleRegistration.h>
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include <CryGame/IGameFramework.h>
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 #if CRY_PLATFORM_DURANGO
 	#include <apu.h>
@@ -80,12 +81,15 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 		if (CreateAudioSystem(env))
 		{
 #if CRY_PLATFORM_DURANGO
-			// Do this before initializing the audio middleware!
-			HRESULT const result = ApuCreateHeap(static_cast<UINT32>(g_cvars.m_fileCacheManagerSize << 10));
-
-			if (result != S_OK)
 			{
-				CryFatalError("<Audio>: AudioSystem failed to allocate APU heap! (%d byte)", g_cvars.m_fileCacheManagerSize << 10);
+				// Do this before initializing the audio middleware!
+				MEMSTAT_CONTEXT(EMemStatContextType::AudioSystem, "AudioSystem ApuCreateHeap");
+				HRESULT const result = ApuCreateHeap(static_cast<UINT32>(g_cvars.m_fileCacheManagerSize << 10));
+
+				if (result != S_OK)
+				{
+					CryFatalError("<Audio>: AudioSystem failed to allocate APU heap! (%d byte)", g_cvars.m_fileCacheManagerSize << 10);
+				}
 			}
 #endif  // CRY_PLATFORM_DURANGO
 
@@ -98,10 +102,10 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 			{
 				auto const pSystem = static_cast<CSystem*>(env.pAudioSystem);
 				CryFixedStringT<MaxFilePathLength> const temp(pSystem->GetConfigPath());
-				pSystem->ParseControlsData(temp.c_str(), EDataScope::Global);
-				pSystem->ParsePreloadsData(temp.c_str(), EDataScope::Global);
+				pSystem->ParseControlsData(temp.c_str(), g_szGlobalContextName, GlobalContextId);
+				pSystem->ParsePreloadsData(temp.c_str(), GlobalContextId);
 				pSystem->PreloadSingleRequest(GlobalPreloadRequestId, false);
-				pSystem->AutoLoadSetting(EDataScope::Global);
+				pSystem->AutoLoadSetting(GlobalContextId);
 			}
 			else
 			{
@@ -120,7 +124,7 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 	//////////////////////////////////////////////////////////////////////////
 	static void OnImplChanged(ICVar* pImplNameCvar)
 	{
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 		CryFixedStringT<MAX_MODULE_NAME_LENGTH> const previousModuleName(s_currentModuleName);
 		auto const pSystem = static_cast<CSystem*>(gEnv->pAudioSystem);
 		SSystemInitParams systemInitParams;
@@ -143,26 +147,28 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 		if (pModule != nullptr)
 		{
 			CryFixedStringT<MaxFilePathLength> const temp(pSystem->GetConfigPath());
-			pSystem->ParseControlsData(temp.c_str(), EDataScope::Global);
-			pSystem->ParsePreloadsData(temp.c_str(), EDataScope::Global);
+			pSystem->ParseControlsData(temp.c_str(), g_szGlobalContextName, GlobalContextId);
+			pSystem->ParsePreloadsData(temp.c_str(), GlobalContextId);
 
 			// Needs to be blocking to avoid executing triggers while data is loading.
 			pSystem->PreloadSingleRequest(GlobalPreloadRequestId, false, data);
-			pSystem->AutoLoadSetting(EDataScope::Global);
+			pSystem->AutoLoadSetting(GlobalContextId);
 
-			string const levelName = PathUtil::GetFileName(gEnv->pGameFramework->GetLevelName());
+			string const contextName = PathUtil::GetFileName(gEnv->pGameFramework->GetLevelName());
 
-			if (!levelName.empty() && levelName.compareNoCase("Untitled") != 0)
+			if (!contextName.empty() && contextName.compareNoCase("Untitled") != 0)
 			{
-				string levelPath(gEnv->pAudioSystem->GetConfigPath());
-				levelPath += g_szLevelsFolderName;
-				levelPath += "/";
-				levelPath += levelName;
+				ContextId const contextId = StringToId(contextName.c_str());
 
-				pSystem->ParseControlsData(levelPath.c_str(), EDataScope::LevelSpecific);
-				pSystem->ParsePreloadsData(levelPath.c_str(), EDataScope::LevelSpecific);
+				string contextPath(gEnv->pAudioSystem->GetConfigPath());
+				contextPath += g_szContextsFolderName;
+				contextPath += "/";
+				contextPath += contextName;
 
-				PreloadRequestId const preloadRequestId = CryAudio::StringToId(levelName.c_str());
+				pSystem->ParseControlsData(contextPath.c_str(), contextName.c_str(), contextId);
+				pSystem->ParsePreloadsData(contextPath.c_str(), contextId);
+
+				auto const preloadRequestId = static_cast<PreloadRequestId>(contextId);
 
 				// Needs to be blocking to avoid executing triggers while data is loading.
 				pSystem->PreloadSingleRequest(preloadRequestId, true, data);
@@ -185,7 +191,7 @@ class CEngineModule_CryAudioSystem : public ISystemModule
 
 		// In any case send the event as we always loaded some implementation (either the proper or the NULL one).
 		GetISystem()->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_AUDIO_IMPLEMENTATION_LOADED, 0, 0);
-#endif  // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_USE_DEBUG_CODE
 	}
 
 private:
@@ -207,9 +213,9 @@ CEngineModule_CryAudioSystem::CEngineModule_CryAudioSystem()
 		gEnv->pSystem->GetISystemEventDispatcher()->RegisterListener(&g_system, "CryAudio::CSystem");
 	}
 
-	m_pImplNameCVar = REGISTER_STRING_CB("s_AudioImplName", "CryAudioImplSDLMixer", 0,
+	m_pImplNameCVar = REGISTER_STRING_CB(g_szImplCVarName, "CryAudioImplSDLMixer", 0,
 	                                     "Holds the name of the audio implementation library to be used.\n"
-	                                     "Usage: s_AudioImplName <name of the library without extension>\n"
+	                                     "Usage: s_ImplName <name of the library without extension>\n"
 	                                     "Default: CryAudioImplSDLMixer\n",
 	                                     CEngineModule_CryAudioSystem::OnImplChanged);
 }
@@ -217,6 +223,11 @@ CEngineModule_CryAudioSystem::CEngineModule_CryAudioSystem()
 //////////////////////////////////////////////////////////////////////////
 CEngineModule_CryAudioSystem::~CEngineModule_CryAudioSystem()
 {
+	if (gEnv->pConsole != nullptr)
+	{
+		gEnv->pConsole->UnregisterVariable(g_szImplCVarName);
+	}
+
 	if (gEnv->pSystem != nullptr)
 	{
 		gEnv->pSystem->UnloadEngineModule(s_currentModuleName.c_str());

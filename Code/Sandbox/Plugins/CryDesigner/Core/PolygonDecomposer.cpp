@@ -1260,7 +1260,7 @@ void PolygonDecomposer::CreateConvexes()
 
 BrushVec2 PolygonDecomposer::Convert3DTo2D(const BrushVec3& pos) const
 {
-	static BrushMatrix33 tmRot = Matrix33::CreateRotationZ(PI * 0.09f);
+	static BrushMatrix33 tmRot = Matrix33::CreateRotationZ(static_cast<float>(PI * 0.09));
 	BrushVec3 rotatedPos = tmRot.TransformVector(m_Plane.W2P(pos));
 	return BrushVec2(rotatedPos.x, rotatedPos.y);
 }

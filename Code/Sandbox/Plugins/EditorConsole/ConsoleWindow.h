@@ -21,6 +21,22 @@ class QWidget;
 class CConsoleWindow : public CDockableEditor, public ILogCallback
 {
 	Q_OBJECT;
+
+public:
+	CConsoleWindow(QWidget* pParent = nullptr);
+	~CConsoleWindow();
+
+	virtual void Initialize() override;
+
+	//////////////////////////////////////////////////////////
+	// CDockableWindow implementation
+	virtual IViewPaneClass::EDockingDirection GetDockingDirection() const override { return IViewPaneClass::DOCK_BOTTOM; }
+	//////////////////////////////////////////////////////////
+
+private:
+
+	void RegisterActions();
+
 	virtual const char* GetEditorName() const override { return "Console"; }
 
 	//handle incoming update message
@@ -59,28 +75,17 @@ class CConsoleWindow : public CDockableEditor, public ILogCallback
 	//setup this window
 	void         SetupUI();
 
-	virtual bool OnSave() override;
 	virtual bool OnFind() override;
 	virtual bool OnFindNext() override;
 	virtual bool OnFindPrevious() override;
 
+	bool OnSave();
 	bool         ClearConsole();
 	void         SearchBox(const QString& text);
 	void         HighlightSelection(const QString& text);
 	void         SearchBoxEnterPressed();
 	bool         OnCloseSearch();
 	bool m_searchBackwards;
-
-public:
-	CConsoleWindow(QWidget* pParent = nullptr);
-	~CConsoleWindow();
-
-	//static QTextEdit& GetEditLog(){ return m_pHistory;}
-
-	//////////////////////////////////////////////////////////
-	// CDockableWindow implementation
-	virtual IViewPaneClass::EDockingDirection GetDockingDirection() const override { return IViewPaneClass::DOCK_BOTTOM; }
-	//////////////////////////////////////////////////////////
 
 protected:
 	virtual bool eventFilter(QObject* o, QEvent* ev) Q_DECL_OVERRIDE;

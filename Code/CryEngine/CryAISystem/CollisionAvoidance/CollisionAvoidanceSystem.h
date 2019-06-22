@@ -22,8 +22,8 @@ public:
 	void Clear();
     void Update(float updateTime);
 
-    virtual void RegisterAgent(IAgent* pAgent) override;
-    virtual void UnregisterAgent(IAgent* pAgent) override;
+    virtual bool RegisterAgent(IAgent* pAgent) override;
+    virtual bool UnregisterAgent(IAgent* pAgent) override;
 
     void DebugDraw();
 private:

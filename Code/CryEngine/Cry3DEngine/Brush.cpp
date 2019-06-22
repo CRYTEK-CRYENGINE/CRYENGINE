@@ -60,12 +60,6 @@ CBrush::~CBrush()
 	if (m_pDeform)
 		delete m_pDeform;
 
-	if (m_pCameraSpacePos)
-	{
-		delete m_pCameraSpacePos;
-		m_pCameraSpacePos = nullptr;
-	}
-
 	GetInstCount(GetRenderNodeType())--;
 }
 
@@ -124,7 +118,7 @@ void CBrush::Render(const struct SRendParams& _EntDrawParams, const SRenderingPa
 
 	DBG_LOCK_TO_THREAD(this);
 
-	if (!m_pStatObj || m_dwRndFlags & ERF_HIDDEN)
+	if (!m_pStatObj)
 		return; //false;
 
 	if (m_dwRndFlags & ERF_COLLISION_PROXY || m_dwRndFlags & ERF_RAYCAST_PROXY)
@@ -307,7 +301,7 @@ void CBrush::Physicalize(bool bInstant)
 
 void CBrush::PhysicalizeOnHeap(IGeneralMemoryHeap* pHeap, bool bInstant)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Physics, 0, "Brush: %s", m_pStatObj ? m_pStatObj->GetFilePath() : "(unknown)");
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Physics, "Brush: %s", m_pStatObj ? m_pStatObj->GetFilePath() : "(unknown)");
 
 	if (m_pStatObj && (m_pStatObj->GetBreakableByGame() || m_pStatObj->GetIDMatBreakable() != -1))
 	{
@@ -391,23 +385,32 @@ void CBrush::PhysicalizeOnHeap(IGeneralMemoryHeap* pHeap, bool bInstant)
 	}
 
 	Matrix34 mtxScale;
-	mtxScale.SetScale(Vec3(fScaleX, fScaleY, fScaleZ));
+	Matrix33 mtxNoScale = Matrix33(m_Matrix) * Diag33(fScaleX, fScaleY, fScaleZ).invert();
 	params.pMtx3x4 = &mtxScale;
+	pe_params_pos par_pos;
+	par_pos.pos = m_Matrix.GetTranslation();
+	if (mtxNoScale.IsOrthonormalRH())
+	{	// if scale is cleanly separatable into pre-scale, apply scale to geometry and rotation+translation to the entity
+		mtxScale.SetScale(Vec3(fScaleX, fScaleY, fScaleZ));
+		par_pos.q = Quat(mtxNoScale);
+	}	
+	else
+	{	// otherwise apply merged rotation+scale to geometry and traslantion to the entity
+		mtxScale = Matrix33(m_Matrix);
+	}
 	m_pStatObj->Physicalize(m_pPhysEnt, &params);
 
-	if (m_dwRndFlags & (ERF_HIDABLE | ERF_HIDABLE_SECONDARY | ERF_EXCLUDE_FROM_TRIANGULATION | ERF_NODYNWATER))
-	{
+	{ // Update foreign data flags based on render flags
 		pe_params_foreign_data foreignData;
-		m_pPhysEnt->GetParams(&foreignData);
+		foreignData.iForeignFlagsAND = ~(PFF_HIDABLE | PFF_HIDABLE_SECONDARY | PFF_EXCLUDE_FROM_STATIC | PFF_OUTDOOR_AREA);
 		if (m_dwRndFlags & ERF_HIDABLE)
-			foreignData.iForeignFlags |= PFF_HIDABLE;
+			foreignData.iForeignFlagsOR |= PFF_HIDABLE;
 		if (m_dwRndFlags & ERF_HIDABLE_SECONDARY)
-			foreignData.iForeignFlags |= PFF_HIDABLE_SECONDARY;
-		//[PETAR] new flag to exclude from triangulation
+			foreignData.iForeignFlagsOR |= PFF_HIDABLE_SECONDARY;
 		if (m_dwRndFlags & ERF_EXCLUDE_FROM_TRIANGULATION)
-			foreignData.iForeignFlags |= PFF_EXCLUDE_FROM_STATIC;
+			foreignData.iForeignFlagsOR |= PFF_EXCLUDE_FROM_STATIC;
 		if (m_dwRndFlags & ERF_NODYNWATER)
-			foreignData.iForeignFlags |= PFF_OUTDOOR_AREA;
+			foreignData.iForeignFlagsOR |= PFF_OUTDOOR_AREA;
 		m_pPhysEnt->SetParams(&foreignData);
 	}
 
@@ -415,9 +418,6 @@ void CBrush::PhysicalizeOnHeap(IGeneralMemoryHeap* pHeap, bool bInstant)
 	par_flags.flagsOR = pef_never_affect_triggers | pef_log_state_changes;
 	m_pPhysEnt->SetParams(&par_flags);
 
-	pe_params_pos par_pos;
-	par_pos.pos = m_Matrix.GetTranslation();
-	par_pos.q = Quat(Matrix33(m_Matrix) * Diag33(fScaleX, fScaleY, fScaleZ).invert());
 	par_pos.bEntGridUseOBB = 1;
 	m_pPhysEnt->SetParams(&par_pos);
 
@@ -745,19 +745,14 @@ void CBrush::OffsetPosition(const Vec3& delta)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CBrush::SetCameraSpacePos(Vec3* pCameraSpacePos)
+void CBrush::SetCameraSpaceParams(stl::optional<SCameraSpaceParams> cameraSpaceParams)
 {
-	if (pCameraSpacePos)
-	{
-		if (!m_pCameraSpacePos)
-			m_pCameraSpacePos = new Vec3;
-		*m_pCameraSpacePos = *pCameraSpacePos;
-	}
-	else
-	{
-		delete m_pCameraSpacePos;
-		m_pCameraSpacePos = nullptr;
-	}
+	m_cameraSpaceParams = cameraSpaceParams;
+}
+
+stl::optional<SCameraSpaceParams> CBrush::GetCameraSpaceParams() const
+{
+	return m_cameraSpaceParams;
 }
 
 void CBrush::SetSubObjectHideMask(hidemask subObjHideMask)
@@ -805,7 +800,7 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 				return;
 	}
 
-	if (!m_pStatObj || m_dwRndFlags & ERF_HIDDEN)
+	if (!m_pStatObj)
 		return;
 
 	/*
@@ -859,12 +854,12 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	}
 
 	CRenderObject* pObj = nullptr;
-	if (m_pFoliage || m_pDeform || (m_dwRndFlags & ERF_HUD) || isNearestObject)
+	if (m_pFoliage || m_pDeform || (m_dwRndFlags & (ERF_HUD | ERF_MOVES_EVERY_FRAME)) || isNearestObject)
 	{
 		// Foliage and deform do not support permanent render objects
 		// HUD is managed in custom render-lists and also doesn't support it
 		pObj = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
-		pObj->SetMatrix(transformMatrix, passInfo);
+		pObj->SetMatrix(transformMatrix);
 	}
 	if (!pObj)
 	{
@@ -909,7 +904,8 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	pObj->m_ObjFlags |= (m_dwRndFlags & ERF_FOB_ALLOW_TERRAIN_LAYER_BLEND  ) ? FOB_ALLOW_TERRAIN_LAYER_BLEND   : FOB_NONE;
 	pObj->m_ObjFlags |= (m_dwRndFlags & ERF_FOB_ALLOW_DECAL_BLEND          ) ? FOB_ALLOW_DECAL_BLEND           : FOB_NONE;
 
-	if (m_dwRndFlags & ERF_NO_DECALNODE_DECALS && !(gEnv->nMainFrameID - m_lastMoveFrameId < 3))
+	if ((m_dwRndFlags & (ERF_NO_DECALNODE_DECALS | ERF_MOVES_EVERY_FRAME)) ||
+		(gEnv->nMainFrameID - m_lastMoveFrameId < 3))
 	{
 		pObj->m_ObjFlags |= FOB_DYNAMIC_OBJECT;
 	}
@@ -931,7 +927,7 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	if (!passInfo.IsShadowPass() && m_nInternalFlags & IRenderNode::REQUIRES_NEAREST_CUBEMAP)
 	{
 		if (!(pObj->m_nTextureID = GetObjManager()->CheckCachedNearestCubeProbe(this)) || !GetCVars()->e_CacheNearestCubePicking)
-			pObj->m_nTextureID = GetObjManager()->GetNearestCubeProbe(pAffectingLights, m_pOcNode->GetVisArea(), CBrush::GetBBox());
+			pObj->m_nTextureID = GetObjManager()->GetNearestCubeProbe(pAffectingLights, GetEntityVisArea(), CBrush::GetBBox());
 
 		pTempData->userData.nCubeMapId = pObj->m_nTextureID;
 	}
@@ -939,10 +935,10 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	//////////////////////////////////////////////////////////////////////////
 	// temp fix to update ambient color (Vlad please review!)
 	pObj->m_nClipVolumeStencilRef = userData.m_pClipVolume ? userData.m_pClipVolume->GetStencilRef() : 0;
-	if (m_pOcNode && m_pOcNode->GetVisArea())
-		pObj->SetAmbientColor(m_pOcNode->GetVisArea()->GetFinalAmbientColor(), passInfo);
+	if (auto pVisArea = GetEntityVisArea())
+		pObj->SetAmbientColor(pVisArea->GetFinalAmbientColor());
 	else
-		pObj->SetAmbientColor(Get3DEngine()->GetSkyColor(), passInfo);
+		pObj->SetAmbientColor(Get3DEngine()->GetSkyColor());
 	//////////////////////////////////////////////////////////////////////////
 	pObj->m_editorSelectionID = m_nEditorSelectionID;
 
@@ -994,12 +990,12 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 	if ((GetRndFlags() & ERF_RECVWIND) && GetCVars()->e_VegetationBending)
 	{
 		// this is default value for vegetation if bending in veg group is set to 1
-		pObj->SetBendingData({ 0.1f, m_pStatObj->m_fRadiusVert }, passInfo);
+		pObj->SetBendingData({ 0.1f, m_pStatObj->m_fRadiusVert });
 		pObj->m_ObjFlags |= FOB_BENDED | FOB_DYNAMIC_OBJECT;
 	}
 	else
 	{
-		pObj->SetBendingData({ 0.0f, 0.0f }, passInfo);
+		pObj->SetBendingData({ 0.0f, 0.0f });
 	}
 
 	//IFoliage* pFoliage = GetFoliage(-1);
@@ -1042,6 +1038,7 @@ void CBrush::Render(const CLodValue& lodValue, const SRenderingPassInfo& passInf
 		}
 
 		pObj->m_data.m_nHUDSilhouetteParams = m_nHUDSilhouettesParam;
+		pObj->m_data.m_uniqueObjectId = reinterpret_cast<uintptr_t>(this);
 
 		m_pStatObj->RenderInternal(pObj, m_nSubObjHideMask, lodValue, passInfo);
 	}
@@ -1067,17 +1064,22 @@ void CBrush::OnRenderNodeBecomeVisibleAsync(SRenderNodeTempData* pTempData, cons
 	float fEntDistance = sqrt_tpl(Distance::Point_AABBSq(vCamPos, CBrush::GetBBox())) * passInfo.GetZoomFactor();
 
 	userData.nWantedLod = CObjManager::GetObjectLOD(this, fEntDistance);
+
+	if (GetOwnerEntity() && (GetRndFlags() & ERF_ENABLE_ENTITY_RENDER_CALLBACK))
+	{
+		GetOwnerEntity()->OnRenderNodeVisibilityChange(true);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CBrush::CalcNearestTransform(Matrix34& transformMatrix, const SRenderingPassInfo& passInfo)
 {
 	// Camera space
-	if (m_pCameraSpacePos)
+	if (m_cameraSpaceParams)
 	{
 		// Use camera space relative position
 		const Matrix33 cameraRotation = Matrix33(passInfo.GetCamera().GetViewMatrix());
-		transformMatrix.SetTranslation(*m_pCameraSpacePos * cameraRotation);
+		transformMatrix.SetTranslation((m_cameraSpaceParams->cameraSpacePosition * cameraRotation) + m_cameraSpaceParams->worldSpaceOffset);
 	}
 	else
 	{

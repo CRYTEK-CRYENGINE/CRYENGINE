@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include <Serialization/PropertyTree/IDrawContext.h>
-#include <Serialization/PropertyTree/PropertyRowField.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
-#include <Serialization/PropertyTree/PropertyTreeModel.h>
-#include <Serialization/PropertyTree/Imenu.h>
+#include <Serialization/PropertyTreeLegacy/IDrawContext.h>
+#include <Serialization/PropertyTreeLegacy/PropertyRowField.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
+#include <Serialization/PropertyTreeLegacy/PropertyTreeModel.h>
+#include <Serialization/PropertyTreeLegacy/Imenu.h>
 #include "Serialization.h"
 
 //TODO : this file is in editor package, breaking intended package dependencies
@@ -17,7 +17,7 @@ class PropertyRowEntityLink : public PropertyRowField
 public:
 	~PropertyRowEntityLink();
 
-	void                        pick(PropertyTree* tree);
+	void                        pick(PropertyTreeLegacy* tree);
 	void                        select();
 	void                        clear();
 
@@ -27,7 +27,7 @@ public:
 	bool                        onActivate(const PropertyActivationEvent& e) override;
 
 	int                         buttonCount() const override     { return 1; }
-	virtual property_tree::Icon buttonIcon(const PropertyTree* tree, int index) const override;
+	virtual property_tree::Icon buttonIcon(const PropertyTreeLegacy* tree, int index) const override;
 	virtual bool                usePathEllipsis() const override { return true; }
 	string                      valueAsString() const;
 	void                        serializeValue(Serialization::IArchive& ar);
@@ -35,7 +35,7 @@ public:
 	Serialization::TypeID       typeId() const override       { return type_; }
 	bool                        isPicking() const;
 
-	bool                        onContextMenu(IMenu& menu, PropertyTree* tree) override;
+	bool                        onContextMenu(IMenu& menu, PropertyTreeLegacy* tree) override;
 
 protected:
 	struct Picker;
@@ -51,10 +51,10 @@ protected:
 struct EntityLinkMenuHandler : PropertyRowMenuHandler
 {
 public:
-	PropertyTree*          tree;
+	PropertyTreeLegacy*          tree;
 	PropertyRowEntityLink* self;
 
-	EntityLinkMenuHandler(PropertyTree* tree, PropertyRowEntityLink* container);
+	EntityLinkMenuHandler(PropertyTreeLegacy* tree, PropertyRowEntityLink* container);
 
 	void onMenuPick();
 	void onMenuSelect();

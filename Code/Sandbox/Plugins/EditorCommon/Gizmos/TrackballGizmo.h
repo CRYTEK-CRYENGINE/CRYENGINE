@@ -6,11 +6,7 @@
 #include "Gizmo.h"
 #include <CrySandbox/CrySignal.h>
 
-//////////////////////////////////////////////////////////////////////////
-// CViewTranslateGizmo Gizmo.
-//
-// Allows view space movement
-//////////////////////////////////////////////////////////////////////////
+// Free Rotation (Trackball) gizmo
 class EDITOR_COMMON_API CTrackballGizmo : public CGizmo
 {
 public:
@@ -48,5 +44,6 @@ private:
 	float m_scale;
 
 	Vec2  m_initOffset;
-	Vec3  m_initPosition;
+	float m_rotatedX;
+	float m_rotatedY;
 };

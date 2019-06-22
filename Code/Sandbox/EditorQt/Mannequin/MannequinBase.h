@@ -70,7 +70,7 @@ struct SScopeContextData
 	void SetCharacter(EMannequinEditorMode editorMode, ICharacterInstance* charInst)
 	{
 		viewData[editorMode].charInst = charInst;
-		viewData[editorMode].charInst->SetCharEditMode(CA_CharacterTool);
+		viewData[editorMode].charInst->SetCharEditMode(CA_CharacterAuxEditor);
 		animSet = charInst->GetIAnimationSet();
 	}
 
@@ -85,7 +85,7 @@ struct SScopeContextData
 
 			if (data.charInst)
 			{
-				data.charInst->SetCharEditMode(CA_CharacterTool);
+				data.charInst->SetCharEditMode(CA_CharacterAuxEditor);
 				animSet = data.charInst->GetIAnimationSet();
 			}
 			else

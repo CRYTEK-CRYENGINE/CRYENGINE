@@ -97,7 +97,7 @@ bool CShaderMan::mfReloadShaderIncludes(const char* szPath, int nFlags)
 				cry_strcpy(nmf, fileinfo.name);
 				PathUtil::RemoveExtension(nmf);
 				bool bCh = false;
-				SShaderBin* pBin = m_Bin.GetBinShader(nmf, true, 0, &bCh);
+				m_Bin.GetBinShader(nmf, true, 0, &bCh);
 				if (bCh)
 				{
 					bChanged = true;
@@ -131,7 +131,7 @@ bool CShaderMan::mfReloadAllShaders(int nFlags, uint32 nFlagsHW, int currentFram
 	// Check include changing
 	if (m_ShadersPath && !CRenderer::CV_r_shadersignoreincludeschanging)
 	{
-		bool bChanged = mfReloadShaderIncludes(m_ShadersPath, nFlags);
+		mfReloadShaderIncludes(m_ShadersPath, nFlags);
 	}
 	CCryNameTSCRC Name = CShader::mfGetClassName();
 	SResourceContainer* pRL = CBaseResource::GetResourcesForClass(Name);
@@ -520,7 +520,7 @@ bool CShaderMan::mfModifyGenFlags(CShader* efGen, const CShaderResources* pRes, 
 				}
 
 				PREFAST_SUPPRESS_WARNING(6326)
-				const bool useSilhouettePOM = CRenderer::CV_r_SilhouettePOM != 0 && !CVrProjectionManager::IsMultiResEnabledStatic();
+				const bool useSilhouettePOM = CRenderer::CV_r_SilhouettePOM != 0 && !gcpRendD3D->GetVrProjectionManager()->IsMultiResEnabledStatic();
 				if (pBit->m_nDependencySet & SHGD_HW_SILHOUETTE_POM)
 				{
 					nAndMaskHW &= ~pBit->m_Mask;
@@ -572,7 +572,7 @@ bool CShaderMan::mfUpdateTechnik(SShaderItem& SI, CCryNameTSCRC& Name)
 
 SShaderItem CShaderMan::mfShaderItemForName(const char* nameEf, bool bShare, int flags, SInputShaderResources* Res, uint64 nMaskGen, const IRenderer::SLoadShaderItemArgs* pArgs)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Shader, 0, "ShaderItem (%s)", nameEf);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Shader, "ShaderItem (%s)", nameEf);
 
 	SShaderItem SI;
 
@@ -607,7 +607,6 @@ SShaderItem CShaderMan::mfShaderItemForName(const char* nameEf, bool bShare, int
 		shadName[0] = 0;
 
 	SI.m_pShader = mfForName(shadName, flags, (CShaderResources*)SI.m_pShaderResources, nMaskGen);
-	CShader* pSH = (CShader*)SI.m_pShader;
 
 	// Get technique
 	if (strTechnique.size())
@@ -759,16 +758,14 @@ CShader* CShaderMan::mfForName(const char* nameSh, int flags, const CShaderResou
 	ef->m_NameShader = nameEf;
 	ef->m_NameShaderICRC = nameEfCrc;
 
-	bool bSuccess = false;
-
 	// Check for the new cryFX format
 	cry_sprintf(nameNew, "%sCryFX/%s.cfx", m_ShadersPath, nameEf);
 	ef->m_NameFile = nameNew;
 	ef->m_Flags |= flags;
-	
+
 	_smart_ptr<CShader> pShader(ef);
-	_smart_ptr<CShaderResources> pResources( const_cast<CShaderResources*>(Res) );
-	gRenDev->ExecuteRenderThreadCommand([=] 
+	_smart_ptr<CShaderResources> pResources(const_cast<CShaderResources*>(Res));
+	gRenDev->ExecuteRenderThreadCommand([=]
 		{
 			RT_ParseShader(pShader, nMaskGen | nMaskGenHW, flags, pResources);
 		}
@@ -829,7 +826,7 @@ void CShaderMan::CreateShaderMaskGenString(const CShader* pSH, stack_string& fla
 
 void CShaderMan::RT_ParseShader(CShader* pSH, uint64 nMaskGen, uint32 flags, CShaderResources* pRes)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "ParseShader");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "ParseShader");
 
 	SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
@@ -841,7 +838,7 @@ void CShaderMan::RT_ParseShader(CShader* pSH, uint64 nMaskGen, uint32 flags, CSh
 		// PC would need to support import of console data
 		if (!gRenDev->IsShaderCacheGenMode())
 		{
-			CRY_PROFILE_REGION(PROFILE_RENDERER, "Renderer: ImportShader");
+			CRY_PROFILE_SECTION(PROFILE_RENDERER, "Renderer: ImportShader");
 
 			bSuccess = ImportShader(pSH, m_Bin);
 
@@ -865,7 +862,7 @@ void CShaderMan::RT_ParseShader(CShader* pSH, uint64 nMaskGen, uint32 flags, CSh
 #endif
 	if (!bSuccess)
 	{
-		CRY_PROFILE_REGION(PROFILE_RENDERER, "Renderer: RT_ParseShader");
+		CRY_PROFILE_SECTION(PROFILE_RENDERER, "Renderer: RT_ParseShader");
 
 
 		bool nukeCaches = false;

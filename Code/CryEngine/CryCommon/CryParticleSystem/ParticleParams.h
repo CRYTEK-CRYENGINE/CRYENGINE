@@ -577,7 +577,7 @@ struct TRangeParam
 //! \cond INTERNAL
 struct CSurfaceTypeIndex
 {
-	uint16 nIndex;
+	uint16 nIndex = 0;
 
 	STRUCT_INFO;
 };
@@ -610,7 +610,7 @@ struct ParticleParams
 	struct SMaintainDensity : UFloat
 	{
 		UFloat fReduceLifeTime;
-		UFloat fReduceAlpha;                          //!< <SoftMax=1> Reduce alpha inversely to count increase.
+		UFloat fReduceAlpha;                    //!< <SoftMax=1> Reduce alpha inversely to count increase.
 		UFloat fReduceSize;
 		AUTO_STRUCT_INFO;
 	} fMaintainDensity;                             //!< <SoftMax=1> Increase count when emitter moves to maintain spatial density.

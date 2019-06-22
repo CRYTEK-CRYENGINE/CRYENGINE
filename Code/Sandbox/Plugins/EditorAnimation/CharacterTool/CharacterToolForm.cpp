@@ -23,7 +23,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QAdvancedTreeView.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include "QViewport.h"
 #include "DockTitleBarWidget.h"
 #include "UnsavedChangesDialog.h"
@@ -146,8 +146,6 @@ CharacterToolForm::CharacterToolForm(QWidget* parent)
 	m_displayParametersSplitterWidths[0] = 400;
 	m_displayParametersSplitterWidths[1] = 200;
 
-	Initialize();
-
 	setFocusPolicy(Qt::ClickFocus);
 
 	CBroadcastManager* const pGlobalBroadcastManager = GetIEditor()->GetGlobalBroadcastManager();
@@ -202,9 +200,15 @@ void CharacterToolForm::UpdatePanesMenu()
 
 void CharacterToolForm::Initialize()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	if (m_private)
+	{
+		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, "Character Tool is being initialized twice! skipping second initialization.");
+		return;
+	}
+	
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	m_private.reset(new SPrivate(this, m_system->document.get()));
-
+ 
 	m_modeCharacter.reset(new ModeCharacter());
 
 	setDockNestingEnabled(true);

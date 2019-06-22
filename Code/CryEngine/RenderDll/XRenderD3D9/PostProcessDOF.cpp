@@ -26,7 +26,6 @@ SDepthOfFieldParams CDepthOfField::GetParams()
 	bool bGameDof = IsActive();
 
 	float fFocusRange = m_pFocusRange->GetParam();
-	float fMaxCoC = m_pMaxCoC->GetParam();
 	float fBlurAmount = m_pBlurAmount->GetParam();
 
 	float fTodFocusRange = (CRenderer::CV_r_dof == 2) ? m_pTimeOfDayFocusRange->GetParam() : 0;
@@ -132,8 +131,8 @@ static float ngon_rad(float theta, float n)
 // Shirleys concentric mapping
 static Vec4 ToUnitDisk(Vec4& O, float blades, float fstop)
 {
-	float max_fstops = 8;
-	float min_fstops = 1;
+	//float max_fstops = 8;
+	//float min_fstops = 1;
 	float normalizedStops = 1.0f;//clamp_tpl((fstop - max_fstops) / (max_fstops - min_fstops), 0.0f, 1.0f);
 
 	float phi, r;

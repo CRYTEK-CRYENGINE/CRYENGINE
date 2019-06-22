@@ -189,9 +189,6 @@ CTexture::CTexture(const uint32 nFlags, const ColorF& clearColor /*= ColorF(Clr_
 	m_nPersistentSize = 0;
 	m_fAvgBrightness = 0.0f;
 
-#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
-	m_nDeviceAddressInvalidated = 0;
-#endif
 #if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 	m_nESRAMOffset = SKIP_ESRAM;
 #endif
@@ -199,7 +196,7 @@ CTexture::CTexture(const uint32 nFlags, const ColorF& clearColor /*= ColorF(Clr_
 	m_nUpdateFrameID = -1;
 	m_nAccessFrameID = -1;
 	m_nCustomID = -1;
-	m_pDevTexture = NULL;
+	m_pDevTexture = nullptr;
 
 	m_bIsLocked = false;
 	m_bNeedRestoring = false;
@@ -374,22 +371,32 @@ CTexture* CTexture::FindOrRegisterTextureObject(const char* name, uint32 nFlags,
 
 void CTexture::RefDevTexture(CDeviceTexture* pDeviceTex)
 {
-	m_pDevTexture = pDeviceTex;
+	// Hard-wired device-resources can't have a unique owner (they are shared)
+	if ((m_pDevTexture))
+		CRY_ASSERT(!DEVICE_TEXTURE_STORE_OWNER || m_pDevTexture->GetOwner() == nullptr);
+
+	if ((m_pDevTexture = pDeviceTex))
+		m_pDevTexture->SetOwner(nullptr);
 
 	InvalidateDeviceResource(this, eDeviceResourceDirty);
 }
 
 void CTexture::SetDevTexture(CDeviceTexture* pDeviceTex)
 {
-	if (m_pDevTexture)
-		m_pDevTexture->SetOwner(NULL);
-	SAFE_RELEASE(m_pDevTexture);
+	// Substitute device-resource by a strictly subset one (texture-config doesn't change, only residency)
+	if ((m_pDevTexture))
+	{
+		CRY_ASSERT(!DEVICE_TEXTURE_STORE_OWNER || m_pDevTexture->GetOwner() == this);
+		m_pDevTexture->SetOwner(nullptr);
+		m_pDevTexture->Release();
+	}
 
-	m_pDevTexture = pDeviceTex;
-	if (m_pDevTexture)
+	if ((m_pDevTexture = pDeviceTex))
 	{
 		m_pDevTexture->SetNoDelete(!!(m_eFlags & FT_DONT_RELEASE));
 		m_pDevTexture->SetOwner(this);
+
+		m_nDevTextureSize = m_nPersistentSize = m_pDevTexture->GetDeviceSize();
 	}
 
 	InvalidateDeviceResource(this, eDeviceResourceDirty);
@@ -397,11 +404,18 @@ void CTexture::SetDevTexture(CDeviceTexture* pDeviceTex)
 
 void CTexture::OwnDevTexture(CDeviceTexture* pDeviceTex)
 {
-	SAFE_RELEASE(m_pDevTexture);
-
-	m_pDevTexture = pDeviceTex;
-	if (m_pDevTexture)
+	// Take ownership of an entirely different device-resource (texture-config does change)
+	if ((m_pDevTexture))
 	{
+		CRY_ASSERT(!DEVICE_TEXTURE_STORE_OWNER || m_pDevTexture->GetOwner() == this);
+		m_pDevTexture->SetOwner(nullptr);
+		m_pDevTexture->Release();
+	}
+
+	if ((m_pDevTexture = pDeviceTex))
+	{
+		m_pDevTexture->SetOwner(this);
+
 		const STextureLayout Layput = m_pDevTexture->GetLayout();
 
 		m_nWidth       = Layput.m_nWidth;
@@ -416,7 +430,6 @@ void CTexture::OwnDevTexture(CDeviceTexture* pDeviceTex)
 		m_bIsSRGB      = Layput.m_bIsSRGB;
 
 		m_nDevTextureSize = m_nPersistentSize = m_pDevTexture->GetDeviceSize();
-		CryInterlockedAdd(&CTexture::s_nStatsCurManagedNonStreamedTexMem, m_nDevTextureSize);
 	}
 
 	InvalidateDeviceResource(this, eDeviceResourceDirty);
@@ -606,7 +619,7 @@ CTexture* CTexture::GetOrCreateTextureObject(const char* name, uint32 nWidth, ui
 
 	bool bFound = false;
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s", name);
+	MEMSTAT_CONTEXT(EMemStatContextType::Texture, name);
 
 	CTexture* pTex = FindOrRegisterTextureObject(name, nFlags, eFormat, bFound);
 	if (bFound)
@@ -794,8 +807,8 @@ CTexture* CTexture::ForName(const char* name, uint32 nFlags, ETEX_Format eFormat
 
 	bool bFound = false;
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Textures");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "%s", name);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Textures");
+	MEMSTAT_CONTEXT(EMemStatContextType::Texture, name);
 
 	CRY_DEFINE_ASSET_SCOPE("Texture", name);
 
@@ -864,7 +877,7 @@ struct CompareTextures
 
 void CTexture::Precache(const bool isBlocking)
 {
-	LOADING_TIME_PROFILE_SECTION(iSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(iSystem);
 
 	if (!s_bPrecachePhase)
 		return;
@@ -884,8 +897,7 @@ void CTexture::Precache(const bool isBlocking)
 
 void CTexture::RT_Precache(const bool isFinalPrecache)
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CTexture::RT_Precache");
-	LOADING_TIME_PROFILE_SECTION(iSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
 	// Disable invalid file access logging if texture streaming is disabled
 	// If texture streaming is turned off, we will hit this on the renderthread
@@ -900,7 +912,10 @@ void CTexture::RT_Precache(const bool isFinalPrecache)
 		}
 	}
 
+#if !defined(EXCLUDE_NORMAL_LOG)
 	CTimeValue t0 = gEnv->pTimer->GetAsyncTime();
+#endif
+
 	CryLog("-- Precaching textures...");
 	iLog->UpdateLoadingScreen(0);
 
@@ -1004,9 +1019,11 @@ void CTexture::RT_Precache(const bool isFinalPrecache)
 	if (!gEnv->IsEditor())
 		CryLog("========================== Finished loading textures ============================");
 
+#if !defined(EXCLUDE_NORMAL_LOG)
 	CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
 	float dt = (t1 - t0).GetSeconds();
 	CryLog("Precaching textures done in %.2f seconds", dt);
+#endif
 
 	if (isFinalPrecache)
 	{
@@ -1023,7 +1040,7 @@ void CTexture::RT_Precache(const bool isFinalPrecache)
 
 void CTexture::Load(ETEX_Format eFormat)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("CTexture::Load(ETEX_Format eTFDst)", m_SrcName);
+	CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "CTexture::Load(ETEX_Format eTFDst)", m_SrcName);
 	m_bWasUnloaded = false;
 	m_bStreamed = false;
 
@@ -1066,7 +1083,7 @@ void CTexture::ToggleStreaming(const bool bEnable)
 
 void CTexture::LoadFromImage(const char* name, ETEX_Format eFormat)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(name);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, name);
 
 	if (CRenderer::CV_r_texnoload && SetNoTexture())
 		return;
@@ -1127,7 +1144,7 @@ void CTexture::Load(CImageFilePtr&& pImage)
 		return;
 	}
 
-	//LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("CTexture::Load(CImageFile* pImage)", pImage->mfGet_filename().c_str());
+	//CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "CTexture::Load(CImageFile* pImage)", pImage->mfGet_filename().c_str());
 
 	if ((m_eFlags & FT_ALPHA) && !pImage->mfIs_image(0))
 	{
@@ -1283,7 +1300,9 @@ STexDataPtr CTexture::ImagePreprocessing(STexDataPtr&& td, ETEX_Format eDstForma
 {
 	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
 
+	#if !defined(_RELEASE)
 	const char* pTexFileName = td->m_pFilePath ? td->m_pFilePath : "$Unknown";
+#endif
 
 	if (eDstFormat == eTF_Unknown)
 	{
@@ -1786,7 +1805,7 @@ void CTexture::Init()
 
 void CTexture::PostInit()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 }
 
 int __cdecl TexCallback(const VOID* arg1, const VOID* arg2)
@@ -1826,9 +1845,6 @@ void CTexture::Update()
 {
 	FUNCTION_PROFILER_RENDERER();
 
-	CRenderer* rd = gRenDev;
-	char buf[256] = "";
-
 	// reload pending texture reload requests
 	{
 		std::set<string> queue;
@@ -1860,6 +1876,8 @@ void CTexture::Update()
 	}
 
 #ifndef CONSOLE_CONST_CVAR_MODE
+	char buf[256] = "";
+
 	if (CRenderer::CV_r_texlog)
 	{
 		CryAutoReadLock<CryRWLock> lock(CBaseResource::s_cResLock);
@@ -2396,7 +2414,8 @@ bool CTexture::SetNoTexture(CTexture* pDefaultTexture /* = s_ptexNoTexture*/)
 
 	if (pDefaultTexture)
 	{
-		m_pDevTexture = pDefaultTexture->m_pDevTexture;
+		RefDevTexture(pDefaultTexture->GetDevTexture());
+
 		m_eSrcFormat = pDefaultTexture->GetSrcFormat();
 		m_eDstFormat = pDefaultTexture->GetDstFormat();
 		m_nMips = pDefaultTexture->GetNumMips();
@@ -2408,9 +2427,6 @@ bool CTexture::SetNoTexture(CTexture* pDefaultTexture /* = s_ptexNoTexture*/)
 		m_cMaxColor = 1.0f;
 		m_cClearColor = ColorF(0.0f, 0.0f, 0.0f, 1.0f);
 
-#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
-		m_nDeviceAddressInvalidated = m_pDevTexture->GetBaseAddressInvalidated();
-#endif
 #if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 		m_nESRAMOffset = SKIP_ESRAM;
 #endif
@@ -2422,8 +2438,10 @@ bool CTexture::SetNoTexture(CTexture* pDefaultTexture /* = s_ptexNoTexture*/)
 			StreamState_ReleaseInfo(this, m_pFileTexMips);
 			m_pFileTexMips = NULL;
 		}
+
 		m_bStreamed = false;
 		m_bPostponed = false;
+
 		m_nDevTextureSize = 0;
 		m_nPersistentSize = 0;
 
@@ -3446,7 +3464,10 @@ void CRenderer::EF_PrintRTStats(const char* szName)
 
 STexPool::~STexPool()
 {
+#ifndef _RELEASE
 	bool poolEmpty = true;
+#endif
+
 	STexPoolItemHdr* pITH = m_ItemsList.m_Next;
 	while (pITH != &m_ItemsList)
 	{

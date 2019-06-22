@@ -42,6 +42,7 @@ public:
 	bool                       m_bAllowTesselation : 1;
 	bool                       m_bDepthClip : 1;
 	bool                       m_bDepthBoundsTest : 1;
+	bool                       m_bRelaxedRasterizationOrder : 1;
 	bool                       m_bDynamicDepthBias : 1; // When clear, SetDepthBias() may be ignored by the PSO. This may be faster on PS4 and VK. It has no effect on DX11 (always on) and DX12 (always off).
 };
 

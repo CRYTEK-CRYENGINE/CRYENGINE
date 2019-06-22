@@ -8,6 +8,8 @@
 class CFogStage : public CGraphicsPipelineStage
 {
 public:
+	static const EGraphicsPipelineStage StageID = eStage_Fog;
+
 	struct SForwardParams
 	{
 		Vec4  vfParams;
@@ -25,6 +27,17 @@ public:
 	};
 
 public:
+	CFogStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+#if defined(VOLUMETRIC_FOG_SHADOWS)
+		, m_passVolFogShadowRaycast(&graphicsPipeline)
+		, m_passVolFogShadowHBlur(&graphicsPipeline)
+		, m_passVolFogShadowVBlur(&graphicsPipeline)
+#endif
+		, m_passFog(&graphicsPipeline)
+		, m_passLightning(&graphicsPipeline)
+	{}
+
 	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
 		return RenderView()->IsGlobalFogEnabled() && CRenderer::CV_r_UseZPass != 0;
@@ -54,4 +67,9 @@ private:
 #endif
 	CFullscreenPass m_passFog;
 	CFullscreenPass m_passLightning;
+
+public:
+#if defined(VOLUMETRIC_FOG_SHADOWS)
+	_smart_ptr<CTexture> m_pTexVolFogShadowBuf[2];
+#endif
 };

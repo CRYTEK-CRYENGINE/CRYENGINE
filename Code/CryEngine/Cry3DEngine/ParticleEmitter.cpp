@@ -156,7 +156,7 @@ void CParticleEmitter::UpdateState()
 			Get3DEngine()->GetVisAreaFromPos(vPos) != NULL, nEnvFlags, true, this);
 	}
 
-	bool bUpdateState = (GetRndFlags()&ERF_HIDDEN)==0 && (bUpdateBounds || m_fAge >= m_fStateChangeAge);
+	bool bUpdateState = !IsHidden() && (bUpdateBounds || m_fAge >= m_fStateChangeAge);
 	if (bUpdateState)
 	{
 		m_fStateChangeAge = fHUGE;
@@ -749,7 +749,7 @@ void CParticleEmitter::UpdateEffects()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-	if (!(GetRndFlags() & ERF_HIDDEN))
+	if (!IsHidden())
 	{
 		for (auto& c : m_Containers)
 		{

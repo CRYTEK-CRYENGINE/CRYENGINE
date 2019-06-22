@@ -36,9 +36,11 @@ const char* CDebugRenderTargetsStage::showRenderTargetHelp =
 	"r_ShowRenderTarget -m:2 scene : shows mip map level 2 of 'scene' render targets"
 	"r_ShowRenderTarget -s:3 scene : shows array slice 3 of 'scene' render targets";
 
-void CDebugRenderTargetsStage::OnShowRenderTargetsCmd(IConsoleCmdArgs* pArgs)
+void CDebugRenderTargetsStage::OnShowRenderTargetsCmd(SDebugRenderTargetInfo& debugInfo)
 {
-	int argCount = pArgs->GetArgCount();
+	debugInfo.wasTriggered = false;
+
+	int argCount = debugInfo.args.size();
 
 	ResetRenderTargetList();
 
@@ -58,7 +60,7 @@ void CDebugRenderTargetsStage::OnShowRenderTargetsCmd(IConsoleCmdArgs* pArgs)
 	// Check for '-l'.
 	for (int i = 1; i < argCount; ++i)
 	{
-		if (strcmp(pArgs->GetArg(i), "-l") == 0)
+		if (strcmp(debugInfo.args.at(i).c_str(), "-l") == 0)
 		{
 			m_bShowList = true;
 			break;
@@ -68,9 +70,9 @@ void CDebugRenderTargetsStage::OnShowRenderTargetsCmd(IConsoleCmdArgs* pArgs)
 	// Check for '-c:*'.
 	for (int i = 1; i < argCount; ++i)
 	{
-		if (strlen(pArgs->GetArg(i)) > 3 && strncmp(pArgs->GetArg(i), "-c:", 3) == 0)
+		if (strlen(debugInfo.args.at(i).c_str()) > 3 && strncmp(debugInfo.args.at(i).c_str(), "-c:", 3) == 0)
 		{
-			int col = atoi(pArgs->GetArg(i) + 3);
+			int col = atoi(debugInfo.args.at(i).c_str() + 3);
 			m_columnCount = col > 0 ? col : 2;
 		}
 	}
@@ -102,7 +104,7 @@ void CDebugRenderTargetsStage::OnShowRenderTargetsCmd(IConsoleCmdArgs* pArgs)
 
 	for (int i = 1; i < argCount; ++i)
 	{
-		const char* pCurArg = pArgs->GetArg(i);
+		const char* pCurArg = debugInfo.args.at(i).c_str();
 
 		bool bColOption = strlen(pCurArg) > 3 && strncmp(pCurArg, "-c:", 3) == 0;
 		if (strcmp(pCurArg, "-l") == 0 || bColOption)
@@ -242,7 +244,7 @@ void CDebugRenderTargetsStage::Execute()
 		ResetRenderTargetList();
 
 		SRenderTargetInfo rtInfo;
-		rtInfo.pTexture = CRendererResources::s_ptexSceneDiffuseTmp;
+		rtInfo.pTexture = m_graphicsPipelineResources.m_pTexSceneDiffuseTmp;
 		m_renderTargetList.push_back(rtInfo);
 		m_columnCount = 1;
 
@@ -261,7 +263,7 @@ void CDebugRenderTargetsStage::Execute()
 			{ "Subsurface Scattering",          "" },
 			{ "Specular Validation"             "blue: too low -- orange: too high and not yet metal -- pink: just valid for oxidized metal/rust" }
 		};
-		
+
 		auto& curText = helpText[clamp_tpl(CRendererCVars::CV_r_DeferredShadingDebugGBuffer - 1, 0, 8)];
 		IRenderAuxText::WriteXY(10, 10, 1.0f,  1.0f,  0, 1, 0, 1, "%s", curText.name);
 		IRenderAuxText::WriteXY(10, 30, 0.85f, 0.85f, 0, 1, 0, 1, "%s", curText.desc);
@@ -334,7 +336,7 @@ void CDebugRenderTargetsStage::ExecuteShowTargets()
 			float curY = (i / m_columnCount) * (tileH + tileGapH);
 
 			ResourceViewHandle textureView = EDefaultResourceViews::Default;
-			
+
 			if (rtInfo.mip != -1 || rtInfo.slice != -1)
 			{
 				STextureLayout texLayout = rtInfo.pTexture->GetDevTexture()->GetLayout();

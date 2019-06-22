@@ -126,7 +126,7 @@ void CEntityLayer::Enable(bool bEnable, bool bSerialize /*=true*/, bool bAllowRe
 		return;
 
 	MEMSTAT_LABEL_FMT("Layer '%s' %s", m_name.c_str(), (bEnable ? "Activating" : "Deactivating"));
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Entity, 0, "Layer '%s' %s", m_name.c_str(), (bEnable ? "Activating" : "Deactivating"));
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Entity, "Layer '%s' %s", m_name.c_str(), (bEnable ? "Activating" : "Deactivating"));
 
 	if (bEnable)
 	{

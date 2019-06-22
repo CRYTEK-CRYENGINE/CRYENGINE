@@ -301,7 +301,7 @@ string CPrefabManager::GetLibsPath()
 
 void CPrefabManager::Serialize(XmlNodeRef& node, bool bLoading)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (bLoading)
 	{
 		CBaseLibraryManager::Serialize(node, bLoading);
@@ -516,7 +516,7 @@ bool CPrefabManager::AttachObjectToPrefab(CPrefabObject* pPrefab, CBaseObject* p
 	{
 		if (!pPrefab->CanAddMember(pObject))
 		{
-			Warning("Object %s is already part of a prefab (%s)", pObject->GetName(), pObject->GetPrefab()->GetName());
+			Warning("Object %s cannot be added as a Member to prefab %s", pObject->GetName(), pPrefab->GetName());
 			return false;
 		}
 
@@ -962,116 +962,3 @@ IDataBaseLibrary* CPrefabManager::LoadLibrary(const string& filename, bool bRelo
 	}
 	return pLibrary;
 }
-
-namespace Private_PrefabCommands
-{
-
-static void PyCreateFromSelection()
-{
-	GetIEditorImpl()->GetLevelEditorSharedState()->SetEditTool(nullptr);
-	GetIEditorImpl()->GetPrefabManager()->MakeFromSelection(GetIEditorImpl()->GetSelection());
-}
-
-static void PyAddSelection()
-{
-	GetIEditorImpl()->GetPrefabManager()->AddSelectionToPrefab();
-}
-
-static void PyExtractAllFromSelection()
-{
-	GetIEditorImpl()->GetPrefabManager()->ExtractAllFromSelection();
-}
-
-static void PyCloneAllFromSelection()
-{
-	GetIEditorImpl()->GetPrefabManager()->CloneAllFromSelection();
-}
-
-static void PyOpen()
-{
-	GetIEditorImpl()->GetPrefabManager()->OpenSelected();
-}
-
-static void PyClose()
-{
-	GetIEditorImpl()->GetPrefabManager()->CloseSelected();
-}
-
-static void PyOpenAll()
-{
-	std::vector<CPrefabObject*> prefabObjects;
-	GetIEditorImpl()->GetPrefabManager()->GetPrefabObjects(prefabObjects);
-	if (!prefabObjects.empty())
-	{
-		CUndo undo("Open all prefab objects");
-		GetIEditorImpl()->GetPrefabManager()->OpenPrefabs(prefabObjects);
-	}
-}
-
-static void PyCloseAll()
-{
-	std::vector<CPrefabObject*> prefabObjects;
-	GetIEditorImpl()->GetPrefabManager()->GetPrefabObjects(prefabObjects);
-	if (!prefabObjects.empty())
-	{
-		CUndo undo("Close all prefab objects");
-		GetIEditorImpl()->GetPrefabManager()->ClosePrefabs(prefabObjects);
-	}
-}
-
-static void PyReloadAll()
-{
-	GetIEditorImpl()->GetObjectManager()->SendEvent(EVENT_PREFAB_REMAKE);
-}
-
-static void PyUpdateAllPrefabs()
-{
-	GetIEditor()->GetPrefabManager()->UpdateAllPrefabsToLatestVersion();
-}
-
-static void PySelectAllInstancesOfSelectedType()
-{
-	CBaseObjectsArray objects;
-	GetIEditorImpl()->GetSelection()->GetObjects(objects);
-	std::vector<CPrefabItem*> items = GetIEditor()->GetPrefabManager()->GetAllPrefabItems(objects);
-	//Select all instances only if we have one type of prefab in selection
-	if (items.size() == 1)
-	{
-		GetIEditor()->GetPrefabManager()->SelectAllInstancesOfItem(items[0]);
-	}
-}
-}
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyUpdateAllPrefabs, prefab, update_all_prefabs,
-                                   CCommandDescription("Update all prefabs to latest version"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyCreateFromSelection, prefab, create_from_selection,
-                                   CCommandDescription("Create prefab"));
-REGISTER_EDITOR_COMMAND_ICON(prefab, create_from_selection, "icons:Tools/Create_Prefab.ico");
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyAddSelection, prefab, add_to_prefab,
-                                   CCommandDescription("Add selection to prefab"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyExtractAllFromSelection, prefab, extract_all,
-                                   CCommandDescription("Extract all objects"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyCloneAllFromSelection, prefab, clone_all,
-                                   CCommandDescription("Clone all objects"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyOpen, prefab, open,
-                                   CCommandDescription("Open prefab"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyClose, prefab, close,
-                                   CCommandDescription("Close prefab"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyOpenAll, prefab, open_all,
-                                   CCommandDescription("Open all prefabs"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyCloseAll, prefab, close_all,
-                                   CCommandDescription("Close all prefabs"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PyReloadAll, prefab, reload_all,
-                                   CCommandDescription("Reload all prefabs"));
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_PrefabCommands::PySelectAllInstancesOfSelectedType, prefab, select_all_instances_of_type,
-                                   CCommandDescription("Select all prefabs instances of selected type"));

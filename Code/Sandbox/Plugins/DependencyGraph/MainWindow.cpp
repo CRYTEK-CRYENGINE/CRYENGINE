@@ -12,8 +12,6 @@
 #include <AssetSystem/AssetManager.h>
 #include <CryString/CryPath.h>
 
-#include <QVBoxLayout>
-
 namespace Private_MainWindow
 {
 
@@ -24,9 +22,9 @@ REGISTER_VIEWPANE_FACTORY(CMainWindow, s_szEditorName, "Tools", false)
 //! \param assetPath file path.
 void PyAssetDependencyGraph(const char* szAssetPath)
 {
-	CAsset* pAsset = stricmp(PathUtil::GetExt(szAssetPath), "cryasset") == 0 
-		? GetIEditor()->GetAssetManager()->FindAssetForMetadata(szAssetPath)
-		: GetIEditor()->GetAssetManager()->FindAssetForFile(szAssetPath);
+	CAsset* pAsset = stricmp(PathUtil::GetExt(szAssetPath), "cryasset") == 0
+	                 ? GetIEditor()->GetAssetManager()->FindAssetForMetadata(szAssetPath)
+	                 : GetIEditor()->GetAssetManager()->FindAssetForFile(szAssetPath);
 	if (pAsset)
 	{
 		CMainWindow::CreateNewWindow(pAsset);
@@ -48,12 +46,15 @@ CMainWindow::CMainWindow(QWidget* pParent)
 	, m_pGraphViewModel(new CGraphViewModel(m_pModel.get()))
 {
 	setObjectName(GetEditorName());
+	RegisterActions();
 	InitMenu();
 	RegisterDockingWidgets();
+}
 
-	QVBoxLayout* pMainLayout = new QVBoxLayout();
-	pMainLayout->setContentsMargins(1, 1, 1, 1);
-	SetContent(pMainLayout);
+void CMainWindow::RegisterActions()
+{
+	RegisterAction("general.open", &CMainWindow::OnOpen);
+	RegisterAction("general.close", &CMainWindow::OnClose);
 }
 
 void CMainWindow::CreateNewWindow(CAsset* asset)

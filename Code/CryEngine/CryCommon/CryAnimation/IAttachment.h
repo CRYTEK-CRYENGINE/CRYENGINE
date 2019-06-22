@@ -230,6 +230,13 @@ struct SimulationParams
 		TRANSLATIONAL_PROJECTION = 0x05  //!< Used to project joints out of proxies.
 	};
 
+	enum EBlendControlJointAxisToUse
+	{
+		eBlendControlJointAxisToUse_X = 0,
+		eBlendControlJointAxisToUse_Y = 1,
+		eBlendControlJointAxisToUse_Z = 2
+	};
+
 	ClampType          m_nClampType;
 	bool               m_useDebugSetup;
 	bool               m_useDebugText;
@@ -257,6 +264,17 @@ struct SimulationParams
 	CCryName           m_strDirTransJoint;
 	DynArray<CCryName> m_arrProxyNames; //!< Test capsules/sphere joint against these colliders.
 
+	int  GetBlendControlJointId() const { return m_blendControlJointId; }
+	void SetBlendControlJointId(int id) { m_blendControlJointId = id; }
+	CCryName const& GetBlendControlJointName() const { return m_sBlendControlJointName; }
+	void SetBlendControlJointName(CCryName const& sName)
+	{
+		m_sBlendControlJointName = sName;
+		m_blendControlJointId = -1;
+	}
+	EBlendControlJointAxisToUse GetBlendControlAxis() const { return m_blendControlAxis; }
+	void SetBlendControlAxis(EBlendControlJointAxisToUse axis) { m_blendControlAxis = axis; }
+
 	SimulationParams()
 	{
 		m_nClampType = DISABLED;
@@ -282,7 +300,15 @@ struct SimulationParams
 		m_vStiffnessTarget.zero();
 		m_vCapsule.set(0, 0);
 		m_nProjectionType = 0;
+
+		m_blendControlJointId = -1;
+		m_blendControlAxis = EBlendControlJointAxisToUse::eBlendControlJointAxisToUse_X;
 	};
+
+protected:
+	CCryName					m_sBlendControlJointName;
+	int							m_blendControlJointId;
+	EBlendControlJointAxisToUse m_blendControlAxis;
 };
 
 struct RowSimulationParams
@@ -764,6 +790,8 @@ inline IMaterial* CSKELAttachment::GetBaseMaterial(uint32 nLOD) const
 struct CSKINAttachment : public IAttachmentObject
 {
 	CSKINAttachment()
+		: m_pReplacementMaterial()
+		, m_pIAttachmentSkin()
 	{}
 
 	virtual EType    GetAttachmentType() override                          { return eAttachment_SkinMesh; }
@@ -785,8 +813,8 @@ struct CSKINAttachment : public IAttachmentObject
 		return m_pReplacementMaterial[nLOD];
 	}
 
-	_smart_ptr<IAttachmentSkin> m_pIAttachmentSkin;
-	_smart_ptr<IMaterial>       m_pReplacementMaterial[g_nMaxGeomLodLevels];
+	_smart_ptr<IMaterial> m_pReplacementMaterial[g_nMaxGeomLodLevels];
+	IAttachmentSkin*      m_pIAttachmentSkin;
 };
 
 inline IMaterial* CSKINAttachment::GetBaseMaterial(uint32 nLOD) const

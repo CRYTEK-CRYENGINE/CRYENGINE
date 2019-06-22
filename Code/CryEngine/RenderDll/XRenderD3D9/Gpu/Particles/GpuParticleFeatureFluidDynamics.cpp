@@ -12,7 +12,7 @@ void CFeatureMotionFluidDynamics::Update(const gpu_pfx2::SUpdateContext& context
 	CParticleComponentRuntime* pRuntime = (CParticleComponentRuntime*)(context.pRuntime);
 	gpu_physics::CParticleFluidSimulation* pFluidSim = pRuntime->GetFluidSimulation();
 	if (!pFluidSim)
-		pFluidSim = pRuntime->CreateFluidSimulation();
+		pFluidSim = pRuntime->CreateFluidSimulation(context);
 
 	Vec3 emitterPos = pRuntime->GetPos();
 	auto& p = GetParameters();
@@ -30,7 +30,7 @@ void CFeatureMotionFluidDynamics::Update(const gpu_pfx2::SUpdateContext& context
 		              Vec3(randX, randY, randZ) * p.spread;
 		bodies[i].lifeTime = 0.0f;
 		bodies[i].v = p.initialVelocity;
-		bodies[i].xp = bodies[i].x + bodies[i].v * 0.016;
+		bodies[i].xp = bodies[i].x + bodies[i].v * 0.016f;
 		bodies[i].phase = 0;
 		bodies[i].vorticity = Vec3(0.0f, 0.0f, 0.0f);
 	}
@@ -57,7 +57,7 @@ void CFeatureMotionFluidDynamics::Update(const gpu_pfx2::SUpdateContext& context
 	params.worldOffsetZ = emitterPos[2] - 0.5f * params.gridSizeZ * params.h;
 	params.particleInfluence = p.particleInfluence;
 	pFluidSim->SetParameters(&params);
-	pRuntime->FluidCollisions(commandList);
+	pRuntime->FluidCollisions(commandList, context);
 	pFluidSim->RenderThreadUpdate(commandList);
 	pRuntime->EvolveParticles(commandList);
 }

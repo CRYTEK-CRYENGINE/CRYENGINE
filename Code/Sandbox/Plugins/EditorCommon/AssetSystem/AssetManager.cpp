@@ -24,6 +24,7 @@
 #include <IEditor.h>
 #include <CrySystem/IConsole.h>
 #include <CryString/CryPath.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace Private_AssetManager
 {
@@ -66,8 +67,6 @@ void InitializeFileToAssetMap(FileToAssetMap& fileToAssetMap, const std::vector<
 	const auto allocNum = numFiles * 1.1;   // buffer of 10%
 	fileToAssetMap.reserve(allocNum);
 }
-
-std::future<void> g_asyncProcess;
 
 std::vector<std::unique_ptr<IFilesGroupController>> ComposeFileGroupsForDeletion(std::vector<CAsset*>& assets)
 {
@@ -141,7 +140,7 @@ void CAssetManager::Init()
 {
 	using namespace AssetManagerHelpers;
 
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	UpdateAssetTypes();
 	UpdateAssetImporters();
@@ -426,15 +425,13 @@ void CAssetManager::MergeAssets(std::vector<CAsset*> assets)
 	}
 }
 
-bool CAssetManager::DeleteAssetsWithFiles(std::vector<CAsset*> assets)
+std::future<void> CAssetManager::DeleteAssetsWithFiles(std::vector<CAsset*> assets)
 {
 	using namespace Private_AssetManager;
-	MAKE_SURE(!m_assets.empty(), return false);
-	MAKE_SURE(!assets.empty(), return false);
+	MAKE_SURE(!m_assets.empty(), return std::future<void>());
+	MAKE_SURE(!assets.empty(), return std::future<void>());
 
 	auto fileGroups = ComposeFileGroupsForDeletion(assets);
-
-	signalBeforeAssetsRemoved(assets);
 
 	m_orderedByGUID = false;
 
@@ -443,17 +440,10 @@ bool CAssetManager::DeleteAssetsWithFiles(std::vector<CAsset*> assets)
 		pAsset->GetType()->PreDeleteAssetFiles(*pAsset);
 	}
 
-	g_asyncProcess = ThreadingUtils::AsyncQueue([assets = std::move(assets), fileGroups = std::move(fileGroups), this]() mutable
+	return ThreadingUtils::AsyncQueue([assets = std::move(assets), fileGroups = std::move(fileGroups), this]() mutable
 	{
 		CFileOperationExecutor::GetExecutor()->Delete(std::move(fileGroups));
-
-		ThreadingUtils::PostOnMainThread([this, assets = std::move(assets)]()
-		{
-			signalAfterAssetsRemoved();
-		});
 	});
-
-	return true;
 }
 
 void CAssetManager::DeleteAssetsOnlyFromData(std::vector<CAsset*> assets)
@@ -474,6 +464,7 @@ void CAssetManager::DeleteAssetsOnlyFromData(std::vector<CAsset*> assets)
 	int newSize = m_assets.size();
 	for (auto pAsset : assets)
 	{
+		pAsset->signalBeforeRemoved(pAsset);
 		m_orderedByGUID = false;
 
 		m_sourceFilesTracker.RemoveIndex(pAsset->GetSourceFile(), *pAsset);
@@ -484,12 +475,14 @@ void CAssetManager::DeleteAssetsOnlyFromData(std::vector<CAsset*> assets)
 		m_assets[index] = std::move(m_assets[--newSize]);
 		m_assets.resize(newSize);
 		DeleteAssetFilesFromMap(m_fileToAssetMap, pAssetToDelete);
+		pAsset->signalAfterRemoved(pAsset);
 	}
 	signalAfterAssetsRemoved();
 }
 
-void CAssetManager::MoveAssets(const std::vector<CAsset*>& assets, const char* szDestinationFolder) const
+void CAssetManager::MoveAssets(const std::vector<CAsset*>& assets, const char* szDestinationFolder) 
 {
+	using namespace Private_AssetManager;
 	for (CAsset* pAsset : assets)
 	{
 		if (!pAsset)
@@ -506,7 +499,10 @@ void CAssetManager::MoveAssets(const std::vector<CAsset*>& assets, const char* s
 
 		// Make a new copy of the source file if it is shared between several assets, move it to the new location otherwise.
 		const bool bMoveSourceFile = !HasSharedSourceFile(*pAsset);
+		DeleteAssetFilesFromMap(m_fileToAssetMap, pAsset);
 		pAsset->GetType()->MoveAsset(pAsset, szDestinationFolder, bMoveSourceFile);
+		AddAssetFilesToMap(m_fileToAssetMap, pAsset);
+		m_orderedByGUID = false;
 	}
 }
 
@@ -572,15 +568,6 @@ std::vector<CAssetPtr> CAssetManager::GetAssetsFromDirectory(const string& direc
 		}
 	}
 	return assets;
-}
-
-void CAssetManager::WaitAsyncProcess() const
-{
-	using namespace Private_AssetManager;
-	if (g_asyncProcess.valid())
-	{
-		g_asyncProcess.wait();
-	}
 }
 
 void CAssetManager::UpdateAssetTypes()

@@ -317,7 +317,6 @@ void BenchmarkRendererSensor::processCommands()
 			}
 			break;
 		}
-		;
 	}
 	queue.reset();
 }

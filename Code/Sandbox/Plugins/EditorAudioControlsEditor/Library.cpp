@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "Library.h"
 
-#include "AudioControlsEditorPlugin.h"
+#include "AssetsManager.h"
 
 namespace ACE
 {

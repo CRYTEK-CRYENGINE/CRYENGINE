@@ -9,11 +9,9 @@ namespace Impl
 namespace PortAudio
 {
 class CImpl;
-class CListener;
 class CEventInstance;
 
 extern CImpl* g_pImpl;
-extern CListener* g_pListener;
 
 using EventInstances = std::vector<CEventInstance*>;
 } // namespace PortAudio

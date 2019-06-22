@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "BatchFileDialog.h"
 #include "FileDialogs/SystemFileDialog.h"
-#include "QPropertyTree/QPropertyDialog.h"
+#include "QPropertyTreeLegacy/QPropertyDialog.h"
 #include <IEditor.h>
 #include <CryCore/Platform/CryWindows.h>
 #include <CrySerialization/IArchive.h>

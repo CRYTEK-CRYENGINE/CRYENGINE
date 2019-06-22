@@ -186,7 +186,7 @@ struct IAttributeFilterOperator
 	virtual ~IAttributeFilterOperator() {}
 	virtual QString  GetName() = 0;
 	virtual bool     Match(const QVariant& value, const QVariant& filterValue) = 0;
-	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> filter) = 0;
+	virtual QWidget* CreateEditWidget(std::shared_ptr<CAttributeFilter> pFilter, const QStringList* pAttributeValues) = 0;
 	//TODO : make this method be called on signal filter changed instead of explicitly right now
 	virtual void     UpdateWidget(QWidget* widget, const QVariant& value) = 0;
 	virtual void     InitFilterValue(QVariant& filterValueStorage) const            {}

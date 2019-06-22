@@ -1027,7 +1027,7 @@ uint CREBreakableGlass::GenerateRadialCracks(const float totalEnergy, const uint
 {
 	GLASS_FUNC_PROFILER
 
-	const uint minCracksToBreak = 3;
+	//const uint minCracksToBreak = 3;
 	const float minEnergyPerStep = 0.005f;
 	const float maxEnergyPerStep = 0.1f;
 	const float energyStepRelaxRate = 2.5f;
@@ -1196,7 +1196,6 @@ bool CREBreakableGlass::ApplyImpactToFragments(SGlassImpactParams& impact)
 	if (foundFrag)
 	{
 		uint32 fragBit = (uint32)1 << impactFrag;
-		const uint impactIndex = m_impactParams.size() - 1;
 
 		// Shift impact slightly towards center of fragment to avoid
 		// incredibly rare case where point is *exactly* on fragment edge
@@ -1328,7 +1327,6 @@ bool CREBreakableGlass::FindImpactFragment(const SGlassImpactParams& impact, uin
 #else
 	// Perform a brute force loop through all active fragments
 	const uint32 validState = m_fragsActive & ~(m_fragsLoose | m_fragsFree);
-	const SGlassFragment* pFrags = m_frags.begin();
 
 	uint32 fragBit = 1;
 	for (uint i = 0; i < GLASSCFG_FRAGMENT_ARRAY_SIZE; ++i, fragBit <<= 1)
@@ -2670,7 +2668,6 @@ void CREBreakableGlass::BuildFragmentTriangleData(const uint8 fragIndex, uint& v
 	default: // EGlassSurfaceSide_Center
 		surfaceZOffset = m_glassParams.thickness * 0.5f;
 	}
-	;
 
 	// Create vertex data
 	for (int i = 0; i < vertCount; ++i)

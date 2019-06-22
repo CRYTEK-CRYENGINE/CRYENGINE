@@ -102,7 +102,7 @@ public:
 	{
 		void* ptr = NULL;
 
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 		if (TraitsT::FallbackOnCRTAllowed && (sz > MaxSize))
 		{
@@ -143,7 +143,7 @@ public:
 	{
 		void* ptr = NULL;
 
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 		if ((sz > MaxSize) || (SmallBlockLength % align))
 		{
@@ -170,7 +170,7 @@ public:
 	{
 		using namespace BucketAllocatorDetail;
 
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 		size_t sz = 0;
 

@@ -178,7 +178,7 @@ void AISendSignal(CAIFlyingVehicle* const pFlyingVehicle, const AISignals::ISign
 {
 	CRY_ASSERT(pFlyingVehicle);
 
-	const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, signalDescription, pFlyingVehicle->GetAIObjectID());
+	const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, signalDescription, pFlyingVehicle->GetEntityID());
 
 	gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 }

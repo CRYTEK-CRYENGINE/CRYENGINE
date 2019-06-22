@@ -11,6 +11,7 @@ History:
 
 #include <IPlayerProfiles.h>
 #include <IVehicleSystem.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <time.h>
 
 #include <CrySystem/Scaleform/IFlashPlayer.h>

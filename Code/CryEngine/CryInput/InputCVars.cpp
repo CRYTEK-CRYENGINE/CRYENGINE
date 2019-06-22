@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 #include "InputCVars.h"
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CInputCVars* g_pInputCVars = 0;
 

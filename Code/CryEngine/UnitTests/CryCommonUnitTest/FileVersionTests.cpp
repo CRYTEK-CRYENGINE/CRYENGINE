@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <UnitTest.h>
-
 #include <CrySystem/CryVersion.h>
 
 TEST(CryFileVersionTest, Comparison)
@@ -127,15 +126,7 @@ TEST(CryFileVersionTest, Set)
 	}
 
 	{
-		// Check that garbage input doesn't crash it
 		SFileVersion v1;
-		v1.Set(nullptr);
-
-		REQUIRE(v1[0] == 0);
-		REQUIRE(v1[1] == 0);
-		REQUIRE(v1[2] == 0);
-		REQUIRE(v1[3] == 0);
-
 		v1.Set("Lorem ipsum dolor sit amet");
 
 		REQUIRE(v1[0] == 0);

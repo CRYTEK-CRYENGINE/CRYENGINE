@@ -75,7 +75,7 @@ namespace UQS
 			static void                                                CmdClearDeserializedQueryHistory(IConsoleCmdArgs* pArgs);
 			static void                                                CmdPrintQueryHistoryStatisticsToConsole(IConsoleCmdArgs* pArgs);
 
-			static bool                                                HelpBuildHistoryDumpFilePath(IConsoleCmdArgs* pArgs, const char* szFileNamePrefix, char (&outFilePath)[ICryPak::g_nMaxPath]);
+			static bool                                                HelpBuildHistoryDumpFilePath(IConsoleCmdArgs* pArgs, const char* szFileNamePrefix, CryPathString& outFilePath);
 
 		private:
 			CEnumFlags<EHubOverrideFlags>                              m_overrideFlags;

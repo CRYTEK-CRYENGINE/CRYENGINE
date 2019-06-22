@@ -13,6 +13,8 @@ CResizeTerrainDialog::CResizeTerrainDialog(const Result& initial)
 	setWindowTitle(tr("Resize Heightmap"));
 
 	auto pFormLayout = new QFormLayout();
+	pFormLayout->setSpacing(0);
+	pFormLayout->setMargin(0);
 
 	CGenerateHeightmapUi::Config heightmapConfig;
 	heightmapConfig.isOptional = false;
@@ -27,6 +29,8 @@ CResizeTerrainDialog::CResizeTerrainDialog(const Result& initial)
 	pDialogButtonBox->setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
 
 	auto dialogLayout = new QVBoxLayout(this);
+	dialogLayout->setMargin(0);
+	dialogLayout->setSpacing(0);
 	dialogLayout->addLayout(pFormLayout);
 	dialogLayout->addItem(verticalSpacer);
 	dialogLayout->addWidget(pDialogButtonBox);

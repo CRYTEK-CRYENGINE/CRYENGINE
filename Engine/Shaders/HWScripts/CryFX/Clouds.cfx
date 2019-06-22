@@ -627,8 +627,10 @@ cbuffer CBVolumetricClouds : register(b3)
 		float4 vfHeightDensityParams; // PB_VolumetricFogHeightDensityParams
 		float4 vfHeightDensityRampParams; // PB_VolumetricFogHeightDensityRampParams
 		float4 vfDistanceParams; // PB_VolumetricFogDistanceParams
+#if %_RT_VOLUMETRIC_FOG
 		float4 vfGlobalEnvProbeParams0; // PB_VolumetricFogGlobalEnvProbe0
 		float4 vfGlobalEnvProbeParams1; // PB_VolumetricFogGlobalEnvProbe1
+#endif
 		float4 vfTimeParams; // PB_time
 
 		// upscale parameters
@@ -787,11 +789,13 @@ SVolumetricFogParams GetVolumetricFogParams()
 	params.farDistCenterLeft = vfDistanceParams.z;
 	params.farDistCenter = vfDistanceParams.w;
 
+#if %_RT_VOLUMETRIC_FOG
 	params.globalProbeColor0 = vfGlobalEnvProbeParams0.xyz;
 	params.globalProbeAttenuation0 = vfGlobalEnvProbeParams0.w;
 
 	params.globalProbeColor1 = vfGlobalEnvProbeParams1.xyz;
 	params.globalProbeAttenuation1 = vfGlobalEnvProbeParams1.w;
+#endif
 
 	params.timeParams = vfTimeParams;
 #else
@@ -841,11 +845,13 @@ SVolumetricFogParams GetVolumetricFogParams()
 	params.farDistCenterLeft = vc.vfDistanceParams.z;
 	params.farDistCenter = vc.vfDistanceParams.w;
 
+#if %_RT_VOLUMETRIC_FOG
 	params.globalProbeColor0 = vc.vfGlobalEnvProbeParams0.xyz;
 	params.globalProbeAttenuation0 = vc.vfGlobalEnvProbeParams0.w;
 
 	params.globalProbeColor1 = vc.vfGlobalEnvProbeParams1.xyz;
 	params.globalProbeAttenuation1 = vc.vfGlobalEnvProbeParams1.w;
+#endif
 
 	params.timeParams = vc.vfTimeParams;
 #endif

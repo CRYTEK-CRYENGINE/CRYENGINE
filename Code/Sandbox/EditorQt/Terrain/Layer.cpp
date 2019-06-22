@@ -412,7 +412,7 @@ void CLayer::Serialize(Serialization::IArchive& ar)
 
 		// Limit the slope values from 0.0 to slightly less than 90. We later calculate the slope as
 		// tan(angle) and tan(90) will result in disaster
-		const float slopeLimitDeg = 90.f - 0.01;
+		const float slopeLimitDeg = 90.f - 0.01f;
 		ar(yasli::Range(minAngle, 0.0f, slopeLimitDeg), "minangle", "Angle (min)");
 		ar(yasli::Range(maxAngle, 0.0f, slopeLimitDeg), "maxangle", "Angle (max)");
 

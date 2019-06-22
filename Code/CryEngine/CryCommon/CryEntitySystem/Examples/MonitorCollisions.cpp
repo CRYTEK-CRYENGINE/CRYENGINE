@@ -29,16 +29,41 @@ public:
 
 			// Get the contact point (in world coordinates) of the two entities
 			const Vec3& contactPoint = pPhysCollision->pt;
+
+			if (!contactPoint.IsZero())
+			{
+			}
+
 			// Get the collision normal vector
 			const Vec3& contactNormal = pPhysCollision->n;
 
+			if (!contactNormal.IsZero())
+			{
+			}
+
 			// Get properties for our entity, starting with the local velocity of our entity at the contact point
 			const Vec3& relativeContactVelocity = pPhysCollision->vloc[thisEntityIndex];
+
+			if (!relativeContactVelocity.IsZero())
+			{
+			}
+
 			// Get the mass of our entity
 			const float contactMass = pPhysCollision->mass[thisEntityIndex];
+
+			if (contactMass > 0.0f)
+			{
+			}
+
 			// Get the identifier of the part of our entity that collided
 			// This is the same identifier that is added with IPhysicalEntity::AddGeometry
 			const int contactPartId = pPhysCollision->partid[thisEntityIndex];
+
+			if (contactPartId)
+			{
+				// Do something here!
+			}
+
 			// Get the surface on our entity that collided
 			const int contactSurfaceId = pPhysCollision->idmat[thisEntityIndex];
 			// Get the ISurfaceType representation of the surface that collided

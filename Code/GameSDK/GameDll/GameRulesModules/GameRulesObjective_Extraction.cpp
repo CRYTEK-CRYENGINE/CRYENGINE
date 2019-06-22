@@ -39,6 +39,7 @@
 #include "Weapon.h"
 #include "PlayerVisTable.h"
 #include "GameCVars.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 //#include "CryFixedString.h"
 

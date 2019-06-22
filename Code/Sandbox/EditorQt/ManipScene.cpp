@@ -202,23 +202,30 @@ void CScene::OnViewportRender(const SRenderContext& rc)
 
 	bool hasSelection = !m_selection.IsEmpty();
 
-	if (m_showGizmo && hasSelection)
+	if (m_showGizmo && hasSelection && m_axisHelper.get())
 	{
 		SAuxGeomRenderFlags prevFlags = IRenderAuxGeom::GetAux()->GetRenderFlags();
 		IRenderAuxGeom::GetAux()->SetRenderFlags(e_Mode3D | e_AlphaBlended | e_FillModeSolid | e_CullModeBack | e_DepthTestOn | e_DepthWriteOn);
 
+		switch (m_transformationMode)
+		{
+		case MODE_TRANSLATE:
+			m_axisHelper->SetMode(CAxisHelper::MOVE_FLAG);
+			break;
+		case MODE_ROTATE:
+			m_axisHelper->SetMode(CAxisHelper::ROTATE_FLAG);
+			break;
+		case MODE_SCALE:
+			m_axisHelper->SetMode(CAxisHelper::SCALE_FLAG);
+			break;
+		}
+
+		const float gizmoSize = 1.0f;
 		Matrix34 m = Matrix34(GetGizmoOrientation(GetSelectionTransform(SPACE_WORLD), rc.viewport->Camera(), m_transformationSpace));
 		SDisplayContext dc;
 		CDisplayViewportAdapter view(rc.viewport);
 		dc.SetView(&view);
-
-		SGizmoPreferences gizmoParameters;
-		gizmoParameters.axisGizmoSize = 0.2f;
-
-		if (m_axisHelper.get())
-		{
-			m_axisHelper->DrawAxis(m, dc);
-		}
+		m_axisHelper->DrawAxis(m, dc, gizmoSize);
 
 		IRenderAuxGeom::GetAux()->SetRenderFlags(prevFlags);
 	}
@@ -1369,12 +1376,9 @@ QuatT CScene::GetSelectionTransform(ETransformationSpace space) const
 			r.SetTranslation(r.t / float(selectedElements.size()));
 		}
 
-		if (!_finite(r.t.x) ||
-		    !_finite(r.t.y) ||
-		    !_finite(r.t.z))
+		
+		if (!CRY_VERIFY(_finite(r.t.x) && _finite(r.t.y) && _finite(r.t.z)))
 		{
-			if (::IsDebuggerPresent())
-				__debugbreak();
 			r.SetIdentity();
 		}
 		return r;

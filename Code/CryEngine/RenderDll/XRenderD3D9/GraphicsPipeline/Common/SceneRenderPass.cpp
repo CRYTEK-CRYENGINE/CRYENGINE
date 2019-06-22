@@ -5,6 +5,7 @@
 
 #include "Common/RenderView.h"
 #include "Common/ReverseDepth.h"
+#include "Common/Textures/TextureHelpers.h"
 #include "CompiledRenderObject.h"
 #include "GraphicsPipelineStage.h"
 
@@ -13,6 +14,9 @@
 #include <vector>
 
 int CSceneRenderPass::s_recursionCounter = 0;
+CDeviceResourceSetDesc* CSceneRenderPass::s_pDefaultMaterialBindPoints = nullptr;
+CDeviceResourceSetDesc* CSceneRenderPass::s_pDefaultDrawExtraRL = nullptr;
+CDeviceResourceSetPtr   CSceneRenderPass::s_pDefaultDrawExtraRS = nullptr;
 
 CSceneRenderPass::CSceneRenderPass()
 	: m_renderPassDesc()
@@ -21,6 +25,153 @@ CSceneRenderPass::CSceneRenderPass()
 	m_numRenderItemGroups = 0;
 
 	SetLabel("SCENE_PASS");
+}
+
+void CSceneRenderPass::Initialize()
+{
+	if (!s_pDefaultMaterialBindPoints)
+	{
+		s_pDefaultMaterialBindPoints = new CDeviceResourceSetDesc();
+
+		// default material bind points
+		{
+			s_pDefaultMaterialBindPoints->SetConstantBuffer(eConstantBufferShaderSlot_PerMaterial, CDeviceBufferManager::GetNullConstantBuffer(), EShaderStage_AllWithoutCompute);
+
+			for (EEfResTextures texType = EFTT_DIFFUSE; texType < EFTT_MAX; texType = EEfResTextures(texType + 1))
+			{
+				if (TextureHelpers::IsSlotAvailable(texType))
+				{
+					EShaderStage shaderStages = TextureHelpers::GetShaderStagesForTexSlot(texType);
+					s_pDefaultMaterialBindPoints->SetTexture(texType, CRendererResources::s_pTexNULL, EDefaultResourceViews::Default, shaderStages);
+				}
+			}
+		}
+	}
+
+	// default extra per instance
+	if (!s_pDefaultDrawExtraRL)
+	{
+		s_pDefaultDrawExtraRL = new CDeviceResourceSetDesc();
+
+		s_pDefaultDrawExtraRL->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuat, CDeviceBufferManager::GetNullConstantBuffer(), EShaderStage_Vertex);
+		s_pDefaultDrawExtraRL->SetConstantBuffer(eConstantBufferShaderSlot_SkinQuatPrev, CDeviceBufferManager::GetNullConstantBuffer(), EShaderStage_Vertex);
+		s_pDefaultDrawExtraRL->SetConstantBuffer(eConstantBufferShaderSlot_PerGroup, CDeviceBufferManager::GetNullConstantBuffer(), EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Hull);
+
+		// Deliberately aliasing slots/use-cases here for visibility (e.g. EReservedTextureSlot_ComputeSkinVerts, EReservedTextureSlot_SkinExtraWeights and
+		// EReservedTextureSlot_GpuParticleStream). The resource layout will just pick the first.
+		s_pDefaultDrawExtraRL->SetBuffer(EReservedTextureSlot_SkinExtraWeights, CDeviceBufferManager::GetNullBufferStructured(), EDefaultResourceViews::Default, EShaderStage_Vertex);
+		s_pDefaultDrawExtraRL->SetBuffer(EReservedTextureSlot_ComputeSkinVerts, CDeviceBufferManager::GetNullBufferStructured(), EDefaultResourceViews::Default, EShaderStage_Vertex);
+		s_pDefaultDrawExtraRL->SetBuffer(EReservedTextureSlot_GpuParticleStream, CDeviceBufferManager::GetNullBufferStructured(), EDefaultResourceViews::Default, EShaderStage_Vertex);
+		s_pDefaultDrawExtraRL->SetBuffer(EReservedTextureSlot_AdjacencyInfo, CDeviceBufferManager::GetNullBufferTyped(), EDefaultResourceViews::Default, EShaderStage_Domain);
+
+		if (!s_pDefaultDrawExtraRS)
+		{
+			s_pDefaultDrawExtraRS = GetDeviceObjectFactory().CreateResourceSet();
+			s_pDefaultDrawExtraRS->Update(*s_pDefaultDrawExtraRL);
+		}
+	}
+}
+
+void CSceneRenderPass::Shutdown()
+{
+	if (s_pDefaultMaterialBindPoints)
+	{
+		SAFE_DELETE(s_pDefaultMaterialBindPoints);
+	}
+
+	if (s_pDefaultDrawExtraRL)
+	{
+		s_pDefaultDrawExtraRL->ClearResources();
+		SAFE_DELETE(s_pDefaultDrawExtraRL);
+	}
+	
+	if (s_pDefaultDrawExtraRS)
+	{
+		s_pDefaultDrawExtraRS.reset();
+	}	
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CSceneRenderPass::FillCommonScenePassStates(const SGraphicsPipelineStateDescription& inputDesc, CDeviceGraphicsPSODesc& psoDesc, CVrProjectionManager* pVRProjectionManager)
+{
+	CShader* pShader = static_cast<CShader*>(inputDesc.shaderItem.m_pShader);
+	SShaderTechnique* pTechnique = pShader->GetTechnique(inputDesc.shaderItem.m_nTechnique, inputDesc.technique, true);
+	if (!pTechnique)
+		return false;
+
+	CShaderResources* pRes = static_cast<CShaderResources*>(inputDesc.shaderItem.m_pShaderResources);
+	const uint64 objectFlags = inputDesc.objectFlags;
+	SShaderPass* pShaderPass = &pTechnique->m_Passes[0];
+
+	// Handle quality flags
+	CStandardGraphicsPipeline::ApplyShaderQuality(psoDesc, gcpRendD3D->GetShaderProfile(pShader->m_eShaderType));
+
+	psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_REVERSE_DEPTH];
+
+	// Set resource states
+	bool bTwoSided = false;
+
+	if (pRes->m_ResFlags & MTL_FLAG_2SIDED)
+		bTwoSided = true;
+
+	if (pRes->IsAlphaTested())
+		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_ALPHATEST];
+
+	if (pRes->m_Textures[EFTT_DIFFUSE] && pRes->m_Textures[EFTT_DIFFUSE]->m_Ext.m_pTexModifier)
+		psoDesc.m_ShaderFlags_MD |= pRes->m_Textures[EFTT_DIFFUSE]->m_Ext.m_nUpdateFlags;
+
+	// Merge EDeformType into EVertexModifier to save space/parameters
+	if (pRes->m_pDeformInfo)
+		psoDesc.m_ShaderFlags_MDV |= EVertexModifier(pRes->m_pDeformInfo->m_eType);
+
+	psoDesc.m_ShaderFlags_MDV |= psoDesc.m_pShader->m_nMDV;
+
+	if (objectFlags & FOB_OWNER_GEOMETRY)
+		psoDesc.m_ShaderFlags_MDV &= ~MDV_DEPTH_OFFSET;
+
+	if (objectFlags & FOB_BENDED)
+		psoDesc.m_ShaderFlags_MDV |= MDV_BENDING;
+
+	if (!(objectFlags & FOB_TRANS_MASK))
+		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_OBJ_IDENTITY];
+
+	if (objectFlags & FOB_BLEND_WITH_TERRAIN_COLOR)
+		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_BLEND_WITH_TERRAIN_COLOR];
+
+	psoDesc.m_bAllowTesselation = false;
+	psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_NO_TESSELLATION];
+
+	if (objectFlags & FOB_NEAREST)
+		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_NEAREST];
+
+	if (objectFlags & FOB_DISSOLVE)
+		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_DISSOLVE];
+
+	if (psoDesc.m_RenderState & GS_ALPHATEST)
+		psoDesc.m_ShaderFlags_RT |= g_HWSR_MaskBit[HWSR_ALPHATEST];
+
+#ifdef TESSELLATION_RENDERER
+	const bool bHasTesselationShaders = pShaderPass && pShaderPass->m_HShader && pShaderPass->m_DShader;
+	if (bHasTesselationShaders && (!(objectFlags & FOB_NEAREST) && (objectFlags & FOB_ALLOW_TESSELLATION)))
+	{
+		psoDesc.m_ShaderFlags_RT &= ~g_HWSR_MaskBit[HWSR_NO_TESSELLATION];
+		psoDesc.m_bAllowTesselation = true;
+	}
+#endif
+
+	psoDesc.m_CullMode = bTwoSided ? eCULL_None : ((pShaderPass && pShaderPass->m_eCull != -1) ? (ECull)pShaderPass->m_eCull : eCULL_Back);
+	psoDesc.m_PrimitiveType = inputDesc.primitiveType;
+
+	if (psoDesc.m_bAllowTesselation && (psoDesc.m_PrimitiveType < ept1ControlPointPatchList || psoDesc.m_PrimitiveType > ept4ControlPointPatchList))
+	{
+		// Hard-coded primitive type should not be set here, do it only if tessellation primitive type not already set
+		psoDesc.m_PrimitiveType = ept3ControlPointPatchList;
+		psoDesc.m_ObjectStreamMask |= VSM_NORMALS;
+	}
+
+	psoDesc.m_ShaderFlags_RT |= pVRProjectionManager->GetRTFlags();
+
+	return true;
 }
 
 void CSceneRenderPass::SetupDrawContext(uint32 stageID, uint32 stagePassID, EShaderTechniqueID technique, uint32 includeFilter, uint32 excludeFilter)
@@ -54,7 +205,7 @@ void CSceneRenderPass::SetRenderTargets(CTexture* pDepthTarget, CTexture* pColor
 		(!pColorTarget2 || !pColorTarget3 || pColorTarget2->GetWidth() == pColorTarget3->GetWidth()),
 		"Color targets are of different size!");
 	CRY_ASSERT_MESSAGE(
-		(!pDepthTarget  || !pColorTarget0 || pDepthTarget ->GetWidth() >= pColorTarget0->GetWidth()),
+		(!pDepthTarget || !pColorTarget0 || pDepthTarget->GetWidth() >= pColorTarget0->GetWidth()),
 		"Depth target is smaller than the color target(s)!");
 
 	// TODO: refactor, shouldn't need to update the renderpass here but PSOs are compiled before CSceneRenderPass::Prepare is called
@@ -63,8 +214,7 @@ void CSceneRenderPass::SetRenderTargets(CTexture* pDepthTarget, CTexture* pColor
 
 void CSceneRenderPass::SetViewport(const D3DViewPort& viewport)
 {
-	m_viewPort[0] =
-	m_viewPort[1] = viewport;
+	m_viewPort[0] = m_viewPort[1] = viewport;
 
 	if (m_passFlags & CSceneRenderPass::ePassFlags_RenderNearest)
 	{
@@ -91,10 +241,10 @@ void CSceneRenderPass::SetViewport(const SRenderViewport& viewport)
 }
 
 void CSceneRenderPass::SetDepthBias(float constBias, float slopeBias, float biasClamp)
-{ 
-	m_depthConstBias = constBias; 
-	m_depthSlopeBias = slopeBias; 
-	m_depthBiasClamp = biasClamp; 
+{
+	m_depthConstBias = constBias;
+	m_depthSlopeBias = slopeBias;
+	m_depthBiasClamp = biasClamp;
 }
 
 void CSceneRenderPass::ExchangeRenderTarget(uint32 slot, CTexture* pNewColorTarget, ResourceViewHandle hRenderTargetView)
@@ -119,23 +269,21 @@ void CSceneRenderPass::PrepareRenderPassForUse(CDeviceCommandListRef RESTRICT_RE
 
 	if (m_passFlags & ePassFlags_VrProjectionPass)
 	{
-		if (CVrProjectionManager::IsMultiResEnabledStatic())
+		if (gcpRendD3D.GetVrProjectionManager()->IsMultiResEnabledStatic())
 		{
 			// we don't know the bNearest flag here, so just prepare for both cases
-			CVrProjectionManager::Instance()->PrepareProjectionParameters(commandList, GetViewport(false));
-			CVrProjectionManager::Instance()->PrepareProjectionParameters(commandList, GetViewport(true));
+			gcpRendD3D.GetVrProjectionManager()->PrepareProjectionParameters(commandList, GetViewport(false));
+			gcpRendD3D.GetVrProjectionManager()->PrepareProjectionParameters(commandList, GetViewport(true));
 		}
 	}
 }
 
-void CSceneRenderPass::ResolvePass(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const std::vector<TRect_tpl<uint16>>& screenBounds) const
+void CSceneRenderPass::ResolvePass(CGraphicsPipeline& graphicsPipeline, CDeviceCommandListRef RESTRICT_REFERENCE commandList, const std::vector<TRect_tpl<uint16>>& screenBounds) const
 {
-	CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
+	const auto textureWidth = graphicsPipeline.GetPipelineResources().m_pTexHDRTarget->GetWidth();
+	const auto textureHeight = graphicsPipeline.GetPipelineResources().m_pTexHDRTarget->GetHeight();
 
-	const auto textureWidth = CRendererResources::s_ptexHDRTarget->GetWidth();
-	const auto textureHeight = CRendererResources::s_ptexHDRTarget->GetHeight();
-
-	for (const auto &bounds : screenBounds)
+	for (const auto& bounds : screenBounds)
 	{
 		const auto x = bounds.Min.x;
 		const auto y = bounds.Min.y;
@@ -156,14 +304,13 @@ void CSceneRenderPass::ResolvePass(CDeviceCommandListRef RESTRICT_REFERENCE comm
 		};
 
 		if (mapping.Extent.Width && mapping.Extent.Height && mapping.Extent.Depth)
-			commandList.GetCopyInterface()->Copy(CRendererResources::s_ptexHDRTarget->GetDevTexture(), CRendererResources::s_ptexSceneTarget->GetDevTexture(), mapping);
+			commandList.GetCopyInterface()->Copy(graphicsPipeline.GetPipelineResources().m_pTexHDRTarget->GetDevTexture(), graphicsPipeline.GetPipelineResources().m_pTexSceneTarget->GetDevTexture(), mapping);
 	}
 }
 
 void CSceneRenderPass::BeginRenderPass(CDeviceCommandListRef RESTRICT_REFERENCE commandList, bool bNearest) const
 {
 	// Note: Function has to be threadsafe since it can be called from several worker threads
-
 
 	D3D11_VIEWPORT viewport = GetViewport(bNearest);
 	bool bViewportSet = false;
@@ -173,10 +320,10 @@ void CSceneRenderPass::BeginRenderPass(CDeviceCommandListRef RESTRICT_REFERENCE 
 
 	if (m_passFlags & ePassFlags_VrProjectionPass)
 	{
-		bViewportSet = CVrProjectionManager::Instance()->SetRenderingState(commandList, viewport,
-			(m_passFlags & ePassFlags_UseVrProjectionState) != 0, (m_passFlags & ePassFlags_RequireVrProjectionConstants) != 0);
+		bViewportSet = gcpRendD3D.GetVrProjectionManager()->SetRenderingState(commandList, viewport,
+		                                                                      (m_passFlags & ePassFlags_UseVrProjectionState) != 0, (m_passFlags & ePassFlags_RequireVrProjectionConstants) != 0);
 	}
-	
+
 	if (!bViewportSet)
 	{
 		pCommandInterface->SetViewports(1, &viewport);
@@ -204,20 +351,19 @@ void CSceneRenderPass::EndRenderPass(CDeviceCommandListRef RESTRICT_REFERENCE co
 
 	if (m_passFlags & ePassFlags_UseVrProjectionState)
 	{
-		CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
-		CVrProjectionManager::Instance()->RestoreState(commandList);
+		gcpRendD3D.GetVrProjectionManager()->RestoreState(commandList);
 	}
 }
 
-void CSceneRenderPass::BeginExecution()
+void CSceneRenderPass::BeginExecution(CGraphicsPipeline& activeGraphicsPipeline)
 {
 	assert(s_recursionCounter == 0);
 	s_recursionCounter += 1;
-	
+
 	m_numRenderItemGroups = 0;
 
-	if (gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().IsActive())
-		gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().AddPass(this);
+	if (activeGraphicsPipeline.GetRenderPassScheduler().IsActive())
+		activeGraphicsPipeline.GetRenderPassScheduler().AddPass(this);
 }
 
 void CSceneRenderPass::EndExecution()
@@ -225,42 +371,42 @@ void CSceneRenderPass::EndExecution()
 	s_recursionCounter -= 1;
 }
 
-inline void DebugDrawRenderResolve(const std::vector<TRect_tpl<uint16>> &ns, const std::size_t count)
+inline void DebugDrawRenderResolve(const std::vector<TRect_tpl<uint16>>& ns, const std::size_t count)
 {
 	// Color table for debug draw
 	const auto a = 64;
 	ColorB colors[] = {
-		ColorB(255, 0, 0, a)    , // Red
-		ColorB(0, 255, 0, a)    , // Green
-		ColorB(0, 0, 255, a)    , // Blue
-		ColorB(255, 255, 0, a)  , // Yellow
-		ColorB(255, 0, 255, a)  , // Magenta
-		ColorB(0, 255, 255, a)  , // Cyan
-		ColorB(128, 0, 0, a)	,
-		ColorB(0, 128, 0, a)	,
-		ColorB(0, 0, 128, a)	,
-		ColorB(128, 128, 0, a)	,
-		ColorB(128, 0, 128, a)	,
-		ColorB(0, 128, 128, a)	,
+		ColorB(255, 0,   0,   a), // Red
+		ColorB(0,   255, 0,   a), // Green
+		ColorB(0,   0,   255, a), // Blue
+		ColorB(255, 255, 0,   a), // Yellow
+		ColorB(255, 0,   255, a), // Magenta
+		ColorB(0,   255, 255, a), // Cyan
+		ColorB(128, 0,   0,   a),
+		ColorB(0,   128, 0,   a),
+		ColorB(0,   0,   128, a),
+		ColorB(128, 128, 0,   a),
+		ColorB(128, 0,   128, a),
+		ColorB(0,   128, 128, a),
 		ColorB(192, 192, 192, a),
 		ColorB(128, 128, 128, a),
 		ColorB(153, 153, 255, a),
-		ColorB(153, 51, 102, a)	,
+		ColorB(153, 51,  102, a),
 		ColorB(255, 255, 204, a),
 		ColorB(204, 255, 255, a),
-		ColorB(102, 0, 102, a)	,
+		ColorB(102, 0,   102, a),
 		ColorB(255, 128, 128, a),
-		ColorB(0, 102, 204, a)	,
+		ColorB(0,   102, 204, a),
 		ColorB(204, 204, 255, a),
-		ColorB(0, 0, 128, a)	,
-		ColorB(255, 0, 255, a)	,
-		ColorB(255, 255, 0, a)	,
-		ColorB(0, 255, 255, a)	,
-		ColorB(128, 0, 128, a)	,
-		ColorB(128, 0, 0, a)	,
-		ColorB(0, 128, 128, a)	,
-		ColorB(0, 0, 255, a)	,
-		ColorB(0, 204, 255, a)	,
+		ColorB(0,   0,   128, a),
+		ColorB(255, 0,   255, a),
+		ColorB(255, 255, 0,   a),
+		ColorB(0,   255, 255, a),
+		ColorB(128, 0,   128, a),
+		ColorB(128, 0,   0,   a),
+		ColorB(0,   128, 128, a),
+		ColorB(0,   0,   255, a),
+		ColorB(0,   204, 255, a),
 		ColorB(204, 255, 255, a),
 		ColorB(204, 255, 204, a),
 		ColorB(255, 255, 153, a),
@@ -268,25 +414,24 @@ inline void DebugDrawRenderResolve(const std::vector<TRect_tpl<uint16>> &ns, con
 		ColorB(255, 153, 204, a),
 		ColorB(204, 153, 255, a),
 		ColorB(255, 204, 153, a),
-		ColorB(51, 102, 255, a)	,
-		ColorB(51, 204, 204, a)	,
-		ColorB(153, 204, 0, a)	,
-		ColorB(255, 204, 0, a)	,
-		ColorB(255, 153, 0, a)	,
-		ColorB(255, 102, 0, a)	,
+		ColorB(51,  102, 255, a),
+		ColorB(51,  204, 204, a),
+		ColorB(153, 204, 0,   a),
+		ColorB(255, 204, 0,   a),
+		ColorB(255, 153, 0,   a),
+		ColorB(255, 102, 0,   a),
 		ColorB(102, 102, 153, a),
 		ColorB(150, 150, 150, a),
-		ColorB(0, 51, 102, a)	,
-		ColorB(51, 153, 102, a)	,
-		ColorB(0, 51, 0, a)		,
-		ColorB(51, 51, 0, a)	,
-		ColorB(153, 51, 0, a)	,
-		ColorB(153, 51, 102, a)	,
-		ColorB(51, 51, 153, a)	,
-		ColorB(51, 51, 51, a)	,
-		ColorB(0, 0, 0, a)		,
-		ColorB(255, 255, 255, a),
-	};
+		ColorB(0,   51,  102, a),
+		ColorB(51,  153, 102, a),
+		ColorB(0,   51,  0,   a),
+		ColorB(51,  51,  0,   a),
+		ColorB(153, 51,  0,   a),
+		ColorB(153, 51,  102, a),
+		ColorB(51,  51,  153, a),
+		ColorB(51,  51,  51,  a),
+		ColorB(0,   0,   0,   a),
+		ColorB(255, 255, 255, a), };
 
 	if (CRendererCVars::CV_r_RefractionPartialResolvesDebug == 2)
 	{
@@ -391,9 +536,9 @@ void CSceneRenderPass::DrawRenderItems(CRenderView* pRenderView, ERenderListID r
 #endif
 #if defined(DO_RENDERSTATS)
 	if (gcpRendD3D->CV_r_stats == 6 || gcpRendD3D->m_pDebugRenderNode || gcpRendD3D->m_bCollectDrawCallsInfoPerNode)
-		passContext.pDrawCallInfoPerNode = gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerNode();
+		passContext.pDrawCallInfoPerNode = gcpRendD3D->GetDrawCallInfoPerNode();
 	if (gcpRendD3D->m_bCollectDrawCallsInfo)
-		passContext.pDrawCallInfoPerMesh = gcpRendD3D->GetGraphicsPipeline().GetDrawCallInfoPerMesh();
+		passContext.pDrawCallInfoPerMesh = gcpRendD3D->GetDrawCallInfoPerMesh();
 #endif
 
 	passContext.groupLabel = label;
@@ -413,7 +558,7 @@ void CSceneRenderPass::DrawOpaqueRenderItems(SGraphicsPipelinePassContext& passC
 {
 	passContext.rendItems = { listStart, listEnd };
 
-	if (gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().IsActive())
+	if (pRenderView->GetGraphicsPipeline()->GetRenderPassScheduler().IsActive())
 	{
 		m_passContexts.emplace_back(std::move(passContext));
 		return;
@@ -443,7 +588,7 @@ void CSceneRenderPass::DrawTransparentRenderItems(SGraphicsPipelinePassContext& 
 			// Fast static mode
 			// Single fullscreen Resolve the full screen once, before submitting transparent items.
 
-			const auto &vp = pRenderView->GetViewport();
+			const auto& vp = pRenderView->GetViewport();
 
 			SGraphicsPipelinePassContext resolvePass = { GraphicsPipelinePassType::resolve, pRenderView, this };
 			resolvePass.stageID    = passContext.stageID;
@@ -469,7 +614,7 @@ void CSceneRenderPass::DrawTransparentRenderItems(SGraphicsPipelinePassContext& 
 			const auto& segments = static_cast<const CRenderView*>(pRenderView)->GetTransparentSegments(renderList);
 
 			std::size_t count = 0;
-			for (const auto &s : segments)
+			for (const auto& s : segments)
 			{
 				if (s.rendItems.IsEmpty())
 					continue;
@@ -500,7 +645,7 @@ void CSceneRenderPass::DrawTransparentRenderItems(SGraphicsPipelinePassContext& 
 		}
 	}
 
-	if (gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().IsActive())
+	if (pRenderView->GetGraphicsPipeline()->GetRenderPassScheduler().IsActive())
 	{
 		m_passContexts.reserve(m_passContexts.size() + passes.size());
 		std::copy(passes.begin(), passes.end(), std::back_inserter(m_passContexts));
@@ -510,7 +655,7 @@ void CSceneRenderPass::DrawTransparentRenderItems(SGraphicsPipelinePassContext& 
 
 	if (!CRenderer::CV_r_NoDraw)
 	{
-		for (const auto &pass : passes)
+		for (const auto& pass : passes)
 			pRenderView->DrawCompiledRenderItems(pass);
 	}
 }

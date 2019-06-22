@@ -61,7 +61,15 @@ namespace Cry
 
 			CUserLobby* CMatchmaking::GetLobbyById(const LobbyIdentifier& id)
 			{
-				return TryGetLobby(id);
+				for (const std::unique_ptr<CUserLobby>& pLobby : m_lobbies)
+				{
+					if (pLobby->GetIdentifier() == id)
+					{
+						return pLobby.get();
+					}
+				}
+
+				return nullptr;
 			}
 
 			void CMatchmaking::QueryLobbies()

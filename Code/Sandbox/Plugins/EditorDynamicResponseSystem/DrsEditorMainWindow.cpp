@@ -14,7 +14,7 @@
 #include <Util/EditorUtils.h>
 #include <EditorFramework/Events.h>
 
-#include "Serialization/QPropertyTree/QPropertyTree.h"
+#include "Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h"
 #include "DrsResponseEditorWindow.h"
 #include "DialogLinesEditorWidget.h"
 #include "DrsSpokenLinesWindow.h"
@@ -129,8 +129,8 @@ void CDrsVariableChangesSerializer::Serialize(Serialization::IArchive& ar)
 //--------------------------------------------------------------------------------------------------
 CDrsSerializerBase::CDrsSerializerBase()
 {
-	m_pPropertyTree = new QPropertyTree();
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	m_pPropertyTree = new QPropertyTreeLegacy();
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	m_pPropertyTree->setTreeStyle(treeStyle);
 	m_pPropertyTree->setUndoEnabled(true);

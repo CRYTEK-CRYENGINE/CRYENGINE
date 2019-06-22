@@ -50,10 +50,11 @@ void CVisArea::Update(const Vec3* pPoints, int nCount, const char* szName, const
 	m_bIgnoreOutdoorAO = info.bIgnoreOutdoorAO;
 	m_fPortalBlending = info.fPortalBlending;
 
-	m_lstShapePoints.PreAllocate(nCount, nCount);
-
-	if (nCount)
-		memcpy(&m_lstShapePoints[0], pPoints, sizeof(Vec3) * nCount);
+	if (nCount > 0)
+	{
+		m_lstShapePoints.PreAllocate(nCount, nCount);
+		memcpy(&m_lstShapePoints.front(), pPoints, sizeof(Vec3) * nCount);
+	}
 
 	// update bbox
 	m_boxArea.max = SetMinBB();
@@ -1209,8 +1210,6 @@ IVisArea* CVisAreaManager::GetVisAreaFromPos(const Vec3& vPos) const
 {
 	FUNCTION_PROFILER_3DENGINE;
 
-	CRY_ASSERT(m_pAABBTree);
-
 	return m_pAABBTree ? m_pAABBTree->FindVisarea(vPos) : nullptr;
 }
 
@@ -1463,7 +1462,7 @@ bool CVisAreaManager::SetEntityArea(IRenderNode* pEnt, const AABB& objBox, const
 		}
 	}
 
-	if (!pVisArea && pEnt->m_dwRndFlags & ERF_REGISTER_BY_BBOX)
+	if (!pVisArea && pEnt->GetRndFlags() & ERF_REGISTER_BY_BBOX)
 	{
 		const AABB aabb = pEnt->GetBBox();
 

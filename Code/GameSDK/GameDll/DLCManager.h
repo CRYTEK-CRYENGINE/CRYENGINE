@@ -73,16 +73,16 @@ class CCheckPurchaseHistoryTask;
 struct DLCContents
 {
 	DLCContents(): bonusID( 0 ), uniqueID( 0 )	{ name [0 ] = '\0';  }
-	std::vector<string>										levels;
-	uint32																bonusID;	//0 indicates no bonuses/pre-sale promotions included
-	wchar_t																name[ MAX_DLC_NAME ];
-	CryFixedStringT<MAX_ROOT_LENGTH>			root;
-	CryFixedStringT<ICryPak::g_nMaxPath>	scoreRewardsPath;
-	CryFixedStringT<ICryPak::g_nMaxPath>	playlistsPath;
-	CryFixedStringT<MAX_TAG_LENGTH>				uniqueTag;
-	CryFixedStringT<MAX_DESC_LENGTH>			descriptionStr;
-	uint32																uniqueID;
-	uint32																messageID;
+	std::vector<string>              levels;
+	uint32                           bonusID; //0 indicates no bonuses/pre-sale promotions included
+	wchar_t                          name[ MAX_DLC_NAME ];
+	CryFixedStringT<MAX_ROOT_LENGTH> root;
+	CryPathString	                 scoreRewardsPath;
+	CryPathString	                 playlistsPath;
+	CryFixedStringT<MAX_TAG_LENGTH>  uniqueTag;
+	CryFixedStringT<MAX_DESC_LENGTH> descriptionStr;
+	uint32                           uniqueID;
+	uint32                           messageID;
 };
 
 class CDLCManager : IPlatformOS::IDLCListener, IPlatformOS::IPlatformListener, IGameWarningsListener

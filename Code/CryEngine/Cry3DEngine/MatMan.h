@@ -1,23 +1,9 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   MatMan.h
-//  Version:     v1.00
-//  Created:     23/8/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __MatMan_h__
-#define __MatMan_h__
 #pragma once
 
 #include "Cry3DEngineBase.h"
 #include "SurfaceTypeManager.h"
-#include <CryThreading/CryThreadSafeRendererContainer.h>
 #include "MaterialHelpers.h"
 
 #define MATERIAL_DELETION_DELAY 3 // Number of frames delay + 1
@@ -47,7 +33,7 @@ public:
 	virtual IMaterial* FindMaterial(const char* sMtlName) const;
 	virtual IMaterial* LoadMaterial(const char* sMtlName, bool bMakeIfNotFound = true, bool bNonremovable = false, unsigned long nLoadingFlags = 0);
 	virtual IMaterial* LoadMaterialFromXml(const char* sMtlName, XmlNodeRef mtlNode);
-	virtual void       SetListener(IMaterialManagerListener* pListener) { m_pListener = pListener; };
+	virtual void       SetListener(IMaterialManagerListener* pListener) { m_pListener = pListener; }
 	virtual IMaterial* GetDefaultMaterial();
 	virtual IMaterial* GetDefaultTerrainLayerMaterial()
 	{
@@ -122,20 +108,20 @@ private:
 
 	CryCriticalSection                m_AccessLock;
 
-	MtlNameMap                        m_mtlNameMap;                   //
+	MtlNameMap                        m_mtlNameMap;
 
-	IMaterialManagerListener*         m_pListener;                    //
-	_smart_ptr<CMatInfo>              m_pDefaultMtl;                  //
-	_smart_ptr<IMaterial>             m_pDefaultLayersMtl;            //
-	_smart_ptr<CMatInfo>              m_pDefaultTerrainLayersMtl;     //
-	_smart_ptr<CMatInfo>              m_pNoDrawMtl;                   //
+	IMaterialManagerListener*         m_pListener;
+	_smart_ptr<CMatInfo>              m_pDefaultMtl;
+	_smart_ptr<IMaterial>             m_pDefaultLayersMtl;
+	_smart_ptr<CMatInfo>              m_pDefaultTerrainLayersMtl;
+	_smart_ptr<CMatInfo>              m_pNoDrawMtl;
 	_smart_ptr<CMatInfo>              m_pDefaultHelperMtl;
 
-	std::vector<_smart_ptr<CMatInfo>> m_nonRemovables;                //
+	std::vector<_smart_ptr<CMatInfo>> m_nonRemovables;
 
 	std::vector<CMatInfo*>            m_DelayedDeletionMtls[MATERIAL_DELETION_DELAY];
 
-	CSurfaceTypeManager*              m_pSurfaceTypeManager;          //
+	CSurfaceTypeManager*              m_pSurfaceTypeManager;
 
 	string                            m_altSuffix;
 
@@ -149,8 +135,6 @@ private:
 
 public:
 	// Global namespace "instance", not a class "instance", no member-variables, only const functions;
-	// Used to encapsulate the material-definition/io into Cry3DEngine (and make it plugable that way).
+	// Used to encapsulate the material-definition/io into Cry3DEngine (and make it pluggable that way).
 	static MaterialHelpers s_materialHelpers;
 };
-
-#endif // __MatMan_h__

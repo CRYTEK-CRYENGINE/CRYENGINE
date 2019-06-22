@@ -46,7 +46,7 @@ public:
 
 	// gets initialized the first time it is called and will allocate buffers
 	// (so make sure its only called from the render thread)
-	gpu::CBitonicSort* GetBitonicSort();
+	gpu::CBitonicSort* GetBitonicSort(CGraphicsPipeline* pGraphicsPipeline);
 
 	// this needs to be called from the render thread when the renderer
 	// is teared down to make sure the runtimes are not still persistent when the

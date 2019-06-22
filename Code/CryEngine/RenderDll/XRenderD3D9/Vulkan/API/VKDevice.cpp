@@ -6,8 +6,9 @@
 
 namespace NCryVulkan
 {
-
+#ifndef _RELEASE
 static int g_cvar_vk_heap_summary;
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -27,7 +28,7 @@ _smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAl
 		QueueInfo.queueFamilyIndex = i;
 		QueueInfo.queueCount = pDeviceInfo->queueFamilyProperties[i].queueCount;
 		QueueInfo.pQueuePriorities = queuePriorities.data();
-		VK_ASSERT(QueueInfo.queueCount <= 64);
+		VK_ASSERT(QueueInfo.queueCount <= 64, "");
 
 		queueRequests.push_back(QueueInfo);
 	}
@@ -68,9 +69,8 @@ _smart_ptr<CDevice> CDevice::Create(const SPhysicalDeviceInfo* pDeviceInfo, VkAl
 
 //---------------------------------------------------------------------------------------------------------------------
 CDevice::CDevice(const SPhysicalDeviceInfo* pDeviceInfo, VkAllocationCallbacks* hostAllocator, VkDevice Device)
-	: m_pDeviceInfo(pDeviceInfo)
-	, m_Allocator(*hostAllocator)
-	, m_device(Device)
+	: CDeviceHolder(Device, hostAllocator)
+	, m_pDeviceInfo(pDeviceInfo)
 	, m_pipelineCache(VK_NULL_HANDLE)
 	// Must be constructed last as it relies on functionality from the heaps
 	, m_Scheduler(this)
@@ -143,11 +143,6 @@ CDevice::~CDevice()
 	for (uint32_t i = 0; i < kDeferTicks; ++i)
 	{
 		TickDestruction();
-	}
-
-	if (m_device != VK_NULL_HANDLE)
-	{
-		vkDestroyDevice(m_device, &m_Allocator);
 	}
 }
 
@@ -458,7 +453,7 @@ VkResult CDevice::CreateOrReuseCommittedResource(EHeapType HeapHint, const VkCre
 			{
 				// Guaranteed O(1) lookup
 				(*ppOutputResource = result->second.front().pObject)->AddRef();
-				VK_ASSERT(result->second.front().pObject->IsUniquelyOwned() && "Ref-Counter of VK resource is not 1, implementation will crash!");
+				VK_ASSERT(result->second.front().pObject->IsUniquelyOwned(), "Ref-Counter of VK resource is not 1, implementation will crash!");
 				ClearDebugName(result->second.front().pObject);
 
 				result->second.pop_front();
@@ -529,7 +524,7 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				else
 				{
 				//	it->first->Release();
-					VK_ASSERT(it->first->IsDeletable() && "Ref-Counter of VK resource is not 0, implementation will crash!");
+					VK_ASSERT(it->first->IsDeletable(), "Ref-Counter of VK resource is not 0, implementation will crash!");
 					delete it->first;
 				}
 
@@ -553,7 +548,7 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 			       ((it->second.back().fenceValues[CMDQUEUE_COPY    ]) <= pruneFenceValues[CMDQUEUE_COPY    ])*/)
 			{
 			//	ULONG counter = it->second.back().pObject->Release();
-				VK_ASSERT(it->second.back().pObject->IsDeletable() && "Ref-Counter of VK resource is not 0, implementation will crash!");
+				VK_ASSERT(it->second.back().pObject->IsDeletable(), "Ref-Counter of VK resource is not 0, implementation will crash!");
 				delete it->second.back().pObject;
 
 				it->second.pop_back();
@@ -632,7 +627,7 @@ void CDevice::ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], CResource*
 		releaseInfo.fenceValues[CMDQUEUE_COMPUTE] = fenceValues[CMDQUEUE_COMPUTE];
 		releaseInfo.fenceValues[CMDQUEUE_COPY] = fenceValues[CMDQUEUE_COPY];
 
-		std::pair<typename TReleaseHeap<CResource>::iterator, bool> result = ReleaseHeap.emplace(pObject, std::move(releaseInfo));
+		ReleaseHeap.emplace(pObject, std::move(releaseInfo));
 	}
 
 #if 0	// NOTE: Use the code-fragment to detect resources without names

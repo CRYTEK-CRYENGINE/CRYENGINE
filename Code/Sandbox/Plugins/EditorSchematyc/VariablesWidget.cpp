@@ -9,7 +9,7 @@
 
 #include <QtUtil.h>
 #include <QSearchBox.h>
-#include <QAdvancedPropertyTree.h>
+#include <QAdvancedPropertyTreeLegacy.h>
 #include <QCollapsibleFrame.h>
 #include <ProxyModels/DeepFilterProxyModel.h>
 #include <Controls/QPopupWidget.h>

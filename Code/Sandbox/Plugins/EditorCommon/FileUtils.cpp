@@ -113,6 +113,11 @@ bool Remove(const char* szPath)
 
 bool MoveFileAllowOverwrite(const char* szOldFilePath, const char* szNewFilePath)
 {
+	if (QFileInfo::exists(szNewFilePath) && QFileInfo(szOldFilePath) == QFileInfo(szNewFilePath))
+	{
+		return true;
+	}
+
 	if (QFile::rename(szOldFilePath, szNewFilePath))
 	{
 		return true;
@@ -124,6 +129,16 @@ bool MoveFileAllowOverwrite(const char* szOldFilePath, const char* szNewFilePath
 
 bool CopyFileAllowOverwrite(const char* szSourceFilePath, const char* szDestinationFilePath)
 {
+	if (QFileInfo::exists(szDestinationFilePath) && QFileInfo(szSourceFilePath) == QFileInfo(szDestinationFilePath))
+	{
+		return true;
+	}
+
+	if (Pak::CompareFiles(szSourceFilePath, szDestinationFilePath))
+	{
+		return true; // Files are identical and copy operation is considered to be successful.
+	}
+
 	GetISystem()->GetIPak()->MakeDir(PathUtil::GetDirectory(szDestinationFilePath));
 
 	if (QFile::copy(szSourceFilePath, szDestinationFilePath))
@@ -316,7 +331,7 @@ void Pak::Unpak(const char* szArchivePath, const char* szDestPath, std::function
 				}
 
 				ICryPak* const pPak = GetISystem()->GetIPak();
-				FILE* file = pPak->FOpen(PathUtil::Make(pakFolder, path), "rbx");
+				FILE* file = pPak->FOpen(PathUtil::Make(pakFolder, path), "rb");
 				if (!file)
 				{
 				  return;
@@ -449,7 +464,7 @@ EDITOR_COMMON_API void BackupFile(const char* szFilePath)
 EDITOR_COMMON_API bool Pak::CopyFileAllowOverwrite(const char* szSourceFilePath, const char* szDestinationFilePath)
 {
 	ICryPak* const pPak = GetISystem()->GetIPak();
-	FILE* pFile = pPak->FOpen(szSourceFilePath, "rbx");
+	FILE* pFile = pPak->FOpen(szSourceFilePath, "rb");
 	if (!pFile)
 	{
 		return false;
@@ -463,12 +478,12 @@ EDITOR_COMMON_API bool Pak::CopyFileAllowOverwrite(const char* szSourceFilePath,
 		return false;
 	}
 
-	char szAdjustedPath[ICryPak::g_nMaxPath];
+	CryPathString szAdjustedPath;
 	pPak->AdjustFileName(szDestinationFilePath, szAdjustedPath, ICryPak::FLAGS_FOR_WRITING);
 
 	GetISystem()->GetIPak()->MakeDir(PathUtil::GetDirectory(szAdjustedPath));
 
-	QFile destFile(QtUtil::ToQString(szAdjustedPath));
+	QFile destFile(QtUtil::ToQString(szAdjustedPath.c_str()));
 	if (!destFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
 	{
 		return false;

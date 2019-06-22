@@ -137,6 +137,7 @@ public:
 	void                            Update(float normalizedTime);
 
 	void                            Serialize(Serialization::IArchive& ar);
+	void                            ReadVariablesFromXML(Serialization::IArchive& ar, CTimeOfDayVariables& variables, const bool bConvertLegacyVersion);
 
 	static const float              GetAnimTimeSecondsIn24h();
 

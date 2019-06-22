@@ -27,8 +27,6 @@ void CDeferredRenderUtils::CreateUnitFrustumMesh(int tessx, int tessy, t_arrDefe
 	float szx = 1.0f;
 	float szy = 1.0f;
 
-	float hsizex = szx / 2;
-	float hsizey = szy / 2;
 	float deltax = szx / (tessx - 1.0f);
 	float deltay = szy / (tessy - 1.0f);
 
@@ -139,7 +137,7 @@ void CDeferredRenderUtils::CreateUnitFrustumMeshTransformed(SRenderLight* pLight
 		else
 		{
 			//calc one of cubemap's frustums
-			Matrix33 mRot = (Matrix33(pLight->m_ObjMatrix));
+			//Matrix33 mRot = (Matrix33(pLight->m_ObjMatrix));
 			//rotation for shadow frustums is disabled
 			CShadowUtils::GetCubemapFrustum(FTYP_OMNILIGHTVOLUME, pFrustum, nAxis, &mProjection, &mView /*, &mRot*/);
 		}
@@ -160,8 +158,6 @@ void CDeferredRenderUtils::CreateUnitFrustumMeshTransformed(SRenderLight* pLight
 	float szx = 1.0f;
 	float szy = 1.0f;
 
-	float hsizex = szx / 2;
-	float hsizey = szy / 2;
 	float deltax = szx / (tessx - 1);
 	float deltay = szy / (tessy - 1);
 

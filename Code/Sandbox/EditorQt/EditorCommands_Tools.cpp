@@ -73,8 +73,8 @@ void FastRotateZ()
 void SetFastRotateAngle()
 {
 	QNumericBoxDialog dlg(QObject::tr("Angle"), s_fastRotateAngle);
-	dlg.SetRange(-359.99, 359.99);
-	dlg.SetStep(5);
+	dlg.SetRange(-359.99f, 359.99f);
+	dlg.SetStep(5.0f);
 
 	if (dlg.exec() == QDialog::Accepted)
 	{

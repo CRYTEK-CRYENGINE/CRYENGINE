@@ -1,4 +1,5 @@
-set(ANDROID 1)
+include ("${CMAKE_CURRENT_LIST_DIR}/../../CrossPlatformSetup.cmake")
+set(ANDROID TRUE)
 
 # CMake-required settings
 set(CMAKE_SYSTEM_NAME "Android")

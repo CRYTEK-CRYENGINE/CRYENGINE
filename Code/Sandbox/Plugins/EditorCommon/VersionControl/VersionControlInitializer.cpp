@@ -3,15 +3,13 @@
 #include "VersionControlInitializer.h"
 #include "VersionControl.h"
 #include "VersionControlPathUtils.h"
+#include "VersionControlEventHandler.h"
 #include "AssetsVCSStatusProvider.h"
 #include "AssetFilesProvider.h"
 #include "DeletedWorkFilesStorage.h"
 #include "UI/VersionControlMenuBuilder.h"
 #include "UI/VersionControlUIHelper.h"
-#include "AssetSystem/AssetManager.h"
 #include "AssetSystem/Browser/AssetModel.h"
-#include "AssetSystem/Loader/AssetLoaderHelpers.h"
-#include "AssetSystem/AssetManagerHelpers.h"
 #include "AssetSystem/FileOperationsExecutor.h"
 #include "Notifications/NotificationCenter.h"
 #include "IObjectManager.h"
@@ -252,6 +250,8 @@ public:
 
 		menuBuilder.Activate();
 
+		CVersionControlEventHandler::Activate();
+
 		CDeletedWorkFilesStorage::GetInstance().Load();
 
 		CDeletedWorkFilesStorage::GetInstance().signalSaved.Connect(&OnDeletedWorkFilesStorageSaved, id);
@@ -272,6 +272,8 @@ public:
 		GetIEditor()->GetObjectManager()->GetIObjectLayerManager()->signalLayerSaved.DisconnectById(id);
 
 		RemoveAssetsThunbnailIconProvider();
+
+		CVersionControlEventHandler::Deactivate();
 
 		menuBuilder.Deactivate();
 

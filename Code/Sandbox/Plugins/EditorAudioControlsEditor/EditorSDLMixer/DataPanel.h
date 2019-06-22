@@ -57,7 +57,6 @@ private:
 	CTreeView* const         m_pTreeView;
 	QPushButton* const       m_pImportButton;
 	QFilteringPanel*         m_pFilteringPanel;
-	int const                m_nameColumn;
 };
 } // namespace SDLMixer
 } // namespace Impl

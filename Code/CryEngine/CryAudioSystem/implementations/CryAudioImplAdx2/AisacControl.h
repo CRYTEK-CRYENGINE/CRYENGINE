@@ -6,6 +6,8 @@
 #include <PoolObject.h>
 #include <CryAudio/IAudioInterfacesCommonData.h>
 
+#include <cri_atom_ex.h>
+
 namespace CryAudio
 {
 namespace Impl
@@ -22,11 +24,27 @@ public:
 	CAisacControl& operator=(CAisacControl const&) = delete;
 	CAisacControl& operator=(CAisacControl&&) = delete;
 
-	explicit CAisacControl(char const* const szName, float const multiplier, float const shift)
-		: m_name(szName)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
+	explicit CAisacControl(
+		CriAtomExAisacControlId const id,
+		float const multiplier,
+		float const shift,
+		char const* const szName)
+		: m_id(id)
+		, m_multiplier(multiplier)
+		, m_shift(shift)
+		, m_name(szName)
+	{}
+#else
+	explicit CAisacControl(
+		CriAtomExAisacControlId const id,
+		float const multiplier,
+		float const shift)
+		: m_id(id)
 		, m_multiplier(multiplier)
 		, m_shift(shift)
 	{}
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 	virtual ~CAisacControl() override = default;
 
@@ -37,9 +55,13 @@ public:
 
 private:
 
+	CriAtomExAisacControlId const m_id;
+	float const                   m_multiplier;
+	float const                   m_shift;
+
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-	float const m_multiplier;
-	float const m_shift;
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 };
 } // namespace Adx2
 } // namespace Impl

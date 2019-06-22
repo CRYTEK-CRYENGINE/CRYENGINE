@@ -61,7 +61,7 @@ private:
 	private:
 		void UpdateDuration(const float duration)
 		{
-			expiringTime = GetAISystem()->GetFrameStartTime() + (duration ? CTimeValue(duration) : CTimeValue(gAIEnv.CVars.BubblesSystemDecayTime));
+			expiringTime = GetAISystem()->GetFrameStartTime() + (duration ? CTimeValue(duration) : CTimeValue(gAIEnv.CVars.legacyBubblesSystem.BubblesSystemDecayTime));
 		}
 
 		uint32           messageNameId;

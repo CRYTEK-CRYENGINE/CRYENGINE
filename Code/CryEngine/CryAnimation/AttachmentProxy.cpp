@@ -533,7 +533,7 @@ Vec3 CProxy::ShortarcRotationalProjection(const Vec3& ipos, const Vec3& idir, f3
 			if ((rminX > ca && rmaxX > ca) || (rminX < -ca && rmaxX < -ca))
 				return rpos - rdir * sl;
 			f32 dx = fabs(rdir.x), dy = fabs(idy), dz = idz * rz;
-			f32 x = minX * 0.2f + maxX * 0.8f, y, z, clm[5] = { 0.97, 0.99, 1.0, 1.0, 1.0 }, dot = 9;
+			f32 x = minX * 0.2f + maxX * 0.8f, y, z, clm[5] = { 0.97f, 0.99f, 1.0f, 1.0f, 1.0f }, dot = 9.0f;
 			for (i = 0; dot > 0 && i < 5; ++i)
 			{
 				f32 y = C - A * x * x, iz = isqrt_tpl(rr - y * y), iz3 = iz * iz * iz * 0.25f;
@@ -547,7 +547,7 @@ Vec3 CProxy::ShortarcRotationalProjection(const Vec3& ipos, const Vec3& idir, f3
 			maxX = x;
 			if (dot > 0)
 				return rpos - rdir * sl;
-			const f32 clx[10] = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.995, 0.980 };
+			const f32 clx[10] = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.995f, 0.980f };
 			f32 d = 9, j, iz, yiz, e0 = 2 * A * dy, e1 = 2 * A * dz * rz, e3 = 4 * A * A * dz * rz;
 			for (i = 9, x = (minX + maxX) * 0.5f; fabs(d) > eps && i; x = clamp_tpl(x + d, minX, minX + (maxX - minX) * clx[i]), --i)
 				y = C - A * x * x, iz = isqrt_tpl(rr - y * y), yiz = y * iz, j = (e0 - e1 * yiz) * x - dx, d = j / ((e1 * y - (e3 + e3 * yiz * yiz) * x * x) * iz - e0);

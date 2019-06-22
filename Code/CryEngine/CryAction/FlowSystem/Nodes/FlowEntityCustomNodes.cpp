@@ -222,7 +222,6 @@ public:
 					if (pSkin)
 					{
 						CSKINAttachment* pSkinAttachment = new CSKINAttachment();
-						pSkinAttachment->m_pIAttachmentSkin = pAttachment->GetIAttachmentSkin();
 						pAttachment->AddBinding(pSkinAttachment, pSkin);
 
 						args.slotAttachmentCache[slotId] = pSkinAttachment;

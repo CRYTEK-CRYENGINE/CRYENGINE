@@ -8,27 +8,39 @@ extern int g_nPrintDX11;
 
 #if !_RELEASE
 	#define DX11_ERROR(...) \
-		do { CryLog("DX11 Error: " __VA_ARGS__); } while (0)
+		do { CryLog("DX11 Error: ", __VA_ARGS__); } while (false)
 	#define DX11_ASSERT(cond, ...) \
-		do { if (!(cond)) { DX11_ERROR(__VA_ARGS__); CRY_ASSERT_MESSAGE(0, __VA_ARGS__); } } while (0)
+		do { if (!(cond)) { DX11_ERROR(__VA_ARGS__); CRY_ASSERT_MESSAGE(false, __VA_ARGS__); } } while (false)
 #else
-	#define DX11_ERROR(...)        do {} while (0)
-	#define DX11_ASSERT(cond, ...) do {} while (0)
+	#define DX11_ERROR(...)        ((void)0)
+	#define DX11_ASSERT(cond, ...) ((void)0)
 #endif
 
 #ifdef _DEBUG
 	#define DX11_LOG(cond, ...) \
-		do { if (cond || g_nPrintDX11) { CryLog("DX11 Log: " __VA_ARGS__); } } while (0)
+		do { if (cond || g_nPrintDX11) { CryLog("DX11 Log: ", __VA_ARGS__); } } while (false)
 	#define DX11_WARNING(cond, ...) \
-		do { if (!(cond)) { DX11_LOG(__VA_ARGS__); } } while (0)
+		do { if (!(cond)) { DX11_LOG(__VA_ARGS__); } } while (false)
 	#define DX11_ASSERT_DEBUG(cond, ...) DX11_ASSERT(cond, __VA_ARGS__)
 #else
-	#define DX11_LOG(cond, ...)          do {} while (0)
-	#define DX11_WARNING(cond, ...)      do {} while (0)
-	#define DX11_ASSERT_DEBUG(cond, ...) do {} while (0)
+	#define DX11_LOG(cond, ...)          ((void)0)
+	#define DX11_WARNING(cond, ...)      ((void)0)
+	#define DX11_ASSERT_DEBUG(cond, ...) ((void)0)
 #endif
 
-#define DX11_NOT_IMPLEMENTED DX11_ASSERT(0, "Not implemented!");
+#define DX11_NOT_IMPLEMENTED DX11_ASSERT(false, "Not implemented!");
+
+namespace Cry
+{
+	template<typename T, typename... Args>
+	inline T const& DX11Verify(T const& cond, Args&&... args)
+	{
+		DX11_ASSERT(cond, std::forward<Args>(args)...);
+		return cond;
+	}
+}
+
+#define CRY_DX11_VERIFY(cond, ...) Cry::DX11Verify(cond, __VA_ARGS__)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -620,7 +620,7 @@ template<bool TBlocking> bool CFlowNode_AIBase<TBlocking >::Execute(SActivationI
 template<bool TBlocking> bool CFlowNode_AIBase<TBlocking >::ExecuteOnAI(SActivationInfo* pActInfo, const AISignals::ISignalDescription& signalDescription, AISignals::IAISignalExtraData* pData, IEntity* pEntity, IEntity* pSender)
 {
 	IAIObject* pAI = pEntity->GetAI();
-	const EntityId senderId = pSender ? pSender->GetAIObjectID() : 0;
+	const EntityId senderId = pSender ? pSender->GetId() : INVALID_ENTITYID;
 	CRY_ASSERT(pAI);
 	if (!pAI)
 		return false;
@@ -784,7 +784,7 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::SetStance(IAIObject*
 		AISignals::IAISignalExtraData* pData = gEnv->pAISystem->CreateSignalExtraData();
 		pData->iValue = stance;
 		
-		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnChangeStance_DEPRECATED(),pAI->GetAIObjectID(), pData);
+		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnChangeStance_DEPRECATED(), pAI->GetEntityID(), pData);
 		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_FORMATION_EXCEPT, pSignal);
 	}
 }
@@ -1827,7 +1827,7 @@ void CFlowNode_AIUnload::UnloadSeat(IVehicle* pVehicle, int seatId)
 							AISignals::IAISignalExtraData* pExtraData = gEnv->pAISystem->CreateSignalExtraData();
 							pExtraData->iValue = goalPipeId;
 
-							pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActExitVehicle_DEPRECATED(), pEntity->GetAIObjectID(), pExtraData));
+							pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActExitVehicle_DEPRECATED(), pEntity->GetId(), pExtraData));
 						}
 }
 

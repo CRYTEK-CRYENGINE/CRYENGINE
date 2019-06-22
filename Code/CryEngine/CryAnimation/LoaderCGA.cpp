@@ -18,7 +18,7 @@
 CDefaultSkeleton* CryCGALoader::LoadNewCGA(const char* OriginalGeomName, CharacterManager* pManager, uint32 nLoadingFlags)
 {
 	CRY_DEFINE_ASSET_SCOPE("CGA", OriginalGeomName);
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_CGA, 0, "%s", OriginalGeomName);
+	MEMSTAT_CONTEXT(EMemStatContextType::CGA, OriginalGeomName);
 
 	Reset();
 	//return 0;
@@ -110,7 +110,7 @@ CDefaultSkeleton* CryCGALoader::LoadNewCGA(const char* OriginalGeomName, Charact
 //////////////////////////////////////////////////////////////////////////
 void CryCGALoader::LoadAnimations(const char* cgaFile, CDefaultSkeleton* pCGAModel, uint32 unique_model_id, uint32 nLoadingFlags)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	// Load all filename_***.anm files.
 	char filter[_MAX_PATH];

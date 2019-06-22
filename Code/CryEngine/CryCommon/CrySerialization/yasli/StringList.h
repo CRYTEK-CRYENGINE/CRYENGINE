@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <string.h>
+#include <cstring>
 #include <CrySerialization/yasli/Assert.h>
 #include <CrySerialization/yasli/Config.h>
 #include <CrySerialization/yasli/TypeID.h>
@@ -175,7 +175,6 @@ public:
 	, index_(stringList.find(value))
 	{
 		handle_ = this;
-		YASLI_ASSERT(index_ != StringList::npos);
 	}
 	StringListValue(const StringList& stringList, const char* value, const void* handle, const yasli::TypeID& typeId)
 	: stringList_(stringList)
@@ -183,14 +182,12 @@ public:
 	, handle_(handle)
 	, type_(typeId)
 	{
-		YASLI_ASSERT(index_ != StringList::npos);
 	}
 	StringListValue(const StringListStatic& stringList, const char* value)
 	: stringList_(stringList)
 	, index_(stringList.find(value))
 	{
 		handle_ = this;
-		YASLI_ASSERT(index_ != StringList::npos);
 	}
 	StringListValue& operator=(const char* value){
 		index_ = stringList_.find(value);

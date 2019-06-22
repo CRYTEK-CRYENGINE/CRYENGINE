@@ -577,7 +577,7 @@ void CMaterialManager::OnEditorNotifyEvent(EEditorNotifyEvent event)
 
 CMaterial* CMaterialManager::LoadMaterial(const string& sMaterialName, bool bMakeIfNotFound)
 {
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(GetISystem());
 
 	string sMaterialNameClear(sMaterialName);
 	int nExtLen = strlen(MATERIAL_FILE_EXT);

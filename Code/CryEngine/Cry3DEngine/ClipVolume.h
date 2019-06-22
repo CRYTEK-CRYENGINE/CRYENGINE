@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __INCLUDE_CRY3DENGINE_CLIPVOLUME_H
-#define __INCLUDE_CRY3DENGINE_CLIPVOLUME_H
+#pragma once
 
 struct IBSPTree3D;
 
@@ -40,5 +39,3 @@ private:
 	uint8                   m_nStencilRef;
 	uint8                   m_viewDistRatio;
 };
-
-#endif //__INCLUDE_CRY3DENGINE_CLIPVOLUME_H

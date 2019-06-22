@@ -201,6 +201,17 @@ inline const int* GetNeighbourTileOffset(const size_t side)
 	return NeighbourOffset_MeshGrid[side];
 }
 
+enum { SideCount = 14, };
+
+//! Returns side of the tile in the opposite direction
+//! \param side Side of the tile on which neighbor tile is
+//! \return Side of the opposite tile
+template<typename T>
+inline T GetOppositeSide(T side)
+{
+	return (side + 7) % 14;
+}
+
 //! Returns the neighbor tile grid coordinate given the current tile gird coordinate and the neighbor side.
 //! \param tileCoord Tile coordinate of the current tile.
 //! \param side Side of the tile on which neighbor tile is. Also, \see MNM::Tile::SLink::side.

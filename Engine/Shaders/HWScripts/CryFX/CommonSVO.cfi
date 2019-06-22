@@ -626,7 +626,7 @@ void ProcessTiledLights(inout float4 vRGB, in float3 vPos0, in float3 vRayDir, i
 				vCol.xyz *= saturate((fDist - 0.5) / 0.5);
 #endif
 
-				if (light.lightType == TILEDLIGHT_TYPE_REGULAR_PROJECTOR)
+				if (light.lightType == LIGHT_TYPE_REGULAR_PROJECTOR)
 				{
 					float4 projTC = mul(light.projectorMatrix, float4(position, 1.0f));
 					projTC.xy /= projTC.w;

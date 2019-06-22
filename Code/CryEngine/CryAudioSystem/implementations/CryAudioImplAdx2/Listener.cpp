@@ -10,9 +10,8 @@ namespace Impl
 namespace Adx2
 {
 //////////////////////////////////////////////////////////////////////////
-CListener::CListener(CTransformation const& transformation, uint16 const id, CriAtomEx3dListenerHn const pHandle)
-	: m_id(id)
-	, m_pHandle(pHandle)
+CListener::CListener(CTransformation const& transformation, CriAtomEx3dListenerHn const pHandle)
+	: m_pHandle(pHandle)
 	, m_isMovingOrDecaying(false)
 	, m_velocity(ZERO)
 	, m_position(transformation.GetPosition())
@@ -63,9 +62,9 @@ void CListener::Update(float const deltaTime)
 //////////////////////////////////////////////////////////////////////////
 void CListener::SetName(char const* const szName)
 {
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	m_name = szName;
-#endif  // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -76,7 +75,7 @@ void CListener::SetTransformation(CTransformation const& transformation)
 
 	Fill3DAttributeTransformation(transformation, m_3dAttributes);
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	// Always update velocity in non-release builds for debug draw.
 	m_isMovingOrDecaying = true;
 	Fill3DAttributeVelocity(m_velocity, m_3dAttributes);
@@ -90,7 +89,7 @@ void CListener::SetTransformation(CTransformation const& transformation)
 	{
 		m_previousPosition = m_position;
 	}
-#endif  // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 	criAtomEx3dListener_SetPosition(m_pHandle, &m_3dAttributes.pos);
 	criAtomEx3dListener_SetOrientation(m_pHandle, &m_3dAttributes.fwd, &m_3dAttributes.up);

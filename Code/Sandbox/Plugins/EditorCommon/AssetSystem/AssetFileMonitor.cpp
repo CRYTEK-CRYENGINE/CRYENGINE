@@ -88,13 +88,6 @@ void CAssetFileMonitor::RemoveAsset(const string& assetPath)
 		return;
 	}
 
-	// Do not remove the asset if it is being edited.
-	if (pAsset->IsBeingEdited())
-	{
-		GetISystem()->GetILog()->LogToFile("Cannot delete asset \"%s\" while it is being edited.", assetPath.c_str());
-		return;
-	}
-
 	CAssetManager::GetInstance()->DeleteAssetsOnlyFromData({ pAsset });
 }
 

@@ -28,51 +28,101 @@ struct IsCallable<T(*)(Args...)>
 
 //////////////////////////////////////////////////////////////////////////
 
-template<typename MemberFunction> struct CryMemFunTraits
+template<size_t, size_t, class...>
+struct STypeCounterHelper;
+
+template<size_t index, class Head, class... Tail>
+struct STypeCounterHelper<index, index, Head, Tail...>
+{
+	using type = Head;
+};
+
+template<size_t index, size_t it, class Head, class... Tail>
+struct STypeCounterHelper<index, it, Head, Tail...>
+{
+	using type = typename STypeCounterHelper<index, it + 1, Tail...>::type;
+};
+
+template<size_t index, class... Types>
+struct STypeCounter
+{
+	using type = typename STypeCounterHelper<index, 0, Types...>::type;
+};
+
+template<class R, class... Params>
+struct SFuncInfoBase
+{
+	using Signature = R(Params...);
+	using Ret = R;
+
+	static constexpr size_t numParams = sizeof...(Params);
+
+	template<size_t index>
+	struct Param
+	{
+		using type = typename STypeCounter<index, Params...>::type;
+	};
+};
+
+template<class T, typename = void>
+struct SFuncInfo;
+
+// member
+template<class T, class Ret, class... Params>
+struct SFuncInfo<Ret(T::*)(Params...)> : SFuncInfoBase<Ret, Params...>
+{
+	static constexpr bool isMemberFunction = true;
+};
+
+template<class T, class Ret, class... Params>
+struct SFuncInfo<Ret(T::*)(Params...)const> : SFuncInfo<Ret(T::*)(Params...)> {};
+
+// function
+template<class R, class... FuncParams>
+struct SFuncInfo<R(FuncParams...)> : SFuncInfoBase<R, FuncParams...>
 {
 	static constexpr bool isMemberFunction = false;
 };
 
-template<typename Ret, typename Class, typename... Args>
-struct CryMemFunTraits<Ret(Class::*)(Args...)>
-{
-	typedef Ret(Signature)(Args...);
-	static constexpr bool isMemberFunction = true;
-};
+template<class R, class... FuncParams>
+struct SFuncInfo<R(*)(FuncParams...)> : SFuncInfo<R(FuncParams...)> {};
 
-template<typename Ret, typename Class, typename... Args>
-struct CryMemFunTraits<Ret(Class::*)(Args...) const>
-{
-	typedef Ret(Signature)(Args...);
-	static constexpr bool isMemberFunction = true;
-};
+template<class R, class... FuncParams>
+struct SFuncInfo<R(&)(FuncParams...)> : SFuncInfo<R(FuncParams...)> {};
 
-//////////////////////////////////////////////////////////////////////////
+// lambda
+template<typename T>
+struct SFuncInfo<T, decltype(void(&T::operator()))> : SFuncInfo<decltype(&T::operator())> {};
 
-template<typename Function> 
-struct CryFunctionTraits
-{
-	typedef decltype(&Function::operator()) OperatorCallType;
-	typedef typename CryMemFunTraits<OperatorCallType>::Signature Signature;
-};
+template <class Ret, class... Params>
+std::function<Ret(Params...)> ToStdFunction(Ret(*f)(Params...)) { return f; }
 
-template<typename Ret, typename... Args>
-struct CryFunctionTraits<Ret(Args...)>
-{
-	typedef Ret(Signature)(Args...);
-};
+template <class Functor>
+std::function<typename SFuncInfo<decltype(&Functor::operator())>::Signature> ToStdFunction(Functor&& f) { return f; }
 
-template<typename Ret, typename... Args>
-struct CryFunctionTraits<Ret(*)(Args...)>
+template <class Ret, class T, class... Params>
+std::function<Ret(Params...)> ToStdFunction(Ret(T::*f)(Params...), T* pObj)
 {
-	typedef Ret(Signature)(Args...);
-};
+	return [pObj, f](Params&&... params) { return (pObj->*f)(std::forward<Params>(params)...); };
+}
 
-template<typename Ret, typename... Args>
-struct CryFunctionTraits<Ret(&)(Args...)>
+template <class T, class... Params>
+std::function<void(Params...)> ToStdFunction(void(T::*f)(Params...), T* pObj)
 {
-	typedef Ret(Signature)(Args...);
-};
+	return [pObj, f](Params&&... params) { (pObj->*f)(std::forward<Params>(params)...); };
+}
+
+template <class Ret, class T, class... Params>
+std::function<Ret(Params...)> ToStdFunction(Ret(T::*f)(Params...)const, T* pObj)
+{
+	return [pObj, f](Params&&... params) { return (pObj->*f)(std::forward<Params>(params)...); };
+}
+
+template <class T, class... Params>
+std::function<void(Params...)> ToStdFunction(void(T::*f)(Params...)const, T* pObj)
+{
+	return [pObj, f](Params&&... params) { (pObj->*f)(std::forward<Params>(params)...); };
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -334,7 +384,7 @@ inline std::function<Sig1> function_cast(const std::function<Sig2>& f)
 template<typename Sig1, typename Function, typename std::enable_if<IsCallable<Function>::value, int>::type* = 0>
 inline std::function<Sig1> function_cast(const Function& f)
 {
-	typedef typename CryFunctionTraits<Function>::Signature Sig2;
+	typedef typename SFuncInfo<Function>::Signature Sig2;
 	return CryFunctionPrivate::FunctionWrapper<Sig1>::Cast(std::function<Sig2>(f));
 }
 

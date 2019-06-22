@@ -9,7 +9,7 @@ namespace Impl
 {
 namespace SDLMixer
 {
-CryAudio::Impl::SDL_mixer::SPoolSizes g_connections;
+ConnectionsByContext g_connections;
 } // namespace SDLMixer
 } // namespace Impl
 } // namespace ACE

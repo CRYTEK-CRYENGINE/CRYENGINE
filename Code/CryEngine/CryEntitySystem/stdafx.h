@@ -13,7 +13,7 @@
 
 #pragma warning (error : 4018) //Cannot align catch objects to greater than 16 bytes
 
-#include <string.h>
+#include <cstring>
 #include <stdio.h>
 #include <stdarg.h>
 #include <math.h>
@@ -69,7 +69,7 @@ inline void EntityFileWarning(const char* file, const char* format, ...)
 }
 
 #define ENTITY_PROFILER CRY_PROFILE_FUNCTION(PROFILE_ENTITY);
-#define ENTITY_PROFILER_NAME(str) CRY_PROFILE_REGION(PROFILE_ENTITY, str);
+#define ENTITY_PROFILER_NAME(str) CRY_PROFILE_SECTION(PROFILE_ENTITY, str);
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

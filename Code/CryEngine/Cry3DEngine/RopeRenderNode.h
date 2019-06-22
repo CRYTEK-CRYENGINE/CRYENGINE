@@ -56,7 +56,7 @@ public:
 	virtual int                                 GetPointsCount() const override;
 	virtual const Vec3*                         GetPoints() const override;
 
-	virtual uint32                              GetLinkedEndsMask() override { return m_nLinkedEndsMask; };
+	virtual uint32                              GetLinkedEndsMask() override { return m_nLinkedEndsMask; }
 	virtual void                                OnPhysicsPostStep() override;
 
 	virtual void                                ResetPoints() override;

@@ -9,6 +9,7 @@
 #include "ActionGame.h"
 #include <Cry3DEngine/IIndexedMesh.h>
 #include <Cry3DEngine/ISurfaceType.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 // Defines
 #define PHYSEVENT_COLLIDER 0
@@ -1258,8 +1259,7 @@ IBreakableGlassRenderNode* CBreakableGlassSystem::InitGlassNode(const SBreakable
 
 		// Basic initialisation
 		pRenderNode->SetId(id);
-		pRenderNode->SetRndFlags(physData.renderFlags);
-		pRenderNode->SetRndFlags(ERF_HIDDEN, false);
+		pRenderNode->SetRndFlags(physData.renderFlags & ~ERF_HIDDEN);
 
 		// By default, anchor to four corner points
 		// Note: This should read artist-placed data

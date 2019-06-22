@@ -171,7 +171,7 @@ class CRigidEntity : public CPhysicalEntity {
 	virtual void BreakableConstraintsUpdated();
 	entity_contact *RegisterContactPoint(int idx, const Vec3 &pt, const geom_contact *pcontacts, int iPrim0,int iFeature0, 
 		int iPrim1,int iFeature1, int flags=contact_new, float penetration=0, int iCaller=get_iCaller_int(), const Vec3 &nloc=Vec3(ZERO));
-	int CheckForNewContacts(geom_world_data *pgwd0,intersection_params *pip, int &itmax, Vec3 sweep=Vec3(0), int iStartPart=0,int nParts=-1, int *pFlagsAccum=0);
+	int CheckForNewContacts(geom_world_data *pgwd0,intersection_params *pip, int &itmax, Vec3 sweep=Vec3(0), int iStartPart=0,int nParts=-1, int *pFlagsAccum=0, int iCaller=get_iCaller_int());
 	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, float dt=0);
 	virtual int CheckSelfCollision(int ipart0,int ipart1) { return 0; }
 	void UpdatePenaltyContacts(float time_interval);

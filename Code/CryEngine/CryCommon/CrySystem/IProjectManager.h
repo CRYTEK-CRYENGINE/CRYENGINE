@@ -27,7 +27,15 @@ struct SPluginDefinition
 	void Serialize(Serialization::IArchive& ar)
 	{
 		ar(guid, "guid", "guid");
-		ar(type, "type", "type");
+		const bool success = ar(type, "type", "type");
+		if (!success && ar.isInput())
+		{
+			Cry::IPluginManager::EPluginType pluginType = IPluginManager::EPluginType::Native;
+			ar(pluginType, "type", "type");
+
+			const int32 typeValue = static_cast<int32>(pluginType);
+			type = static_cast<Cry::IPluginManager::EType>(typeValue);
+		}
 		ar(path, "path", "path");
 
 		if (ar.isInput() || !platforms.empty())

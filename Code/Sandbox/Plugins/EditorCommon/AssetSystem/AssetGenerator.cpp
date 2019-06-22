@@ -47,6 +47,13 @@ private:
 
 static AssetManagerHelpers::CAssetGenerator* s_pInstance = nullptr;
 
+bool IsGameFolderPath(const char* szSource)
+{
+	const string gameFolder = PathUtil::GetGameFolder();
+	return strnicmp(szSource, gameFolder.c_str(), gameFolder.size()) == 0 &&
+		strlen(szSource) > gameFolder.size() && szSource[gameFolder.size()] == '/';
+}
+
 }
 
 namespace AssetManagerHelpers
@@ -159,7 +166,6 @@ CAssetGenerator::CAssetGenerator()
 		m_rcSettings.AppendFormat("%s,%s;", pType->GetFileExtension(), pType->GetTypeName());
 		GetIEditor()->GetFileMonitor()->RegisterListener(this, "", pType->GetFileExtension());
 	}
-	m_rcSettings.Append("\"");
 
 	// TODO: There are .wav.cryasset and .ogg.cryasset for the CSoundType. Remove the following scoped lines when this is fixed.
 	{
@@ -167,10 +173,13 @@ CAssetGenerator::CAssetGenerator()
 		GetIEditor()->GetFileMonitor()->RegisterListener(this, "", "ogg");
 	}
 
+	m_rcSettings.Append("\" ");
+
 	m_rcSettings.shrink_to_fit();
 }
 
-void CAssetGenerator::GenerateCryasset(const string& filePath)
+// The method must be called only from the main thread. 
+void CAssetGenerator::GenerateCryasset(const string& filePath, const string& destFolder /* = "" */)
 {
 	using namespace Private_AssetGenerator;
 
@@ -180,7 +189,7 @@ void CAssetGenerator::GenerateCryasset(const string& filePath)
 	}
 	static_cast<CBatchProcess*>(m_pProgress.get())->PushItem();
 
-	ThreadingUtils::AsyncQueue([filePath, this]()
+	ThreadingUtils::AsyncQueue([filePath, destFolder, this]()
 	{
 		RCLogger rcLogger;
 
@@ -193,9 +202,16 @@ void CAssetGenerator::GenerateCryasset(const string& filePath)
 		{
 			// TODO: Move the implementation to a virtual function of CAssetType. Thus, each asset would override the default implementation.
 
+			string extendedSettings;
+			if (!destFolder.empty())
+			{
+				extendedSettings = m_rcSettings + "/targetroot=\"" + destFolder + "\" ";
+			}
+			const string& currentSettings = destFolder.empty() ? m_rcSettings : extendedSettings;
+
 			CResourceCompilerHelper::CallResourceCompiler(
 				filePath.c_str(),
-				m_rcSettings.c_str(),
+				currentSettings.c_str(),
 				&rcLogger,
 				false, // may show window?
 				CResourceCompilerHelper::eRcExePath_editor,
@@ -229,6 +245,19 @@ void CAssetGenerator::OnCompilationStarted(const char* szSource, const char* szT
 
 void CAssetGenerator::OnCompilationFinished(const char* szSource, const char* szTarget, ERcExitCode eReturnCode)
 {
+	using namespace Private_AssetGenerator;
+	if (!IsGameFolderPath(szSource))
+	{
+		return;
+	}
+
+	auto const absRoot = PathUtil::GetCurrentProjectDirectoryAbsolute();
+	auto const destFolder = PathUtil::Make(absRoot, PathUtil::GetDirectory(PathUtil::ToUnixPath(szSource)));
+	auto const targetFile = PathUtil::Make(absRoot, PathUtil::ToUnixPath(szTarget));
+	ThreadingUtils::PostOnMainThread([this, targetFile, destFolder]()
+	{
+		GenerateCryasset(targetFile, destFolder);
+	});
 }
 
 void CAssetGenerator::OnCompilationQueueTriggered(int nPending)

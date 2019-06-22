@@ -531,6 +531,7 @@ enum EEntitySlotFlags : uint16
 	ENTITY_SLOT_GI_MODE_BIT2                = BIT16(11),
 	ENTITY_SLOT_ALLOW_TERRAIN_LAYER_BLEND   = BIT16(12),
 	ENTITY_SLOT_ALLOW_DECAL_BLEND           = BIT16(13),
+	ENTITY_SLOT_CUSTOM_VIEWDIST_RATIO       = BIT16(14), //!< This slot will use a custom view dist ratio and ignores the view dist ratio set for the entity.
 };
 
 struct ISimpleEntityEventListener

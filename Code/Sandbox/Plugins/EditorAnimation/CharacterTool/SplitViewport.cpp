@@ -22,12 +22,16 @@ QSplitViewport::QSplitViewport(QWidget* parent)
 	: QWidget(parent)
 	, m_isSplit(false)
 {
+	IRenderer::SGraphicsPipelineDescription graphicsPipelineDesc;
+	graphicsPipelineDesc.type = EGraphicsPipelineType::CharacterTool;
+	graphicsPipelineDesc.shaderFlags = SHDF_SECONDARY_VIEWPORT | SHDF_ALLOWHDR | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_AO | SHDF_ZPASS | SHDF_ALLOW_SKY;
+
 	setContentsMargins(0, 0, 0, 0);
-	m_originalViewport = new QViewport(gEnv, 0);
+	m_originalViewport = new QViewport(gEnv, graphicsPipelineDesc, 0);
 	m_originalViewport->setVisible(false);
 	connect(m_originalViewport, SIGNAL(SignalCameraMoved(const QuatT &)), this, SLOT(OnCameraMoved(const QuatT &)));
 
-	m_viewport = new QViewport(gEnv, 0);
+	m_viewport = new QViewport(gEnv, graphicsPipelineDesc, 0);
 	connect(m_viewport, SIGNAL(SignalCameraMoved(const QuatT &)), this, SLOT(OnCameraMoved(const QuatT &)));
 
 	m_layout = new QBoxLayout(QBoxLayout::LeftToRight);

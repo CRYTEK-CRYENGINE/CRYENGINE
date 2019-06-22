@@ -18,8 +18,8 @@ public:
 	CLibrary& operator=(CLibrary const&) = delete;
 	CLibrary& operator=(CLibrary&&) = delete;
 
-	explicit CLibrary(string const& name)
-		: CAsset(name, EAssetType::Library)
+	explicit CLibrary(string const& name, ControlId const id)
+		: CAsset(name, id, EAssetType::Library)
 		, m_pakStatus(EPakStatus::None)
 	{}
 

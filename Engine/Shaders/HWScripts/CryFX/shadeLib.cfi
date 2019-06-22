@@ -34,6 +34,13 @@ half4 GetDecodedSceneDepthMS( float2 baseTC, int NumSamples, int nCurrSample )
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+struct AreaLightShadingAttribs
+{
+    float4x4 transform;
+    float3 position;
+    float3 lightPos;
+    uint lightArrayIdx;
+};
 
 struct ForwardShadingAttribs
 {
@@ -46,14 +53,30 @@ struct ForwardShadingAttribs
 	float   smoothness;
 	
 	CustomForwardShadingAttribs  custom;
+    AreaLightShadingAttribs areaAttribs;
 };
 
+struct STiledLightShadeInfo
+{
+	uint      lightType;
+	uint      resIndex;
+	uint      shadowMaskIndex;
+	uint      stencilID;
+	float4    posRad;
+	float2    attenuationParams;
+	float2    shadowParams;
+	float4    color;
+	float4x4  projectorMatrix;
+	float4x4  shadowMatrix;
+};
 struct ForwardLightParams
 {
 	int     type;
 	float3  lightVec;
 	float3  illuminance;
 };
+
+#define TILED_SHADING_SPECPROBE_MAXMIP  6
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -417,74 +440,388 @@ half KajiyaKayAnisotropic(half3 T, half3 H, half Exp)
 	return pow( fSpec, Exp );
 }
 
-////////////////////////////////////////////////////////////////////////////
-// Area Light Models
+// Constants
+const static float LTC_LUT_SIZE = 64.0f;
+const static float LTC_LUT_SCALE = (LTC_LUT_SIZE - 1.0f) / LTC_LUT_SIZE;
+const static float LTC_LUT_BIAS = 0.5f / LTC_LUT_SIZE;
 
-#define AREA_LIGHT_SPHERE		0
-#define AREA_LIGHT_RECTANGLE	1
+#define AREALIGHT_TYPE_RECTANGLE 1
+#define AREALIGHT_TYPE_DISK 2
 
-half SphereNormalization( float len, float lightSize, float m )
+// Precomputed textures
+Texture2D<float4> LTCTex_1 : register(t48); 
+Texture2D<float4> LTCTex_2 : register(t49); 
+
+// Utility functions
+float3 IntegrateEdgeVec(float3 v1, float3 v2)
 {
-	// Compute the normalization factors.
-	// Note: just using sphere normalization (todo: come up with proper disk/plane normalization)
-	half dist = saturate(lightSize / len);
-	half normFactor = m / saturate( m + 0.5 * dist );
-	return normFactor * normFactor;
+    float x = dot(v1, v2);
+    float y = abs(x);
+
+    float a = 0.8543985 + (0.4965155 + 0.0145206 * y) * y;
+    float b = 3.4175940 + (4.1616724 + y) * y;
+    float v = a / b;
+
+    float theta_sintheta = (x > 0.0) ? v : 0.5 * rsqrt(max(1.0 - x * x, 1e-7)) - v;
+
+    return cross(v1, v2) * theta_sintheta;
+}
+float IntegrateEdge(float3 v1, float3 v2)
+{
+    return IntegrateEdgeVec(v1, v2).z;
+}
+float3 SolveCubic(float4 Coefficient)
+{
+    // Normalize the polynomial
+    Coefficient.xyz /= Coefficient.w;
+    // Divide middle coefficients by three
+    Coefficient.yz /= 3.0f;
+
+    float A = Coefficient.w;
+    float B = Coefficient.z;
+    float C = Coefficient.y;
+    float D = Coefficient.x;
+
+    // Compute the Hessian and the discriminant
+    float3 Delta = float3(-Coefficient.z * Coefficient.z + Coefficient.y,
+                          -Coefficient.y * Coefficient.z + Coefficient.x,
+                          dot(float2(Coefficient.z, -Coefficient.y), Coefficient.xy));
+
+    float Discriminant = dot(float2(4.0f * Delta.x, -Delta.y), Delta.zy);
+
+    float3 RootsA, RootsD;
+
+    float2 xlc, xsc;
+
+    // Algorithm A
+    {
+        float A_a = 1.0f;
+        float C_a = Delta.x;
+        float D_a = -2.0f * B * Delta.x + Delta.y;
+
+        // Take the cubic root of a normalized complex number
+        float Theta = atan2(sqrt(Discriminant), -D_a) / 3.0f;
+
+        float x_1a = 2.0f * sqrt(-C_a) * cos(Theta);
+        float x_3a = 2.0f * sqrt(-C_a) * cos(Theta + (2.0f / 3.0f) * PI);
+
+        float xl;
+        if ((x_1a + x_3a) > 2.0f * B)
+            xl = x_1a;
+        else
+            xl = x_3a;
+
+        xlc = float2(xl - B, A);
+    }
+
+    // Algorithm D
+    {
+        float A_d = D;
+        float C_d = Delta.z;
+        float D_d = -D * Delta.y + 2.0f * C * Delta.z;
+
+        // Take the cubic root of a normalized complex number
+        float Theta = atan2(D * sqrt(Discriminant), -D_d) / 3.0f;
+
+        float x_1d = 2.0f * sqrt(-C_d) * cos(Theta);
+        float x_3d = 2.0f * sqrt(-C_d) * cos(Theta + (2.0f / 3.0f) * PI);
+
+        float xs;
+        if (x_1d + x_3d < 2.0f * C)
+            xs = x_1d;
+        else
+            xs = x_3d;
+
+        xsc = float2(-D, xs + C);
+    }
+
+    float E = xlc.y * xsc.y;
+    float F = -xlc.x * xsc.y - xlc.y * xsc.x;
+    float G = xlc.x * xsc.x;
+
+    float2 xmc = float2(C * F - B * G, -B * F + C * E);
+
+    float3 Root = float3(xsc.x / xsc.y, xmc.x / xmc.y, xlc.x / xlc.y);
+
+    if (Root.x < Root.y && Root.x < Root.z)
+        Root.xyz = Root.yxz;
+    else if (Root.z < Root.x && Root.z < Root.y)
+        Root.xyz = Root.xzy;
+
+    return Root;
+}
+float3 FetchDiffuseFilteredTexture(Texture2DArray<float4> texArray, float lightArrayIdx, float3 p1_, float3 p2_, float3 p3_, float3 p4_, bool useMips)
+{
+    // area light plane basis
+    float3 V1 = p2_ - p1_;
+    float3 V2 = p4_ - p1_;
+    float3 planeOrtho = (cross(V1, V2));
+    float planeAreaSquared = dot(planeOrtho, planeOrtho);
+    float planeDistxPlaneArea = dot(planeOrtho, p1_);
+
+    // orthonormal projection of (0,0,0) in area light space
+    float3 P = planeDistxPlaneArea * planeOrtho / planeAreaSquared - p1_;
+
+    // find tex coords of P
+    float dot_V1_V2 = dot(V1, V2);
+    float inv_dot_V1_V1 = 1.0f / dot(V1, V1);
+    float3 V2_ = V2 - V1 * dot_V1_V2 * inv_dot_V1_V1;
+    float2 Puv;
+    Puv.y = dot(V2_, P) / dot(V2_, V2_);
+    Puv.x = dot(V1, P) * inv_dot_V1_V1 - dot_V1_V2 * inv_dot_V1_V1 * Puv.y;
+
+    // LOD
+    float d = 0;
+	if(useMips)
+    {
+        d = abs(planeDistxPlaneArea) / pow(planeAreaSquared, 0.75f);
+    }	
+    return texArray.SampleLevel(SampStateTrilinearClamp, float3(float2(0.125f, 0.125f) + 0.75f * Puv, lightArrayIdx), log(2048.0f * d) / log(3.0f)).r;
 }
 
-half3 SphereLight(half3 R, half3 L, half m, half4x4 mAreaLightMatr)
-{	
-	// Intersect the sphere.
-	half3 centerDir = L - dot(L, R) * R;
-	L = L - centerDir * saturate( mAreaLightMatr[3].y / (length(centerDir)+1e-6) );			
-	return L.xyz;
+float2 LTC_Evaluate(float3 N, float3 V, float Gloss, inout float3x3 matILT, inout float3x3 matIdentity,
+                    inout float3 T1, inout float3 T2)
+{
+    // Fetch precomputed data (InverseLinearTransformMatrix / GGX normalization)
+    float m = max(SmoothnessToRoughness(Gloss), 0.02f);
+    float NdotV = saturate(dot(N, V));
+    float2 texUV = float2(m, sqrt(1.0f - NdotV));
+    texUV = texUV * LTC_LUT_SCALE + LTC_LUT_BIAS;
+    float4 t1 = LTCTex_1.SampleLevel(SampStateTrilinearClamp, texUV, 0);
+    float4 t2 = LTCTex_2.SampleLevel(SampStateTrilinearClamp, texUV, 0);
+
+    matILT = float3x3(t1.x, 0, t1.z,
+		                 0, 1, 0,
+		              t1.y, 0, t1.w);
+
+    matIdentity = float3x3(1, 0, 0,
+                           0, 1, 0,
+                           0, 0, 1);
+
+
+    // Construct orthonormal basis around N
+    T1 = normalize(V - N * NdotV);
+    T2 = cross(N, T1);
+
+    return float2(t2.x, t2.y);
 }
 
-half3 RectangleLight(half3 R, half3 L, half m, half4x4 mAreaLightMatr)
+float3 LTC_Rectangle(float3 N, float3 P, float3x3 mat, float3 points[4],
+                     float3 T1, float3 T2, float lightArrayIdx, bool twoSided, bool behind, 
+                     bool textured, Texture2DArray<float4> texArray)
 {
-	// Intersect the plane.
-	half RdotN = dot(mAreaLightMatr[0].xyz, R.xyz)+1e-6;
-	half intersectLen = dot(mAreaLightMatr[0].xyz, L) / RdotN;
-	half3 I = R.xyz * intersectLen - L.xyz;
+    // Rotate area light in (T1, T2, N) basis
+    mat = mul(mat, float3x3(T1, T2, N));
 
-	// Project the intersection to 2D and clamp it to the light radius to get a point inside or on the edge of the light.
-	half2 lightPos2D = half2( dot(I.xyz, mAreaLightMatr[1].xyz), dot(I.xyz, mAreaLightMatr[2].xyz) );
-	half2 lightClamp2D = clamp(lightPos2D, -mAreaLightMatr[3].xy, mAreaLightMatr[3].xy);
-	
-	// New light direction.
-	L = L + (mAreaLightMatr[1].xyz * lightClamp2D.x) + mAreaLightMatr[2].xyz * lightClamp2D.y;
-	return L.xyz;
+    // Polygon
+    float3 L[4];
+    L[0] = mul(mat, points[0] - P);
+    L[1] = mul(mat, points[1] - P);
+    L[2] = mul(mat, points[2] - P);
+    L[3] = mul(mat, points[3] - P);
+
+    float3 texturedLight = 1.0f;
+    if(textured)
+    {
+        texturedLight = FetchDiffuseFilteredTexture(texArray, lightArrayIdx, L[0], L[1], L[2], L[3], true);
+    }    
+
+    // Integrate
+    float sum = 0.0f;
+    L[0] = normalize(L[0]);
+    L[1] = normalize(L[1]);
+    L[2] = normalize(L[2]);
+    L[3] = normalize(L[3]);
+        
+    float3 vsum = 0.0f;       
+    vsum += IntegrateEdgeVec(L[0], L[1]);
+    vsum += IntegrateEdgeVec(L[1], L[2]);
+    vsum += IntegrateEdgeVec(L[2], L[3]);
+    vsum += IntegrateEdgeVec(L[3], L[0]);
+
+    float len = length(vsum);
+    float z = (behind ? -vsum.z : vsum.z) / len;
+    float2 uv = float2(z * 0.5f + 0.5f, len);
+    uv = uv * LTC_LUT_SCALE + LTC_LUT_BIAS;
+    float scale = LTCTex_2.SampleLevel(SampStateTrilinearClamp, uv, 0).w;
+    sum = len * scale;
+
+    float3 output = float3(sum, sum, sum);
+    output *= texturedLight;
+
+    return output;
 }
 
-half4 AreaLightIntersection( half3 N, half3 V, half3 L, half m, half4x4 areaLightMatrix, int lightType )
+float3 LTC_Disk(float3 N, float3 P, float3x3 mat, float3 points[4],
+                float3 T1, float3 T2, bool twoSided, bool behind)
 {
-	half4 lightVec = half4(L.xyz, 1.0f);
-	half3 R = reflect(V, N);
+    // rotate area light in (T1, T2, N) basis
+    float3x3 R = float3x3(T1, T2, N);
 
-	[branch] if( lightType == AREA_LIGHT_RECTANGLE )
-		lightVec.xyz = RectangleLight(R, L, m, areaLightMatrix);
-	else
-		lightVec.xyz = SphereLight(R, L, m, areaLightMatrix);
+    // polygon (allocate vertices for clipping)
+    float3 L_[3];
+    L_[0] = mul(R, points[0] - P);
+    L_[1] = mul(R, points[1] - P);
+    L_[2] = mul(R, points[2] - P);
 
-	// Normalize.
-	half len = max(length( lightVec.xyz ),  1e-6);
-	lightVec.xyz /= len;
+    float3 sum = 0;
 
-	// Energy normalization
-	lightVec.w = SphereNormalization( len, lightType == AREA_LIGHT_RECTANGLE ? length(areaLightMatrix[3].xy) : areaLightMatrix[3].y, m );
+    // init ellipse
+    float3 C =  0.5f * (L_[0] + L_[2]);
+    float3 V1 = 0.5f * (L_[1] - L_[2]);
+    float3 V2 = 0.5f * (L_[1] - L_[0]);
 
-	return lightVec;
+    C = mul(mat, C);
+    V1 = mul(mat, V1);
+    V2 = mul(mat, V2);
+
+    float earlyOut = dot(cross(V1, V2), C);
+    if (!twoSided && earlyOut < 1e-6)
+        return 0.0f;
+    else if (twoSided && earlyOut < 1e-6 && earlyOut > -1e-6)
+        return 0.0f;
+    
+    // compute eigenvectors of ellipse
+    float a = 0;
+    float b = 0;
+  
+    float d11 = dot(V1, V1);
+    float d22 = dot(V2, V2);
+    float d12 = dot(V1, V2);
+
+    if (abs(d12) / sqrt(d11 * d22) > 0.001f)
+    {
+        float tr = d11 + d22;
+        float det = -d12 * d12 + d11 * d22;
+
+        // use sqrt matrix to solve for eigenvalues
+        det = sqrt(det);
+        float u = 0.5f * sqrt(tr - 2.0f * det);
+        float v = 0.5f * sqrt(tr + 2.0f * det);
+        float e_max = (u + v);
+        float e_min = (u - v);
+        float e_max2 = e_max * e_max; // e_max²     
+        float e_min2 = e_min * e_min; // e_min²
+
+        float3 V1_, V2_;
+
+        if (d11 > d22)
+        {
+            V1_ = d12 * V1 + (e_max2 - d11) * V2;
+            V2_ = d12 * V1 + (e_min2 - d11) * V2;
+        }
+        else
+        {
+            V1_ = d12 * V2 + (e_max2 - d22) * V1;
+            V2_ = d12 * V2 + (e_min2 - d22) * V1;
+        }
+
+        a = 1.0f / e_max2;
+        b = 1.0f / e_min2;
+        V1 = normalize(V1_);
+        V2 = normalize(V2_);
+    }
+    else
+    {
+        a = 1.0f / dot(V1, V1);
+        b = 1.0f / dot(V2, V2);
+        V1 *= sqrt(a);
+        V2 *= sqrt(b);
+    }
+   
+    float3 V3 = cross(V1, V2);
+    
+    if (dot(C, V3) < 0.0f)
+        V3 *= -1.0f;  
+    
+    float L = dot(V3, C);
+    float x0 = dot(V1, C) / L;
+    float y0 = dot(V2, C) / L;
+
+    a *= (L * L);
+    b *= (L * L);
+
+    float c0 = a * b;
+    float c1 = a * b * (1.0f + x0 * x0 + y0 * y0) - a - b;
+    float c2 = 1.0f - a * (1.0f + x0 * x0) - b * (1.0f + y0 * y0);
+    float c3 = 1.0f;
+   
+    float3 roots = SolveCubic(float4(c0, c1, c2, c3));
+
+    float e1 = roots.x;
+    float e2 = roots.y;
+    float e3 = roots.z;
+
+    float3 avgDir = float3(a * x0 / (a - e2), b * y0 / (b - e2), 1.0f);
+    float3x3 rotate = transpose(float3x3(V1, V2, V3));
+
+    avgDir = mul(rotate, avgDir);
+    avgDir = normalize(avgDir);
+
+    float L1 = sqrt(-e2 / e3);
+    float L2 = sqrt(-e2 / e1);
+    float formFactor = L1 * L2 * rsqrt((1.0f + L1 * L1) * (1.0f + L2 * L2));
+
+    // use tabulated horizon-clipped sphere
+    float2 uv = float2(avgDir.z * 0.5f + 0.5f, formFactor);
+    uv = uv * LTC_LUT_SCALE + LTC_LUT_BIAS;
+    float scale = LTCTex_2.SampleLevel(SampStateTrilinearClamp, uv, 0).w;
+    sum = formFactor * scale;
+    float3 output = sum;
+
+    return output;
 }
 
-half3 AreaLightGGX(half3 N, half3 V, half3 L, half Gloss, half3 SpecCol, half4x4 areaLightMatrix, int lightType)
+void AreaLightLTC_GGX(float3 N, float3 V, float Gloss, float3 SpecCol, float3 position, float3 lightPos, 
+                      float lightArrayIdx, float4x4 lightParamMatrix, Texture2DArray<float4> texArray,
+                      inout float3 outDiffuse, inout float3 outSpecular)
 {
-	half m = max(SmoothnessToRoughness( Gloss ), 0.001);	
-	half4 lightVec = AreaLightIntersection( N, V, L, m, areaLightMatrix, lightType );	
-	return SpecularBRDF(N, V, lightVec.xyz, m, SpecCol, lightVec.w);
+    // Define Light shape
+    float3 points[4];
+	points[0] = float3(lightParamMatrix[0][0], lightParamMatrix[0][1], lightParamMatrix[0][2]);
+    points[1] = float3(lightParamMatrix[1][0], lightParamMatrix[1][1], lightParamMatrix[1][2]);
+    points[2] = float3(lightParamMatrix[2][0], lightParamMatrix[2][1], lightParamMatrix[2][2]);
+    points[3] = float3(lightParamMatrix[3][0], lightParamMatrix[3][1], lightParamMatrix[3][2]);
+               
+    uint shape = lightParamMatrix[0][3];
+    bool twoSided = lightParamMatrix[1][3];
+    bool textured = lightParamMatrix[2][3];
+
+	// Early out
+    float3 center = float3((points[0].x + points[1].x) / 2, points[0].y, (points[0].z + points[2].z) / 2) - position;
+    float3 lightNormal = cross(points[1] - points[0], points[3] - points[0]);
+    bool behindLight = dot(points[0] - position, lightNormal) < 0.0f;  
+
+    if ((behindLight && !twoSided))
+    {
+        outDiffuse = 0;
+        outSpecular = 0;
+        return;
+    }
+                                 
+    // Retrieve precomputed data
+    float3x3 matILT, matIdentity;
+    float3 T1, T2;
+    float2 F_G = LTC_Evaluate(N, V, Gloss, matILT, matIdentity, T1, T2);
+
+    // Evaluate
+    if (shape == AREALIGHT_TYPE_RECTANGLE)
+    {
+        outDiffuse = LTC_Rectangle(N, position, matIdentity, points, T1, T2, lightArrayIdx, twoSided, behindLight, textured, texArray);
+        outSpecular = LTC_Rectangle(N, position, matILT, points, T1, T2, lightArrayIdx, twoSided, behindLight, textured, texArray);
+    }
+    else if (shape == AREALIGHT_TYPE_DISK)
+    {
+        outDiffuse = LTC_Disk(N, position, matIdentity, points, T1, T2, twoSided, behindLight);
+        outSpecular = LTC_Disk(N, position, matILT, points, T1, T2, twoSided, behindLight);
+    }
+
+	// Apply fresnel and shadowing term + cosine factor
+    float cosTheta_i = saturate(dot(center, N));
+    outSpecular *= cosTheta_i * SpecCol * F_G.x + (1.0 - SpecCol) * F_G.y;
 }
 
 // Diffuse BRDFs
-
 half3 ComputeNearestLightOnRectangle(half3 vLightPoint, float4x4 mAreaLightMatr)
 {
 	// Calculate light space plane.

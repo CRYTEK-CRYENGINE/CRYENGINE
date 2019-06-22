@@ -225,9 +225,9 @@ inline void LoadCommonData(SRenderNodeChunk* pChunk, IRenderNode* pObj, const SL
 	COPY_MEMBER_LOAD(pObj, pChunk, m_ucViewDistRatio);
 	COPY_MEMBER_LOAD(pObj, pChunk, m_ucLodRatio);
 	COPY_MEMBER_LOAD(pObj, pChunk, m_cShadowLodBias);
-	pObj->m_dwRndFlags &= ~(ERF_HIDDEN | ERF_SELECTED);
-	if (pObj->m_dwRndFlags & ERF_CASTSHADOWMAPS)
-		pObj->m_dwRndFlags |= ERF_HAS_CASTSHADOWMAPS;
+	
+	pObj->SetRndFlags(ERF_HIDDEN | ERF_SELECTED, false);
+	pObj->SetRndFlags(ERF_CASTSHADOWMAPS | ERF_HAS_CASTSHADOWMAPS, pObj->GetRndFlags() & ERF_CASTSHADOWMAPS ? true : false);
 
 	if (NULL != pLayerVisibility)
 	{
@@ -356,7 +356,7 @@ int COctreeNode::LoadObjects(byte* pPtr, byte* pEndPtr, std::vector<IStatObj*>* 
 			if (pRN && pRN->m_pOcNode != this)
 			{
 				Get3DEngine()->UnRegisterEntityDirect(pRN);
-				LinkObject(pRN, pRN->GetRenderNodeType());
+				LinkObject(pRN, pRN->GetRenderNodeType(), !pRN->IsHidden());
 				pRN->m_pOcNode = this;
 				SetCompiled(IRenderNode::GetRenderNodeListId(pRN->GetRenderNodeType()), false);
 			}
@@ -791,7 +791,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 	// For these structures, our Endian swapping is built in to the member copy.
 	if (eType == eERType_Brush)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "Brush object");
+		MEMSTAT_CONTEXT(EMemStatContextType::Terrain, "Brush object");
 
 		SBrushChunk* pChunk = StepData<SBrushChunk>(pPtr, eEndian);
 
@@ -818,9 +818,6 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 		// set material
 		pObj->SetMaterial(CObjManager::GetItemPtr(pMatTable, pChunk->m_nMaterialId));
 
-		// to get correct indirect lighting the registration must be done before checking if this object is inside a VisArea
-		Get3DEngine()->RegisterEntity(pObj);
-
 		if (NULL != pLayerVisibility)
 		{
 			if (!CheckLayerVisibility(pObj->GetLayerId(), pLayerVisibility))
@@ -834,6 +831,9 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 			pObj->SetRndFlags(ERF_HIDDEN, true);
 		}
 
+		// to get correct indirect lighting the registration must be done before checking if this object is inside a VisArea
+		Get3DEngine()->RegisterEntity(pObj);
+
 		if (!(Get3DEngine()->IsObjectsLayerHidden(pObj->GetLayerId(), pObj->GetBBox()) && GetCVars()->e_ObjectLayersActivationPhysics == 1) && !(pChunk->m_dwRndFlags & ERF_NO_PHYSICS))
 			pObj->Physicalize();
 
@@ -841,7 +841,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 	}
 	else if (eType == eERType_Vegetation)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "Vegetation object");
+		MEMSTAT_CONTEXT(EMemStatContextType::Terrain, "Vegetation object");
 
 		SVegetationChunk* pChunk = StepData<SVegetationChunk>(pPtr, eEndian);
 
@@ -877,7 +877,7 @@ void COctreeNode::LoadSingleObject(byte*& pPtr, std::vector<IStatObj*>* pStatObj
 	}
 	else if (eType == eERType_MergedMesh)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "Merged Mesh Object");
+		MEMSTAT_CONTEXT(EMemStatContextType::Terrain, "Merged Mesh Object");
 		SMergedMeshChunk* pChunk = StepData<SMergedMeshChunk>(pPtr, eEndian);
 
 		if (CheckSkipLoadObject(eType, pChunk->m_dwRndFlags, eLoadMode))

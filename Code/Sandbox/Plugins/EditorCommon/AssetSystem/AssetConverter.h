@@ -9,7 +9,6 @@ class CAssetBrowser;
 //! Information about the conversion that the converter might need
 struct EDITOR_COMMON_API SAssetConverterConversionInfo
 {
-public:
 	//! The location where the asset is being dropped
 	string         folderPath;
 	//! The Asset Browser executing the conversion
@@ -20,7 +19,6 @@ public:
 //! Asset Converters are initialized by the Asset Manager at init.
 class EDITOR_COMMON_API CAssetConverter : public IClassDesc
 {
-
 public:
 	virtual ESystemClassID SystemClassID() override final;
 	//! If this Converter can convert the current mime data

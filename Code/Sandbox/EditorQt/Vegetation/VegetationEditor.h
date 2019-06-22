@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #pragma once
 
-
 #include <EditorFramework/Editor.h>
 
 #include <QWidget>
@@ -21,10 +20,13 @@ public:
 protected:
 	virtual void customEvent(QEvent* pEvent) override;
 
-	virtual bool OnNew() override;
-	virtual bool OnDelete() override;
-	virtual bool OnDuplicate() override;
-	virtual bool OnSelectAll() override;
+private:
+	void RegisterActions();
+
+	bool OnNew();
+	bool OnDelete();
+	bool OnDuplicate();
+	bool OnSelectAll();
 
 private:
 	struct SImplementation;

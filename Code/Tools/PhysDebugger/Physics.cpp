@@ -117,6 +117,7 @@ struct DisplayContextImp : SDisplayContext {
 	DisplayContextImp(CCamera *cam) { camera = cam; }
 	virtual void DrawLine(const Vec3& pt0, const Vec3& pt1, const ColorF& clr0, const ColorF& clr1);
 	virtual void DrawBall(const Vec3& c, float r);
+	virtual void DrawSolidBox(const Vec3& vmin, const Vec3& vmax);
 	virtual void DrawTextLabel(const Vec3& pt, float fontSize, const char* txt, bool center) { g_PhysRenderer.DrawText(pt,txt,m_color,center); }
 	virtual void SetColor(COLORREF clr, float alpha=1);
 	ColorB m_color = { 255,255,255,255 };
@@ -147,7 +148,7 @@ extern "C" CRYPHYSICS_API ProfilerData *GetProfileData(int iThread);
 
 struct CSystemImp : ISystem {
 	virtual IPhysRenderer *GetIPhysRenderer() const { return &g_PhysRenderer; }
-	virtual float GetCurrTime() const { return time; }
+	virtual float GetCurrTime(ITimer::ETimer) const { return time; }
 	void UpdateTime() {
 		__int64 curTime;
 		QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
@@ -251,6 +252,11 @@ void SelectPrevProfVisInfo()
 void ExpandProfVisInfo(int bExpand)
 {
 	g_ProfVisInfos[getProfVisInfo(g_iActiveCode,1)].bExpanded = bExpand;
+}
+
+void NotifyStartSim() 
+{ 
+	g_Tool.OnEditorNotifyEvent(eNotify_OnBeginSimulationMode); 
 }
 
 DWORD WINAPI PhysProc(void *pParam)
@@ -1098,6 +1104,18 @@ void DisplayContextImp::DrawBall(const Vec3& c, float r)
 	glTranslatef(c.x,c.y,c.z);
 	gluSphere(quad,r,16,8);
 	glPopMatrix();
+}
+
+void DisplayContextImp::DrawSolidBox(const Vec3& vmin, const Vec3& vmax)
+{
+	glBegin(GL_QUADS);
+	Vec3 c=(vmin+vmax)*0.5f, sz=(vmax-vmin)*0.5f;
+	for(int sg=-1;sg<=1;sg+=2) for(int i=0,j;i<3;i++) for(Vec2i rot(1,(j=0,1));j<4;j++,rot=Vec2i(-rot.y*sg,rot.x*sg))	{
+		Vec3 pt=c; pt[i]+=sz[i]*sg;
+		pt[incm3(i)]+=sz[incm3(i)]*rot.x; pt[decm3(i)]+=sz[decm3(i)]*rot.y;
+		_vtx(pt);
+	}
+	glEnd();
 }
 
 void DisplayContextImp::SetColor(COLORREF clr, float alpha) 

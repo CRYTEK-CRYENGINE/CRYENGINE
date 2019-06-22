@@ -15,6 +15,7 @@
 #include <CryString/CryFixedString.h>
 #include <CrySystem/ILocalizationManager.h>
 #include <CrySystem/ITimer.h>
+#include <CryInput/IInput.h>
 
 #if CRY_PLATFORM_ORBIS
 	#include <system_service.h>
@@ -520,6 +521,61 @@ struct IPlatformOS
 		// </interfuscator:shuffle>
 	};
 
+	struct IUserManagerListener;
+
+	//! User manager handles the signed-in platform users
+	struct IUserManager
+	{
+		struct SGamepadInfo
+		{
+			// CryEngine input device info
+			int index = 0;
+			EInputDeviceType type = eIDT_Unknown;
+			// Platform gamepad id
+			TInputDeviceId gamepadId = InvalidInputDeviceId;
+		};
+
+		//! Add IUserManagerListener event listener
+		virtual void AddListener(IUserManagerListener& listener, const char* szName) = 0;
+
+		//! Remove IUserManagerListener event listener
+		virtual void RemoveListener(IUserManagerListener& listener) = 0;
+
+		//! Obtain information about assigned gamepad
+		virtual const SGamepadInfo* GetUserGamepadInfo(uint32 userIndex) const = 0;
+
+		//! Initiates the procedure to sign-in user: waits for user engagement, shows account picker, etc.
+		virtual bool RequestSignIn() = 0;
+		
+		//! Sign-out the user.
+		virtual bool RequestSignOut() = 0;
+
+	protected:
+		~IUserManager() = default;
+	};
+
+	//! User manager event listener
+	struct IUserManagerListener
+	{
+		//! Called on "sign-in" user state change
+		virtual void OnUserSignIn(uint32 userIndex) {}
+
+		//! Called on "sign-out" user state change
+		virtual void OnUserSignOut(uint32 userIndex) {}
+
+		//! Called on starting user selection procedures.
+		virtual void OnStartSelectingUser() {}
+
+		//! Called when the gamapad assigned to the user is lost.
+		virtual void OnGamepadLost(uint32 userIndex, const IUserManager::SGamepadInfo& gamepad) {}
+
+		//! Called when the new gamepad is assigned to the user.
+		virtual void OnGamepadRestored(uint32 userIndex, const IUserManager::SGamepadInfo& gamepad) {}
+
+	protected:
+		~IUserManagerListener() = default;
+	};
+
 	struct SDebugDump
 	{
 		bool (* OpenFile)(const char* filename, bool append);
@@ -570,6 +626,9 @@ struct IPlatformOS
 
 	//! Get the XUID name of a user. Returns true on success.
 	virtual bool UserGetXUID(unsigned int userIndex, SUserXUID&) const = 0;
+
+	//! Provides access to the IUserManager
+	virtual IUserManager& GetUserManager() = 0;
 #endif
 	//! Get the online name of a user. Returns true on success.
 	virtual bool UserGetOnlineName(unsigned int userIndex, IPlatformOS::TUserName& outName) const = 0;

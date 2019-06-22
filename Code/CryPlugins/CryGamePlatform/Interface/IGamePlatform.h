@@ -24,6 +24,16 @@ namespace Cry
 			//! \note Can be expensive. Don't call too often.
 			virtual const DynArray<IUser*>& GetFriends() const = 0;
 
+#if CRY_GAMEPLATFORM_EXPERIMENTAL
+			//! Gets a list of all users that are blocked by the local user
+			//! \note Can be expensive. Don't call too often.
+			virtual const DynArray<IUser*>& GetBlockedUsers() const = 0;
+
+			//! Gets a list of all users that are muted by the local user
+			//! \note Can be expensive. Don't call too often.
+			virtual const DynArray<IUser*>& GetMutedUsers() const = 0;
+#endif // CRY_GAMEPLATFORM_EXPERIMENTAL
+
 			//! Gets an IUser representation of another user by platform user id
 			//! \note This function can rarely fail, as UserIdentifier is expected to be created by IUser objects only
 			virtual IUser* GetUserById(const UserIdentifier& id) const = 0;

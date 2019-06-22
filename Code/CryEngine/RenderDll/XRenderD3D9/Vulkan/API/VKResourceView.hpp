@@ -63,7 +63,7 @@ public:
 	// The view must have been created with a valid format.
 	void FillInfo(VkBufferView& info)
 	{
-		VK_ASSERT(!IsStructured() && "Structured buffers must use the other FillInfo overload");
+		VK_ASSERT(!IsStructured(), "Structured buffers must use the other FillInfo overload");
 		info = m_texelView;
 	}
 

@@ -43,13 +43,16 @@ bool CAIMoveSimulation::HandleMouseEvent(CViewport* view, EMouseEvent event, CPo
 
 void CAIMoveSimulation::CancelMove()
 {
-	CRY_ASSERT(gEnv && gEnv->pAISystem && gEnv->pAISystem->GetMovementSystem());
-
-	for (const SMovingAI& movingAI : m_movingAIs)
+	if (!m_movingAIs.empty())
 	{
-		gEnv->pAISystem->GetMovementSystem()->UnsuscribeFromRequestCallback(movingAI.m_movementRequestID);
+		CRY_ASSERT(gEnv && gEnv->pAISystem && gEnv->pAISystem->GetMovementSystem());
+
+		for (const SMovingAI& movingAI : m_movingAIs)
+		{
+			gEnv->pAISystem->GetMovementSystem()->UnsuscribeFromRequestCallback(movingAI.m_movementRequestID);
+		}
+		m_movingAIs.clear();
 	}
-	m_movingAIs.clear();
 }
 
 bool CAIMoveSimulation::UpdateAIMoveSimulation(CViewport* pView, const CPoint& point)

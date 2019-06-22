@@ -5,7 +5,9 @@
 #include "ILevelEditor.h"
 
 class QMenu;
-class CDockableDialog;
+class CEditorDialog;
+class CLevelExplorer;
+class CQuickAssetBrowser;
 class CTagLocations;
 
 // This is a stub class that is meant to encapsulate all editor logic for the level editor that is currently in CryEdit.
@@ -18,8 +20,6 @@ class CLevelEditor : public CEditor, public ILevelEditor, public IAutoEditorNoti
 public:
 	CLevelEditor();
 	~CLevelEditor();
-
-	virtual void        customEvent(QEvent* pEvent) override;
 
 	void                OnEditorNotifyEvent(EEditorNotifyEvent event) override;
 	void                CreateRecentFilesMenu(QMenu* pRecentFilesMenu);
@@ -53,19 +53,25 @@ public:
 	//end ILevelEditor
 
 private:
+	void InitActions();
+
 	virtual bool IsOnlyBackend() const override { return true; }
 
-	virtual bool OnNew() override;
-	virtual bool OnOpen() override;
-	virtual bool OnSave() override;
-	virtual bool OnSaveAs() override;
-	virtual bool OnDelete() override;
-	virtual bool OnDuplicate() override;
-
 	virtual bool OnFind() override;
-	virtual bool OnCut() override;
-	virtual bool OnCopy() override;
-	virtual bool OnPaste() override;
+
+	bool OnNew();
+	bool OnOpen();
+	bool OnSave();
+	bool OnSaveAs();
+	bool OnDelete();
+	bool OnDuplicate();
+
+	bool OnCut();
+	bool OnCopy();
+	bool OnPaste();
+	bool OnSelectAll();
+
+	void         OnShowInAssetBrowser(const char* asset);
 
 	void         OnCopyInternal(bool isCut = false);
 	void         OnToggleAssetBrowser();
@@ -86,7 +92,9 @@ Q_SIGNALS:
 	void HelpersDisplayEnabled(bool bEnable);
 
 private:
-	CDockableDialog* m_findWindow;
-	CDockableDialog* m_assetBrowser;
-	CTagLocations*   m_pTagLocations;
+	CLevelExplorer*     m_pLevelExplorer;
+	CEditorDialog*      m_pFindDialog;
+	CQuickAssetBrowser* m_pQuickAssetBrowser;
+	CEditorDialog*      m_pQuickAssetBrowserDialog;
+	CTagLocations*      m_pTagLocations;
 };

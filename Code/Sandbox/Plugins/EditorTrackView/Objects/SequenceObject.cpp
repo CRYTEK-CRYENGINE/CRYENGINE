@@ -61,7 +61,7 @@ bool CSequenceObject::CreateGameObject()
 
 void CSequenceObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 	assert(m_pSequence);
 
 	CTrackViewPlugin::GetSequenceManager()->OnDeleteSequenceObject(GetName().GetString());

@@ -10,7 +10,7 @@
 ACE::Impl::Fmod::CImpl* g_pFmodInterface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API ACE::Impl::IImpl * GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::Impl::IImpl* GetAudioInterface(ISystem * const pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorFmod");
 
@@ -29,15 +29,25 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-		g_hInstance = hinstDLL;
-		break;
-	case DLL_PROCESS_DETACH:
-		if (g_pFmodInterface != nullptr)
 		{
-			delete g_pFmodInterface;
-			g_pFmodInterface = nullptr;
+			g_hInstance = hinstDLL;
+			break;
 		}
-		break;
+	case DLL_PROCESS_DETACH:
+		{
+			if (g_pFmodInterface != nullptr)
+			{
+				delete g_pFmodInterface;
+				g_pFmodInterface = nullptr;
+			}
+
+			break;
+		}
+	default:
+		{
+			break;
+		}
 	}
+
 	return TRUE;
 }

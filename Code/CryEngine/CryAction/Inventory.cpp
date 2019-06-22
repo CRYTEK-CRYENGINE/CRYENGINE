@@ -74,7 +74,7 @@ void CInventory::PostReloadExtension(IGameObject* pGameObject, const SEntitySpaw
 //------------------------------------------------------------------------
 void CInventory::FullSerialize(TSerialize ser)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Inventory serialization");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Inventory serialization");
 
 	ser.BeginGroup("InventoryItems");
 

@@ -13,7 +13,7 @@
 
 class QDockWidget;
 class QToolBar;
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 namespace Explorer
 {
@@ -64,7 +64,7 @@ class PropertiesPanel : public QWidget, public IEditorNotifyListener
 public:
 	PropertiesPanel(QWidget* parent, System* system);
 	~PropertiesPanel();
-	QPropertyTree* PropertyTree()                     { return m_propertyTree; }
+	QPropertyTreeLegacy* PropertyTree()                     { return m_propertyTree; }
 	void           Serialize(Serialization::IArchive& ar);
 	void           SetDockWidget(QDockWidget* widget) {}
 	void           OnChanged()                        { OnPropertyTreeChanged(); }
@@ -125,8 +125,8 @@ private:
 	QMenu*                    m_undoMenu;
 
 	QSplitter*                m_splitter;
-	QPropertyTree*            m_propertyTree;
-	QPropertyTree*            m_detailTree;
+	QPropertyTreeLegacy*            m_propertyTree;
+	QPropertyTreeLegacy*            m_detailTree;
 	QAction*                  m_settingActions[NUM_OUTLINE_MODES];
 
 	System*                   m_system;

@@ -3,8 +3,6 @@
 #include "StdAfx.h"
 #include "VehicleDamageBehaviorAISignal.h"
 
-#include <CryAISystem/IAgent.h>
-#include <CryAISystem/IAIObject.h>
 #include "IVehicleSystem.h"
 
 CVehicleDamageBehaviorAISignal::CVehicleDamageBehaviorAISignal()
@@ -93,7 +91,7 @@ void CVehicleDamageBehaviorAISignal::OnDamageEvent(EVehicleDamageBehaviorEvent e
 	CRY_ASSERT(pExtraData);
 	pExtraData->iValue = behaviorParams.shooterId;
 
-	pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(m_signalId, m_freeSignalText, pEntity->GetAI()->GetAIObjectID(), pExtraData));
+	pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(m_signalId, m_freeSignalText, pEntity->GetId(), pExtraData));
 }
 
 void CVehicleDamageBehaviorAISignal::Update(const float deltaTime)

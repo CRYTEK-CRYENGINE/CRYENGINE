@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "ParameterInfo.h"
 #include <IEnvironmentConnection.h>
 #include <PoolObject.h>
-#include <CryAudio/IAudioInterfacesCommonData.h>
 
 namespace CryAudio
 {
@@ -22,27 +22,14 @@ public:
 	CParameterEnvironment& operator=(CParameterEnvironment const&) = delete;
 	CParameterEnvironment& operator=(CParameterEnvironment&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
 	explicit CParameterEnvironment(
-		uint32 const id,
-		float const multiplier,
-		float const shift,
-		char const* const szName)
-		: m_id(id)
-		, m_multiplier(multiplier)
-		, m_shift(shift)
-		, m_name(szName)
-	{}
-#else
-	explicit CParameterEnvironment(
-		uint32 const id,
+		CParameterInfo const& parameterInfo,
 		float const multiplier,
 		float const shift)
-		: m_id(id)
+		: m_parameterInfo(parameterInfo)
 		, m_multiplier(multiplier)
 		, m_shift(shift)
 	{}
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
 
 	virtual ~CParameterEnvironment() override;
 
@@ -52,13 +39,9 @@ public:
 
 private:
 
-	uint32 const m_id;
-	float const  m_multiplier;
-	float const  m_shift;
-
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
-	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+	CParameterInfo m_parameterInfo;
+	float const    m_multiplier;
+	float const    m_shift;
 };
 } // namespace Fmod
 } // namespace Impl

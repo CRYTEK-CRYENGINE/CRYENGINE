@@ -1,8 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _CLOUDBLOCKER_RENDERNODE_
-#define _CLOUDBLOCKER_RENDERNODE_
-
 #pragma once
 
 class CCloudBlockerRenderNode final : public ICloudBlockerRenderNode, public Cry3DEngineBase
@@ -45,5 +42,3 @@ private:
 	bool m_bScreenspace;
 	IEntity* m_pOwnerEntity;
 };
-
-#endif // _CLOUDBLOCKER_RENDERNODE_

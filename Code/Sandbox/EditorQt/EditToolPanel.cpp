@@ -1,7 +1,7 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <StdAfx.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 
 #include "EditToolPanel.h"
 #include "LevelEditor/Tools/EditTool.h"

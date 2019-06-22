@@ -1,16 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   terrain.h
-//  Version:     v1.00
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
 #include "TerrainModifications.h"
@@ -261,7 +250,7 @@ public:
 	virtual void         CloneRegion(const AABB& region, const Vec3& offset, float zRotation, const uint16* pIncludeLayers, int numIncludeLayers);
 	virtual void         ClearCloneSources();
 	virtual void         ChangeOceanMaterial(IMaterial* pMat);
-	virtual void         OnTerrainPaintActionComplete() {};
+	virtual void         OnTerrainPaintActionComplete() {}
 	//////////////////////////////////////////////////////////////////////////
 
 	void          RemoveAllStaticObjects();

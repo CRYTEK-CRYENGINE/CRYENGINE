@@ -8,7 +8,7 @@
 
 #include <CrySerialization/IArchive.h>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 namespace CryGraphEditor {
 
@@ -29,7 +29,7 @@ protected:
 	void SetupPropertyTree();
 
 protected:
-	QPropertyTree*          m_pPropertyTree;
+	QPropertyTreeLegacy*          m_pPropertyTree;
 	Serialization::SStructs m_structs;
 };
 

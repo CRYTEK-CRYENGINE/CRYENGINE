@@ -18,8 +18,8 @@ public:
 	CFolder& operator=(CFolder const&) = delete;
 	CFolder& operator=(CFolder&&) = delete;
 
-	explicit CFolder(string const& name)
-		: CAsset(name, EAssetType::Folder)
+	explicit CFolder(string const& name, ControlId const id)
+		: CAsset(name, id, EAssetType::Folder)
 	{}
 
 	virtual ~CFolder() override = default;

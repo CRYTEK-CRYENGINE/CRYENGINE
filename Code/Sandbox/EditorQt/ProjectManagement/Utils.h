@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "ProjectManagement/UI/SelectProjectDialog.h"
 #include <CrySerialization/Forward.h>
+
+struct SSystemInitParams;
 
 class CryIcon;
 class QWidget;
@@ -18,7 +21,10 @@ bool IsProjectSpecifiedInSystemConfig(const string& engineFolder);
 string FindProjectInFolder(const string& folder);
 
 // Ask user to select a project
-string AskUserToSpecifyProject(QWidget* pParent, bool runOnSandboxInit);
+string AskUserToSpecifyProject(QWidget* pParent, bool runOnSandboxInit, CSelectProjectDialog::Tab tabToShow);
+
+// Unified way of adding project path to command line
+void AppendProjectPathToCommandLine(const string& projectPath, SSystemInitParams& systemParams);
 
 // Engine version description, taken from "cryengine.cryengine"
 struct SCryEngineVersion

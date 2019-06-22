@@ -2,7 +2,6 @@
 
 #include "StdAfx.h"
 #include "GeometryUtil.h"
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
 
 #if 0
 struct SPointSorter
@@ -167,7 +166,7 @@ EDITOR_COMMON_API void ConvexHull2DAndrew(std::vector<Vec3>& ptsOut, const std::
 
 	std::vector<Vec3> P = ptsIn;
 	{
-		CRY_PROFILE_SECTION(PROFILE_AI, "SORT Andrew")
+		CRY_PROFILE_SECTION(PROFILE_AI, "SORT Andrew");
 		std::sort(P.begin(), P.end(), PointSorterAndrew);
 	}
 

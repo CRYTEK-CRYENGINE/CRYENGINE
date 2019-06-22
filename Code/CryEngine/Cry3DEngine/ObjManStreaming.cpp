@@ -122,7 +122,7 @@ void CObjManager::UpdateObjectsStreamingPriority(bool bSyncLoad, const SRenderin
 
 		if (!m_arrStreamingNodeStack.Count())
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_Init");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_Init");
 
 			if (GetCVars()->e_StreamCgf == 2)
 				PrintMessage("UpdateObjectsStreamingPriority_Restart %d", passInfo.GetFrameID());
@@ -230,7 +230,7 @@ void CObjManager::UpdateObjectsStreamingPriority(bool bSyncLoad, const SRenderin
 			const float fMaxViewDistance = Get3DEngine()->GetMaxViewDistance();
 
 			{
-				CRY_PROFILE_REGION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_MarkNodes");
+				CRY_PROFILE_SECTION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_MarkNodes");
 
 				while (m_arrStreamingNodeStack.Count())
 				{
@@ -254,7 +254,7 @@ void CObjManager::UpdateObjectsStreamingPriority(bool bSyncLoad, const SRenderin
 
 	if (bPrecacheNear || bSyncLoad)
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_Mark_NEAR_Nodes");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_Mark_NEAR_Nodes");
 
 		PodArray<COctreeNode*> fastStreamingNodeStack;
 		const int nVisAreaRecursion = min(GetCVars()->e_StreamPredictionMaxVisAreaRecursion, 2);
@@ -576,7 +576,7 @@ void CObjManager::ProcessObjectsStreaming_Sort(bool bSyncLoad, const SRenderingP
 	// call sort only every 100 ms
 	if (nNumStreamableObjects && ((fTime > fLastTime + 0.1f) || bSyncLoad))
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "ProcessObjectsStreaming_Sort");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "ProcessObjectsStreaming_Sort");
 
 		SStreamAbleObject* arrStreamableObjects = &m_arrStreamableObjects[0];
 		assert(arrStreamableObjects);
@@ -651,7 +651,7 @@ void CObjManager::ProcessObjectsStreaming_Sort(bool bSyncLoad, const SRenderingP
 
 void CObjManager::ProcessObjectsStreaming_InitLoad(bool bSyncLoad)
 {
-	CRY_PROFILE_REGION(PROFILE_3DENGINE, "ProcessObjectsStreaming_InitLoad");
+	CRY_PROFILE_SECTION(PROFILE_3DENGINE, "ProcessObjectsStreaming_InitLoad");
 
 	const int nMaxInProgress = GetCVars()->e_StreamCgfMaxTasksInProgress;
 	const int nMaxToStart = GetCVars()->e_StreamCgfMaxNewTasksPerUpdate;
@@ -769,7 +769,7 @@ void CObjManager::ProcessObjectsStreaming_Finish()
 
 	m_bNeedProcessObjectsStreaming_Finish = false;
 
-	CRY_PROFILE_REGION(PROFILE_3DENGINE, "ProcessObjectsStreaming_Finish");
+	CRY_PROFILE_SECTION(PROFILE_3DENGINE, "ProcessObjectsStreaming_Finish");
 	bool bSyncLoad = Get3DEngine()->IsStatObjSyncLoad();
 
 	{
@@ -847,6 +847,8 @@ void CObjManager::ProcessObjectsStreaming_Finish()
 			m_arrStreamableToDelete.DeleteLast();
 			SStreamAbleObject stramAbleObject(pStatObj);
 			m_arrStreamableObjects.Delete(stramAbleObject);
+
+			pStatObj->ReleaseStreamableContent();
 
 #ifdef OBJMAN_STREAM_STATS
 			if (m_pStreamListener)
@@ -1005,9 +1007,6 @@ void CObjManager::PrecacheStatObj(CStatObj* pStatObj, int nLod, IMaterial* pMate
 void CObjManager::UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEntDistanceReal, float fImportanceFactor, bool bFullUpdate, const SRenderingPassInfo& passInfo, bool bHighPriority)
 {
 	//  FUNCTION_PROFILER_3DENGINE;
-
-	if (pObj->m_dwRndFlags & ERF_HIDDEN)
-		return;
 
 	if (pObj->m_fWSMaxViewDist < 0.01f)
 		return;

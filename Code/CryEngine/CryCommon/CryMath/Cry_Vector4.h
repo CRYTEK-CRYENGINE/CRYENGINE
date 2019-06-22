@@ -25,7 +25,7 @@ template<typename F> struct Vec4_tpl
 	ILINE operator const Vec3_tpl<F> &() const { return reinterpret_cast<const Vec3_tpl<F>&>(*this); }
 
 	ILINE void operator()(F vx, F vy, F vz, F vw)     { x = vx; y = vy; z = vz; w = vw; CRY_MATH_ASSERT(IsValid()); };
-	ILINE void operator()(const Vec3_tpl<F>& v, F vw) { x = v.x; y = v.y; z = v.z; vw = vw; CRY_MATH_ASSERT(IsValid()); };
+	ILINE void operator()(const Vec3_tpl<F>& v, F vw) { x = v.x; y = v.y; z = v.z; w = vw; CRY_MATH_ASSERT(IsValid()); };
 
 	ILINE Vec4_tpl& zero() { NV::SetZero(); return *this; }
 

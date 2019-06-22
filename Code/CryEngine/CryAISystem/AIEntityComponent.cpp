@@ -68,9 +68,15 @@ void CAIEntityComponent::ProcessEvent(const SEntityEvent& event)
 		}
 		break;
 	}
+
+	if (CAIObject* pAIObject = m_objectReference.GetAIObject())
+	{
+		pAIObject->EntityEvent(event);
+	}
 }
 
 Cry::Entity::EventFlags CAIEntityComponent::GetEventMask() const
 {
-	return ENTITY_EVENT_XFORM | ENTITY_EVENT_SET_NAME | ENTITY_EVENT_ACTIVATED | ENTITY_EVENT_DEACTIVATED;
+	return ENTITY_EVENT_XFORM | ENTITY_EVENT_SET_NAME | ENTITY_EVENT_ACTIVATED | ENTITY_EVENT_DEACTIVATED 
+		| ENTITY_EVENT_DONE | ENTITY_EVENT_ATTACH_THIS | ENTITY_EVENT_DETACH_THIS | ENTITY_EVENT_ENABLE_PHYSICS;
 }

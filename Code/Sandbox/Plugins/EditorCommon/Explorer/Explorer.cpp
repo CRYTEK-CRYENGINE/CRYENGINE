@@ -884,7 +884,6 @@ string ExplorerData::GetFilePathForEntry(const ExplorerEntry* entry) const
 			path = pathICaf;
 	}
 
-	char fullPathBuffer[ICryPak::g_nMaxPath];
 	if (!gEnv->pCryPak->IsFileExist(path.c_str(), ICryPak::eFileLocation_OnDisk))
 	{
 		FILE* f = gEnv->pCryPak->FOpen(path.c_str(), "rb");
@@ -895,7 +894,8 @@ string ExplorerData::GetFilePathForEntry(const ExplorerEntry* entry) const
 		}
 	}
 
-	string fullPath = gEnv->pCryPak->AdjustFileName(path.c_str(), fullPathBuffer, ICryPak::FLAGS_CHECK_MOD_PATHS | ICryPak::FLAGS_NEVER_IN_PAK);
+	CryPathString fullPath;
+	gEnv->pCryPak->AdjustFileName(path.c_str(), fullPath, ICryPak::FLAGS_CHECK_MOD_PATHS | ICryPak::FLAGS_NEVER_IN_PAK);
 	if (GetFileAttributes(fullPath.c_str()) == INVALID_FILE_ATTRIBUTES)
 		return string();
 

@@ -5,7 +5,6 @@
 #include <CryMovie/IMovieSystem.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryGame/IGameTokens.h>
-#include <CryAudio/Dialog/IDialogSystem.h>
 #include "TimeOfDayScheduler.h"
 #include "IGameRulesSystem.h"
 #include <CryAction/IMaterialEffects.h>
@@ -882,7 +881,7 @@ CLevelSystem::CLevelSystem(ISystem* pSystem)
 	m_pCurrentLevelInfo(nullptr),
 	m_pLoadingLevelInfo(nullptr)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	CRY_ASSERT(pSystem);
 
 	//Load user defined level types
@@ -1218,7 +1217,7 @@ public:
 
 	ILevelSystem::ELevelLoadStatus DoStep()
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 
 #define NEXT_STEP(step) return SetInProgress(step); case step: 
@@ -1389,13 +1388,6 @@ public:
 			CCryAction::GetCryAction()->OnActionEvent(SActionEvent(eAE_loadLevel));
 
 			CCryAction::GetCryAction()->CreatePhysicsQueues();
-
-			// Reset dialog system
-			if (gEnv->pDialogSystem)
-			{
-				gEnv->pDialogSystem->Reset(false);
-				gEnv->pDialogSystem->Init();
-			}
 		}
 
 		NEXT_STEP(EStep::LoadLevelAiAndGame)
@@ -1488,7 +1480,7 @@ public:
 				SCOPED_TICKER_LOCK;
 #endif
 
-				LOADING_TIME_PROFILE_SECTION_NAMED("OnLoadingComplete");
+				CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "OnLoadingComplete");
 				// Inform Level system listeners that loading of the level is complete.
 				for (std::vector<ILevelSystemListener*>::const_iterator it = m_levelSystem.m_listeners.begin(); it != m_levelSystem.m_listeners.end(); ++it)
 				{
@@ -1618,10 +1610,10 @@ ILevelInfo* CLevelSystem::LoadLevel(const char* _levelName)
 	CLiveCreateLevelLoadingBracket liveCreateLoadingBracket;
 #endif
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Level load (%s)", _levelName);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "Level load (%s)", _levelName);
 	INDENT_LOG_DURING_SCOPE();
 
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	CLevelLoadTimeslicer slicer(*this, _levelName);
 	ILevelSystem::ELevelLoadStatus result;
@@ -1660,9 +1652,9 @@ CLevelSystem::ELevelLoadStatus CLevelSystem::UpdateLoadLevelStatus()
 		return ELevelLoadStatus::Failed;
 	}
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Level load (%s)", m_pLevelLoadTimeslicer->GetLevelName());
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "Level load (%s)", m_pLevelLoadTimeslicer->GetLevelName());
 	INDENT_LOG_DURING_SCOPE();
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	switch (m_pLevelLoadTimeslicer->DoStep())
 	{
@@ -1816,7 +1808,7 @@ void CLevelSystem::OnLevelNotFound(const char* levelName)
 //------------------------------------------------------------------------
 void CLevelSystem::OnLoadingStart(ILevelInfo* pLevelInfo)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (gEnv->pCryPak->GetRecordFileOpenList() == ICryPak::RFOM_EngineStartup)
 		gEnv->pCryPak->RecordFileOpen(ICryPak::RFOM_Level);
@@ -2083,7 +2075,7 @@ static bool SubsituteFile(const string& srcPath, const string& destPath)
 //////////////////////////////////////////////////////////////////////////
 bool CLevelInfo::OpenLevelPak()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	//////////////////////////////////////////////////////////////////////////
 	//LiveCreate level reloading functionality
 #ifndef NO_LIVECREATE
@@ -2119,7 +2111,7 @@ bool CLevelInfo::OpenLevelPak()
 	//////////////////////////////////////////////////////////////////////////
 
 	string levelpak = m_levelPath + string("/level.pak");
-	CryFixedStringT<ICryPak::g_nMaxPath> fullLevelPakPath;
+	CryPathString fullLevelPakPath;
 	bool bOk = gEnv->pCryPak->OpenPack(levelpak, (unsigned)0, NULL, &fullLevelPakPath);
 	m_levelPakFullPath.assign(fullLevelPakPath.c_str());
 	if (bOk)
@@ -2149,7 +2141,7 @@ bool CLevelInfo::OpenLevelPak()
 //////////////////////////////////////////////////////////////////////////
 void CLevelInfo::CloseLevelPak()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!m_levelPakFullPath.empty())
 	{
 		gEnv->pCryPak->ClosePack(m_levelPakFullPath.c_str(), ICryPak::FLAGS_PATH_REAL);
@@ -2317,10 +2309,6 @@ void CLevelSystem::UnLoadLevel()
 	}
 
 	// reset a bunch of subsystems
-	if (gEnv->pDialogSystem)
-	{
-		gEnv->pDialogSystem->Reset(true);
-	}
 
 	if (gEnv->pGameFramework)
 	{

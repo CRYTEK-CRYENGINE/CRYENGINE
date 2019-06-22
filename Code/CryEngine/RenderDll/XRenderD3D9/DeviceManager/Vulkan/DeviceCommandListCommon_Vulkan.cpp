@@ -57,8 +57,7 @@ void CDeviceTimestampGroup::Init()
 	poolInfo.queryCount = kMaxTimestamps;
 	poolInfo.pipelineStatistics = 0;
 
-	VkResult result = vkCreateQueryPool(GetDevice()->GetVkDevice(), &poolInfo, nullptr, &m_queryPool);
-	CRY_ASSERT(result == VK_SUCCESS);
+	CRY_VERIFY(vkCreateQueryPool(GetDevice()->GetVkDevice(), &poolInfo, nullptr, &m_queryPool) == VK_SUCCESS);
 }
 
 void CDeviceTimestampGroup::BeginMeasurement()
@@ -170,12 +169,11 @@ void CDeviceCommandListImpl::CeaseCommandListEvent(int nPoolId)
 	if (nPoolId != CMDQUEUE_GRAPHICS)
 		return;
 
-	auto* pCommandList = GetScheduler()->GetCommandList(nPoolId);
-	CRY_ASSERT(m_sharedState.pCommandList == pCommandList || m_sharedState.pCommandList == nullptr);
+	CRY_ASSERT(m_sharedState.pCommandList == GetScheduler()->GetCommandList(nPoolId) || m_sharedState.pCommandList == nullptr);
 	m_sharedState.pCommandList = nullptr;
 
 #if defined(ENABLE_FRAME_PROFILER_LABELS)
-	for (auto pEventLabel : m_profilerEventStack)
+	for (size_t num = m_profilerEventStack.size(), i = 0; i < num; ++i)
 	{
 		VK_NOT_IMPLEMENTED;
 	}
@@ -194,7 +192,7 @@ void CDeviceCommandListImpl::ResumeCommandListEvent(int nPoolId)
 	m_sharedState.pCommandList = pCommandList;
 
 #if defined(ENABLE_FRAME_PROFILER_LABELS)
-	for (auto pEventLabel : m_profilerEventStack)
+	for (size_t num = m_profilerEventStack.size(), i = 0; i < num; ++i)
 	{
 		VK_NOT_IMPLEMENTED;
 	}
@@ -433,11 +431,9 @@ void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bin
 
 void CDeviceGraphicsCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bindSlot, const CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot, EShaderStage shaderStages)
 {
-	const CDeviceResourceLayout_Vulkan* pVkLayout = reinterpret_cast<const CDeviceResourceLayout_Vulkan*>(m_graphicsState.pResourceLayout.cachedValue);
-
 	buffer_size_t offset, size;
 	NCryVulkan::CBufferResource* pVkBuffer = pBuffer->GetD3D(&offset, &size);
-	VK_ASSERT(pVkBuffer && pVkBuffer->GetHandle() && pVkBuffer->AsDynamicOffsetBuffer() != nullptr);
+	VK_ASSERT(pVkBuffer && pVkBuffer->GetHandle() && pVkBuffer->AsDynamicOffsetBuffer() != nullptr, "");
 
 	VkDescriptorSet dynamicDescriptorSet = pVkBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet();
 	CRY_ASSERT(dynamicDescriptorSet != VK_NULL_HANDLE);
@@ -452,13 +448,11 @@ void CDeviceGraphicsCommandInterfaceImpl::SetInlineShaderResourceImpl(uint32 bin
 
 void CDeviceGraphicsCommandInterfaceImpl::SetInlineShaderResourceImpl(uint32 bindSlot, const CDeviceBuffer* pBuffer, EShaderResourceShaderSlot shaderSlot, EShaderStage shaderStages, ResourceViewHandle resourceViewID)
 {
-	const CDeviceResourceLayout_Vulkan* pVkLayout = reinterpret_cast<const CDeviceResourceLayout_Vulkan*>(m_graphicsState.pResourceLayout.cachedValue);
-
 	const NCryVulkan::CBufferView* View = reinterpret_cast<NCryVulkan::CBufferView*>(pBuffer->LookupSRV(resourceViewID));
 	VkDescriptorBufferInfo info; View->FillInfo(info); // extract the offset from the given view
 	buffer_size_t offset = buffer_size_t(info.offset);
 	NCryVulkan::CBufferResource* pVkBuffer = pBuffer->GetBuffer();
-	VK_ASSERT(pVkBuffer && pVkBuffer->GetHandle() && pVkBuffer->AsDynamicOffsetBuffer() != nullptr);
+	VK_ASSERT(pVkBuffer && pVkBuffer->GetHandle() && pVkBuffer->AsDynamicOffsetBuffer() != nullptr, "");
 
 	VkDescriptorSet dynamicDescriptorSet = pVkBuffer->AsDynamicOffsetBuffer()->GetDynamicDescriptorSet();
 	CRY_ASSERT(dynamicDescriptorSet != VK_NULL_HANDLE);
@@ -490,7 +484,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetVertexBuffersImpl(uint32 numStreams
 	}
 
 	// NOTE: assuming slot 0 is always used
-	VK_ASSERT(buffers[0] != VK_NULL_HANDLE && "Invalid vertex buffer stream #0");
+	VK_ASSERT(buffers[0] != VK_NULL_HANDLE, "Invalid vertex buffer stream #0");
 	for (int rangeStart = 0, rangeEnd = 1; rangeStart <= lastStreamSlot; rangeStart = rangeEnd = rangeEnd + 1)
 	{
 		while (buffers[rangeEnd] != VK_NULL_HANDLE)
@@ -509,7 +503,7 @@ void CDeviceGraphicsCommandInterfaceImpl::SetIndexBufferImpl(const CDeviceInputS
 	{
 		buffer_size_t offset;
 		auto* pBuffer = gcpRendD3D.m_DevBufMan.GetD3D(indexStream->hStream, &offset);
-		VK_ASSERT(pBuffer && pBuffer->GetHandle() && "Invalid index buffer stream");
+		VK_ASSERT(pBuffer && pBuffer->GetHandle(), "Invalid index buffer stream");
 
 #if !defined(SUPPORT_FLEXIBLE_INDEXBUFFER)
 		vkCmdBindIndexBuffer(GetVKCommandList()->GetVkCommandList(), pBuffer->GetHandle(), offset, VK_INDEX_TYPE_UINT16);
@@ -561,7 +555,7 @@ void CDeviceGraphicsCommandInterfaceImpl::ClearSurfaceImpl(D3DSurface* pView, co
 	CRY_ASSERT(NumRects == 0); // currently not supported on Vulkan
 
 	CImageResource* pImage = pView->GetResource();
-	VK_ASSERT(pImage && pImage->GetFlag(NCryVulkan::kImageFlagColorAttachment) && "The image was not created as a color-target");
+	VK_ASSERT(pImage && pImage->GetFlag(NCryVulkan::kImageFlagColorAttachment), "The image was not created as a color-target");
 	VkImageSubresourceRange subresource = pView->GetSubresourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VkClearColorValue clearValue;
@@ -586,7 +580,7 @@ void CDeviceGraphicsCommandInterfaceImpl::ClearSurfaceImpl(D3DDepthSurface* pVie
 	aspectMask |= (clearFlags & CLEAR_STENCIL) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
 
 	CImageResource* pImage = pView->GetResource();
-	VK_ASSERT(pImage && pImage->GetFlag(NCryVulkan::kImageFlagDepthAttachment) && "The image was not created as a depth-target");
+	VK_ASSERT(pImage && pImage->GetFlag(NCryVulkan::kImageFlagDepthAttachment), "The image was not created as a depth-target");
 	VkImageSubresourceRange subresource = pView->GetSubresourceRange(aspectMask);
 
 	VkClearDepthStencilValue clearValue;
@@ -692,7 +686,6 @@ void CDeviceComputeCommandInterfaceImpl::PrepareInlineShaderResourceForUseImpl(u
 void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const CDeviceResourceSet* pResources)
 {
 	const CDeviceResourceSet_Vulkan* pVkResources = reinterpret_cast<const CDeviceResourceSet_Vulkan*>(pResources);
-	const CDeviceResourceLayout_Vulkan* pVkLayout = reinterpret_cast<const CDeviceResourceLayout_Vulkan*>(m_computeState.pResourceLayout.cachedValue);
 
 	VkDescriptorSet descriptorSetHandle = pVkResources->GetVKDescriptorSet();
 	CRY_ASSERT(descriptorSetHandle != VK_NULL_HANDLE);
@@ -702,8 +695,6 @@ void CDeviceComputeCommandInterfaceImpl::SetResourcesImpl(uint32 bindSlot, const
 
 void CDeviceComputeCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bindSlot, const CConstantBuffer* pBuffer, EConstantBufferShaderSlot shaderSlot)
 {
-	const CDeviceResourceLayout_Vulkan* pVkLayout = reinterpret_cast<const CDeviceResourceLayout_Vulkan*>(m_computeState.pResourceLayout.cachedValue);
-
 	buffer_size_t offset, size;
 	NCryVulkan::CBufferResource* pVkBuffer = pBuffer->GetD3D(&offset, &size);
 	CRY_ASSERT(pVkBuffer->AsDynamicOffsetBuffer() != nullptr); // Needs to be a buffer with dynamic offsets
@@ -716,8 +707,6 @@ void CDeviceComputeCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bind
 
 void CDeviceComputeCommandInterfaceImpl::SetInlineShaderResourceImpl(uint32 bindSlot, const CDeviceBuffer* pBuffer, EShaderResourceShaderSlot shaderSlot, ResourceViewHandle resourceViewID)
 {
-	const CDeviceResourceLayout_Vulkan* pVkLayout = reinterpret_cast<const CDeviceResourceLayout_Vulkan*>(m_computeState.pResourceLayout.cachedValue);
-
 	const NCryVulkan::CBufferView* View = reinterpret_cast<NCryVulkan::CBufferView*>(pBuffer->LookupSRV(resourceViewID));
 	VkDescriptorBufferInfo info; View->FillInfo(info); // extract the offset from the given view
 	buffer_size_t offset = buffer_size_t(info.offset);
@@ -757,8 +746,8 @@ void CDeviceComputeCommandInterfaceImpl::DispatchImpl(uint32 X, uint32 Y, uint32
 
 void CDeviceComputeCommandInterfaceImpl::ClearUAVImpl(D3DUAV* pView, const FLOAT Values[4], UINT NumRects, const D3D11_RECT* pRects)
 {
-	VK_ASSERT(NumRects == 0 && "Clear area not supported (yet)");
-	VK_ASSERT(pView->GetResource()->GetFlag(kResourceFlagCopyWritable) && "Resource does not have required capabilities");
+	VK_ASSERT(NumRects == 0, "Clear area not supported (yet)");
+	VK_ASSERT(pView->GetResource()->GetFlag(kResourceFlagCopyWritable), "Resource does not have required capabilities");
 
 	CImageResource* pImage = pView->GetResource()->AsImage();
 	if (pImage)
@@ -783,8 +772,8 @@ void CDeviceComputeCommandInterfaceImpl::ClearUAVImpl(D3DUAV* pView, const FLOAT
 		CBufferResource* pBuffer = pView->GetResource()->AsBuffer();
 		CBufferView* pBufferView = static_cast<CBufferView*>(pView);
 
-		VK_ASSERT(Values[0] == Values[1] && Values[0] == Values[2] && Values[0] == Values[3] && "Can only fill with 32 bit data");
-		VK_ASSERT(pBuffer && "Unknown resource type");
+		VK_ASSERT(Values[0] == Values[1] && Values[0] == Values[2] && Values[0] == Values[3], "Can only fill with 32 bit data");
+		VK_ASSERT(pBuffer, "Unknown resource type");
 
 		VkDescriptorBufferInfo info;
 		pBufferView->FillInfo(info);
@@ -799,8 +788,8 @@ void CDeviceComputeCommandInterfaceImpl::ClearUAVImpl(D3DUAV* pView, const FLOAT
 
 void CDeviceComputeCommandInterfaceImpl::ClearUAVImpl(D3DUAV* pView, const UINT Values[4], UINT NumRects, const D3D11_RECT* pRects)
 {
-	VK_ASSERT(NumRects == 0 && "Clear area not supported (yet)");
-	VK_ASSERT(pView->GetResource()->GetFlag(kResourceFlagCopyWritable) && "Resource does not have required capabilities");
+	VK_ASSERT(NumRects == 0, "Clear area not supported (yet)");
+	VK_ASSERT(pView->GetResource()->GetFlag(kResourceFlagCopyWritable), "Resource does not have required capabilities");
 
 	CImageResource* pImage = pView->GetResource()->AsImage();
 	if (pImage)
@@ -825,8 +814,8 @@ void CDeviceComputeCommandInterfaceImpl::ClearUAVImpl(D3DUAV* pView, const UINT 
 		CBufferResource* pBuffer = pView->GetResource()->AsBuffer();
 		CBufferView* pBufferView = static_cast<CBufferView*>(pView);
 
-		VK_ASSERT(Values[0] == Values[1] && Values[0] == Values[2] && Values[0] == Values[3] && "Can only fill with 32 bit data");
-		VK_ASSERT(pBuffer && "Unknown resource type");
+		VK_ASSERT(Values[0] == Values[1] && Values[0] == Values[2] && Values[0] == Values[3], "Can only fill with 32 bit data");
+		VK_ASSERT(pBuffer, "Unknown resource type");
 
 		VkDescriptorBufferInfo info;
 		pBufferView->FillInfo(info);
@@ -904,13 +893,14 @@ bool GetBlockSize(VkFormat format, uint32_t& blockWidth, uint32_t& blockHeight, 
 
 void CDeviceCopyCommandInterfaceImpl::CopyBuffer(CBufferResource* pSrc, CBufferResource* pDst, const SResourceRegionMapping& mapping)
 {
+#if !_RELEASE
 	const uint32_t srcSize = pSrc->GetStride() * pSrc->GetElementCount();
 	const uint32_t dstSize = pDst->GetStride() * pDst->GetElementCount();
-	VK_ASSERT(pSrc->GetStride() == pDst->GetStride() && "Buffer element sizes must be compatible"); // Not actually a Vk requirement, but likely a bug
-	VK_ASSERT(mapping.Extent.Width > 0 && "Invalid extents");
-	VK_ASSERT(mapping.SourceOffset.Left + mapping.Extent.Width <= srcSize && "Source region too large");
-	VK_ASSERT(mapping.DestinationOffset.Left + mapping.Extent.Width <= dstSize && "Destination region too large");
-	VK_ASSERT(mapping.SourceOffset.Subresource == 0 && mapping.DestinationOffset.Subresource == 0 && mapping.Extent.Subresources == 1 && "Buffer array slices not yet supported");
+	VK_ASSERT(mapping.Extent.Width > 0, "Invalid extents");
+	VK_ASSERT(mapping.SourceOffset.Left + mapping.Extent.Width <= srcSize, "Source region too large");
+	VK_ASSERT(mapping.DestinationOffset.Left + mapping.Extent.Width <= dstSize, "Destination region too large");
+	VK_ASSERT(mapping.SourceOffset.Subresource == 0 && mapping.DestinationOffset.Subresource == 0 && mapping.Extent.Subresources == 1, "Buffer array slices not yet supported");
+#endif
 
 	if (pSrc == pDst)
 	{
@@ -938,19 +928,21 @@ void CDeviceCopyCommandInterfaceImpl::CopyImage(CImageResource* pSrc, CImageReso
 	const uint32_t srcFirstSlice = mapping.SourceOffset.Subresource / srcMips;
 	const uint32_t srcLastMip = (mapping.SourceOffset.Subresource + mapping.Extent.Subresources - 1) % srcMips;
 	const uint32_t srcLastSlice = (mapping.SourceOffset.Subresource + mapping.Extent.Subresources - 1) / srcMips;
-	const uint32_t numMips = srcLastMip - srcFirstMip + 1;
 	const uint32_t numSlices = srcLastSlice - srcFirstSlice + 1;
-	VK_ASSERT(mapping.Extent.Width * mapping.Extent.Height * mapping.Extent.Depth * mapping.Extent.Subresources > 0 && "Invalid extents");
-	VK_ASSERT(numMips * numSlices == mapping.Extent.Subresources && "Partial copies that cross slice must start at mip 0, and request whole mip chains");
-	VK_ASSERT(srcFirstMip + numMips <= srcMips && srcFirstSlice + numSlices <= pSrc->GetSliceCount() && "Source subresource out of bounds");
 
 	const uint32_t dstMips = pDst->GetMipCount();
 	const uint32_t dstFirstMip = mapping.DestinationOffset.Subresource % dstMips;
 	const uint32_t dstFirstSlice = mapping.DestinationOffset.Subresource / dstMips;
-	VK_ASSERT(dstFirstMip + numMips <= dstMips && dstFirstSlice + numSlices <= pDst->GetSliceCount() && "Destination subresource out of bounds");
 
+#if !_RELEASE
+	const uint32_t numMips = srcLastMip - srcFirstMip + 1;
+	VK_ASSERT(mapping.Extent.Width * mapping.Extent.Height * mapping.Extent.Depth * mapping.Extent.Subresources > 0, "Invalid extents");
+	VK_ASSERT(numMips * numSlices == mapping.Extent.Subresources, "Partial copies that cross slice must start at mip 0, and request whole mip chains");
+	VK_ASSERT(srcFirstMip + numMips <= srcMips && srcFirstSlice + numSlices <= pSrc->GetSliceCount(), "Source subresource out of bounds");
+	VK_ASSERT(dstFirstMip + numMips <= dstMips && dstFirstSlice + numSlices <= pDst->GetSliceCount(), "Destination subresource out of bounds");
+#endif
+	
 	const VkImageAspectFlags srcAspects = GetCopyableAspects(pSrc);
-	const VkImageAspectFlags dstAspects = GetCopyableAspects(pDst);
 
 	uint32_t mipIndex = 0;
 	uint32_t srcWidth = mapping.Extent.Width;
@@ -961,7 +953,6 @@ void CDeviceCopyCommandInterfaceImpl::CopyImage(CImageResource* pSrc, CImageReso
 	uint32_t srcZ = mapping.SourceOffset.Front;
 	uint32_t dstWidth = srcWidth;
 	uint32_t dstHeight = srcHeight;
-	uint32_t dstDepth = srcDepth;
 	uint32_t dstX = mapping.DestinationOffset.Left;
 	uint32_t dstY = mapping.DestinationOffset.Top;
 	uint32_t dstZ = mapping.DestinationOffset.Front;
@@ -972,11 +963,18 @@ void CDeviceCopyCommandInterfaceImpl::CopyImage(CImageResource* pSrc, CImageReso
 	VkImageLayout prevDstLayout      = pDst->GetLayout();
 	VkAccessFlags prevDstAccessFlags = pDst->GetAccess();
 
+	// If the object is marked to be used as SRV in pixel shader, transit its layout to the right one.
+	if (mapping.Flags & DX12_COPY_PIXELSTATE_MARKER)
+	{
+		prevDstLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		prevDstAccessFlags = VK_ACCESS_SHADER_READ_BIT;
+	}
+
 	uint32_t srcBlockWidth = 1, srcBlockHeight = 1, srcBlockBytes;
 	uint32_t dstBlockWidth = 1, dstBlockHeight = 1, dstBlockBytes;
 	const bool bSrcIsBlocks = GetBlockSize(pSrc->GetFormat(), srcBlockWidth, srcBlockHeight, srcBlockBytes);
 	const bool bDstIsBlocks = GetBlockSize(pDst->GetFormat(), dstBlockWidth, dstBlockHeight, dstBlockBytes);
-	VK_ASSERT(!(bSrcIsBlocks && bDstIsBlocks) || (srcBlockWidth == dstBlockWidth && srcBlockHeight == dstBlockHeight && srcBlockBytes == dstBlockBytes) && "Incompatible block compression");
+	VK_ASSERT(!(bSrcIsBlocks && bDstIsBlocks) || (srcBlockWidth == dstBlockWidth && srcBlockHeight == dstBlockHeight && srcBlockBytes == dstBlockBytes), "Incompatible block compression");
 
 	// Round up extents to block size, so we can do shifts on them in the loop.
 	// Unlike extents, the input coordinates MUST always align to block size for all mips.
@@ -1001,27 +999,29 @@ void CDeviceCopyCommandInterfaceImpl::CopyImage(CImageResource* pSrc, CImageReso
 		dstWidth *= srcBlockWidth;
 		dstHeight *= srcBlockHeight;
 	}
-	VK_ASSERT(srcX % (srcBlockWidth << (numMips - 1)) == 0 && "Source offset X not aligned for block-mip access");
-	VK_ASSERT(srcY % (srcBlockHeight << (numMips - 1)) == 0 && "Source offset Y not aligned for block-mip access");
-	VK_ASSERT(dstX % (dstBlockWidth << (numMips - 1)) == 0 && "Destination offset X not aligned for block-mip access");
-	VK_ASSERT(dstY % (dstBlockHeight << (numMips - 1)) == 0 && "Destination offset Y not aligned for block-mip access");
-	VK_ASSERT(srcWidth % (srcBlockWidth << (numMips - 1)) == 0 && "Source width is not aligned for block-mip access");
-	VK_ASSERT(srcHeight % (srcBlockHeight << (numMips - 1)) == 0 && "Source height is not aligned for block-mip access");
-	VK_ASSERT(dstWidth % (dstBlockWidth << (numMips - 1)) == 0 && "Destination width is not aligned for block-mip access");
-	VK_ASSERT(dstHeight % (dstBlockHeight << (numMips - 1)) == 0 && "Destination height is not aligned for block-mip access");
+	const uint32_t kBatchSize = 16;
 
+#if !_RELEASE
+	VK_ASSERT(srcX % (srcBlockWidth << (numMips - 1)) == 0, "Source offset X not aligned for block-mip access");
+	VK_ASSERT(srcY % (srcBlockHeight << (numMips - 1)) == 0, "Source offset Y not aligned for block-mip access");
+	VK_ASSERT(dstX % (dstBlockWidth << (numMips - 1)) == 0, "Destination offset X not aligned for block-mip access");
+	VK_ASSERT(dstY % (dstBlockHeight << (numMips - 1)) == 0, "Destination offset Y not aligned for block-mip access");
+	VK_ASSERT(srcWidth % (srcBlockWidth << (numMips - 1)) == 0, "Source width is not aligned for block-mip access");
+	VK_ASSERT(srcHeight % (srcBlockHeight << (numMips - 1)) == 0, "Source height is not aligned for block-mip access");
+	VK_ASSERT(dstWidth % (dstBlockWidth << (numMips - 1)) == 0, "Destination width is not aligned for block-mip access");
+	VK_ASSERT(dstHeight % (dstBlockHeight << (numMips - 1)) == 0, "Destination height is not aligned for block-mip access");
+	const uint32_t dstDepth = srcDepth;
 	const uint32_t srcMipWidth = std::max(pSrc->GetWidth() >> srcFirstMip, srcBlockWidth);
 	const uint32_t srcMipHeight = std::max(pSrc->GetHeight() >> srcFirstMip, srcBlockHeight);
 	const uint32_t srcMipDepth = std::max(pSrc->GetDepth() >> srcFirstMip, 1U);
 	const uint32_t dstMipWidth = std::max(pDst->GetWidth() >> dstFirstMip, dstBlockWidth);
 	const uint32_t dstMipHeight = std::max(pDst->GetHeight() >> dstFirstMip, dstBlockHeight);
 	const uint32_t dstMipDepth = std::max(pDst->GetDepth() >> dstFirstMip, 1U);
-	VK_ASSERT(srcX + srcWidth <= srcMipWidth && srcY + srcHeight <= srcMipHeight && srcZ + srcDepth <= srcMipDepth && "Source region too large");
-	VK_ASSERT(dstX + dstWidth <= dstMipWidth && dstY + dstHeight <= dstMipHeight && dstZ + dstDepth <= dstMipDepth && "Destination region too large");
-
-	const uint32_t kBatchSize = 16;
+	VK_ASSERT(srcX + srcWidth <= srcMipWidth && srcY + srcHeight <= srcMipHeight && srcZ + srcDepth <= srcMipDepth, "Source region too large");
+	VK_ASSERT(dstX + dstWidth <= dstMipWidth && dstY + dstHeight <= dstMipHeight && dstZ + dstDepth <= dstMipDepth, "Destination region too large");
+	VK_ASSERT(numMips <= kBatchSize, "Cannot copy more than 16 mips at a time");
+#endif
 	VkImageCopy batch[kBatchSize];
-	VK_ASSERT(numMips <= kBatchSize && "Cannot copy more than 16 mips at a time");
 	for (uint32_t srcMip = srcFirstMip; srcMip <= srcLastMip; ++srcMip, ++mipIndex)
 	{
 		batch[mipIndex].srcSubresource.aspectMask = srcAspects;
@@ -1092,12 +1092,11 @@ bool CDeviceCopyCommandInterfaceImpl::FillBuffer(const void* pSrc, CBufferResour
 {
 	const uint32_t srcBytes = mapping.MemoryLayout.volumeStride;
 	const uint32_t dstOffset = mapping.ResourceOffset.Left;
-	const uint32_t dstBytes = mapping.Extent.Width;
 
-	VK_ASSERT(pDst->GetFlag(kResourceFlagCpuWritable) && "Destination buffer must be mappable for the CPU");
-	VK_ASSERT(mapping.ResourceOffset.Left + mapping.Extent.Width <= pDst->GetSize() && "Invalid target region");
-	VK_ASSERT(mapping.ResourceOffset.Subresource == 0 && "Buffer array slices not yet supported");
-	VK_ASSERT(srcBytes <= dstBytes && "Source data does not fit into target region");
+	VK_ASSERT(pDst->GetFlag(kResourceFlagCpuWritable), "Destination buffer must be mappable for the CPU");
+	VK_ASSERT(mapping.ResourceOffset.Left + mapping.Extent.Width <= pDst->GetSize(), "Invalid target region");
+	VK_ASSERT(mapping.ResourceOffset.Subresource == 0, "Buffer array slices not yet supported");
+	VK_ASSERT(srcBytes <= mapping.Extent.Width, "Source data does not fit into target region");
 
 	uint8_t* pMapped = static_cast<uint8_t*>(pDst->Map());
 	if (pMapped)
@@ -1108,54 +1107,50 @@ bool CDeviceCopyCommandInterfaceImpl::FillBuffer(const void* pSrc, CBufferResour
 	return pMapped != nullptr;
 }
 
-CBufferResource* CDeviceCopyCommandInterfaceImpl::UploadBuffer(const void* pSrc, CBufferResource* pDst, const SResourceMemoryMapping& mapping, bool bAllowGpu)
+CBufferResource* CDeviceCopyCommandInterfaceImpl::PrepareStagingBuffer(const void* pSrc, NCryVulkan::CBufferResource* pDst, SResourceMemoryMapping mapping)
+{
+	const uint32_t srcBytes  = mapping.MemoryLayout.volumeStride;
+	const uint32_t dstOffset = mapping.ResourceOffset.Left;
+	VK_ASSERT(mapping.MemoryLayout.rowStride == mapping.MemoryLayout.volumeStride, "Invalid source memory layout"); // Fill uses volumeStride since it also fills images.
+	VK_ASSERT(mapping.ResourceOffset.Subresource == 0, "Buffer array slices not yet supported");
+	VK_ASSERT(srcBytes % pDst->GetStride() == 0 && dstOffset % pDst->GetStride() == 0, "source data length and destination offset must be divisble by their buffer strides.");
+	VK_ASSERT(!pDst->GetFlag(kResourceFlagCpuWritable), "Distention must have cpu writable flag.");
+
+	// When we are not updating at the start of the buffer, we need to adjust the fill parameters,
+	// since the staging buffer is not necessarily the same size as the destination buffer.
+	mapping.ResourceOffset.Left = 0;
+	
+	CBufferResource* pResult = nullptr;
+	if (GetDevice()->CreateOrReuseStagingResource(pDst, srcBytes, &pResult, true) != VK_SUCCESS)
+	{
+		VK_ASSERT(false, "Upload buffer skipped: Cannot create staging buffer");
+		return nullptr;
+	}
+
+	if (!FillBuffer(pSrc, pResult, mapping))
+	{
+		VK_ASSERT(false, "Unable to fill staging buffer");
+		SAFE_RELEASE(pResult);
+	}
+
+	return pResult;
+}
+
+void CDeviceCopyCommandInterfaceImpl::UploadBuffer(const void* pSrc, CBufferResource* pDst, const SResourceMemoryMapping& mapping)
 {
 	const uint32_t srcBytes = mapping.MemoryLayout.volumeStride;
 	const uint32_t dstOffset = mapping.ResourceOffset.Left;
-	VK_ASSERT(mapping.MemoryLayout.rowStride == mapping.MemoryLayout.volumeStride && "Invalid source memory layout"); // Fill uses volumeStride since it also fills images.
-	VK_ASSERT(mapping.ResourceOffset.Subresource == 0 && "Buffer array slices not yet supported");
+	VK_ASSERT(mapping.MemoryLayout.rowStride == mapping.MemoryLayout.volumeStride, "Invalid source memory layout"); // Fill uses volumeStride since it also fills images.
+	VK_ASSERT(mapping.ResourceOffset.Subresource == 0, "Buffer array slices not yet supported");
+	VK_ASSERT(srcBytes % pDst->GetStride() == 0 && dstOffset % pDst->GetStride() == 0, "source data length and destination offset must be divisble by their buffer strides.");
 
 	const bool bIsUsedByGpu = false; // TODO: Implement this
-
-	CBufferResource* pStaging = pDst;
-	const SResourceMemoryMapping* pMapping = &mapping;
-	SResourceMemoryMapping tempMapping;
-
-	const bool bStage = !pDst->GetFlag(kResourceFlagCpuWritable) || bIsUsedByGpu;
-	if (bStage)
-	{
-		// When we are not updating at the start of the buffer, we need to adjust the fill parameters,
-		// since the staging buffer is not necessarily the same size as the destination buffer.
-		if (mapping.ResourceOffset.Left != 0)
-		{
-			tempMapping = mapping;
-			tempMapping.ResourceOffset.Left = 0;
-			pMapping = &tempMapping;
-		}
-
-		if (GetDevice()->CreateOrReuseStagingResource(pDst, srcBytes, &pStaging, true) != VK_SUCCESS)
-		{
-			VK_ASSERT(false && "Upload buffer skipped: Cannot create staging buffer");
-			return nullptr;
-		}
-	}
-
-	const bool bFilled = FillBuffer(pSrc, pStaging, *pMapping);
-	VK_ASSERT(bFilled && "Unable to fill staging buffer");
+	const bool bStage       = !pDst->GetFlag(kResourceFlagCpuWritable) || bIsUsedByGpu;
 
 	if (bStage)
 	{
-		if (bFilled)
+		if (CBufferResource* pStaging = PrepareStagingBuffer(pSrc, pDst, mapping))
 		{
-			if (!bAllowGpu)
-			{
-				// We would need to use the GPU to perform the upload, however the caller chose not to allow this.
-				// Instead hand-off the staging buffer containing the data to the caller to handle in some other way.
-				VK_ASSERT(srcBytes % pDst->GetStride() == 0 && dstOffset % pDst->GetStride() == 0);
-				pStaging->SetStrideAndElementCount(pDst->GetStride(), srcBytes / pDst->GetStride());
-				return pStaging;
-			}
-
 			RequestTransition(pStaging, VK_ACCESS_TRANSFER_READ_BIT);
 			RequestTransition(pDst, VK_ACCESS_TRANSFER_WRITE_BIT);
 			GetVKCommandList()->PendingResourceBarriers();
@@ -1166,27 +1161,31 @@ CBufferResource* CDeviceCopyCommandInterfaceImpl::UploadBuffer(const void* pSrc,
 			info.size = srcBytes;
 			vkCmdCopyBuffer(GetVKCommandList()->GetVkCommandList(), pStaging->GetHandle(), pDst->GetHandle(), 1, &info);
 			GetVKCommandList()->m_nCommands += CLCOUNT_COPY;
+
+			pStaging->Release();
 		}
-
-		pStaging->Release(); // trigger ReleaseLater with kResourceFlagReusable
 	}
+	else
+	{
 
-	return nullptr;
+		const bool bFilled = FillBuffer(pSrc, pDst, mapping);
+		VK_ASSERT(bFilled, "Unable to fill staging buffer");
+	}
 }
 
 void CDeviceCopyCommandInterfaceImpl::UploadImage(const void* pSrc, CImageResource* pDst, const SResourceMemoryMapping& mapping, bool bExt)
 {
 	// For now, always stage image uploads, because all images should be tiled anyway, so direct CPU write should never be set in general.
 	// However, Vk does not forbid direct CPU write to images entirely, so we may need to implement a FillImage + direct write at some future point.
-	VK_ASSERT(mapping.MemoryLayout.rowStride % mapping.MemoryLayout.typeStride == 0 && "Texel rows must be aligned to the texel size");
-	VK_ASSERT(mapping.MemoryLayout.planeStride % mapping.MemoryLayout.rowStride == 0 && "Texel planes must be aligned to the texel rows");
-	VK_ASSERT(mapping.MemoryLayout.volumeStride % mapping.MemoryLayout.planeStride == 0 && "Texel volumes must be aligned to the texel planes");
+	VK_ASSERT(mapping.MemoryLayout.rowStride % mapping.MemoryLayout.typeStride == 0, "Texel rows must be aligned to the texel size");
+	VK_ASSERT(mapping.MemoryLayout.planeStride % mapping.MemoryLayout.rowStride == 0, "Texel planes must be aligned to the texel rows");
+	VK_ASSERT(mapping.MemoryLayout.volumeStride % mapping.MemoryLayout.planeStride == 0, "Texel volumes must be aligned to the texel planes");
 
 	CBufferResource* pStaging = nullptr;
 	const uint32 srcBytes = mapping.MemoryLayout.volumeStride;
 	if (GetDevice()->CreateOrReuseStagingResource(pDst, srcBytes, &pStaging, true) != VK_SUCCESS)
 	{
-		VK_ASSERT(false && "Upload buffer skipped: Cannot create staging buffer");
+		VK_ASSERT(false, "Upload buffer skipped: Cannot create staging buffer");
 		return;
 	}
 
@@ -1209,9 +1208,9 @@ void CDeviceCopyCommandInterfaceImpl::UploadImage(const void* pSrc, CImageResour
 
 void CDeviceCopyCommandInterfaceImpl::UploadImage(CBufferResource* pSrc, CImageResource* pDst, const SResourceMemoryMapping& mapping, bool bExt)
 {
-	VK_ASSERT(mapping.MemoryLayout.rowStride % mapping.MemoryLayout.typeStride == 0 && "Texel rows must be aligned to the texel size");
-	VK_ASSERT(mapping.MemoryLayout.planeStride % mapping.MemoryLayout.rowStride == 0 && "Texel planes must be aligned to the texel rows");
-	VK_ASSERT(mapping.MemoryLayout.volumeStride % mapping.MemoryLayout.planeStride == 0 && "Texel volumes must be aligned to the texel planes");
+	VK_ASSERT(mapping.MemoryLayout.rowStride % mapping.MemoryLayout.typeStride == 0, "Texel rows must be aligned to the texel size");
+	VK_ASSERT(mapping.MemoryLayout.planeStride % mapping.MemoryLayout.rowStride == 0, "Texel planes must be aligned to the texel rows");
+	VK_ASSERT(mapping.MemoryLayout.volumeStride % mapping.MemoryLayout.planeStride == 0, "Texel volumes must be aligned to the texel planes");
 
 	RequestTransition(pDst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
 	RequestTransition(pSrc, VK_ACCESS_TRANSFER_READ_BIT);
@@ -1220,20 +1219,22 @@ void CDeviceCopyCommandInterfaceImpl::UploadImage(CBufferResource* pSrc, CImageR
 	const uint32_t dstMips = pDst->GetMipCount();
 	const uint32_t dstFirstMip = mapping.ResourceOffset.Subresource % dstMips;
 	const uint32_t dstFirstSlice = mapping.ResourceOffset.Subresource / dstMips;
-	const uint32_t dstLastMip = (mapping.ResourceOffset.Subresource + mapping.Extent.Subresources - 1) % dstMips;
 	const uint32_t dstLastSlice = (mapping.ResourceOffset.Subresource + mapping.Extent.Subresources - 1) / dstMips;
-	const uint32_t numMips = dstLastMip - dstFirstMip + 1;
 	const uint32_t numSlices = dstLastSlice - dstFirstSlice + 1;
-	VK_ASSERT((bExt || numMips * numSlices == mapping.Extent.Subresources) && "Partial copies that cross slice must start at mip 0, and request whole mip chains");
-	VK_ASSERT(dstFirstMip + numMips <= dstMips && dstFirstSlice + numSlices <= pDst->GetSliceCount() && "Destination subresource out of bounds");
-
-	uint32_t blockWidth = 1, blockHeight = 1, blockBytes = mapping.MemoryLayout.typeStride;
-	GetBlockSize(pDst->GetFormat(), blockWidth, blockHeight, blockBytes);
+#if !_RELEASE
+	const uint32_t dstLastMip = (mapping.ResourceOffset.Subresource + mapping.Extent.Subresources - 1) % dstMips;
+	const uint32_t numMips = dstLastMip - dstFirstMip + 1;
+	VK_ASSERT((bExt || numMips * numSlices == mapping.Extent.Subresources), "Partial copies that cross slice must start at mip 0, and request whole mip chains");
+	VK_ASSERT(dstFirstMip + numMips <= dstMips && dstFirstSlice + numSlices <= pDst->GetSliceCount(), "Destination subresource out of bounds");
 
 	// This is a limitation of high-level, may eventually change.
 	// When it does, we need to loop over the mips and fill one struct per iteration.
 	// However, we can still batch to one vkCmdCopyBufferToImage
-	VK_ASSERT(numMips == 1 && "Only 1 mip at a time expected");
+	VK_ASSERT(numMips == 1, "Only 1 mip at a time expected");
+#endif
+
+	uint32_t blockWidth = 1, blockHeight = 1, blockBytes = mapping.MemoryLayout.typeStride;
+	GetBlockSize(pDst->GetFormat(), blockWidth, blockHeight, blockBytes);
 
 	VkBufferImageCopy batch;
 	batch.bufferOffset = 0;
@@ -1249,17 +1250,17 @@ void CDeviceCopyCommandInterfaceImpl::UploadImage(CBufferResource* pSrc, CImageR
 	batch.imageExtent.width = mapping.Extent.Width;
 	batch.imageExtent.height = mapping.Extent.Height;
 	batch.imageExtent.depth = mapping.Extent.Depth;
-	VK_ASSERT(batch.bufferRowLength >= batch.imageExtent.width && "Bad row-stride specified");
-	VK_ASSERT(batch.bufferImageHeight >= batch.imageExtent.height && "Bad plane-stride specified");
+	VK_ASSERT(batch.bufferRowLength >= batch.imageExtent.width, "Bad row-stride specified");
+	VK_ASSERT(batch.bufferImageHeight >= batch.imageExtent.height, "Bad plane-stride specified");
 	vkCmdCopyBufferToImage(GetVKCommandList()->GetVkCommandList(), pSrc->GetHandle(), pDst->GetHandle(), pDst->GetLayout(), 1, &batch);
 	GetVKCommandList()->m_nCommands += CLCOUNT_COPY;
 }
 
 void CDeviceCopyCommandInterfaceImpl::DownloadImage(NCryVulkan::CImageResource* pSrc, NCryVulkan::CBufferResource* pDst, const SResourceMemoryMapping& mapping, bool bExt)
 {
-	VK_ASSERT(mapping.MemoryLayout.rowStride % mapping.MemoryLayout.typeStride == 0 && "Texel rows must be aligned to the texel size");
-	VK_ASSERT(mapping.MemoryLayout.planeStride % mapping.MemoryLayout.rowStride == 0 && "Texel planes must be aligned to the texel rows");
-	VK_ASSERT(mapping.MemoryLayout.volumeStride % mapping.MemoryLayout.planeStride == 0 && "Texel volumes must be aligned to the texel planes");
+	VK_ASSERT(mapping.MemoryLayout.rowStride % mapping.MemoryLayout.typeStride == 0, "Texel rows must be aligned to the texel size");
+	VK_ASSERT(mapping.MemoryLayout.planeStride % mapping.MemoryLayout.rowStride == 0, "Texel planes must be aligned to the texel rows");
+	VK_ASSERT(mapping.MemoryLayout.volumeStride % mapping.MemoryLayout.planeStride == 0, "Texel volumes must be aligned to the texel planes");
 
 	RequestTransition(pDst, VK_ACCESS_TRANSFER_WRITE_BIT);
 	RequestTransition(pSrc, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
@@ -1268,20 +1269,21 @@ void CDeviceCopyCommandInterfaceImpl::DownloadImage(NCryVulkan::CImageResource* 
 	const uint32_t srcMips = pSrc->GetMipCount();
 	const uint32_t srcFirstMip = mapping.ResourceOffset.Subresource % srcMips;
 	const uint32_t srcFirstSlice = mapping.ResourceOffset.Subresource / srcMips;
-	const uint32_t srcLastMip = (mapping.ResourceOffset.Subresource + mapping.Extent.Subresources - 1) % srcMips;
 	const uint32_t srcLastSlice = (mapping.ResourceOffset.Subresource + mapping.Extent.Subresources - 1) / srcMips;
-	const uint32_t numMips = srcLastMip - srcFirstMip + 1;
 	const uint32_t numSlices = srcLastSlice - srcFirstSlice + 1;
-	VK_ASSERT((bExt || numMips * numSlices == mapping.Extent.Subresources) && "Partial copies that cross slice must start at mip 0, and request whole mip chains");
-	VK_ASSERT(srcFirstMip + numMips <= srcMips && srcFirstSlice + numSlices <= pSrc->GetSliceCount() && "Destination subresource out of bounds");
-
-	uint32_t blockWidth = 1, blockHeight = 1, blockBytes = mapping.MemoryLayout.typeStride;
-	GetBlockSize(pSrc->GetFormat(), blockWidth, blockHeight, blockBytes);
+#if !_RELEASE
+	const uint32_t srcLastMip = (mapping.ResourceOffset.Subresource + mapping.Extent.Subresources - 1) % srcMips;
+	const uint32_t numMips = srcLastMip - srcFirstMip + 1;
+	VK_ASSERT((bExt || numMips * numSlices == mapping.Extent.Subresources), "Partial copies that cross slice must start at mip 0, and request whole mip chains");
+	VK_ASSERT(srcFirstMip + numMips <= srcMips && srcFirstSlice + numSlices <= pSrc->GetSliceCount(), "Destination subresource out of bounds");
 
 	// This is a limitation of high-level, may eventually change.
 	// When it does, we need to loop over the mips and fill one struct per iteration.
 	// However, we can still batch to one vkCmdCopyImageToBuffer
-	VK_ASSERT(numMips == 1 && "Only 1 mip at a time expected");
+	VK_ASSERT(numMips == 1, "Only 1 mip at a time expected");
+#endif
+	uint32_t blockWidth = 1, blockHeight = 1, blockBytes = mapping.MemoryLayout.typeStride;
+	GetBlockSize(pSrc->GetFormat(), blockWidth, blockHeight, blockBytes);
 
 	VkBufferImageCopy batch;
 	batch.bufferOffset = 0;
@@ -1297,8 +1299,8 @@ void CDeviceCopyCommandInterfaceImpl::DownloadImage(NCryVulkan::CImageResource* 
 	batch.imageExtent.width = mapping.Extent.Width;
 	batch.imageExtent.height = mapping.Extent.Height;
 	batch.imageExtent.depth = mapping.Extent.Depth;
-	VK_ASSERT(batch.bufferRowLength >= batch.imageExtent.width && "Bad row-stride specified");
-	VK_ASSERT(batch.bufferImageHeight >= batch.imageExtent.height && "Bad plane-stride specified");
+	VK_ASSERT(batch.bufferRowLength >= batch.imageExtent.width, "Bad row-stride specified");
+	VK_ASSERT(batch.bufferImageHeight >= batch.imageExtent.height, "Bad plane-stride specified");
 	vkCmdCopyImageToBuffer(GetVKCommandList()->GetVkCommandList(), pSrc->GetHandle(), pSrc->GetLayout(), pDst->GetHandle(), 1, &batch);
 	GetVKCommandList()->m_nCommands += CLCOUNT_COPY;
 }

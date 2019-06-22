@@ -25,11 +25,12 @@ public:
 	explicit SGPUMemHdl(void* pFixed)
 		: m_handleAndFlags((UINT_PTR)pFixed | IsFixedFlag)
 	{
+		CRY_ASSERT(pFixed != nullptr);
 	}
 
 	ILINE bool IsValid() const
 	{
-		return m_handleAndFlags != 0;
+		return m_handleAndFlags > IsFixedFlag;
 	}
 
 	ILINE int IsFixed() const
@@ -39,13 +40,13 @@ public:
 
 	void* GetFixedAddress() const
 	{
-		assert(IsFixed());
+		CRY_ASSERT(IsFixed());
 		return (void*)(m_handleAndFlags & ~FlagsMask);
 	}
 
 	IDefragAllocator::Hdl GetHandle() const
 	{
-		assert(!IsFixed());
+		CRY_ASSERT(!IsFixed());
 		return (IDefragAllocator::Hdl)(m_handleAndFlags >> FlagsShift);
 	}
 
@@ -269,6 +270,7 @@ public:
 
 public:
 	CDurangoGPURingMemAllocator();
+	~CDurangoGPURingMemAllocator();
 
 	bool  Init(ID3D11DmaEngineContextX* pContext, uint32 size);
 

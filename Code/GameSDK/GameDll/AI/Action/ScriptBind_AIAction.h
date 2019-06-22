@@ -32,8 +32,8 @@ public:
 
 	void SetGlobalName(const char* sGlobalName)
 	{
-		assert(strlen(sGlobalName) < sizeof(m_sGlobalName));
-		cry_strcpy(m_sGlobalName, sGlobalName);
+		CRY_ASSERT(strlen(sGlobalName) < sizeof(m_sGlobalName));
+		std::strcpy(m_sGlobalName, sGlobalName);
 	}
 
 	virtual void GetMemoryUsage(ICrySizer* pSizer) const

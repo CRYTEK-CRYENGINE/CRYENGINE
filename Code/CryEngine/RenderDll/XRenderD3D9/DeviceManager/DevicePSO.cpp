@@ -66,6 +66,7 @@ void CDeviceGraphicsPSODesc::InitWithDefaults()
 	m_PrimitiveType = eptTriangleList;
 	m_bDepthClip = true;
 	m_bDepthBoundsTest = false;
+	m_bRelaxedRasterizationOrder = false;
 	m_bDynamicDepthBias = false;
 }
 
@@ -160,6 +161,7 @@ void CDeviceGraphicsPSODesc::FillDescs(D3D11_RASTERIZER_DESC& rasterizerDesc, D3
 			{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_ZERO,					true },        // GS_BLSRC_SRCALPHA_A_ZERO
 			{ D3D11_BLEND_SRC1_ALPHA,     D3D11_BLEND_SRC1_ALPHA,			false },       // GS_BLSRC_SRC1ALPHA
 			{ D3D11_BLEND_SRC1_ALPHA,     D3D11_BLEND_ONE,					false },       // GS_BLSRC_SRC1ALPHA_A_ONE
+			{ D3D11_BLEND_SRC_ALPHA,      D3D11_BLEND_ONE,					true },        // GS_BLSRC_SRCALPHA_A_ONE
 		};
 
 		static BlendFactors DstBlendFactors[GS_BLDST_MASK >> GS_BLDST_SHIFT] =

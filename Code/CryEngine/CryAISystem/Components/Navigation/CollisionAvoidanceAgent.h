@@ -17,9 +17,8 @@ public:
 
     virtual ~CCollisionAvoidanceAgent() override;
 
-    //! Registers/Unregisters entity to/from collision avoidance system. Passing nullptr to pEntity parameter unregisters the entity.
-    void                                  Initialize(IEntity* pEntity);
-    void                                  Release();
+    bool                                  Register(IEntity* pEntity);
+	bool                                  Unregister();
 
 	virtual NavigationAgentTypeID         GetNavigationTypeId() const override;
 	virtual const INavMeshQueryFilter*    GetNavigationQueryFilter() const override;

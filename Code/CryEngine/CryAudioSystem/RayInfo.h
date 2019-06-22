@@ -33,11 +33,11 @@ public:
 	float       totalSoundOcclusion = 0.0f;
 	SRayHitInfo hits[g_maxRayHits];
 
-	#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+	#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	Vec3  startPosition = ZERO;
 	Vec3  direction = ZERO;
 	float distanceToFirstObstacle = FLT_MAX;
-	#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+	#endif // CRY_AUDIO_USE_DEBUG_CODE
 };
 }      // namespace CryAudio
 #endif // CRY_AUDIO_USE_OCCLUSION

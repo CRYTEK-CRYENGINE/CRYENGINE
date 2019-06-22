@@ -147,7 +147,7 @@ bool GetPythonScriptPath(const char* pFile, string& path)
 	bool bRelativePath = true;
 	char drive[_MAX_DRIVE];
 	drive[0] = '\0';
-	_splitpath(pFile, drive, 0, 0, 0);
+	_splitpath(pFile, drive, nullptr, nullptr, nullptr);
 	if (strlen(drive) != 0)
 	{
 		bRelativePath = false;
@@ -157,12 +157,12 @@ bool GetPythonScriptPath(const char* pFile, string& path)
 	GetCurrentDirectory(MAX_PATH, workingDirectory);
 	string scriptFolder = workingDirectory + string("/");
 	scriptFolder += GetIEditorImpl()->GetSystem()->GetIPak()->GetGameFolder() + string("/");
-	PathUtil::ToUnixPath(scriptFolder.GetBuffer());
+	scriptFolder = PathUtil::ToUnixPath(scriptFolder);
 
 	if (bRelativePath)
 	{
 		// Try to open from user folder
-		path = string(PathUtil::GetUserSandboxFolder().c_str()) + pFile;
+		path = string(PathUtil::GetUserSandboxFolder()) + pFile;
 
 		// If not found try editor folder
 		if (!CFileUtil::FileExists(path))
@@ -175,7 +175,7 @@ bool GetPythonScriptPath(const char* pFile, string& path)
 		path = pFile;
 	}
 
-	PathUtil::ToUnixPath(path.GetBuffer());
+	path = PathUtil::ToUnixPath(path);
 
 	if (!CFileUtil::FileExists(path))
 	{

@@ -1,5 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
+
 #pragma once
 
 #include "StatObj.h"
@@ -8,6 +9,7 @@
 #include <CryCore/StlUtils.h>
 #include <CryMemory/PoolAllocator.h>
 #include "CCullThread.h"
+#include <CryThreading/CryThreadSafePushContainer.h>
 
 #include <map>
 #include <vector>
@@ -162,7 +164,7 @@ class IStatObjFoundCallback
 {
 public:
 	virtual ~IStatObjFoundCallback() = default;
-	//! Gets called once loading is finished. 
+	//! Gets called once loading is finished.
 	//! Will be called directly from the thread invoking LoadStatObjAsync or later from the main thread.
 	//! \param pObject can be null in case of a loading error.
 	//! \param pSubObject may point to a named sub-object, if a geometryName was requested and found
@@ -182,22 +184,22 @@ public:
 	CObjManager();
 	~CObjManager();
 
-	void      PreloadLevelObjects();
-	void      StartPreloadLevelObjects();
+	void                        PreloadLevelObjects();
+	void                        StartPreloadLevelObjects();
 	I3DEngine::ELevelLoadStatus UpdatePreloadLevelObjects();
-	void      CancelPreloadLevelObjects();
+	void                        CancelPreloadLevelObjects();
 
-	void      UnloadObjects(bool bDeleteAll);
-	void      UnloadVegetationModels(bool bDeleteAll);
-	void      UnloadFarObjects();
+	void                        UnloadObjects(bool bDeleteAll);
+	void                        UnloadVegetationModels(bool bDeleteAll);
+	void                        UnloadFarObjects();
 
-	void      DrawFarObjects(float fMaxViewDist, const SRenderingPassInfo& passInfo);
-	void      GenerateFarObjects(float fMaxViewDist, const SRenderingPassInfo& passInfo);
-	void      RenderFarObjects(const SRenderingPassInfo& passInfo);
-	void      CheckTextureReadyFlag();
+	void                        DrawFarObjects(float fMaxViewDist, const SRenderingPassInfo& passInfo);
+	void                        GenerateFarObjects(float fMaxViewDist, const SRenderingPassInfo& passInfo);
+	void                        RenderFarObjects(const SRenderingPassInfo& passInfo);
+	void                        CheckTextureReadyFlag();
 
-	CStatObj* AllocateStatObj();
-	void      FreeStatObj(CStatObj* pObj);
+	CStatObj*                   AllocateStatObj();
+	void                        FreeStatObj(CStatObj* pObj);
 
 	template<class T>
 	static int GetItemId(std::vector<T*>* pArray, T* pItem, bool bAssertIfNotFound = true)
@@ -226,13 +228,13 @@ public:
 			return NULL;
 	}
 
-	CStatObj* LoadStatObj(const char* szFileName, const char* szGeomName = NULL, IStatObj::SSubObject** ppSubObject = NULL, bool useStreaming = true, uint32 loadingFlags = 0);
+	CStatObj*                LoadStatObj(const char* szFileName, const char* szGeomName = NULL, IStatObj::SSubObject** ppSubObject = NULL, bool useStreaming = true, uint32 loadingFlags = 0);
 	//! Asynchronously loads / looks for a CStatObj.
-	void LoadStatObjAsync(const char* szFileName, const char* szGeomName, bool useStreaming, uint32 loadingFlags, IStatObjFoundCallback* pCallback = nullptr);
+	void                     LoadStatObjAsync(const char* szFileName, const char* szGeomName, bool useStreaming, uint32 loadingFlags, IStatObjFoundCallback* pCallback = nullptr);
 	//! Shared for LoadStatObj and LoadStatObjAsync
 	struct SLoadPrepareState LoadStatObj_Prepare(const char* szFileName, const char* szGeomName, IStatObj::SSubObject** ppSubObject, uint32 loadingFlags);
 
-	void      GetLoadedStatObjArray(IStatObj** pObjectsArray, int& nCount);
+	void                     GetLoadedStatObjArray(IStatObj** pObjectsArray, int& nCount);
 
 	// Deletes object.
 	// Only should be called by Release function of CStatObj.
@@ -240,7 +242,7 @@ public:
 
 	PodArray<StatInstGroup> m_lstStaticTypes;
 
-	CThreadSafeRendererContainer<SVegetationSpriteInfo> m_arrVegetationSprites[MAX_RECURSION_LEVELS][nThreadsNum];
+	CryMT::CThreadSafePushContainer<SVegetationSpriteInfo> m_arrVegetationSprites[MAX_RECURSION_LEVELS][nThreadsNum];
 
 	void MakeShadowCastersList(CVisArea* pReceiverArea, const AABB& aabbReceiver,
 	                           int dwAllowedTypes, int32 nRenderNodeFlags, Vec3 vLightPos, SRenderLight* pLight, ShadowMapFrustum* pFr, PodArray<struct SPlaneObject>* pShadowHull, const SRenderingPassInfo& passInfo);
@@ -314,9 +316,9 @@ public:
 
 	void RenderVegetation(class CVegetation* pEnt, PodArray<SRenderLight*>* pAffectingLights,
 													const AABB &objBox, float fEntDistance,
-													SSectorTextureSet * pTerrainTexInfo, bool nCheckOcclusion, const SRenderingPassInfo &passInfo, uint32 passCullMask);
+													SSectorTextureSet* pTerrainTexInfo, bool nCheckOcclusion, const SRenderingPassInfo &passInfo, uint32 passCullMask);
 	void RenderBrush(class CBrush* pEnt, PodArray<SRenderLight*>* pAffectingLights,
-										 SSectorTextureSet * pTerrainTexInfo,
+										 SSectorTextureSet* pTerrainTexInfo,
 										 const AABB &objBox, float fEntDistance,
 										 bool nCheckOcclusion, const SRenderingPassInfo &passInfo, uint32 passCullMask);
 
@@ -357,7 +359,7 @@ public:
 	void UpdateRenderNodeStreamingPriority(IRenderNode* pObj, float fEntDistance, float fImportanceFactor, bool bFullUpdate, const SRenderingPassInfo& passInfo, bool bHighPriority = false);
 
 	void GetMemoryUsage(class ICrySizer* pSizer) const;
-	void GetBandwidthStats(float* fBandwidthRequested);
+	void       GetBandwidthStats(float* fBandwidthRequested);
 
 	void       ReregisterEntitiesInArea(AABB* pBox, bool bCleanUpTree = false);
 	//	void ProcessEntityParticles(IRenderNode * pEnt, float fEntDistance);
@@ -448,14 +450,13 @@ public:
 	void         CleanStreamingData();
 	IRenderMesh* GetRenderMeshBox();
 
-	void         PrepareCullbufferAsync(const CCamera& rCamera);
+	void         PrepareCullbufferAsync(const CCamera& rCamera, const SGraphicsPipelineKey& cullGraphicsContextKey);
 	void         BeginOcclusionCulling(const SRenderingPassInfo& passInfo);
 	void         EndOcclusionCulling();
 	void         RenderNonJobObjects(const SRenderingPassInfo& passInfo);
 	uint32       GetResourcesModificationChecksum(IRenderNode* pOwnerNode) const;
 	bool         AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempData, CRenderObject*& pRenderObject, const CLodValue* pLodValue, const Matrix34& transformationMatrix, const SRenderingPassInfo& passInfo) const;
 	IRenderMesh* GetBillboardRenderMesh(IMaterial* pMaterial);
-
 
 public:
 	//////////////////////////////////////////////////////////////////////////
@@ -521,11 +522,11 @@ private:
 	stl::PoolAllocator<sizeof(CStatObj), stl::PSyncMultiThread, alignof(CStatObj)>* m_statObjPool;
 #endif
 
-	CThreadSafeRendererContainer<SObjManRenderDebugInfo>             m_arrRenderDebugInfo;
+	CryMT::CThreadSafePushContainer<SObjManRenderDebugInfo> m_arrRenderDebugInfo;
 
-	BoundMPMC<SCheckOcclusionOutput>  m_CheckOcclusionOutputQueue;
-	
-	JobManager::SJobState                                            m_renderContentJobState;
+	BoundMPMC<SCheckOcclusionOutput>    m_CheckOcclusionOutputQueue;
+
+	JobManager::SJobState               m_renderContentJobState;
 
 	class CPreloadTimeslicer;
 	std::unique_ptr<CPreloadTimeslicer> m_pPreloadTimeSlicer;

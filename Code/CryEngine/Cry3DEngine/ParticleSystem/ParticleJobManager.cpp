@@ -8,16 +8,12 @@
 #include "ParticleSystem.h"
 #include "ParticleProfiler.h"
 #include <CryRenderer/IGpuParticles.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace pfx2
 {
 
 int e_ParticlesJobsPerThread = 16;
-
-ILINE bool EmitterHasDeferred(CParticleEmitter* pEmitter)
-{
-	return ThreadMode() >= 4 && !pEmitter->GetCEffect()->RenderDeferred.empty();
-}
 
 CParticleJobManager::CParticleJobManager()
 {
@@ -40,79 +36,100 @@ void CParticleJobManager::ScheduleComputeVertices(CParticleComponentRuntime& run
 		job.pVertexCreator = &runtime;
 	job.pRenderObject = pRenderObject;
 	job.pShaderItem = &pRenderObject->m_pCurrMaterial->GetShaderItem();
-	job.nCustomTexId = renderContext.m_renderParams.nTextureID;
-	job.aabb = runtime.GetBounds();
 }
 
 void CParticleJobManager::AddUpdateEmitter(CParticleEmitter* pEmitter)
 {
-	CRY_PFX2_ASSERT(!m_updateState.IsRunning());
-	if (ThreadMode() == 0)
+	int threadMode = ThreadMode();
+
+	if (threadMode == 0)
 	{
 		// Update synchronously in main thread
 		pEmitter->UpdateParticles();
 	}
-	else
+	else if (threadMode > 0 && threadMode <= 4)
 	{
 		// Schedule emitters rendered last frame first
-		if (ThreadMode() >= 2 && pEmitter->WasRenderedLastFrame())
+		if (threadMode >= 2 && pEmitter->WasRenderedLastFrame())
 		{
-			if (EmitterHasDeferred(pEmitter))
+			if (threadMode >= 4 && pEmitter->GetRuntimesDeferred().size())
 				m_emittersDeferred.push_back(pEmitter);
 			else
 				m_emittersVisible.push_back(pEmitter);
 		}
-		else if (ThreadMode() < 3 || !pEmitter->IsStable())
+		else if (threadMode < 3 || !pEmitter->IsStable())
 			m_emittersInvisible.push_back(pEmitter);
+	}
+	else // if (threadMode >= 5)
+	{
+		auto job = [pEmitter]() { pEmitter->UpdateParticles(); };
+		if (pEmitter->WasRenderedLastFrame())
+		{
+			if (pEmitter->GetRuntimesDeferred().size())
+			{
+				gEnv->pJobManager->AddLambdaJob("job:pfx2:UpdateEmitter (deferred)", job, JobManager::eHighPriority, &m_updateState);
+			}
+			else
+			{
+				gEnv->pJobManager->AddLambdaJob("job:pfx2:UpdateEmitter (visible)", job, JobManager::eRegularPriority, &m_updateState);
+			}
+		}
+		else if (!pEmitter->IsStable())
+		{
+			gEnv->pJobManager->AddLambdaJob("job:pfx2:UpdateEmitter (invisible)", job, JobManager::eStreamPriority, &m_updateState);
+		}
 	}
 }
 
-void CParticleJobManager::ScheduleUpdateEmitter(CParticleEmitter* pEmitter)
+void CParticleJobManager::ScheduleUpdateEmitter(CParticleEmitter* pEmitter, JobManager::TPriorityLevel priority)
 {
-	auto job = [pEmitter]()
-	{
-		pEmitter->UpdateParticles();
-	};
-	auto priority = EmitterHasDeferred(pEmitter) ? JobManager::eHighPriority : JobManager::eRegularPriority;
+	auto job = [pEmitter]() { pEmitter->UpdateParticles(); };
 	gEnv->pJobManager->AddLambdaJob("job:pfx2:UpdateEmitter", job, priority, &m_updateState);
 }
 
 void CParticleJobManager::ScheduleUpdates()
 {
+	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
+	
+	if (ThreadMode() >= 5)
+		return;
+
 	// Schedule jobs in a high-priority job
 	CRY_PFX2_ASSERT(!m_updateState.IsRunning());
-	auto job = [this]()
+
+	if (!m_emittersDeferred.empty())
 	{
-		Job_ScheduleUpdates();
-	};
-	gEnv->pJobManager->AddLambdaJob("job:pfx2:ScheduleUpdates", job, JobManager::eHighPriority, &m_updateState);
-}
-
-void CParticleJobManager::Job_ScheduleUpdates()
-{
-	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
-
-	// Schedule deferred emitters in high-priority jobs
-	ScheduleUpdateEmitters(m_emittersDeferred, JobManager::eHighPriority);
-
-	if (m_emittersVisible.size())
-	{
-		// Sort fast (visible) emitters by camera Z
-		const CCamera& camera = gEnv->p3DEngine->GetRenderingCamera();
-		Vec3 sortDir = -camera.GetViewdir();
-		stl::sort(m_emittersVisible, [sortDir](const CParticleEmitter* pe)
-		{
-			return pe->GetLocation().t | sortDir;
-		});
-		ScheduleUpdateEmitters(m_emittersVisible, JobManager::eRegularPriority);
+		ScheduleUpdateEmitters(m_emittersDeferred, JobManager::eHighPriority);
 	}
-	ScheduleUpdateEmitters(m_emittersInvisible, JobManager::eStreamPriority);
+	
+	if (!m_emittersVisible.empty())
+	{
+		auto job = [this]() 
+		{
+			// Sort fast (visible) emitters by camera Z
+			const CCamera& camera = gEnv->p3DEngine->GetRenderingCamera();
+			Vec3 sortDir = -camera.GetViewdir();
+			stl::sort(m_emittersVisible, [sortDir](const CParticleEmitter* pe)
+			{
+				return pe->GetLocation().t | sortDir;
+			});
+
+			ScheduleUpdateEmitters(m_emittersVisible, JobManager::eRegularPriority);
+		};
+
+		gEnv->pJobManager->AddLambdaJob("job:pfx2:ScheduleUpdates (visible)", job, JobManager::eRegularPriority, &m_updateState);
+	}
+	
+	if (!m_emittersInvisible.empty())
+	{
+		ScheduleUpdateEmitters(m_emittersInvisible, JobManager::eStreamPriority);
+	}
 }
 
 void CParticleJobManager::ScheduleUpdateEmitters(TDynArray<CParticleEmitter*>& emitters, JobManager::TPriorityLevel priority)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
-
+	
 	// Batch updates into jobs
 	const uint maxJobs = gEnv->pJobManager->GetNumWorkerThreads() * e_ParticlesJobsPerThread;
 	const uint numJobs = min(emitters.size(), maxJobs);
@@ -127,10 +144,14 @@ void CParticleJobManager::ScheduleUpdateEmitters(TDynArray<CParticleEmitter*>& e
 		auto job = [emitterGroup]()
 		{
 			for (auto pEmitter : emitterGroup)
+			{
 				pEmitter->UpdateParticles();
+			}
 		};
+
 		gEnv->pJobManager->AddLambdaJob("job:pfx2:UpdateEmitters", job, priority, &m_updateState);
 	}
+
 	CRY_PFX2_ASSERT(e == emitters.size());
 }
 

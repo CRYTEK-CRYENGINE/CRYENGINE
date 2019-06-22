@@ -66,9 +66,9 @@
 #include <ConfigurationManager.h>
 #include <EditorCommonInit.h>
 #include <EditorFramework/BroadcastManager.h>
-#include <EditorFramework/EditorToolBarService.h>
 #include <EditorFramework/PersonalizationManager.h>
 #include <EditorFramework/Preferences.h>
+#include <EditorFramework/ToolBar/ToolBarService.h>
 #include <EditorFramework/TrayArea.h>
 #include <Gizmos/GizmoManager.h>
 #include <ISourceControl.h>
@@ -78,6 +78,7 @@
 #include <Preferences/GeneralPreferences.h>
 #include <Preferences/ViewportPreferences.h>
 #include <UIEnumsDatabase.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include <CrySandbox/CryInterop.h>
 #include <CrySandbox/IEditorGame.h>
@@ -106,7 +107,7 @@ CEditorImpl::CEditorImpl(CGameEngine* ge)
 	, m_objectHideMask(0)
 	, editorConfigSpec(CONFIG_MEDIUM_SPEC)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	//This is dangerous and should (in theory) be set at the end of the constructor for safety, after everything is properly initialized.
 	//Code within this scope can use GetIEditorImpl() at their own risk
@@ -130,7 +131,7 @@ CEditorImpl::CEditorImpl(CGameEngine* ge)
 	m_pGlobalBroadcastManager = new CBroadcastManager;
 	m_pNotificationCenter = new CNotificationCenter;
 	m_pTrayArea = new CTrayArea;
-	m_pEditorToolBarService = new CEditorToolBarService;
+	m_pToolBarService = new CToolBarService;
 	m_pCommandManager = new CEditorCommandManager;
 	m_pPersonalizationManager = new CPersonalizationManager;
 	m_pPreferences = new CPreferences;
@@ -265,7 +266,7 @@ CEditorImpl::~CEditorImpl()
 	SAFE_DELETE(m_pPreferences)
 	SAFE_DELETE(m_pPersonalizationManager)
 	SAFE_DELETE(m_pCommandManager)
-	SAFE_DELETE(m_pEditorToolBarService)
+	SAFE_DELETE(m_pToolBarService)
 	SAFE_DELETE(m_pTrayArea)
 	SAFE_DELETE(m_pNotificationCenter)
 	SAFE_DELETE(m_pPythonManager)
@@ -443,7 +444,7 @@ void CEditorImpl::CloseDocument()
 {
 	if (theDocument)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		Notify(eNotify_OnBeginSceneClose);
 		theDocument->DeleteContents();
 		delete theDocument;
@@ -859,6 +860,11 @@ IPane* CEditorImpl::CreateDockable(const char* szClassName)
 IPane* CEditorImpl::FindDockable(const char* szClassName)
 {
 	return CTabPaneManager::GetInstance()->FindPaneByClass(szClassName);
+}
+
+std::vector<IPane*> CEditorImpl::FindAllDockables(const char* szClassName)
+{
+	return CTabPaneManager::GetInstance()->FindAllPanelsByClass(szClassName);
 }
 
 IPane* CEditorImpl::FindDockableIf(const std::function<bool(IPane*, const string& /*className*/)>& predicate)
@@ -1297,7 +1303,7 @@ ESystemConfigSpec CEditorImpl::GetEditorConfigSpec() const
 
 void CEditorImpl::InitFinished()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (!m_bInitialized)
 	{

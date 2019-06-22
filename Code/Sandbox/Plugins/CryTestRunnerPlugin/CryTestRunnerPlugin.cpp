@@ -319,12 +319,12 @@ public:
 
 		RegisterDockableWidget("Tests", [&]()
 		{
-			return &m_browserWidget;
+			return new CCryTestBrowserWidget(g_cryTestRunnerSystem);
 		}, true);
 
 		RegisterDockableWidget("Output", [&]()
 		{
-			return &m_outputWidget;
+			return new CCryTestOutputWidget(g_cryTestRunnerSystem);
 		}, true);
 	}
 
@@ -334,10 +334,6 @@ public:
 		auto centerWidget = sender->SpawnWidget("Tests");
 		sender->SpawnWidget("Output", centerWidget, QToolWindowAreaReference::Bottom);
 	}
-
-private:
-	CCryTestBrowserWidget m_browserWidget{ g_cryTestRunnerSystem };
-	CCryTestOutputWidget  m_outputWidget{ g_cryTestRunnerSystem };
 };
 
 REGISTER_VIEWPANE_FACTORY_AND_MENU(CCryTestRunnerWindow, "Test Runner", "Tools", true, "Advanced");

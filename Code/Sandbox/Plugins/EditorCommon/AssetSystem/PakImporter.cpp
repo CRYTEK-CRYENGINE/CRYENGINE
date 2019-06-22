@@ -216,8 +216,9 @@ void CPakImporter::ImportAssets(const string& pak)
 
 string CPakImporter::GetTemporaryDirectoryPath()
 {
-	char path[ICryPak::g_nMaxPath] = {};
-	return gEnv->pCryPak->AdjustFileName("%USER%/temp", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_ADD_TRAILING_SLASH);
+	CryPathString path;
+	gEnv->pCryPak->AdjustFileName("%USER%/temp", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_ADD_TRAILING_SLASH);
+	return path.c_str();
 }
 
 // The pak should be opened.
@@ -244,7 +245,7 @@ void CPakImporter::Unpak(const char* szArchivePath, const char* szDestPath, std:
 			}
 
 			ICryPak* const pPak = GetISystem()->GetIPak();
-			FILE* file = pPak->FOpen(path, "rbx");
+			FILE* file = pPak->FOpen(path, "rb");
 			if (!file)
 			{
 				return;

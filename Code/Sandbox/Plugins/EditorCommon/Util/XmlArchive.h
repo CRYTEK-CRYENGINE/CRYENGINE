@@ -24,19 +24,19 @@ public:
 		bLoading = false;
 		bOwnNamedData = true;
 		pNamedData = new CNamedData;
-	};
+	}
 	explicit CXmlArchive(const string& xmlRoot)
 	{
 		bLoading = false;
 		bOwnNamedData = true;
 		pNamedData = new CNamedData;
 		root = XmlHelpers::CreateXmlNode(xmlRoot);
-	};
+	}
 	~CXmlArchive()
 	{
 		if (bOwnNamedData)
 			delete pNamedData;
-	};
+	}
 	CXmlArchive(const CXmlArchive& ar) { *this = ar; }
 	CXmlArchive& operator=(const CXmlArchive& ar)
 	{

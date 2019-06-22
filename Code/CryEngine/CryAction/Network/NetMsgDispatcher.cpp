@@ -25,6 +25,7 @@
 #include "GameClientNub.h"
 #include "GameServerChannel.h"
 #include "GameServerNub.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 // ------------------------------------------------------------------------
 // Local CVARS

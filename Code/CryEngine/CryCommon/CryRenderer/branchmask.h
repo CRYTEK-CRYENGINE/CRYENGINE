@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __BRANCHLESS_MASK__
-#define __BRANCHLESS_MASK__
+#pragma once
 
 ///////////////////////////////////////////
 // helper functions for branch elimination
@@ -55,5 +54,3 @@ ILINE const uint32 mask_zr_zr(const uint32 x, const uint32 y)
 {
 	return ~nz2mask(x | y);
 }
-
-#endif//__BRANCHLESS_MASK__

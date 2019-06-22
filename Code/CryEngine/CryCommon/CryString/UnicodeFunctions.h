@@ -4,6 +4,7 @@
 
 #pragma once
 #include <CryCore/BaseTypes.h>
+#include <CryCore/Assert/CryAssert.h>
 #include "UnicodeBinding.h"
 #include "UnicodeEncoding.h"
 namespace Unicode

@@ -7,7 +7,7 @@
 #include "DiskProfiler.h"
 #include "DiskProfilerWindowsSpecific.h"
 
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CryRenderer/IRenderer.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryThreading/IThreadManager.h>

@@ -10,6 +10,7 @@
 #include <CrySerialization/IArchiveHost.h>
 #include <CryDynamicResponseSystem/IDynamicResponseCondition.h>
 #include <CryGame/IGameFramework.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "ResponseSystemDataImportHelper.h"
 #include "DialogLineDatabase.h"

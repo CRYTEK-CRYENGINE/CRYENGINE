@@ -855,7 +855,6 @@ add_sources("CryRenderer_uber_0.cpp"
 		"D3D_SVO.h"
 	SOURCE_GROUP "Source Files"
 		"D3DAmbientOcclusion.cpp"
-		"D3DColorGradingController.cpp"
 		"D3DDebug.cpp"
 		"D3DDeferredRender.cpp"
 		"D3DDeferredShading.cpp"
@@ -951,7 +950,6 @@ add_sources("CryRenderer_uber_3.cpp"
 		"../Common/RenderPipeline.h"
 		"../Common/DeferredRenderUtils.h"
 		"../Common/RenderFrameProfiler.h"
-		"../Common/IColorGradingControllerInt.h"
 		"../Common/OcclQuery.h"
 		"../Common/RenderAuxGeom.h"
 		"../Common/Renderer.h"
@@ -974,7 +972,6 @@ add_sources("CryRenderer_uber_3.cpp"
 		"../Common/ISmartGlassContext.h"
 		"../Common/LightVolumeBuffer.h"
 		"../Common/ParticleBuffer.h"
-		"D3DColorGradingController.h"
 		"D3DDebug.h"
 		"D3DDeferredShading.h"
 		"D3DHWShader.h"
@@ -1049,7 +1046,6 @@ add_sources("CryRenderer_uber_5.cpp"
 	SOURCE_GROUP "DeviceManager"
 		"DevBuffer.cpp"
 		"../Common/DevBuffer.h"
-		"DeviceManager/TempDynBuffer.h"
 		"DeviceManager/DeviceObjects.h"
 		"DeviceManager/DeviceObjects.inl"
 		"DeviceManager/DeviceObjects.cpp"
@@ -1077,8 +1073,12 @@ add_sources("CryRenderer_uber_6.cpp"
 	SOURCE_GROUP "GraphicsPipeline"
 		"GraphicsPipeline/AutoExposure.h"
 		"GraphicsPipeline/AutoExposure.cpp"
+		"GraphicsPipeline/BillboardGraphicsPipeline.h"
+		"GraphicsPipeline/BillboardGraphicsPipeline.cpp"
 		"GraphicsPipeline/Bloom.h"
 		"GraphicsPipeline/Bloom.cpp"
+		"GraphicsPipeline/CharacterToolGraphicsPipeline.h"
+		"GraphicsPipeline/CharacterToolGraphicsPipeline.cpp"
 		"GraphicsPipeline/ClipVolumes.h"
 		"GraphicsPipeline/ClipVolumes.cpp"
 		"GraphicsPipeline/ColorGrading.h"
@@ -1097,8 +1097,12 @@ add_sources("CryRenderer_uber_6.cpp"
 		"GraphicsPipeline/Fog.cpp"
 		"GraphicsPipeline/LensOptics.h"
 		"GraphicsPipeline/LensOptics.cpp"
+		"GraphicsPipeline/MinimumGraphicsPipeline.h"
+		"GraphicsPipeline/MinimumGraphicsPipeline.cpp"
 		"GraphicsPipeline/MobileComposition.h"
 		"GraphicsPipeline/MobileComposition.cpp"
+		"GraphicsPipeline/MobileGraphicsPipeline.h"
+		"GraphicsPipeline/MobileGraphicsPipeline.cpp"
 		"GraphicsPipeline/MotionBlur.h"
 		"GraphicsPipeline/MotionBlur.cpp"
 		"GraphicsPipeline/HeightMapAO.h"
@@ -1292,8 +1296,10 @@ if (RENDERER_DX12)
 	if (WINDOWS)
 		set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " /NODEFAULTLIB:libcmt.lib")
 		target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib dxguid d3d12 dxgi d3dcompiler Ole32 Gdi32 wininet Shell32 png16 tiff)
+		target_link_libraries(${THIS_PROJECT} PRIVATE WinPixEventRuntime)
 	elseif(DURANGO)
 		target_link_libraries(${THIS_PROJECT} PRIVATE ws2_32 SmartGlassInterop d3d12_x d3dcompiler dxguid xg_x uuid kernelx)
+		target_link_libraries(${THIS_PROJECT} PRIVATE PIXEvt)
 	endif()
 
 	if(USE_DXC)
@@ -1308,17 +1314,18 @@ if (RENDERER_VULKAN)
 	add_subdirectory("${CRY_LIBS_DIR}/spirv-cross" "${CMAKE_CURRENT_BINARY_DIR}/spirv-cross")
 
 	CryEngineModule(CryRenderVulkan FORCE_SHARED_WIN PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
-	target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_VULKAN=10 -DDO_RENDERSTATS -D_RENDERER -DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
 	target_include_directories(${THIS_PROJECT} PRIVATE ..)
 	target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/squish-ccr")
 	target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib spirv-cross)
 	if(WINDOWS)
+		target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_VULKAN=11 -DDO_RENDERSTATS -D_RENDERER -DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
 		target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/VulkanSDK/Include")
 		target_link_libraries(${THIS_PROJECT} PRIVATE Ole32 Gdi32 wininet Shell32 png16 dxguid vulkan-1 tiff)
 		set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " /NODEFAULTLIB:libcmt.lib")
 		set_libpath_flag()
 		set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " ${LIBPATH_FLAG}\"${SDK_DIR}/VulkanSDK/Lib\"")
 	elseif(ANDROID)
+		target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_VULKAN=10 -DDO_RENDERSTATS -D_RENDERER -DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
 		target_compile_options(${THIS_PROJECT} PRIVATE -std=c++14)
 		find_library(LIBVULKAN vulkan PATHS "${CMAKE_ANDROID_NDK}/platforms/android-${CMAKE_SYSTEM_VERSION}/arch-${CMAKE_ANDROID_ARCH_FOLDER}/usr/lib/")
 		target_include_directories(${THIS_PROJECT} PRIVATE "${CMAKE_ANDROID_NDK}/sources/third_party/vulkan/src/include")
@@ -1326,6 +1333,7 @@ if (RENDERER_VULKAN)
 		target_link_libraries(${THIS_PROJECT} PRIVATE SDL2)
 		target_link_libraries(${THIS_PROJECT} PRIVATE ${LIBVULKAN})
 	elseif(LINUX)
+		target_compile_definitions(${THIS_PROJECT} PRIVATE -DCRY_RENDERER_VULKAN=11 -DDO_RENDERSTATS -D_RENDERER -DSPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
 		target_compile_options(${THIS_PROJECT} PRIVATE -std=c++14)
 		find_library(LIBVULKAN vulkan PATHS "${SDK_DIR}/VulkanSDK/x86_64/lib")
 		target_include_directories(${THIS_PROJECT} PRIVATE "${SDK_DIR}/VulkanSDK/x86_64/include")
@@ -1339,7 +1347,6 @@ if (RENDERER_VULKAN)
 
 	if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		target_compile_options(${THIS_PROJECT} PRIVATE
-			-Wno-unused-variable
 			-Wno-unused-value
 			-Wno-unknown-pragmas
 			-Wno-format
@@ -1350,11 +1357,10 @@ if (RENDERER_VULKAN)
 			-Wno-invalid-offsetof
 			-Wno-null-conversion
 		)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		target_compile_options(${THIS_PROJECT} PRIVATE
 			-Wno-unused-function
 			-Wno-unused-value
-			-Wno-unused-variable
 			-Wno-sign-compare
 			-Wno-ignored-attributes
 			-Wno-int-in-bool-context
@@ -1375,13 +1381,14 @@ if (RENDERER_VULKAN)
 			-Wno-address
 			-Wno-format
 			-Wno-switch
+			-Wno-psabi
 		)
-    endif()
+  endif()
 else()
 	CryFileContainer(CryRenderVulkan SOLUTION_FOLDER "CryEngine")
 endif()
 
-if (EXISTS "${SCE_ORBIS_SDK_DIR}" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/GNM")
+if (EXISTS "$ENV{SCE_ORBIS_SDK_DIR}" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/GNM")
 	if (RENDERER_GNM)
 		list(APPEND extra_defines -DGNM_FEATURE_VALIDATION=$<AND:$<NOT:$<CONFIG:Release>>,$<BOOL:RENDERER_GNM>>)
 		CryEngineModule(CryRenderGNM PCH "../StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
@@ -1391,7 +1398,6 @@ if (EXISTS "${SCE_ORBIS_SDK_DIR}" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/GNM")
 		target_link_libraries(${THIS_PROJECT} PRIVATE lzma lzss lz4 zlib SceSystemService_stub_weak SceGnmDriver_stub_weak $<$<NOT:$<CONFIG:Release>>:SceGnm> $<$<NOT:$<CONFIG:Release>>:SceGnmx> $<$<NOT:$<CONFIG:Release>>:SceDbg_stub_weak> $<$<CONFIG:Release>:SceGnm_lto> $<$<CONFIG:Release>:SceGnmx_lto>)
 
 		target_compile_options(${THIS_PROJECT} PRIVATE
-			-Wno-unused-variable
 			-Wno-parentheses
 			-Wno-reorder
 			-Wno-unused-value

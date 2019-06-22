@@ -952,7 +952,7 @@ public:
 
 	void           Serialize(TSerialize ser)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Configurable variant serialization");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Configurable variant serialization");
 
 		if (ser.IsWriting())
 		{

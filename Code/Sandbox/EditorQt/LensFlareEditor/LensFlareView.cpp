@@ -1,6 +1,7 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include <Cry3DEngine/I3DEngine.h>
 #include "LensFlareView.h"
 #include "LensFlareItem.h"
 #include "LensFlareEditor.h"
@@ -49,7 +50,7 @@ void CLensFlareView::RenderEffect(IMaterial* pMaterial, const SRenderingPassInfo
 			{
 				SShaderItem& shaderItem = pMaterial->GetShaderItem();
 				
-				SLensFlareRenderParam param(&m_camera, shaderItem.m_pShader, passInfo);
+				SLensFlareRenderParam param(&m_camera, shaderItem.m_pShader, passInfo.GetRenderView());
 				pOptics->RenderPreview(&param, Vec3(ZERO));
 				return;
 			}

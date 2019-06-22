@@ -10,6 +10,37 @@ struct SRayTraceRes;
 
 #include <CryNetwork/ISerialize.h>
 
+struct SMemSerializer : ISerialize {
+	SMemSerializer(int size0=256) { buf=new char[size=size0]; pos=0; reading=false; }
+	SMemSerializer(char *buf0, bool read=true) { buf=buf0; size=-1; pos=0; reading=read; }
+	virtual ~SMemSerializer() { if (size>0) delete[] buf; }
+	virtual void ReadStringValue(const char * name, SSerializeString &curValue, uint32 policy=0) {}
+	virtual void WriteStringValue(const char * name, SSerializeString& buffer, uint32 policy=0) {}
+	virtual void Update( ISerializeUpdateFunction * pUpdate ) {}
+	virtual void FlagPartialRead() {}
+	virtual void BeginGroup( const char * szName ) {}
+	virtual bool BeginOptionalGroup(const char* szName, bool condition) { Value(szName, condition); return condition; }
+	virtual void EndGroup() {}
+	virtual bool IsReading() const { return reading!=0; }
+	virtual bool ShouldCommitValues() const { return true; }
+	virtual ESerializationTarget GetSerializationTarget() const { return eST_SaveGame; }
+	virtual bool Ok() const { return true; }
+#define SERIALIZATION_TYPE(T) \
+	virtual void Value( const char * name, T& x, uint32 policy=0 ) { \
+		if (pos+sizeof(T)>(unsigned int)size) { ReallocateList(buf,size,size+256); size+=256; } \
+		T *op[2]; op[reading]=(T*)(buf+pos); op[reading^1]=&x; *op[0]=*op[1]; pos+=sizeof(T); \
+	}
+#include <CryNetwork/SerializationTypes.h>
+#undef SERIALIZATION_TYPE
+#define SERIALIZATION_TYPE(T) virtual void ValueWithDefault( const char * name, T& x, const T& defaultValue ) { Value(name,x); }
+#include <CryNetwork/SerializationTypes.h>
+#undef SERIALIZATION_TYPE
+	virtual void ValueWithDefault( const char * name, SSerializeString& x, const SSerializeString& defaultValue ) {}
+	int reading;
+	char* buf;
+	int pos,size;
+};
+
 enum phentity_flags_int { 
 	pef_use_geom_callbacks = 0x20000000,
 	sef_skeleton = 0x04

@@ -43,9 +43,9 @@ namespace Cry
 			}
 		}
 
-		ITexture* CUser::GetAvatar(EAvatarSize size) const
+		TextureId CUser::GetAvatar(EAvatarSize size) const
 		{
-			return m_accounts.empty() ? nullptr : m_accounts[0]->GetAvatar(size);
+			return m_accounts.empty() ? NullTextureID : m_accounts[0]->GetAvatar(size);
 		}
 
 		IAccount* CUser::GetAccount(const ServiceIdentifier& svcId) const

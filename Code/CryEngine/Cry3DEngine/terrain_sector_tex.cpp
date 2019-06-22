@@ -138,7 +138,7 @@ void CTerrainNode::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 void CTerrainNode::StreamOnComplete(IReadStream* pStream, unsigned nError)
 {
 	FUNCTION_PROFILER_3DENGINE;
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "CTerrainNode::StreamOnComplete");
+	MEMSTAT_CONTEXT(EMemStatContextType::Terrain, "CTerrainNode::StreamOnComplete");
 
 	if (pStream->IsError())
 	{

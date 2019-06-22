@@ -24,8 +24,11 @@ bool CResourceFilterProxyModel::rowMatchesFilter(int sourceRow, QModelIndex cons
 
 			if ((pControl != nullptr) && ((pControl->GetFlags() & EAssetFlags::IsHiddenInResourceSelector) == 0))
 			{
-				Scope const scope = pControl->GetScope();
-				matchesFilter = (pControl->GetType() == m_type) && ((scope == g_globalScopeId) || (scope == m_scope));
+				CryAudio::ContextId const contextId = pControl->GetContextId();
+				matchesFilter =
+					(pControl->GetType() == m_type) &&
+					((contextId == CryAudio::GlobalContextId) ||
+					 (std::find(g_activeUserDefinedContexts.begin(), g_activeUserDefinedContexts.end(), contextId) != g_activeUserDefinedContexts.end()));
 			}
 		}
 	}

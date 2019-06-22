@@ -856,6 +856,8 @@ struct CCurveEditor::SHandleMoveHandler : public CCurveEditor::SMouseHandler
 		}
 
 		m_pKey->m_bModified = true;
+
+		m_pCurveEditor->PostContentUpdate();
 	}
 
 	void focusOutEvent(QFocusEvent* pEvent) override
@@ -923,6 +925,32 @@ void CCurveEditor::SetTime(const SAnimTime time)
 {
 	m_timeRange.ClipValue(m_time = time);
 	update();
+}
+
+void CCurveEditor::SelectKeysWidthTimes(const std::set<SAnimTime>& times)
+{
+	using namespace Private_CurveEditor;
+
+	ForEachKey(*m_pContent, [](SCurveEditorCurve& curve, SCurveEditorKey& key)
+	{
+		key.m_bSelected = false;
+	});
+
+	m_bKeysSelected = false;
+
+	ForEachKey(*m_pContent, [&times, this](SCurveEditorCurve& curve, SCurveEditorKey& key)
+	{
+		for (const SAnimTime& time : times)
+		{
+			if (time == key.m_time)
+			{
+				key.m_bSelected = true;
+				m_bKeysSelected = true;
+
+				break;
+			}
+		}
+	});
 }
 
 void CCurveEditor::SetTimeRange(const SAnimTime start, const SAnimTime end, ELimit limit)

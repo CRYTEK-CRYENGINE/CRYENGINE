@@ -39,5 +39,6 @@ CMenuUpdater::CMenuUpdater(CAbstractMenu* pAbstractMenu, QMenu* pMenu) : m_pAbst
 
 CMenuUpdater::~CMenuUpdater()
 {
+	m_pAbstractMenu->signalMenuAdded.DisconnectById(GetId());
 	m_pAbstractMenu->signalActionAdded.DisconnectById(GetId());
 }

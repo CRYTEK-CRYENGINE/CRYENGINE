@@ -1,9 +1,8 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __POWEROF2BLOCKPACKER_H__
-#define __POWEROF2BLOCKPACKER_H__
+#pragma once
 
-#include <vector>           // STL vector<>
+#include <vector>
 
 class CPowerOf2BlockPacker
 {
@@ -94,5 +93,3 @@ private: // ----------------------------------------------------------
 	//
 	uint32 FindFreeBlockIDOrCreateNew();
 };
-
-#endif

@@ -148,21 +148,20 @@ void CBaseLibraryManager::DeleteItem(IDataBaseItem* pItem)
 //////////////////////////////////////////////////////////////////////////
 IDataBaseLibrary* CBaseLibraryManager::LoadLibrary(const string& inFilename, bool bReload)
 {
-	string filename = inFilename;
 	// If library is already loaded ignore it.
 	for (int i = 0; i < m_libs.size(); i++)
 	{
-		if (stricmp(filename, m_libs[i]->GetFilename()) == 0 || stricmp(inFilename, m_libs[i]->GetFilename()) == 0)
+		if (stricmp(inFilename, m_libs[i]->GetFilename()) == 0)
 		{
-			Error(_T("Loading Duplicate Library: %s"), filename.c_str());
+			Error(_T("Loading Duplicate Library: %s"), inFilename.c_str());
 			return nullptr;
 		}
 	}
 
 	TSmartPtr<CBaseLibrary> pLib = MakeNewLibrary();
-	if (!pLib->Load(filename))
+	if (!pLib->Load(inFilename))
 	{
-		Error(_T("Failed to Load Item Library: %s"), filename.c_str());
+		Error(_T("Failed to Load Item Library: %s"), inFilename.c_str());
 		return nullptr;
 	}
 	if (FindLibrary(pLib->GetName()) != 0)
@@ -209,7 +208,7 @@ IDataBaseLibrary* CBaseLibraryManager::AddLibrary(const string& library, bool bS
 	}
 	else
 	{
-		filename.Format("%s.%s", filename.c_str(), GetFileExtension());
+		filename.Format("%s.%s", CryPathString(filename).c_str(), GetFileExtension());
 	}
 	lib->SetFilename(filename);
 	lib->SetModified(false);
@@ -297,7 +296,7 @@ void CBaseLibraryManager::SaveAllLibs()
 //////////////////////////////////////////////////////////////////////////
 void CBaseLibraryManager::Serialize(XmlNodeRef& node, bool bLoading)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	string rootNodeName = GetRootNodeName();
 	if (bLoading)
 	{

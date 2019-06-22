@@ -78,7 +78,7 @@ bool CTerrain::RemoveObjectsInArea(Vec3 vExploPos, float fExploRadius)
 					Get3DEngine()->UnRegisterEntityAsJob(pRenderNode);
 					pRenderNode->Dephysicalize();
 
-					if (!(pRenderNode->m_dwRndFlags & ERF_PROCEDURAL))
+					if (!(pRenderNode->GetRndFlags() & ERF_PROCEDURAL))
 						Get3DEngine()->m_lstKilledVegetations.Add(pRenderNode);
 				}
 				else

@@ -2311,7 +2311,6 @@ struct CPhysicalWorldSerializer : CPhysSerializer {
 				pWorld->m_nEntsAlloc += 512;
 				ReallocateList(pWorld->m_pTmpEntList, pWorld->m_nEntsAlloc-512, pWorld->m_nEntsAlloc);
 				ReallocateList(pWorld->m_pTmpEntList1, pWorld->m_nEntsAlloc-512, pWorld->m_nEntsAlloc);
-				ReallocateList(pWorld->m_pTmpEntList2, pWorld->m_nEntsAlloc-512, pWorld->m_nEntsAlloc);
 				ReallocateList(pWorld->m_pGroupMass, 0, pWorld->m_nEntsAlloc);
 				ReallocateList(pWorld->m_pMassList, 0, pWorld->m_nEntsAlloc);
 				ReallocateList(pWorld->m_pGroupIds, 0, pWorld->m_nEntsAlloc);
@@ -2471,6 +2470,7 @@ void SerializeWorld(CPhysicalWorld *pWorld, const char *fname,int bSave)
 }
 
 
+#undef AddObject
 struct CDummySizer : public ICrySizer {
 	virtual void Release() {}
 	virtual size_t GetTotalSize() { return 0; }
@@ -2492,7 +2492,7 @@ struct CSaverSizer : public CDummySizer {
 	std::map<void*,int> &objs;
 	CMemStream &stm;
 	CSaverSizer(std::map<void*,int> &objs, CMemStream &stm) : objs(objs),stm(stm) {}
-	virtual bool IsLoading() { return false; }
+	virtual int  GetMode() const { return 0; }
 	virtual bool AddObject(const void* ptr, size_t size, int nCount=1) { return AddObjectRaw((void*)ptr,size,false,size>=nCount*sizeof(void*)); }
 	virtual bool AddObjectRaw(void* ptr, size_t size, bool hasVMT=false, bool mapPtrs=true) {
 		int i=0,sz=size/sizeof(void*);
@@ -2514,9 +2514,9 @@ struct CLoaderSizer : public CDummySizer {
 	CMemStream &stm;
 	CPhysicalWorld *pWorld;
 	CLoaderSizer(std::vector<void*> &objs, CMemStream &stm, CPhysicalWorld *pWorld) : objs(objs),stm(stm),pWorld(pWorld) {}
-	virtual bool IsLoading() { return true; }
+	virtual int GetMode() const { return 1; }
 #ifndef STANDALONE_PHYSICS
-	virtual bool AddObject(const void* ptr, size_t size, int nCount=1)  { return false; }
+	virtual bool AddObject(const void* ptr, size_t size, int nCount=1)  { return AddObjectRaw((void*)ptr,size); }
 #endif
 	virtual bool AddPartsAlloc(struct geom* &parts, size_t size) { 
 		int nparts = size/sizeof(geom);
@@ -2560,8 +2560,10 @@ void PostLoadEntity(CPhysicalEntity *pent, CLoaderSizer&) {
 void PostLoadEntityRigid(CRigidEntity *pent, CLoaderSizer& sizer)	{
 	PostLoadEntity(pent,sizer);
 	pent->m_pNewCoords = (coord_block*)&pent->m_posNew;
-	delete[] pent->m_pContactStart;
+	if (pent->m_nContacts)
+		delete[] pent->m_pContactStart;
 	pent->m_pContactStart=pent->m_pContactEnd = CONTACT_END(pent->m_pContactStart);
+	pent->m_nContacts = 0;
 	memset(pent->m_pColliderContacts, 0, pent->m_nColliders*sizeof(pent->m_pColliderContacts[0]));
 	for(int i=0;i<pent->m_nConstraintsAlloc;i++) if (pent->m_constraintMask & 1ull<<i) for(int j=0;j<2;j++)
 		pent->m_pConstraints[i].pbody[j] = pent->m_pConstraints[i].pent[j]->GetRigidBody(pent->m_pConstraints[i].ipart[j]);
@@ -2573,6 +2575,7 @@ void PostLoadEntityArtic(CArticulatedEntity *pent, CLoaderSizer& sizer) {
 		pent->m_parts[i].pNewCoords = (coord_block_BBox*)&pent->m_infos[i];
 	for(int i=0;i<pent->m_nJoints;i++)
 		pent->m_joints[i].fs = (featherstone_data*)_align16(pent->m_joints[i].fsbuf);
+	if (pent->m_pSrc) pent->m_pSrc->AddRef();
 }
 void PostLoadEntityVehicle(CWheeledVehicleEntity *pent, CLoaderSizer& sizer) {
 	PostLoadEntityRigid(pent,sizer);
@@ -2585,6 +2588,17 @@ void PostLoadEntityLiving(CLivingEntity *pent, CLoaderSizer& sizer) {
 	PostLoadEntity(pent,sizer);
 }
 void (*g_postLoad[PE_WALKINGRIGID+1])(CPhysicalEntity*,CLoaderSizer&) = { PostLoadEntity };
+
+struct InitPostLoadTable {
+	InitPostLoadTable() {
+		for(int i=0;i<=PE_WALKINGRIGID;i++) g_postLoad[i] = PostLoadEntity;
+		g_postLoad[PE_RIGID]=g_postLoad[PE_WALKINGRIGID] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityRigid;
+		g_postLoad[PE_ARTICULATED] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityArtic;
+		g_postLoad[PE_WHEELEDVEHICLE] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityVehicle;
+		g_postLoad[PE_LIVING] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityLiving;
+	}
+};
+static InitPostLoadTable now;
 
 const int NAME_CHUNK_SIZE = 4098;
 std::vector<std::vector<char>> g_nameBufs;
@@ -2729,11 +2743,6 @@ bool SerializeWorldBin(CPhysicalWorld *pWorld, const char *fname,int bSave)
 			fclose(f);
 			std::vector<void*> objs;
 			CLoaderSizer sizer(objs,stm,pWorld);
-			for(i=0;i<=PE_WALKINGRIGID;i++) g_postLoad[i] = PostLoadEntity;
-			g_postLoad[PE_RIGID]=g_postLoad[PE_WALKINGRIGID] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityRigid;
-			g_postLoad[PE_ARTICULATED] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityArtic;
-			g_postLoad[PE_WHEELEDVEHICLE] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityVehicle;
-			g_postLoad[PE_LIVING] = (void(*)(CPhysicalEntity*,CLoaderSizer&))PostLoadEntityLiving;
 
 			if (stm.Read<int>()!=version)
 				return false;
@@ -2861,4 +2870,49 @@ bool SerializeWorldBin(CPhysicalWorld *pWorld, const char *fname,int bSave)
 	return false;
 }
 
+IPhysicalEntity *CPhysicalWorld::ClonePhysicalEntity(IPhysicalEntity* pent, bool regInWorld, int id) 
+{ 
+	CPhysicalEntity *pentSrc = (CPhysicalEntity*)pent;
+	CMemStream stm(false);
+	{ std::map<void*,int> objs;
+		objs.insert(std::pair<void*,int>(pentSrc,0));
+		CSaverSizer sizer(objs,stm);
+		pentSrc->GetMemoryStatistics(&sizer);
+	}
+
+	pe_type itype = pentSrc->GetType();
+	CPhysicalEntity *pentClone = (CPhysicalEntity*)CreatePhysicalEntity(itype, nullptr,nullptr,'nreg', id);
+	int idNew = pentClone->m_id;
+	stm.m_iPos = 0;
+	{ std::vector<void*> objs;
+		objs.push_back(pentClone);
+		CLoaderSizer sizer(objs,stm,this);
+		if (pentSrc->m_nParts)
+			pentClone->m_parts = AllocEntityParts(pentSrc->m_nParts);
+		pentClone->GetMemoryStatistics(&sizer);
+		pentClone->m_id = idNew;
+		g_postLoad[itype](pentClone, sizer);
+		for(int i=0; i<pentClone->m_nColliders; i++) if (pentClone->m_pColliders[i]!=pentClone)
+			pentClone->m_pColliders[i]->AddRef();
+		for(int i=0; i<pentClone->m_nParts; i++) {
+			++pentClone->m_parts[i].pPhysGeom->nRefCount;
+			++pentClone->m_parts[i].pPhysGeomProxy->nRefCount;
+		}
+		pentClone->m_iGThunk0 = 0;
+		pentClone->m_ig[0].x = GRID_REG_PENDING;
+		pentClone->m_next = pentClone->m_prev = nullptr;
+		pentClone->m_iPrevSimClass = 8;
+		pentClone->m_nRefCount = pentClone->m_nRefCountPOD = 0;
+		if (regInWorld)
+			UnlockGrid(pentClone, -RepositionEntity(pentClone));
+	}
+	return pentClone;
+}
+
+#else
+#include "physicalplaceholder.h"
+#include "physicalentity.h"
+#include "physicalworld.h"
+
+IPhysicalEntity *CPhysicalWorld::ClonePhysicalEntity(IPhysicalEntity*,bool,int) { return nullptr; }
 #endif

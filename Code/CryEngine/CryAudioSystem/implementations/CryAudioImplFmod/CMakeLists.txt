@@ -7,19 +7,19 @@ sources_platform(ALL)
 add_sources("CryAudioImpl_uber_0.cpp"
 	SOURCE_GROUP "Header Files"
 		"Bank.h"
-		"BaseObject.h"
 		"BaseTriggerConnection.h"
 		"Common.h"
 		"CVars.h"
 		"Event.h"
 		"EventInstance.h"
 		"GlobalData.h"
-		"GlobalObject.h"
 		"Impl.h"
 		"Listener.h"
+		"MasterBank.h"
 		"Object.h"
 		"Parameter.h"
 		"ParameterEnvironment.h"
+		"ParameterInfo.h"
 		"ParameterState.h"
 		"resource.h"
 		"Return.h"
@@ -27,13 +27,11 @@ add_sources("CryAudioImpl_uber_0.cpp"
 		"Vca.h"
 		"VcaState.h"
 	SOURCE_GROUP "Source Files"
-		"BaseObject.cpp"
 		"Common.cpp"
 		"CryAudioImpl.cpp"
 		"CVars.cpp"
 		"Event.cpp"
 		"EventInstance.cpp"
-		"GlobalObject.cpp"
 		"Impl.cpp"
 		"Listener.cpp"
 		"Object.cpp"
@@ -57,9 +55,9 @@ end_sources()
 
 if(AUDIO_FMOD)
 	CryEngineModule(CryAudioImplFmod FORCE_SHARED_WIN PCH "stdafx.cpp" SOLUTION_FOLDER "CryEngine/Audio/Implementations")
-	target_compile_definitions(${THIS_PROJECT} PRIVATE $<$<NOT:$<CONFIG:Release>>:CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE>)
-	target_include_directories(CryAudioImplFmod PRIVATE ../../Common)
-	target_link_libraries(CryAudioImplFmod PRIVATE fmod fmodstudio)
+	target_compile_definitions(${THIS_PROJECT} PRIVATE $<$<NOT:$<CONFIG:Release>>:CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE>)
+	target_include_directories(${THIS_PROJECT} PRIVATE ../../Common)
+	target_link_libraries(${THIS_PROJECT} PRIVATE fmod fmodstudio)
 else()
 	CryFileContainer(CryAudioImplFmod SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 endif()

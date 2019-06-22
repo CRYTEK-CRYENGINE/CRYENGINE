@@ -26,7 +26,7 @@ public:
 		PakStatus,
 		InPak,
 		OnDisk,
-		Scope,
+		Context,
 		Name,
 		Count, };
 
@@ -74,7 +74,6 @@ private:
 	void ConnectSignals();
 
 	bool          m_ignoreLibraryUpdates;
-	int const     m_nameColumn;
 
 	static size_t s_numDroppedItems;
 };

@@ -1972,4 +1972,213 @@ technique SelectionSilhouetteHighlight
     }
 }
 
+//////////////////////////// Overdraw complexity /////////////
+
+RWBuffer<uint> CounterTarget : register(u2);
+RWBuffer<uint> DepthTarget : register(u3);
+RWBuffer<uint> StatsTarget : register(u4);
+RWBuffer<uint> HistogramTarget : register(u5);
+
+struct vtxOutOverdraw
+{
+	float4 HPosition : SV_Position;
+};
+
+struct pxlInOverdraw
+{
+	float4 WPos    : SV_Position;
+};
+
+vtxOutOverdraw OverdrawOverdrawVS(vtxIn IN)
+{
+	const half uvOffsetScale = outlineWidth;
+
+	vtxOutOverdraw OUT = (vtxOutOverdraw) 0;
+	OUT.HPosition = Get2dHPos(IN.Position);
+
+	return OUT;
+}
+
+float4 overdrawViewMode;
+float4 overdrawViewParm;
+
+#define	PaletteCount	10
+static const float4 PaletteColors[PaletteCount] =
+{
+    float4(0,     0,   0, 255),
+    float4(2,    25, 147, 255),
+    float4(0,   149, 255, 255),
+    float4(0,   253, 255, 255),
+    float4(142, 250,   0, 255),
+    float4(255, 251,   0, 255),
+    float4(255, 147,   0, 255),
+    float4(255,  38,   0, 255),
+    float4(148,  17,   0, 255),
+    float4(255,   0, 255, 255)
+};
+	
+float4 Palette(float v)
+{
+//	float l = log(float(1 + v * 1.5000f)) / log(4.000); // 2 -> 1
+//	float l = log(float(1 + v * 0.5000f)) / log(2.000); // 2 -> 1
+//	float l = log(float(1 + v * 0.2500f)) / log(1.500); // 2 -> 1
+//	float l = log(float(1 + v * 0.1250f)) / log(1.250); // 2 -> 1
+//	float l = log(float(1 + v * 0.0625f)) / log(1.125); // 2 -> 1
+
+	const float countToMapToOne     = overdrawViewParm.x; // 4    , how many counts should be placed in the first color bin [0,1)
+	const float logarithmSmoothness = overdrawViewParm.y; // 1.25f, empirical value for when the last bin is utilized
+	const float valueCompression    = overdrawViewParm.z; // 1.00f, by how much the result of the logarithm is stretched
+	const float logarithmFudge = (logarithmSmoothness - 1) / countToMapToOne;
+
+	float l = log(float(1 + v * logarithmFudge)) / log(logarithmSmoothness) / valueCompression;
+	uint  i = l;
+	float f = l - i;
+
+	float4 a = PaletteColors[min(i + 0, PaletteCount - 1)] / 255.0f;
+	float4 b = PaletteColors[min(i + 1, PaletteCount - 1)] / 255.0f;
+
+	float m = sqrt(dot(a.xyz, a.xyz));
+	float n = sqrt(dot(b.xyz, b.xyz));
+
+	float4 result = a * (1.0f - f) + b * (f);
+	float4 renorm = m * (1.0f - f) + n * (f);
+	
+	float r = sqrt(dot(result.xyz, result.xyz));
+
+	return result * (renorm / r);
+}
+
+float4 Histogram(float v, float h, float4 Color)
+{
+	const uint total = -HistogramTarget[0];
+	const float ValueAmplification = 16.0f;
+	
+	[branch] if (total)
+	{
+		uint  i = v;
+		float f = v - i;
+	
+		float a = float(HistogramTarget[min(i + 0, 255)] + ((i + 0) == 0 ? total : 0)) / total;
+		float b = float(HistogramTarget[min(i + 1, 255)] + ((i + 1) == 0 ? total : 0)) / total;
+	
+		float result = a * (1.0f - f) + b * (f);
+	
+		if (((ValueAmplification * result) >= (1.0f - h)) || (result && (h >= 0.995f)))
+		{
+			Color = Palette(v);
+		}
+	}
+
+	return Color;
+}
+
+float4 PieChart(float2 Pos, float2 Size, float2 Corner, float4 Color)
+{
+	// pixelCount = 0 has 1x increment (1 lane  active)
+	// pixelCount = 1 has 2x increment (2 lanes active)
+	// pixelCount = 2 has 3x increment (3 lanes active)
+	// pixelCount = 3 has 4x increment (4 lanes active)
+	float t4 = StatsTarget[3] / 4;
+	float t3 = StatsTarget[2] / 3 + t4;
+	float t2 = StatsTarget[1] / 2 + t3;
+	float t1 = StatsTarget[0] / 1 + t2;
+	float ts = overdrawViewMode.z * overdrawViewMode.w;
+	
+	float2 p = Pos - Corner;
+	if (t1 && ((p.x * p.x + p.y * p.y) < ((Size.x + 0) * (Size.y + 0))))
+	{
+		float a = t1 * (atan2(p.y, p.x + 0.0001) / (2 * 3.14159265) + 0.5);
+		
+		     if (a <= t4) Color = float4(2,    25, 147, 255) / 255.0f;
+		else if (a <= t3) Color = float4(0,   253, 255, 255) / 255.0f;
+		else if (a <= t2) Color = float4(255, 251,   0, 255) / 255.0f;
+		else if (a <= t1) Color = float4(148,  17,   0, 255) / 255.0f;
+	}
+	
+	return Color;
+}
+
+pixout OverdrawOverdrawPS(pxlInOverdraw IN)
+{
+	pixout OUT = (pixout) 0;
+	
+	uint BufferPos = IN.WPos.y * overdrawViewMode.z + IN.WPos.x;
+	uint FinalValue = CounterTarget[BufferPos];
+	uint FinalDepth = DepthTarget[BufferPos];
+	
+	OUT.Color = Palette(FinalValue);
+
+	// Show palette
+	{
+		const int x = 800 - 310 + 2;
+		const int y = 600 - 20 + 2;
+		const int w = 256;
+		const int h = 6;
+		
+		const int xx = overdrawViewMode.z * x / 800.0f;
+		const int yy = overdrawViewMode.w * y / 600.0f;
+		const int ww = overdrawViewMode.z * w / 800.0f;
+		const int hh = overdrawViewMode.w * h / 600.0f;
+		
+		if ((IN.WPos.x >= xx) && (IN.WPos.x <= (xx + ww)) &&
+		    (IN.WPos.y >= yy) && (IN.WPos.y <= (yy + hh)))
+		{
+			uint pos = IN.WPos.x - xx;
+			uint rng = ww;
+
+			OUT.Color = Palette(256.0f * pos / rng);
+		}
+	}
+	
+	// Show histogram
+	{
+		const int x = 800 - 310 + 2;
+		const int y = 600 - 80 + 2;
+		const int w = 256;
+		const int h = 60;
+		
+		const int xx = overdrawViewMode.z * x / 800.0f;
+		const int yy = overdrawViewMode.w * y / 600.0f;
+		const int ww = overdrawViewMode.z * w / 800.0f;
+		const int hh = overdrawViewMode.w * h / 600.0f;
+		
+		if ((IN.WPos.x >= xx) && (IN.WPos.x <= (xx + ww)) &&
+		    (IN.WPos.y >= yy) && (IN.WPos.y <= (yy + hh)))
+		{
+			uint pos = IN.WPos.x - xx;
+			uint rng = ww;
+			uint hgt = IN.WPos.y - yy;
+			uint frc = hh;
+
+			OUT.Color = Histogram(256.0f * pos / rng, 1.0f * hgt / frc, OUT.Color);
+		}
+	}
+	
+	// Show chart
+	{
+		const int x = 800 - 118 + 2;
+		const int y = 600 - 90 + 2;
+		const int w = 32;
+		const int h = 32;
+		
+		const int xx = overdrawViewMode.z * x / 800.0f;
+		const int yy = overdrawViewMode.w * y / 600.0f;
+		const int ww = overdrawViewMode.z * w / 800.0f;
+		const int hh = overdrawViewMode.w * h / 600.0f;
+		
+		OUT.Color = PieChart(IN.WPos.xy, float2(ww, hh), float2(xx + ww, yy + hh), OUT.Color);
+	}
+
+	return OUT;
+}
+
+technique OverdrawComplexity
+{
+	pass p0
+	{
+		VertexShader = OverdrawOverdrawVS();
+		PixelShader = OverdrawOverdrawPS();
+	}
+}
+
 /////////////////////// eof ///

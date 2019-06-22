@@ -10,7 +10,7 @@
  */
 namespace CryAudio
 {
-	class CObjectTransformation;
+class CObjectTransformation;
 
 /**
  * @struct CryAudio::IListener
@@ -22,6 +22,12 @@ struct IListener
 	/** @cond */
 	virtual ~IListener() = default;
 	/** @endcond */
+
+	/**
+	 * Gets the listener's unique id.
+	 * @return id of the listener.
+	 */
+	virtual ListenerId GetId() const = 0;
 
 	/**
 	 * Sets the listener's transformation.

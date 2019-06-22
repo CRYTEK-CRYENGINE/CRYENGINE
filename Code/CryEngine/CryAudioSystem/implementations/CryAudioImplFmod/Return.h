@@ -22,7 +22,7 @@ public:
 	CReturn& operator=(CReturn const&) = delete;
 	CReturn& operator=(CReturn&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	explicit CReturn(FMOD::Studio::Bus* const pBus, char const* const szName)
 		: m_pBus(pBus)
 		, m_name(szName)
@@ -31,7 +31,7 @@ public:
 	explicit CReturn(FMOD::Studio::Bus* const pBus)
 		: m_pBus(pBus)
 	{}
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 	virtual ~CReturn() override;
 
@@ -45,9 +45,9 @@ private:
 
 	FMOD::Studio::Bus* const m_pBus;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 };
 } // namespace Fmod
 } // namespace Impl

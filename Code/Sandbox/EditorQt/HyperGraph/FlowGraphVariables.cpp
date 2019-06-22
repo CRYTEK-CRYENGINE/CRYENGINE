@@ -990,7 +990,7 @@ void FillUISubItems(std::vector<SItem>& outItems, Item* pItem, const string& ite
 		const int count = SUIGetDesc<T1, Item, int>::GetCount(pItem);
 		for (int i = 0; i < count; ++i)
 		{
-			const typename SUIDescTypeOf<T1>::TType * pDesc = SUIGetDesc<T1, Item, int>::GetDesc(pItem, i);
+			const typename SUIDescTypeOf<T1>::TType* pDesc = SUIGetDesc<T1, Item, int>::GetDesc(pItem, i);
 			string desc;
 			desc.Format("%s:%s", itemname.c_str(), pDesc->sDisplayName);
 			outItems.push_back(SItem(desc.c_str(), pDesc->sDesc));
@@ -1000,7 +1000,7 @@ void FillUISubItems(std::vector<SItem>& outItems, Item* pItem, const string& ite
 	const int subcount = SUIGetDesc<T2, Item, int>::GetCount(pItem);
 	for (int i = 0; i < subcount; ++i)
 	{
-		const typename SUIDescTypeOf<T2>::TType * pDesc = SUIGetDesc<T2, Item, int>::GetDesc(pItem, i);
+		const typename SUIDescTypeOf<T2>::TType* pDesc = SUIGetDesc<T2, Item, int>::GetDesc(pItem, i);
 		string subitemname;
 		subitemname.Format("%s:%s", itemname.c_str(), pDesc->sDisplayName);
 		FillUISubItems<T1, eUOT_MovieClip>(outItems, pDesc, subitemname);
@@ -1091,27 +1091,27 @@ struct CFlowNodeCustomItemsImpl : public CFlowNodeGetCustomItemsBase
 	typedef bool (* TGetItemsFct) (IVariable*, std::vector<SItem>&, string&);
 	CFlowNodeCustomItemsImpl(const TGetItemsFct& fct, bool tree, const char* sep) : m_fct(fct), m_tree(tree), m_sep(sep) {}
 	virtual bool        GetItems(IVariable* pVar, std::vector<SItem>& items, string& outDialogTitle) { return m_fct(pVar, items, outDialogTitle); }
-	virtual bool        UseTree()                                                                     { return m_tree; }
-	virtual const char* GetTreeSeparator()                                                            { return m_sep; }
+	virtual bool        UseTree()                                                                    { return m_tree; }
+	virtual const char* GetTreeSeparator()                                                           { return m_sep; }
 	TGetItemsFct m_fct;
 	bool         m_tree;
 	const char*  m_sep;
 };
 
 #ifdef FGVARIABLES_REAL_CLONE
-	#define DECL_CHOOSE_EX_IMPL(NAME, FCT, TREE, SEP)                                                                                                                       \
-	  struct  C ## NAME : public CFlowNodeCustomItemsImpl                                                                                                                   \
-	  {                                                                                                                                                                     \
-	    C ## NAME() : CFlowNodeCustomItemsImpl(&FCT, TREE, SEP) {}                                                                                                          \
-	    virtual CFlowNodeGetCustomItemsBase* Clone() const { C ## NAME * pNew = new C ## NAME(); pNew->m_pFlowNode = m_pFlowNode; pNew->m_config = m_config; return pNew; } \
-	  };
+	#define DECL_CHOOSE_EX_IMPL(NAME, FCT, TREE, SEP)                                                                                                                     \
+	struct  C ## NAME : public CFlowNodeCustomItemsImpl                                                                                                                   \
+	{                                                                                                                                                                     \
+		C ## NAME() : CFlowNodeCustomItemsImpl(&FCT, TREE, SEP) {}                                                                                                          \
+		virtual CFlowNodeGetCustomItemsBase* Clone() const { C ## NAME * pNew = new C ## NAME(); pNew->m_pFlowNode = m_pFlowNode; pNew->m_config = m_config; return pNew; } \
+	};
 #else
-	#define DECL_CHOOSE_EX_IMPL(NAME, FCT, TREE, SEP)                                               \
-	  struct  C ## NAME : public CFlowNodeCustomItemsImpl                                           \
-	  {                                                                                             \
-	    C ## NAME() : CFlowNodeCustomItemsImpl(&FCT, TREE, SEP) {}                                  \
-	    virtual CFlowNodeGetCustomItemsBase* Clone() const { return const_cast<C ## NAME*>(this); } \
-	  };
+	#define DECL_CHOOSE_EX_IMPL(NAME, FCT, TREE, SEP)                                             \
+	struct  C ## NAME : public CFlowNodeCustomItemsImpl                                           \
+	{                                                                                             \
+		C ## NAME() : CFlowNodeCustomItemsImpl(&FCT, TREE, SEP) {}                                  \
+		virtual CFlowNodeGetCustomItemsBase* Clone() const { return const_cast<C ## NAME*>(this); } \
+	};
 #endif
 
 #define DECL_CHOOSE_EX(FOO, TREE, SEP) DECL_CHOOSE_EX_IMPL(FOO, FOO, TREE, SEP)
@@ -1184,9 +1184,13 @@ static const FlowGraphVariables::MapEntry prefix_dataType_table[] =
 	{ "aianchor_",              IVariable::DT_AI_ANCHOR,               0                                                                      },
 	{ "aibehavior_",            IVariable::DT_AI_BEHAVIOR,             0                                                                      },
 #ifdef USE_DEPRECATED_AI_CHARACTER_SYSTEM
-	{ "aicharacter_",           IVariable::DT_AI_CHARACTER,            0                                                                      },
+	{
+		"aicharacter_", IVariable::DT_AI_CHARACTER, 0
+	},
 #endif
-	{ "aipfpropertieslist_",    IVariable::DT_AI_PFPROPERTIESLIST,     0                                                                      },
+	{
+		"aipfpropertieslist_", IVariable::DT_AI_PFPROPERTIESLIST, 0
+	},
 	{ "aientityclasses_",       IVariable::DT_AIENTITYCLASSES,         0                                                                      },
 	{ "aiterritory_",           IVariable::DT_AITERRITORY,             0                                                                      },
 	{ "aiwave_",                IVariable::DT_AIWAVE,                  0                                                                      },
@@ -1237,14 +1241,15 @@ static const FlowGraphVariables::MapEntry prefix_dataType_table[] =
 	{ "geomcache_",             IVariable::DT_GEOM_CACHE,              0                                                                      },
 	{ "audioTrigger_",          IVariable::DT_AUDIO_TRIGGER,           0                                                                      },
 	{ "audioSwitch_",           IVariable::DT_AUDIO_SWITCH,            0                                                                      },
-	{ "audioSwitchState_",      IVariable::DT_AUDIO_SWITCH_STATE,      0                                                                      },
-	{ "audioRTPC_",             IVariable::DT_AUDIO_RTPC,              0                                                                      },
+	{ "audioSwitchState_",      IVariable::DT_AUDIO_STATE,             0                                                                      },
+	{ "audioSwitchAndState_",   IVariable::DT_AUDIO_SWITCH_STATE,      0                                                                      },
+	{ "audioRTPC_",             IVariable::DT_AUDIO_PARAMETER,         0                                                                      },
+	{ "audioParameter_",        IVariable::DT_AUDIO_PARAMETER,         0                                                                      },
 	{ "audioEnvironment_",      IVariable::DT_AUDIO_ENVIRONMENT,       0                                                                      },
 	{ "audioPreloadRequest_",   IVariable::DT_AUDIO_PRELOAD_REQUEST,   0                                                                      },
 	{ "audioSetting_",          IVariable::DT_AUDIO_SETTING,           0                                                                      },
 	{ "dynamicResponseSignal_", IVariable::DT_DYNAMIC_RESPONSE_SIGNAL, 0                                                                      },
-	{ "fgmodules_",             IVariable::DT_USERITEMCB,              &FlowGraphVariables::CreateIt<CChooseFGModules>                        },
-};
+	{ "fgmodules_",             IVariable::DT_USERITEMCB,              &FlowGraphVariables::CreateIt<CChooseFGModules>                        }, };
 static const int prefix_dataType_numEntries = sizeof(prefix_dataType_table) / sizeof(FlowGraphVariables::MapEntry);
 
 namespace FlowGraphVariables

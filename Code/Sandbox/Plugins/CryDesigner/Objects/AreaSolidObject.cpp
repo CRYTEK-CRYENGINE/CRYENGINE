@@ -277,7 +277,7 @@ private:
 
 void AreaSolidObject::UpdateGameArea()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	if (!m_pEntity)
 		return;
 
@@ -504,7 +504,7 @@ ModelCompiler* AreaSolidObject::GetCompiler() const
 
 void AreaSolidObject::Reload(bool bReloadScript /* = false */)
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	__super::Reload(bReloadScript);
 
 	// During reloading the entity+proxies get completely removed.
@@ -551,6 +551,15 @@ void AreaSolidObject::OnEntityRemoved(IEntity const* const pIEntity)
 			pArea->RemoveEntity(pIEntity->GetId());
 #endif
 		}
+	}
+}
+
+void AreaSolidObject::ClearArea()
+{
+	IEntityAreaComponent* const pArea = m_pEntity->GetComponent<IEntityAreaComponent>();
+	if (pArea != nullptr)
+	{
+		pArea->RemoveEntities();
 	}
 }
 

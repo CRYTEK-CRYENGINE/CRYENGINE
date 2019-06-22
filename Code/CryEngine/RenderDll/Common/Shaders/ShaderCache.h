@@ -1,15 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   ShaderCache.h : Shaders cache related declarations.
-
-   Revision history:
-* Created by Honich Andrey
-
-   =============================================================================*/
-
-#ifndef __SHADERCACHE_H__
-#define __SHADERCACHE_H__
+#pragma once
 
 #include "Shader.h"
 
@@ -402,5 +393,3 @@ typedef std::map<CCryNameR, SCacheCombination>              FXShaderCacheCombina
 typedef FXShaderCacheCombinations::iterator                 FXShaderCacheCombinationsItor;
 typedef std::map<CCryNameR, std::vector<SCacheCombination>> FXShaderCacheCombinationsList;
 typedef FXShaderCacheCombinationsList::iterator             FXShaderCacheCombinationsListItor;
-
-#endif

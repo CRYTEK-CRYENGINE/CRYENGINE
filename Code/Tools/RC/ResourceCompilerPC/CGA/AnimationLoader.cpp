@@ -414,7 +414,6 @@ void CAnimationCompressor::SetIdentityLocator(GlobalAnimationHeaderAIM& gaim)
 	IController* pLocomotionController = gaim.GetController(locator_locoman01);
 
 	const char* pRootName = m_skeleton.m_SkinningInfo.m_arrBonesDesc[0].m_arrBoneName;
-	int32 RootParent = m_skeleton.m_SkinningInfo.m_arrBonesDesc[0].m_nOffsetParent;
 	const uint32 RootControllerID = SkeletonHelpers::ComputeControllerId(pRootName);
 	IController_AutoPtr pRootController = gaim.GetController(RootControllerID);
 	if (!pRootController)
@@ -574,8 +573,8 @@ void CAnimationCompressor::EvaluateSpeed()
 	if (numJoints==0)
 		return;
 
-	uint32 TicksPerSecond = TICKS_PER_SECOND;
-	f32 fStart		=	m_GlobalAnimationHeader.m_fStartSec;
+	//uint32 TicksPerSecond = TICKS_PER_SECOND;
+	//f32 fStart		=	m_GlobalAnimationHeader.m_fStartSec;
 	f32 fDuration	=	m_GlobalAnimationHeader.m_fEndSec - m_GlobalAnimationHeader.m_fStartSec;
 	f32 fDistance	=	0.0f;
 

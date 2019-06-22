@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 #include "CVars.h"
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace CryAudio
 {
@@ -71,7 +71,7 @@ void CCVars::RegisterVariables()
 	               "Usage: s_FmodRolloffScale [0/...]\n"
 	               "Default: 1\n");
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	REGISTER_CVAR2("s_FmodEnableLiveUpdate", &m_enableLiveUpdate, m_enableLiveUpdate, VF_REQUIRE_APP_RESTART,
 	               "Enables Fmod Studio to run with LiveUpdate enabled. Needs implementation restart.\n"
 	               "Usage: s_FmodEnableLiveUpdate [0/1]\n"
@@ -86,7 +86,7 @@ void CCVars::RegisterVariables()
 	               "b: Draw active snapshots.\n"
 	               "c: Draw VCA values.\n"
 	               );
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -106,10 +106,10 @@ void CCVars::UnregisterVariables()
 		pConsole->UnregisterVariable("s_FmodDopplerScale");
 		pConsole->UnregisterVariable("s_FmodRolloffScale");
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 		pConsole->UnregisterVariable("s_FmodEnableLiveUpdate");
 		pConsole->UnregisterVariable("s_FmodDebugListFilter");
-#endif    // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif    // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 	}
 }
 } // namespace Fmod

@@ -25,9 +25,9 @@ static bool IsCharAllowedInFileNames(const char ch)
 	return false;
 }
 
-static void SanitizeFileName(stack_string& fileName)
+static void SanitizeFileName(CryPathString& fileName)
 {
-	for (stack_string::iterator it = fileName.begin(); it != fileName.end(); ++it)
+	for (CryPathString::iterator it = fileName.begin(); it != fileName.end(); ++it)
 	{
 		if (!IsCharAllowedInFileNames(*it))
 			*it = '_';
@@ -41,15 +41,15 @@ ExecutionStackFileLogger::ExecutionStackFileLogger(const EntityId entityId)
 		m_agentName = pEntity->GetName();
 	}
 
-	stack_string fileName;
+	CryPathString fileName;
 	fileName.Format("MBT_%s_%i.txt", m_agentName.c_str(), entityId);
 	SanitizeFileName(fileName);
 
-	stack_string filePath("%USER%/MBT_Logs/");
+	CryPathString filePath("%USER%/MBT_Logs/");
 	filePath.append(fileName);
 
-	m_logFilePath[0] = '\0';
-	if (gEnv->pCryPak->AdjustFileName(filePath.c_str(), m_logFilePath, ICryPak::FLAGS_FOR_WRITING))
+	gEnv->pCryPak->AdjustFileName(filePath.c_str(), m_logFilePath, ICryPak::FLAGS_FOR_WRITING);
+	if (!m_logFilePath.empty())
 	{
 		m_openState = NotYetAttemptedToOpenForWriteAccess;
 	}

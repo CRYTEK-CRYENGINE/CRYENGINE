@@ -200,8 +200,6 @@ protected:
 
 	CNavMeshQuery(const CNavMeshQuery&) = default;
 	CNavMeshQuery(CNavMeshQuery&&) = default;
-	CNavMeshQuery& operator=(const CNavMeshQuery&) = default;
-	CNavMeshQuery& operator=(CNavMeshQuery&&) = default;
 	~CNavMeshQuery() = default;
 
 	void                                SetStatus(const INavMeshQuery::EQueryStatus status);
@@ -246,8 +244,6 @@ private:
 
 	CNavMeshQueryInstant(const CNavMeshQueryInstant&) = default;
 	CNavMeshQueryInstant(CNavMeshQueryInstant&&) = default;
-	CNavMeshQueryInstant& operator=(const CNavMeshQueryInstant&) = default;
-	CNavMeshQueryInstant& operator=(CNavMeshQueryInstant&&) = default;
 	~CNavMeshQueryInstant() = default;
 
 	virtual INavMeshQuery::EQueryStatus QueryTiles(INavMeshQueryProcessing& queryProcessing, const size_t processingBatchSize) override;
@@ -282,8 +278,6 @@ private:
 
 	CNavMeshQueryBatch(const CNavMeshQueryBatch&) = default;
 	CNavMeshQueryBatch(CNavMeshQueryBatch&&) = default;
-	CNavMeshQueryBatch& operator=(const CNavMeshQueryBatch&) = default;
-	CNavMeshQueryBatch& operator=(CNavMeshQueryBatch&&) = default;
 
 	void                                InitializeRuntimeData();
 

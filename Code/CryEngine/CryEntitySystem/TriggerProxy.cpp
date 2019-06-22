@@ -2,15 +2,16 @@
 
 #include "stdafx.h"
 #include "TriggerProxy.h"
-#include <CryNetwork/ISerialize.h>
 #include "ProximityTriggerSystem.h"
+
+#include <CryNetwork/ISerialize.h>
 
 CRYREGISTER_CLASS(CEntityComponentTriggerBounds)
 
 //////////////////////////////////////////////////////////////////////////
 CEntityComponentTriggerBounds::CEntityComponentTriggerBounds()
 	: m_forwardingEntity(0)
-	, m_pProximityTrigger(NULL)
+	, m_pProximityTrigger(nullptr)
 	, m_aabb(AABB::RESET)
 {
 	m_componentFlags.Add(EEntityComponentFlags::NoSave);
@@ -19,14 +20,20 @@ CEntityComponentTriggerBounds::CEntityComponentTriggerBounds()
 //////////////////////////////////////////////////////////////////////////
 CEntityComponentTriggerBounds::~CEntityComponentTriggerBounds()
 {
-	GetTriggerSystem()->RemoveTrigger(m_pProximityTrigger);
+	if (CVar::es_UseProximityTriggerSystem)
+	{
+		GetTriggerSystem()->RemoveTrigger(m_pProximityTrigger);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CEntityComponentTriggerBounds::Initialize()
 {
-	m_pProximityTrigger = GetTriggerSystem()->CreateTrigger();
-	m_pProximityTrigger->id = m_pEntity->GetId();
+	if (CVar::es_UseProximityTriggerSystem)
+	{
+		m_pProximityTrigger = GetTriggerSystem()->CreateTrigger();
+		m_pProximityTrigger->id = m_pEntity->GetId();
+	}
 
 	m_pEntity->SetFlags(m_pEntity->GetFlags() | ENTITY_FLAG_NO_PROXIMITY);
 
@@ -100,7 +107,10 @@ void CEntityComponentTriggerBounds::OnMove(bool invalidateAABB)
 	AABB box = m_aabb;
 	box.min += pos;
 	box.max += pos;
-	GetTriggerSystem()->MoveTrigger(m_pProximityTrigger, box, invalidateAABB);
+	if (CVar::es_UseProximityTriggerSystem)
+	{
+		GetTriggerSystem()->MoveTrigger(m_pProximityTrigger, box, invalidateAABB);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

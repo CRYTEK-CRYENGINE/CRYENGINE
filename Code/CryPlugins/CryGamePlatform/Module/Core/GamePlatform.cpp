@@ -108,6 +108,40 @@ namespace Cry
 			return m_friends;
 		}
 
+#if CRY_GAMEPLATFORM_EXPERIMENTAL
+		const DynArray<IUser*>& CPlugin::GetBlockedUsers() const
+		{
+			m_blockedUsers.clear();
+
+			if (const IService* pMainService = GetMainService())
+			{
+				const DynArray<IAccount*>& accounts = pMainService->GetBlockedAccounts();
+				for (IAccount* pAccount : accounts)
+				{
+					stl::push_back_unique(m_blockedUsers, TryGetUser(*pAccount));
+				}
+			}
+
+			return m_blockedUsers;
+		}
+
+		const DynArray<IUser*>& CPlugin::GetMutedUsers() const
+		{
+			m_mutedUsers.clear();
+
+			if (const IService* pMainService = GetMainService())
+			{
+				const DynArray<IAccount*>& accounts = pMainService->GetMutedAccounts();
+				for (IAccount* pAccount : accounts)
+				{
+					stl::push_back_unique(m_mutedUsers, TryGetUser(*pAccount));
+				}
+			}
+
+			return m_mutedUsers;
+		}
+#endif // CRY_GAMEPLATFORM_EXPERIMENTAL
+
 		IServer* CPlugin::CreateServer(bool bLocal)
 		{
 			if (IService* pMainService = GetMainService())

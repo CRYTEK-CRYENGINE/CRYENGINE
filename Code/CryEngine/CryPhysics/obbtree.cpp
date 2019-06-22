@@ -451,7 +451,7 @@ void COBBTree::Load(CMemStream &stm, CGeometry *pGeom)
 
 int COBBTree::SanityCheck()
 {
-	int iCaller = MAX_PHYS_THREADS;
+	const int iCaller = MAX_PHYS_THREADS;
 	const int bufLength = CRY_ARRAY_COUNT(g_BBoxBuf);
 	return SanityCheckTree(this, (bufLength-1)/4);
 }

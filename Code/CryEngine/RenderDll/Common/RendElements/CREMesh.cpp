@@ -45,7 +45,6 @@ bool CREMeshImpl::mfUpdate(InputLayoutHandle eVertFormat, EStreamMasks StreamMas
 	IF (m_pRenderMesh == NULL, 0)
 		return false;
 
-	CRenderer* rd = gRenDev;
 	const int threadId = gRenDev->GetRenderThreadID();
 
 	// If no updates are pending it counts as having successfully "processed" them

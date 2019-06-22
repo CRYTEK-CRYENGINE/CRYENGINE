@@ -136,11 +136,12 @@ struct SSyncToRenderMeshContext
 	strided_pointer<SPipTangents> pTangents;
 	strided_pointer<Vec3>         pNormals; // TODO: change Vec3 to SPipNormal
 	CStatObj*                     pObj;
+	IRenderMesh*                  mesh;
 	JobManager::SJobState         jobState;
 
 	void                          Set(Vec3* _vmin, Vec3* _vmax, int _iVtx0, int _nVtx, strided_pointer<Vec3> _pVtx, int* _pVtxMap
 	                                  , int _mask, float _rscale, SClothTangentVtx* _ctd, strided_pointer<Vec3> _pMeshVtx
-	                                  , strided_pointer<SPipTangents> _pTangents, strided_pointer<Vec3> _pNormals, CStatObj* _pObj)
+	                                  , strided_pointer<SPipTangents> _pTangents, strided_pointer<Vec3> _pNormals, CStatObj* _pObj, IRenderMesh* _mesh)
 	{
 		vmin = _vmin;
 		vmax = _vmax;
@@ -155,12 +156,12 @@ struct SSyncToRenderMeshContext
 		pTangents = _pTangents;
 		pNormals = _pNormals;
 		pObj = _pObj;
+		mesh = _mesh;
 	}
 };
 
-class IStatObjLoadedCallback
+struct IStatObjLoadedCallback
 {
-public:
 	virtual ~IStatObjLoadedCallback() = default;
 	//! Will be called directly from the thread invoking LoadCGFAsync / LoadLowLODsAsync or later from the main thread.
 	virtual void OnLoaded(bool succeeded, CStatObj* object) = 0;
@@ -339,8 +340,8 @@ private:
 public:
 	//////////////////////////////////////////////////////////////////////////
 	// Fast non virtual access functions.
-	ILINE IStatObj::SSubObject& SubObject(int nIndex)  { return m_subObjects[nIndex]; };
-	ILINE int                   SubObjectCount() const { return m_subObjects.size(); };
+	ILINE IStatObj::SSubObject& SubObject(int nIndex)  { return m_subObjects[nIndex]; }
+	ILINE int                   SubObjectCount() const { return m_subObjects.size(); }
 	//////////////////////////////////////////////////////////////////////////
 
 	virtual bool IsUnloadable() const final { return m_bCanUnload; }
@@ -352,11 +353,11 @@ public:
 	virtual ILINE const Vec3 GetVegCenter() final          { return m_vVegCenter; }
 
 	virtual void             SetFlags(uint nFlags) final   { m_nFlags = nFlags; IncrementModificationId(); }
-	virtual uint             GetFlags() const final        { return m_nFlags; };
+	virtual uint             GetFlags() const final        { return m_nFlags; }
 
-	virtual unsigned int     GetVehicleOnlyPhysics() final { return m_bVehicleOnlyPhysics; };
-	virtual int              GetIDMatBreakable() final     { return m_idmatBreakable; };
-	virtual unsigned int     GetBreakableByGame() final    { return m_bBreakableByGame; };
+	virtual unsigned int     GetVehicleOnlyPhysics() final { return m_bVehicleOnlyPhysics; }
+	virtual int              GetIDMatBreakable() final     { return m_idmatBreakable; }
+	virtual unsigned int     GetBreakableByGame() final    { return m_bBreakableByGame; }
 
 	virtual bool IsDeformable() final;
 
@@ -413,8 +414,8 @@ public:
 	//! Refresh object ( reload shaders or/and object geometry )
 	virtual void Refresh(int nFlags) final;
 
-	virtual IRenderMesh* GetRenderMesh() const final { return m_pRenderMesh; };
-	void SetRenderMesh(IRenderMesh * pRM);
+	virtual IRenderMesh* GetRenderMesh() const final { return m_pRenderMesh; }
+	void SetRenderMesh(_smart_ptr<IRenderMesh>& pRM);
 
 	virtual const char* GetFilePath() final                       { return m_szFileName.c_str(); }
 	virtual void        SetFilePath(const char* szFileName) final { m_szFileName = szFileName; }
@@ -509,7 +510,7 @@ public:
 	virtual bool RemoveSubObject(int nIndex) final;
 	virtual IStatObj* GetParentObject() const final      { return m_pParentObject; }
 	virtual IStatObj* GetCloneSourceObject() const final { return m_pClonedSourceObject; }
-	virtual bool      IsSubObject() const final          { return m_bSubObject; };
+	virtual bool      IsSubObject() const final          { return m_bSubObject; }
 	virtual bool CopySubObject(int nToIndex, IStatObj * pFromObj, int nFromIndex) final;
 	virtual int PhysicalizeSubobjects(IPhysicalEntity * pent, const Matrix34 * pMtx, float mass, float density = 0.0f, int id0 = 0,
 	                                  strided_pointer<int> pJointsIdMap = 0, const char* szPropsOverride = 0, int idbodyArtic = -1) final;
@@ -531,7 +532,7 @@ public:
 	virtual int Serialize(TSerialize ser) final;
 
 	// Get object properties as loaded from CGF.
-	virtual const char* GetProperties() final                  { return m_szProperties.c_str(); };
+	virtual const char* GetProperties() final                  { return m_szProperties.c_str(); }
 	virtual void        SetProperties(const char* props) final { m_szProperties = props; ParseProperties(); }
 
 	virtual bool GetPhysicalProperties(float& mass, float& density) final;
@@ -584,7 +585,7 @@ public:
 			sName += " - ";
 			sName += m_szGeomName;
 		}
-	};
+	}
 	void GetStreamFilePath(stack_string & strOut);
 	void FillRenderObject(const SRendParams &rParams, IRenderNode * pRenderNode, IMaterial * pMaterial,
 	                      SInstancingInfo * pInstInfo, CRenderObject * &pObj, const SRenderingPassInfo &passInfo);

@@ -733,7 +733,7 @@ public:
 			{
 				IAIActor* pAIActor = members[i]->CastToIAIActor();
 				if (pAIActor)
-					pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupChanged(), members[i]->GetAIObjectID()));
+					pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupChanged(), members[i]->GetEntityID()));
 			}
 		}
 	}
@@ -2446,7 +2446,7 @@ public:
 			IAIObject* pFirstGroupMember = gEnv->pAISystem->GetGroupMember(groupId, 0);
 			if (pFirstGroupMember)
 			{
-				gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_GROUPONLY, gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnRequestReinforcementTriggered_DEPRECATED(), pFirstGroupMember->GetAIObjectID()));
+				gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_GROUPONLY, gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnRequestReinforcementTriggered_DEPRECATED(), pFirstGroupMember->GetEntityID()));
 
 				ActivateOutput(pActInfo, eOUT_Done, true);
 			}

@@ -133,8 +133,9 @@ struct EDITOR_COMMON_API IVariable : public IVariableContainer
 		DT_FLARE,
 		DT_AUDIO_TRIGGER,
 		DT_AUDIO_SWITCH,
+		DT_AUDIO_STATE,
 		DT_AUDIO_SWITCH_STATE,
-		DT_AUDIO_RTPC,
+		DT_AUDIO_PARAMETER,
 		DT_AUDIO_ENVIRONMENT,
 		DT_AUDIO_PRELOAD_REQUEST,
 		DT_AUDIO_SETTING,
@@ -1612,3 +1613,22 @@ public:
 
 // Restore warnings about virtual overrides hidden
 #pragma warning(pop)
+
+// RAII suppressor of update commands for CSmartVariables
+template<typename T>
+class CAutoSupressUpdateCallback
+{
+public:
+	explicit CAutoSupressUpdateCallback(CSmartVariable<T>& var)
+		: m_var(var)
+	{
+		m_var->EnableUpdateCallbacks(false);
+	}
+
+	~CAutoSupressUpdateCallback()
+	{
+		m_var->EnableUpdateCallbacks(true);
+	}
+private:
+	CSmartVariable<T>& m_var;
+};

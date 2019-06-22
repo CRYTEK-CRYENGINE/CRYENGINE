@@ -202,7 +202,7 @@ struct CFrameProfilerSection : CFrameProfilerSectionBase {
 #define CRY_PROFILE_FUNCTION( subsystem ) \
 	static CFrameProfiler staticFrameProfiler( __FUNCTION__ ); \
 	CFrameProfilerSection frameProfilerSection( &staticFrameProfiler,get_iCaller() );	
-#define CRY_PROFILE_REGION( subsystem, szName ) \
+#define CRY_PROFILE_SECTION( subsystem, szName ) \
 	static CFrameProfiler staticFrameProfiler( szName ); \
 	CFrameProfilerSection frameProfilerSection( &staticFrameProfiler,get_iCaller() );
 

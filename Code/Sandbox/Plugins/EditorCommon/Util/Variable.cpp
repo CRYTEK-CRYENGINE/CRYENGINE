@@ -541,13 +541,17 @@ struct SVariableSerializer
 		{
 			ar(Serialization::AudioSwitch(value), name, label);
 		}
+		else if (dataType == IVariable::DT_AUDIO_STATE)
+		{
+			ar(Serialization::AudioState(value), name, label);
+		}
 		else if (dataType == IVariable::DT_AUDIO_SWITCH_STATE)
 		{
 			ar(Serialization::AudioSwitchState(value), name, label);
 		}
-		else if (dataType == IVariable::DT_AUDIO_RTPC)
+		else if (dataType == IVariable::DT_AUDIO_PARAMETER)
 		{
-			ar(Serialization::AudioRTPC(value), name, label);
+			ar(Serialization::AudioParameter(value), name, label);
 		}
 		else if (dataType == IVariable::DT_AUDIO_ENVIRONMENT)
 		{

@@ -22,8 +22,9 @@
 
 #include <QtUtil.h>
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <Controls/QuestionDialog.h>
+#include <EditorFramework/Events.h>
 
 //===================================================================================
 //
@@ -180,7 +181,7 @@ public:
 
 	void RefreshFromUDRTree(Cry::UDR::ITreeManager::ETreeIndex treeIndex)
 	{
-		m_pRoot = &gEnv->pUDR->GetHub().GetTreeManager().GetTree(treeIndex).GetRootNode();
+		m_pRoot = &gEnv->pUDR->GetTreeManager().GetTree(treeIndex).GetRootNode();
 		beginResetModel();
 		endResetModel();
 	}
@@ -323,7 +324,7 @@ protected:
 				{
 					for (const Cry::UDR::INode* pNodeToDelete : selectedNodes)
 					{
-						gEnv->pUDR->GetHub().GetTreeManager().GetTree((Cry::UDR::ITreeManager::ETreeIndex)m_pComboBoxWithSelectedTree->currentIndex()).RemoveNode(*pNodeToDelete);
+						gEnv->pUDR->GetTreeManager().GetTree((Cry::UDR::ITreeManager::ETreeIndex)m_pComboBoxWithSelectedTree->currentIndex()).RemoveNode(*pNodeToDelete);
 					}
 				}
 				return;
@@ -384,12 +385,12 @@ CMainEditorWindow::CTreeListener::CTreeListener(CMainEditorWindow& owningWindow,
 	: m_owningWindow(owningWindow)
 	, m_treeIndex(treeIndex)
 {
-	gEnv->pUDR->GetHub().GetTreeManager().GetTree(m_treeIndex).RegisterListener(this);
+	gEnv->pUDR->GetTreeManager().GetTree(m_treeIndex).RegisterListener(this);
 }
 
 CMainEditorWindow::CTreeListener::~CTreeListener()
 {
-	gEnv->pUDR->GetHub().GetTreeManager().GetTree(m_treeIndex).UnregisterListener(this);
+	gEnv->pUDR->GetTreeManager().GetTree(m_treeIndex).UnregisterListener(this);
 }
 
 void CMainEditorWindow::CTreeListener::OnBeforeRootNodeDeserialized()
@@ -440,19 +441,19 @@ CMainEditorWindow::CMainEditorWindow()
 	{
 		QMenu* pFileMenu = menuBar()->addMenu("&File");
 
-		QAction* pLoadRecording = pFileMenu->addAction("&Load recording");
+		QAction* pLoadRecording = pFileMenu->addAction("&Load...");
 		connect(pLoadRecording, &QAction::triggered, this, &CMainEditorWindow::OnLoadTreeFromFile);
 
-		QAction* pSaveLiveRecording = pFileMenu->addAction("&Save 'live' recording");
+		QAction* pSaveLiveRecording = pFileMenu->addAction("&Save Live Tree");
 		connect(pSaveLiveRecording, &QAction::triggered, this, &CMainEditorWindow::OnSaveLiveTreeToFile);
 	}
 
 	m_pComboBoxTreeToShow = new QComboBox(this);
-	m_pComboBoxTreeToShow->addItem("Live tree", QVariant(static_cast<int>(Cry::UDR::ITreeManager::ETreeIndex::Live)));
-	m_pComboBoxTreeToShow->addItem("Deserialized tree", QVariant(static_cast<int>(Cry::UDR::ITreeManager::ETreeIndex::Deserialized)));
+	m_pComboBoxTreeToShow->addItem("Live Tree", QVariant(static_cast<int>(Cry::UDR::ITreeManager::ETreeIndex::Live)));
+	m_pComboBoxTreeToShow->addItem("Deserialized Tree", QVariant(static_cast<int>(Cry::UDR::ITreeManager::ETreeIndex::Deserialized)));
 
 	m_pButtonClearCurrentTree = new QPushButton(this);
-	m_pButtonClearCurrentTree->setText("Clear tree");
+	m_pButtonClearCurrentTree->setText("Clear Tree");
 
 	m_pTextLogMessages = new QTextEdit(this);
 	m_pTextLogMessages->setReadOnly(true);
@@ -539,6 +540,26 @@ const char* CMainEditorWindow::GetPaneTitle() const
 	return m_windowTitle.c_str();
 }
 
+void CMainEditorWindow::customEvent(QEvent* event)
+{
+	// TODO: This handler should be removed whenever this editor is refactored to be a CDockableEditor
+	if (event->type() == SandboxEvent::Command)
+	{
+		CommandEvent* commandEvent = static_cast<CommandEvent*>(event);
+
+		const string& command = commandEvent->GetCommand();
+		if (command == "general.help")
+		{
+			event->setAccepted(EditorUtils::OpenHelpPage(GetPaneTitle()));
+		}
+	}
+
+	if (!event->isAccepted())
+	{
+		QWidget::customEvent(event);
+	}
+}
+
 void CMainEditorWindow::SetActiveTree(Cry::UDR::ITreeManager::ETreeIndex treeIndex)
 {
 	m_pTreeModel->RefreshFromUDRTree(treeIndex);
@@ -562,7 +583,7 @@ void CMainEditorWindow::OnTreeIndexComboBoxSelectionChanged(int index)
 void CMainEditorWindow::OnClearTreeButtonClicked(bool checked)
 {
 	const Cry::UDR::ITreeManager::ETreeIndex treeIndex = (Cry::UDR::ITreeManager::ETreeIndex)m_pComboBoxTreeToShow->currentIndex();
-	Cry::UDR::ITree& tree = gEnv->pUDR->GetHub().GetTreeManager().GetTree(treeIndex);
+	Cry::UDR::ITree& tree = gEnv->pUDR->GetTreeManager().GetTree(treeIndex);
 	tree.RemoveNode(tree.GetRootNode());	// notice: this will not actually remove the root node (only its children), which is a special case - see implementation
 }
 
@@ -573,7 +594,7 @@ void CMainEditorWindow::OnSaveLiveTreeToFile()
 	if (!sFilePath.empty())  // would be empty if pressing the "cancel" button
 	{
 		Cry::UDR::CString error;
-		if (gEnv->pUDR->GetHub().GetTreeManager().SerializeLiveTree(sFilePath.c_str(), error))
+		if (gEnv->pUDR->GetTreeManager().SerializeLiveTree(sFilePath.c_str(), error))
 		{
 			// change the window title to also show the file name
 			m_windowTitle.Format("%s - %s", UDR_EDITOR_NAME, sFilePath.c_str());
@@ -597,7 +618,7 @@ void CMainEditorWindow::OnLoadTreeFromFile()
 	{
 		string sFilePath = QtUtil::ToString(qFilePath);
 		Cry::UDR::CString error;
-		if (gEnv->pUDR->GetHub().GetTreeManager().DeserializeTree(sFilePath.c_str(), error))
+		if (gEnv->pUDR->GetTreeManager().DeserializeTree(sFilePath.c_str(), error))
 		{
 			SetActiveTree(Cry::UDR::ITreeManager::ETreeIndex::Deserialized);
 

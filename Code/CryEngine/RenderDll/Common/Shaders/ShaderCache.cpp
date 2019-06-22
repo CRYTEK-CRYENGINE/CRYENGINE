@@ -289,11 +289,9 @@ void CShaderMan::mfInitShadersCacheMissLog()
 	// create valid path (also for xbox dvd emu)
 	gEnv->pCryPak->MakeDir(g_szTestResults);
 
-	char path[ICryPak::g_nMaxPath];
-	path[sizeof(path) - 1] = 0;
+	CryPathString path;
 	gEnv->pCryPak->AdjustFileName("%USER%\\Shaders\\ShaderCacheMisses.txt",
 	                              path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
-
 	m_ShaderCacheMissPath = string(path);
 
 	// load data which is already stored
@@ -337,7 +335,6 @@ void CShaderMan::mfInitShadersCache(byte bForLevel, FXShaderCacheCombinations* C
 {
 	static_assert(SHADER_LIST_VER != SHADER_SERIALISE_VER, "Version mismatch!");
 
-	char str[2048];
 	bool bFromFile = (Combinations == NULL);
 	stack_string nameComb;
 	m_ShaderCacheExportCombinations.clear();
@@ -352,12 +349,13 @@ void CShaderMan::mfInitShadersCache(byte bForLevel, FXShaderCacheCombinations* C
 			fp = gEnv->pCryPak->FOpen(nameComb.c_str(), "w+");
 		if (!fp)
 		{
-			gEnv->pCryPak->AdjustFileName(nameComb.c_str(), str, 0);
-			FILE* statusdst = fopen(str, "rb");
+			CryPathString filePath;
+			gEnv->pCryPak->AdjustFileName(nameComb.c_str(), filePath, 0);
+			FILE* statusdst = fopen(filePath, "rb");
 			if (statusdst)
 			{
 				fclose(statusdst);
-				CrySetFileAttributes(str, FILE_ATTRIBUTE_ARCHIVE);
+				CrySetFileAttributes(filePath, FILE_ATTRIBUTE_ARCHIVE);
 				fp = gEnv->pCryPak->FOpen(nameComb.c_str(), "r+");
 			}
 		}
@@ -365,6 +363,7 @@ void CShaderMan::mfInitShadersCache(byte bForLevel, FXShaderCacheCombinations* C
 		Combinations = &m_ShaderCacheCombinations[nType];
 	}
 
+	char str[2048];
 	int nLine = 0;
 	char* pPtr = (char*)pCombinations;
 	char* ss;
@@ -1153,7 +1152,9 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 #define W_COMPATIBLE_MODE	" /Gec"
 #define L_STRICT_MODE		" -Ges"
 	// NOTE: when updating remote compiler folders, please ensure folders path is matching
+#if CRY_PLATFORM_ORBIS || (!CRY_PLATFORM_DURANGO && !CRY_RENDERER_OPENGLES && !CRY_RENDERER_OPENGL && !DXGL_INPUT_GLSL)
 	const char* pCompilerOrbis   = "ORBIS/V034/DXOrbisShaderCompiler.exe %s %s %s %s";
+#endif
 	const char* pCompilerDurango = "Durango/March2017/fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo %s %s";
 	const char* pCompilerD3D11   = "PCD3D11/v007/fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo %s %s";
 	const char* pCompilerD3D12   = "SPIRV/V003/dxc/dxc.exe -nologo -E %s -T %s -Zpr" L_STRICT_MODE " -Fo %s %s";
@@ -1196,9 +1197,6 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 #else
 	#error "Shading language revision not defined for this GL version"
 #endif
-
-	const char* pCompilerGL4 = "PCGL/V012/HLSLcc.exe -lang=" GLSL_VERSION " -flags=36609 -fxc=\"..\\..\\PCD3D11\\v007\\fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo\" -out=%s -in=%s";
-	const char* pCompilerGLES3 = "PCGL/V012/HLSLcc.exe -lang=" ESSL_VERSION " -flags=36609 -fxc=\"..\\..\\PCD3D11\\v007\\fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo\" -out=%s -in=%s";
 
 	if (CRenderer::CV_r_shadersdebug == 3)
 	{
@@ -1268,7 +1266,7 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 				result.Format("%s -HwStage=%s -HwISA=%c", pCompilerGnm, "C", kISA[(pipelineState.GNM.CS.targetStage >> 5) & 3]);
 				break;
 			default:
-				CRY_ASSERT(false && "Unknown stage");
+				CRY_ASSERT_MESSAGE(false, "Unknown stage");
 				break;
 			}
 			
@@ -1281,10 +1279,14 @@ string CShaderMan::mfGetShaderCompileFlags(EHWShaderClass eClass, UPipelineState
 #elif CRY_PLATFORM_DURANGO
 	result = pCompilerDurango;
 #elif CRY_RENDERER_OPENGLES && DXGL_INPUT_GLSL
+	const char* pCompilerGLES3 = "PCGL/V012/HLSLcc.exe -lang=" ESSL_VERSION " -flags=36609 -fxc=\"..\\..\\PCD3D11\\v007\\fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo\" -out=%s -in=%s";
 	result = pCompilerGLES3;
 #elif CRY_RENDERER_OPENGL && DXGL_INPUT_GLSL
+	const char* pCompilerGL4 = "PCGL/V012/HLSLcc.exe -lang=" GLSL_VERSION " -flags=36609 -fxc=\"..\\..\\PCD3D11\\v007\\fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo\" -out=%s -in=%s";
 	result = pCompilerGL4;
 #else
+	const char* pCompilerGL4 = "PCGL/V012/HLSLcc.exe -lang=" GLSL_VERSION " -flags=36609 -fxc=\"..\\..\\PCD3D11\\v007\\fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo\" -out=%s -in=%s";
+	const char* pCompilerGLES3 = "PCGL/V012/HLSLcc.exe -lang=" ESSL_VERSION " -flags=36609 -fxc=\"..\\..\\PCD3D11\\v007\\fxc.exe /nologo /E %s /T %s /Zpr" W_COMPATIBLE_MODE "" W_STRICT_MODE " /Fo\" -out=%s -in=%s";
 	if (CParserBin::m_nPlatform == SF_D3D11)
 		result = pCompilerD3D11;
 	else if (CParserBin::m_nPlatform == SF_D3D12)
@@ -1679,7 +1681,7 @@ void CShaderMan::_PrecacheShaderList(bool bStatsOnly)
 		m_bReload = true;
 		m_nCombinationsCompiled = 0;
 		m_nCombinationsEmpty = 0;
-		uint64 nGLLast = -1;
+
 		for (int i = 0; i < Cmbs.size(); i++)
 		{
 			SCacheCombination* cmb = &Cmbs[i];
@@ -2036,7 +2038,6 @@ struct SMgData
 	byte          bProcessed;
 };
 
-static int snCurListID;
 typedef std::map<CCryNameTSCRC, SMgData> ShaderData;
 typedef ShaderData::iterator             ShaderDataItor;
 
@@ -2114,7 +2115,7 @@ bool CShaderMan::CheckAllFilesAreWritable(const char* szDir) const
 
 bool CShaderMan::mfPreloadBinaryShaders()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	// don't preload binary shaders if we are in editing mode
 	if (CRenderer::CV_r_shadersediting)
 		return false;
@@ -2166,7 +2167,7 @@ bool CShaderMan::mfPreloadBinaryShaders()
 	char sName[256];
 
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CShaderMan::mfPreloadBinaryShaders(): FilesCFI");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CShaderMan::mfPreloadBinaryShaders(): FilesCFI");
 		for (i = 0; i < FilesCFI.size(); i++)
 		{
 			if (gEnv->pSystem && gEnv->pSystem->IsQuitting())
@@ -2175,13 +2176,12 @@ bool CShaderMan::mfPreloadBinaryShaders()
 			const string& file = FilesCFI[i];
 			cry_strcpy(sName, file.c_str());
 			PathUtil::RemoveExtension(sName);
-			SShaderBin* pBin = m_Bin.GetBinShader(sName, true, 0);
-			assert(pBin);
+			CRY_VERIFY(m_Bin.GetBinShader(sName, true, 0) != nullptr);
 		}
 	}
 
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CShaderMan::mfPreloadBinaryShaders(): FilesCFX");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CShaderMan::mfPreloadBinaryShaders(): FilesCFX");
 		for (i = 0; i < FilesCFX.size(); i++)
 		{
 			if (gEnv->pSystem && gEnv->pSystem->IsQuitting())
@@ -2190,8 +2190,7 @@ bool CShaderMan::mfPreloadBinaryShaders()
 			const string& file = FilesCFX[i];
 			cry_strcpy(sName, file.c_str());
 			PathUtil::RemoveExtension(sName);
-			SShaderBin* pBin = m_Bin.GetBinShader(sName, false, 0);
-			assert(pBin);
+			CRY_VERIFY(m_Bin.GetBinShader(sName, false, 0) != nullptr);
 		}
 	}
 

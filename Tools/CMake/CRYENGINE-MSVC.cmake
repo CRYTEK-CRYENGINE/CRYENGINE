@@ -1,6 +1,6 @@
 
 set(MSVC_COMMON_FLAGS 
-	/nologo	    # Don't show version info
+	/nologo     # Don't show version info
 	/W3         # Enable warning level 3
 	/fp:fast    # Use fast floating point precision model
 	/Zc:wchar_t # Parse wchar_t as internal type
@@ -13,9 +13,9 @@ set(MSVC_COMMON_FLAGS
 
 	/WX         # Treat warnings as errors
 	/wd4653     # Ignore PCH for any individual file that has different optimization settings
-    /wd4275     # non dll-interface class '' used as base for dll-interface class ''
+	/wd4275     # non dll-interface class '' used as base for dll-interface class ''
 	/wd4961     # No profile data was merged into '', profile-guided optimizations disabled
-	/wd4068		# 'Unknown pragma' - sometimes need these in code to prevent global suppression.
+	/wd4068     # 'Unknown pragma' - sometimes need these in code to prevent global suppression.
 )
 string(REPLACE ";" " " MSVC_COMMON_FLAGS "${MSVC_COMMON_FLAGS}")
 
@@ -62,3 +62,5 @@ function (wrap_whole_archive project target source)
 	set_target_properties(${project} PROPERTIES LINK_FLAGS ${whole_archive_link_flags})
 endfunction()
 
+message(STATUS "MSVC_VERSION = ${MSVC_VERSION}")
+message(STATUS "MSVC_TOOLSET_VERSION = ${MSVC_TOOLSET_VERSION}")

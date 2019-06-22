@@ -11,7 +11,9 @@ namespace
 	typedef std::vector<THUDEventListeners>         TEventVector;
 
 	static bool                                     s_safe = true;
-	static bool                                     s_stlSafe = true;
+#if !defined(DEDICATED_SERVER)
+    static bool                                     s_stlSafe = true;
+#endif
 	static TEventVector                             s_eventVec;
 }
 

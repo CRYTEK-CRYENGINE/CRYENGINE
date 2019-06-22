@@ -19,6 +19,7 @@ History:
 #include "Weapon.h"
 #include "Utility/CryWatch.h"
 #include "WeaponSystem.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 int static ma_debug = 0;
 

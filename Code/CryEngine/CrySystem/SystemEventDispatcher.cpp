@@ -37,17 +37,6 @@ bool CSystemEventDispatcher::RemoveListener(ISystemEventListener* pListener)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CSystemEventDispatcher::OnSystemEventAnyThread(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
-{
-	m_listenerRegistrationLock.Lock();
-	for (TSystemEventListeners::Notifier notifier(m_listeners); notifier.IsValid(); notifier.Next())
-	{
-		notifier->OnSystemEventAnyThread(event, wparam, lparam);
-	}
-	m_listenerRegistrationLock.Unlock();
-}
-
-//////////////////////////////////////////////////////////////////////////
 void CSystemEventDispatcher::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam, bool force_queue /*= false*/)
 {
 	if (!force_queue && gEnv && gEnv->mMainThreadId == CryGetCurrentThreadId())
@@ -65,10 +54,6 @@ void CSystemEventDispatcher::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, 
 		params.lparam = lparam;
 		m_systemEventQueue.push(params);
 	}
-
-	// Also dispatch the event on this thread. This technically means the event
-	//	will be sent twice (thru different OnSystemEventXX functions), therefore it is up to listeners which one they react to.
-	OnSystemEventAnyThread(event, wparam, lparam);
 }
 
 //////////////////////////////////////////////////////////////////////////

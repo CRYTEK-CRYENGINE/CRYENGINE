@@ -56,7 +56,7 @@ void CFeatureMotionPhysics::AddToComponent(CParticleComponent* pComponent, SComp
 		if (m_perParticleForceComputation)
 			pComponent->AddParticleData(EPVF_VelocityField);
 	}
-	pComponent->GetEffect()->AddEnvironFlags(m_environFlags);
+	pComponent->AddEnvironFlags(m_environFlags);
 
 	auto it = std::remove_if(m_localEffectors.begin(), m_localEffectors.end(), [](const PLocalEffector& ptr) { return !ptr; });
 	m_localEffectors.erase(it, m_localEffectors.end());
@@ -320,8 +320,8 @@ void CFeatureMotionPhysics::Integrate(CParticleComponentRuntime& runtime)
 
 	IOVec3Stream positions = container.GetIOVec3Stream(EPVF_Position);
 	IOVec3Stream velocities = container.GetIOVec3Stream(EPVF_Velocity);
-	IVec3Stream velocityField = container.GetIVec3Stream(EPVF_VelocityField);
-	IVec3Stream accelerations = container.GetIVec3Stream(EPVF_Acceleration);
+	IOVec3Stream velocityField = container.GetIOVec3Stream(EPVF_VelocityField);
+	IOVec3Stream accelerations = container.GetIOVec3Stream(EPVF_Acceleration);
 	IFStream gravities = container.GetIFStream(EPDT_Gravity, 0.0f);
 	IFStream drags = container.GetIFStream(EPDT_Drag);
 	IFStream normAges = container.GetIFStream(EPDT_NormalAge);

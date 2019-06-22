@@ -33,6 +33,7 @@ public:
 
 	virtual ~CAsset() {}
 
+	ControlId     GetId() const     { return m_id; }
 	EAssetType    GetType() const   { return m_type; }
 
 	CAsset*       GetParent() const { return m_pParent; }
@@ -64,16 +65,20 @@ public:
 
 protected:
 
-	explicit CAsset(string const& name, EAssetType const type)
-		: m_name(name)
+	explicit CAsset(string const& name, ControlId const id, EAssetType const type)
+		: m_id(id)
+		, m_pParent(nullptr)
+		, m_name(name)
+		, m_description("")
 		, m_type(type)
 		, m_flags(EAssetFlags::None)
 	{}
 
-	CAsset*          m_pParent = nullptr;
+	ControlId        m_id;
+	CAsset*          m_pParent;
 	Assets           m_children;
 	string           m_name;
-	string           m_description = "";
+	string           m_description;
 	EAssetType const m_type;
 	EAssetFlags      m_flags;
 };

@@ -13,8 +13,8 @@
 #include <NodeGraph/AbstractNodeGraphViewModelItem.h>
 #include <NodeGraph/NodeGraphUndo.h>
 
-#include <QAdvancedPropertyTree.h>
-#include <QPropertyTree/ContextList.h>
+#include <QAdvancedPropertyTreeLegacy.h>
+#include <QPropertyTreeLegacy/ContextList.h>
 #include <QVBoxLayout>
 
 // TEMP
@@ -144,7 +144,7 @@ void CPropertiesWidget::SetupTree()
 {
 	QVBoxLayout* pLayout = new QVBoxLayout(this);
 
-	m_pPropertyTree = new QAdvancedPropertyTree("Component Properties");
+	m_pPropertyTree = new QAdvancedPropertyTreeLegacy("Component Properties");
 	m_pPropertyTree->setExpandLevels(2);
 	m_pPropertyTree->setValueColumnWidth(0.6f);
 	m_pPropertyTree->setAggregateMouseEvents(false);
@@ -153,13 +153,13 @@ void CPropertiesWidget::SetupTree()
 	// Disable use of actions / buttons on preview entity
 	m_pPropertyTree->setActionsEnabled(false);
 
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	m_pPropertyTree->setTreeStyle(treeStyle);
 
-	QObject::connect(m_pPropertyTree, &QPropertyTree::signalBeginUndo, this, &CPropertiesWidget::OnBeginUndo);
-	QObject::connect(m_pPropertyTree, &QAdvancedPropertyTree::signalChanged, this, &CPropertiesWidget::OnPropertiesChanged);
-	QObject::connect(m_pPropertyTree, &QPropertyTree::signalEndUndo, this, &CPropertiesWidget::OnEndUndo);
+	QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalBeginUndo, this, &CPropertiesWidget::OnBeginUndo);
+	QObject::connect(m_pPropertyTree, &QAdvancedPropertyTreeLegacy::signalChanged, this, &CPropertiesWidget::OnPropertiesChanged);
+	QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalEndUndo, this, &CPropertiesWidget::OnEndUndo);
 
 	pLayout->addWidget(m_pPropertyTree);
 }

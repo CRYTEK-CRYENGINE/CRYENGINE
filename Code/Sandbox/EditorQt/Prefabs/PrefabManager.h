@@ -43,13 +43,14 @@ private:
 //! \sa CAssetType::Create
 struct SPrefabCreateParams : CAssetType::SCreateParams
 {
-	SPrefabCreateParams(const ISelectionGroup* _pGroup)
-		: pGroup(_pGroup)
+	//! This instructs the prefab asset type to create a prefab item AND a prefab object containing the objects in the pNewMembersSelection selection group
+	//! nullptr selection means that a new prefab object should not be created
+	SPrefabCreateParams(const ISelectionGroup* pSelectionToAdd)
+		: pNewMembersSelection(pSelectionToAdd)
 	{
 
 	}
-
-	const ISelectionGroup* pGroup;
+	const ISelectionGroup* pNewMembersSelection;
 };
 
 /** Manages Prefab libraries and systems.

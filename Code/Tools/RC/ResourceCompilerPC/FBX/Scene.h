@@ -136,7 +136,10 @@ struct IScene
 
 	// Start and End time of the animation, expressed in frames(a constant frame rate of 30fps is assumed).
 	virtual STrs EvaluateNodeLocalTransform(int nodeIdx, int animationFrameIndex) const = 0;
-	virtual STrs EvaluateNodeGlobalTransform(int nodeIdx, int frameIndex) const  = 0;
+	virtual STrs EvaluateNodeGlobalTransform(int nodeIdx, int animationFrameIndex) const = 0;
+
+	// Returns the morph target weight in range [0,100];
+	virtual float EvaluateMorphTargetWeight(int meshIdx, const char* szMorphTarget, int animationFrameIndex) = 0;
 };
 
 // See: http://en.wikipedia.org/wiki/Tree_traversal
@@ -322,13 +325,18 @@ inline int MarkPath(std::vector<bool>& nodes, const IScene& scene, int nodeIndex
 	return root;
 }
 
-inline bool IsMesh(const IScene& scene, int nodeIndex)
+inline bool IsNodeAttributeTypeOf(const IScene& scene, int nodeIndex, SNode::EAttributeType attributeType)
 {
 	const SNode* pNode = scene.GetNode(nodeIndex);
-	return pNode && std::any_of(pNode->attributes.begin(), pNode->attributes.end(), [](const Scene::SNode::Attribute& attribute)
-	{ 
-		return attribute.eType == Scene::SNode::eAttributeType_Mesh; 
+	return pNode && std::any_of(pNode->attributes.begin(), pNode->attributes.end(), [attributeType](const Scene::SNode::Attribute& attribute)
+	{
+		return attribute.eType == attributeType;
 	});
+}
+
+inline bool IsMesh(const IScene& scene, int nodeIndex)
+{
+	return IsNodeAttributeTypeOf(scene, nodeIndex, Scene::SNode::eAttributeType_Mesh);
 }
 
 } // namespace Scene

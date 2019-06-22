@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "MNM.h"
 #include "OpenList.h"
 
 namespace MNM

@@ -36,12 +36,9 @@ public:
 	virtual ~CEventConnection() override = default;
 
 	// IConnection
-	virtual ControlId GetID() const override                                                                   { return m_id; }
-	virtual bool      HasProperties() const override                                                           { return true; }
+	virtual ControlId GetID() const override         { return m_id; }
+	virtual bool      HasProperties() const override { return true; }
 	virtual void      Serialize(Serialization::IArchive& ar) override;
-	virtual void      SetPlatformEnabled(PlatformIndexType const platformIndex, bool const isEnabled) override {}
-	virtual bool      IsPlatformEnabled(PlatformIndexType const platformIndex) const override                  { return true; }
-	virtual void      ClearPlatforms() override                                                                {}
 	// ~IConnection
 
 	void        SetActionType(EActionType const type)  { m_actionType = type; }

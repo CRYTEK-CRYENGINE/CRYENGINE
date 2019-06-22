@@ -363,7 +363,7 @@ namespace Schematyc2
 		{
 			CRY_PROFILE_FUNCTION_ARG(PROFILE_GAME, m_pLibClass->GetName());
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 			size_t currentSignalIdx = SIZE_MAX;
 			const int64	signalStartTicks = CryGetTicks();
 
@@ -437,7 +437,7 @@ namespace Schematyc2
 				}
 			}
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 			if (currentSignalIdx != SIZE_MAX)
 			{
 				const int64	endTicks = CryGetTicks();
@@ -1255,9 +1255,9 @@ namespace Schematyc2
 		CRY_ASSERT_MESSAGE(pFunction, "Function %s not found in class %s", pFunction->GetName(), m_pLibClass->GetName());
 		if(pFunction)
 		{
-			LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("ProcessFunction", pFunction->GetName());
+			CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "ProcessFunction", pFunction->GetName());
 			static uint32 s_recursionDepth = 0;
-			if(s_recursionDepth >= CVars::sc_MaxRecursionDepth)
+			if(s_recursionDepth >= CVars::sc2_MaxRecursionDepth)
 			{
 				SCHEMATYC2_SYSTEM_METAINFO_CRITICAL_ERROR(
 					SCHEMATYC2_LOG_METAINFO(ECryLinkCommand::Show, SLogMetaItemGUID(pFunction->GetGUID())), 
@@ -1297,7 +1297,7 @@ namespace Schematyc2
 				ComponentMemberFunctionConstTable componentMemberFunctionTable = pFunction->GetComponentMemberFunctionTable();
 				ActionMemberFunctionConstTable actionMemberFunctionTable = pFunction->GetActionMemberFunctionTable();
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 				if (IsDebuggingActive())
 				{
 					// Check if we need to mark the beginning of a function
@@ -1309,10 +1309,10 @@ namespace Schematyc2
 #endif
 				//int64 ticksSinceLastNode = CryGetTicks();
 
-				LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Doing operations", pFunction->GetName());
+				CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Doing operations", pFunction->GetName());
 				for(size_t pos = 0, size = pFunction->GetSize(); pos < size; )
 				{
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 					size_t currentNodeItemIndex = SIZE_MAX;
 
 					if (IsDebuggingActive())
@@ -1349,7 +1349,7 @@ namespace Schematyc2
 						{
 							const SVMPushOp* pPushOp = static_cast<const SVMPushOp*>(pOp);
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 							if (IsDebuggingActive())
 							{
 								const ILibFunction::SDebugSymbol* pDebugSymbol = pFunction->GetDebugOperationSymbol(pos);
@@ -1374,7 +1374,7 @@ namespace Schematyc2
 						{
 							const SVMSetOp*	pSetOp = static_cast<const SVMSetOp*>(pOp);
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 							if (IsDebuggingActive())
 							{
 								const ILibFunction::SDebugSymbol* pDebugSymbol = pFunction->GetDebugOperationSymbol(pos);
@@ -1404,7 +1404,7 @@ namespace Schematyc2
 							}
 #endif
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 							if (IsDebuggingActive())
 							{
 								const ILibFunction::SDebugSymbol* pDebugSymbol = pFunction->GetDebugOperationSymbol(pos);
@@ -1733,7 +1733,7 @@ namespace Schematyc2
 								TVariantConstArray	functionInputs(functionInputSize ? &stack[stackSize - functionInputSize - functionOutputSize] : NULL, functionInputSize);
 								TVariantArray				functionOutputs(functionOutputSize ? &stack[stackSize - functionOutputSize] : NULL, functionOutputSize);
 
-								LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Function call", pGlobalFunction->GetName());
+								CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Function call", pGlobalFunction->GetName());
 								pGlobalFunction->Call(functionInputs, functionOutputs);
 							}
 							pos += pOp->size;
@@ -1762,7 +1762,7 @@ namespace Schematyc2
 									{
 										TVariantConstArray	functionInputs(variantInputSize ? &stack[prevStackSize - variantInputSize] : NULL, variantInputSize);
 										TVariantArray				functionOutputs(variantOutputSize ? &stack[prevStackSize] : NULL, variantOutputSize);
-										LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Interface call", pAbstractInterfaceFunction->GetName());
+										CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Interface call", pAbstractInterfaceFunction->GetName());
 										const bool					result = pObject->CallAbstractInterfaceFunction(pCallEnvAbstractInterfaceFunctionOp->abstractInterfaceGUID, pCallEnvAbstractInterfaceFunctionOp->functionGUID, functionInputs, functionOutputs);
 										stack.Push(CVariant(result));
 									}
@@ -1798,7 +1798,7 @@ namespace Schematyc2
 									{
 										TVariantConstArray	functionInputs(variantInputSize ? &stack[prevStackSize - variantInputSize] : NULL, variantInputSize);
 										TVariantArray				functionOutputs(variantOutputSize ? &stack[prevStackSize] : NULL, variantOutputSize);
-										LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Interface call", pAbstractInterfaceFunction->GetName());
+										CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Interface call", pAbstractInterfaceFunction->GetName());
 										const bool					result = pObject->CallAbstractInterfaceFunction(pCallLibAbstractInterfaceFunctionOp->abstractInterfaceGUID, pCallLibAbstractInterfaceFunctionOp->functionGUID, functionInputs, functionOutputs);
 										stack.Push(CVariant(result));
 									}
@@ -1830,7 +1830,7 @@ namespace Schematyc2
 									stack.Resize(stackSize);
 									TVariantConstArray	functionInputs(functionInputSize ? &stack[stackSize - functionInputSize - functionOutputSize] : NULL, functionInputSize);
 									TVariantArray				functionOutputs(functionOutputSize ? &stack[stackSize - functionOutputSize] : NULL, functionOutputSize);
-									LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Function call", pComponentMemberFunction->GetName());
+									CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Function call", pComponentMemberFunction->GetName());
 									pComponentMemberFunction->Call(*m_componentInstances[iComponentInstance].pComponent, functionInputs, functionOutputs);
 								}
 							}
@@ -1856,7 +1856,7 @@ namespace Schematyc2
 									stack.Resize(stackSize);
 									TVariantConstArray	functionInputs(functionInputSize ? &stack[stackSize - functionInputSize - functionOutputSize] : NULL, functionInputSize);
 									TVariantArray				functionOutputs(functionOutputSize ? &stack[stackSize - functionOutputSize] : NULL, functionOutputSize);
-									LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Function call", pActionMemberFunction->GetName());
+									CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Function call", pActionMemberFunction->GetName());
 									pActionMemberFunction->Call(*m_actionInstances[iActionInstance].pAction, functionInputs, functionOutputs);
 								}
 							}
@@ -1880,7 +1880,7 @@ namespace Schematyc2
 									stack.Resize(stackSize);
 									TVariantConstArray	functionInputs(functionInputSize? &stack[stackSize - functionInputSize - functionOutputSize] : NULL, functionInputSize);
 									TVariantArray				functionOutputs(functionOutputSize ? &stack[stackSize - functionOutputSize] : NULL, functionOutputSize);
-									LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Function call", pLibFunction->GetName());
+									CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Function call", pLibFunction->GetName());
 									ProcessFunction(pCallLibFunctionOp->functionId, functionInputs, functionOutputs);
 								}
 							}
@@ -1900,7 +1900,7 @@ namespace Schematyc2
 						}
 					}
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 					if (currentNodeItemIndex != SIZE_MAX)
 					{
 						const int64	endTicks = CryGetTicks();
@@ -1916,17 +1916,17 @@ namespace Schematyc2
 					outputs[iOutput] = stack[iOutput];
 				}
 			}
-			if(CVars::sc_FunctionTimeLimit)
+			if(CVars::sc2_FunctionTimeLimit)
 			{
 				const int64	endTicks = CryGetTicks();
 				const float	time = gEnv->pTimer->TicksToSeconds(endTicks - startTicks);
-				if(time > CVars::sc_FunctionTimeLimit)
+				if(time > CVars::sc2_FunctionTimeLimit)
 				{
-					SCHEMATYC2_SYSTEM_ERROR("Function took more than %f(s) to process: class = %s, function = %s, time = %f(s)", CVars::sc_FunctionTimeLimit, m_pLibClass->GetName(), pFunction->GetName(), time);
+					SCHEMATYC2_SYSTEM_ERROR("Function took more than %f(s) to process: class = %s, function = %s, time = %f(s)", CVars::sc2_FunctionTimeLimit, m_pLibClass->GetName(), pFunction->GetName(), time);
 				}
 			}
 
-#ifdef SCHEMATYC2_DEBUGGING
+#if SCHEMATYC2_DEBUGGING
 			if (IsDebuggingActive())
 			{
 				// Check if we need to mark the end of a function

@@ -519,7 +519,7 @@ void CNavMeshQuery::DebugQueryResult(const CTimeValue& timeAtStart)
 
 void CNavMeshQuery::DebugDrawQueryConfig() const
 {
-	if (!gAIEnv.CVars.DebugDrawNavigationQueriesUDR)
+	if (!gAIEnv.CVars.navigation.DebugDrawNavigationQueriesUDR)
 	{
 		return;
 	}
@@ -539,7 +539,7 @@ void CNavMeshQuery::DebugDrawQueryConfig() const
 
 void CNavMeshQuery::DebugDrawQueryBatch(const MNM::INavMeshQueryDebug::SBatchData& queryBatch) const
 {
-	if (!gAIEnv.CVars.DebugDrawNavigationQueriesUDR)
+	if (!gAIEnv.CVars.navigation.DebugDrawNavigationQueriesUDR)
 	{
 		return;
 	}
@@ -571,7 +571,7 @@ void CNavMeshQuery::DebugDrawQueryBatch(const MNM::INavMeshQueryDebug::SBatchDat
 
 void CNavMeshQuery::DebugDrawQueryInvalidation(const MNM::INavMeshQueryDebug::SInvalidationData& invalidationData) const
 {
-	if (!gAIEnv.CVars.DebugDrawNavigationQueriesUDR)
+	if (!gAIEnv.CVars.navigation.DebugDrawNavigationQueriesUDR)
 	{
 		return;
 	}

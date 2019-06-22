@@ -1,23 +1,10 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File:SmartGlassManager.h
-//
-//	History:
-//	-Jan 16,2013:Originally Created by Steve Barnett
-//
-//////////////////////////////////////////////////////////////////////
-
-#ifndef _SMARTGLASSMANAGER_H
-#define _SMARTGLASSMANAGER_H
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #if defined(SUPPORT_SMARTGLASS)
 
-	#include "ISmartGlassManager.h"
+#include "ISmartGlassManager.h"
 
 using Windows::Xbox::SmartGlass::SmartGlassDeviceWatcher;
 using Windows::Xbox::SmartGlass::SmartGlassDevice;
@@ -69,7 +56,5 @@ private:
 	typedef std::vector<CSmartGlassPlayerData> SmartGlassPlayerVec;
 	SmartGlassPlayerVec m_playerInfo;
 };
-
-#endif
 
 #endif

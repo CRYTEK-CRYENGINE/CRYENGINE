@@ -1,48 +1,35 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   IShader.h : Shaders common interface.
-
-   Revision history:
-* Created by Honich Andrey
-
-   =============================================================================*/
 #pragma once
-
-#include <CryCore/smartptr.h>
-#include <CryRenderer/IFlares.h>
-#include <CryRenderer/VertexFormats.h>
-
-#include <CryMath/Cry_XOptimise.h>
-#include <CryMemory/CrySizer.h>
-
-#include <CryThreading/CryThreadSafeRendererContainer.h>
 
 #include <CryCore/BitMask.h>
 #include <CryCore/Containers/CryArray.h>
+#include <CryCore/smartptr.h>
+#include <CryMath/Cry_XOptimise.h>
+#include <CryMemory/CrySizer.h>
+#include <CryRenderer/IFlares.h>
+#include <CryRenderer/VertexFormats.h>
 
-struct IMaterial;
+class CMaterial;
+class CREMesh;
 class CRenderElement;
 class CRenderObject;
-class CREMesh;
+class CShader;
+
+struct IAnimNode;
+struct IClipVolume;
+struct IMaterial;
 struct IRenderMesh;
 struct IShader;
+struct ITexture;
 struct IVisArea;
-class CShader;
-class CRenderElement;
-class CRenderElement;
-struct STexAnim;
-struct SShaderPass;
-struct SShaderItem;
-class ITexture;
-struct IMaterial;
 struct SParam;
-class CMaterial;
+struct SShaderItem;
+struct SShaderPass;
 struct SShaderSerializeContext;
-struct IAnimNode;
 struct SSkinningData;
 struct SSTexSamplerFX;
-struct IClipVolume;
+struct STexAnim;
 
 namespace JobManager {
 struct SJobState;
@@ -855,7 +842,26 @@ struct SEfTexModificator
 
 	void   Reset()
 	{
-		memset(this, 0, sizeof(*this));
+		// Do not replace with memset to avoid compiler issues (VS2019/GCC8.3)
+		m_TexGenMatrix.SetZero();
+		m_TexMatrix.SetZero();
+		m_Tiling[0] = m_Tiling[1] = m_Tiling[2] = 0.0f;
+		m_Offs[0] = m_Offs[1] = m_Offs[2] = 0.0f;
+		m_RotOscCenter[0] = m_RotOscCenter[1] = m_RotOscCenter[2] = 0.0f;
+		m_OscRate[0] = m_OscRate[1] = 0.0f;
+		m_OscAmplitude[0] = m_OscAmplitude[1] = 0.0f;
+		m_OscPhase[0] = m_OscPhase[1] = 0.0f;
+		m_LastTime[0] = m_LastTime[1] = 0.0f;
+		m_CurrentJitter[0] = m_CurrentJitter[1] = 0.0f;
+		m_RotOscPhase[0] = m_RotOscPhase[1] = m_RotOscPhase[2] = 0;
+		m_Rot[0] = m_Rot[1] = m_Rot[2] = 0;
+		m_RotOscRate[0] = m_RotOscRate[1] = m_RotOscRate[2] = 0;
+		m_RotOscAmplitude[0] = m_RotOscAmplitude[1] = m_RotOscAmplitude[2] = 0;
+		m_eTGType = 0;
+		m_eRotType = 0;
+		m_eMoveType[0] = m_eMoveType[1] = 0;
+		m_bTexGenProjected = false;
+
 		m_Tiling[0] = m_Tiling[1] = 1.0f;
 	}
 	inline SEfTexModificator()
@@ -1998,7 +2004,7 @@ enum eDynamicLightFlags : uint32
 	DLF_DEFERRED_CUBEMAPS       = BIT32(11),
 	DLF_HAS_CLIP_VOLUME         = BIT32(12),
 	DLF_DISABLED                = BIT32(13),
-	DLF_AREA_LIGHT              = BIT32(14),
+	DLF_AREA                    = BIT32(14),
 	DLF_USE_FOR_SVOGI           = BIT32(15),
 	// UNUSED										=	BIT(16),
 	DLF_FAKE                    = BIT32(17),   //!< No lighting, used for Flares, beams and such.
@@ -2020,7 +2026,7 @@ enum eDynamicLightFlags : uint32
 	DLF_SPECULAROCCLUSION = BIT32(30),
 	DLF_DIFFUSEOCCLUSION  = BIT32(31),
 
-	DLF_LIGHTTYPE_MASK    = (DLF_DIRECTIONAL | DLF_POINT | DLF_PROJECT | DLF_AREA_LIGHT)
+	DLF_LIGHTTYPE_MASK    = (DLF_DIRECTIONAL | DLF_POINT | DLF_PROJECT | DLF_AREA)
 };
 
 //! Area light types.
@@ -2136,7 +2142,7 @@ struct SRenderLight
 	{
 		// Adjust light intensity so that the intended brightness is reached 1 meter from the light's surface
 		// I / (1 + bulb)^2 = 1; I = (1 + bulb)^2
-		if (m_Flags & (DLF_AREA_LIGHT | DLF_AMBIENT))
+		if (m_Flags & DLF_AMBIENT)
 			return 1.0f;
 		return sqr(1.0f + m_fAttenuationBulbSize);
 	}
@@ -2250,7 +2256,7 @@ struct SRenderLight
 	}
 
 	//! Use this instead of m_Color.
-	const ColorF& GetFinalColor(const ColorF& cColor) const
+	const ColorF& GetFinalColor() const
 	{
 		return m_Color;
 	}
@@ -2367,6 +2373,9 @@ struct SRenderLight
 		m_pLightAnim = dl.m_pLightAnim;
 		m_fAreaWidth = dl.m_fAreaWidth;
 		m_fAreaHeight = dl.m_fAreaHeight;
+		m_bAreaTwoSided = dl.m_bAreaTwoSided;
+		m_bAreaTextured = dl.m_bAreaTextured;
+		m_nAreaShape = dl.m_nAreaShape;
 		m_fBoxWidth = dl.m_fBoxWidth;
 		m_fBoxHeight = dl.m_fBoxHeight;
 		m_fBoxLength = dl.m_fBoxLength;
@@ -2454,8 +2463,12 @@ public:
 	float                m_fClipRadius = 100.f;
 	float                m_fAttenuationBulbSize = 0.1f;
 
+	// Area Light properties
 	float                m_fAreaWidth = 1.f;
 	float                m_fAreaHeight = 1.f;
+	bool                 m_bAreaTwoSided = false;
+	bool                 m_bAreaTextured = false;
+	uint8                m_nAreaShape = 0;
 
 	float                m_fFogRadialLobe = 0;  //!< The blend ratio of two radial lobe for volumetric fog.
 

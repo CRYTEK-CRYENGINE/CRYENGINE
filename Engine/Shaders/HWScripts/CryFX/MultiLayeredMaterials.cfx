@@ -1,0 +1,1155 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
+#include "Common.cfi"
+#include "ShadowCommon.cfi"
+
+// Shader global descriptions
+float Script : STANDARDSGLOBAL
+<
+	string Script =
+		"Public;"
+		"NoPreview;"
+		"SupportsDeferredShading;"
+		"SupportsAttrInstancing;"   
+		"ShaderDrawType = Light;"  
+		"VertexColors;"
+		"AlphaBlendShadows;"
+		"ShaderType = General;";
+>;
+
+
+#define SHADELIB_USE_CUSTOM_TEXTURES
+
+#if %LAYERS3_MAP
+	#define %LAYERS2_MAP
+	#define layers_count 3
+#elif %LAYERS2_MAP
+	#define layers_count 2
+#else
+	#define layers_count 1
+#endif
+#if %THIN_FILM
+	#define thin_film 1
+#else
+	#define thin_film 0
+#endif
+
+
+SCENEDEPTHMAP
+SCENE_NORMALS_MAP
+SCENE_NORMALS_BENT
+
+NORMALMAP		// Material normal map
+SMOOTHNESSMAP	// Base 
+EMITTANCEMAP
+
+float EmittanceMapGamma
+<
+    register = REG_PM_PARAM_4.y;
+    string UIWidget = "slider";
+    string UIName = "Emittance Map Gamma";
+    string UIDescription = "Expand range of emittance texture";
+    float UIMin = 1.0;
+    float UIMax = 2.0;
+    float UIStep = 0.1;
+> = 1.0;
+
+#ifdef %BASE_LAYER_CONDUCTOR
+// Predefined material selector
+float ConductorID
+<
+  register = REG_PM_PARAM_1.y;
+  string UIWidget = "slider";
+  string UIName = "Conductor id";
+  string UIDescription = "";
+  float UIMin = 0.0;
+  float UIMax = 20;
+  float UIStep = 1;
+> = 0.f;
+#endif
+
+// Layers smoothness
+Texture2D LayersSmoothnessMap : register(t9)
+<
+	UIName = "Layers Smoothness Map";
+	UIDescription = "Layers smoothness map. Red channel for layer 1, green channel for layer 2.";
+	sRGBLookup = false;
+> = TM_Custom;
+
+#ifdef %BASE_LAYER_CONDUCTOR
+Texture2D diffuseTex : register(t0)
+<
+	UIName = "Base Layer Edge Tint";
+	UIDescription = "Base layer edge tint";
+	sRGBLookup = true;
+> = TM_Diffuse;
+#else
+float Layer0ReflectivityScale
+<
+    register = REG_PM_PARAM_4.x;
+    string UIWidget = "slider";
+    string UIName = "Base Layer Reflectivity Scale";
+    string UIDescription = "Scales the reflectivity map of the base layer (1 - no reflectivity, greater values modulate the reflectivity map accordingly)";
+    float UIMin = 1;
+    float UIMax = 3.5;
+    float UIStep = .001;
+> = 1.5;
+Texture2D diffuseTex : register(t0)
+<
+	UIName = "Base Layer Diffuse";
+	UIDescription = "Base layer diffuse";
+	sRGBLookup = true;
+> = TM_Diffuse;
+#endif
+// Base layer reflectivity
+Texture2D reflectivity0Tex : register(t11)
+<
+	UIName = "Base Layer Reflectivity";
+	UIDescription = "Base layer reflectivity";
+	sRGBLookup = true;
+> = TM_Opacity;
+
+
+//#if %LAYERS2_MAP
+float Layer1ReflectivityScale
+<
+    register = REG_PM_PARAM_1.x;
+    string UIWidget = "slider";
+    string UIName = "Layer 1 Reflectivity Scale";
+    string UIDescription = "Scales the reflectivity map of the first layer (1 - no reflectivity, greater values modulate the reflectivity map accordingly)";
+    float UIMin = 1;
+    float UIMax = 3.5;
+    float UIStep = .001;
+> = 1.5;
+float Layer1Thickness
+<
+    register = REG_PM_PARAM_2.x;
+    string UIWidget = "slider";
+    string UIName = "Layer 1 Optical Depth (mm)";
+    string UIDescription = "";
+    float UIMin = 0.001;
+    float UIMax = 1.;
+    float UIStep = 0.001;
+> = 0.1;
+float Layer1Smoothness
+<
+    register = REG_PM_PARAM_2.y;
+    string UIWidget = "slider";
+    string UIName = "Layer 1 Smoothness";
+    string UIDescription = "";
+    float UIMin = 0;
+    float UIMax = 1.;
+    float UIStep = .00001;
+> = 0.1;
+Texture2D diffuse1Tex : register(t4)
+<
+	UIName = "Layer 1 Diffuse";
+	UIDescription = "Layer 1 diffuse";
+	sRGBLookup = true;
+> = TM_Detail;
+Texture2D reflectivity1Tex : register(t6)
+<
+	UIName = "Layer 1 Reflectivity Map";
+	UIDescription = "Layer 1 reflectivity map.";
+	sRGBLookup = true;
+> = TM_Height;
+//#endif
+
+//#if %LAYERS3_MAP
+float Layer2ReflectivityScale
+<
+    register = REG_PM_PARAM_1.z;
+    string UIWidget = "slider";
+    string UIName = "Layer 2 Reflectivity Scale";
+    string UIDescription = "Scales the reflectivity map of the second layer (1 - no reflectivity, greater values modulate the reflectivity map accordingly)";
+    float UIMin = 1;
+    float UIMax = 3.5;
+    float UIStep = .001;
+> = 1.5;
+float Layer2Thickness
+<
+    register = REG_PM_PARAM_2.w;
+    string UIWidget = "slider";
+    string UIName = "Layer 2 Optical Depth (mm)";
+    string UIDescription = "";
+    float UIMin = 0.001;
+    float UIMax = 1.;
+    float UIStep = .001;
+> = 0.1;
+float Layer2Smoothness
+<
+    register = REG_PM_PARAM_2.z;
+    string UIWidget = "slider";
+    string UIName = "Layer 2 Smoothness";
+    string UIDescription = "";
+    float UIMin = 0;
+    float UIMax = 1.;
+    float UIStep = .00001;
+> = 0.1;
+Texture2D diffuse2Tex : register(t8)
+<
+	UIName = "Layer 2 Diffuse";
+	UIDescription = "Layer 2 diffuse";
+	sRGBLookup = true;
+> = TM_SubSurface;
+Texture2D reflectivity2Tex : register(t7)
+<
+	UIName = "Layer 2 Reflectivity Map";
+	UIDescription = "Layer 2 reflectivity map.";
+	sRGBLookup = true;
+> = TM_DecalOverlay;
+//#endif
+
+#if %THIN_FILM
+float ThinFilmReflectivityScale
+<
+    register = REG_PM_PARAM_0.w;
+    string UIWidget = "slider";
+    string UIName = "Thin-Film Reflectivity Scale";
+    string UIDescription = "Scales the reflectivity map of the thin-film (1 - no reflectivity, greater values modulate the reflectivity map accordingly)";
+    float UIMin = 1;
+    float UIMax = 3.5;
+    float UIStep = .001;
+> = 1.5;
+float ThinFilmThickness
+<
+  register = REG_PM_PARAM_4.z;
+  string UIWidget = "slider";
+  string UIName = "Thin-Film Thickness (nanometre)";
+  string UIDescription = "";
+  float UIMin = 0;
+  float UIMax = 1000.;
+  float UIStep = 0.25;
+> = 5.0;
+Texture2D ThinFilmReflectivityMap : register(t10)
+<
+	UIName = "Thin-Film Reflectivity Map";
+	UIDescription = "Thin-film reflectivity map. Optional alpha channel modulates the thickness of the thin-film.";
+	sRGBLookup = true;
+> = TM_CustomSecondary;
+#endif
+
+
+#include "VertexLib.cfi"
+
+//////////////////////////////// Samplers ////////////////
+
+ENVIRONMENTCUBEMAP
+
+sampler2D envMapSamplerRefr
+{
+	Texture = $SceneTarget;
+	MinFilter = POINT;
+	MagFilter = POINT;
+	MipFilter = POINT;  
+	AddressU = Clamp;
+	AddressV = Clamp;   
+	sRGBLookup = true; 
+};
+
+// Tweakables /////////////////
+
+float BumpScale
+<
+	register = REG_PM_PARAM_0.x;
+	string UIHelp = "Set reflection / refraction bump scale";
+	string UIName = "Bump Scale";  
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 2.0;
+	float UIStep = 0.1;
+> = 0.1;
+
+float BackLightScale
+<
+	register = REG_PM_PARAM_0.y;
+	string UIHelp = "Set back lighting color scale";                     
+	string UIName = "Back Light Scale";    
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 1.0;
+	float UIStep = 0.01;
+> = 0.5;
+
+float BumpMapTile
+<      
+	register = REG_PM_PARAM_4.w;
+	string UIName = "Bump Map Tiling";
+	string UIHelp = "Adjusts tiling of bump map independently from diffuse";
+	string UIWidget = "slider";
+	float UIMin = 0.0;
+	float UIMax = 20.0;
+	float UIStep = 0.01;
+> = 1.0;
+
+
+float  sqr(float x)  { return x*x; }
+float2 sqr(float2 x) { return x*x; }
+float3 sqr(float3 x) { return x*x; }
+float4 sqr(float4 x) { return x*x; }
+
+// Complex division
+float2 cdiv(float2 a, float2 b) { return float2(dot(a,b), a.y*b.x-a.x*b.y) / (sqr(b.x) + sqr(b.y)); }
+// Complex magnitude squared
+float cabs2(float2 z) { return sqr(z.x) + sqr(z.y); }
+
+// CIE XYZ space to RGB ("neutral E illuminant")
+float3 XYZtoRGB(float3 XYZ)
+{
+    return mul(float3x3( 2.3706743, -0.5138850,  0.0052982, 
+                        -0.9000405,  1.4253036, -0.0146949, 
+                        -0.4706338,  0.0885814,  1.0093968), XYZ);
+}
+
+// Fresnel reflectivity coefficient for s- and p-polarized wave incident to a dielectric media.
+// Dielectrics admit real reflectivity coefficients only, i.e. a phase shift of 0 (no shift) or pi (inversion).
+// eta is the real IOR ratio, i.e. ior1/ior2.
+float2 fresnel_coeff(float cosi, float cost, float eta)
+{
+	return float2((eta*cosi-cost) / (eta*cosi+cost),    // TE wave
+                  (cosi-eta*cost) / (eta*cost+cosi));   // TM wave
+}
+// Fresnel phase shifts for s- and p-polarized wave incident to a dielectric media under total-reflection. The refracted wave 
+// becomes evanescent and therefore complex, ergo in general any phase shift can be introduced on reflection.
+// eta (>1) is the real IOR ratio, i.e. ior1/ior2.
+float2 fresnel_tr_phase_shift(float cosi, float eta)
+{
+    const float n2 = sqr(eta);
+    const float a = -sqrt(1 - sqr(cosi) - 1/n2);
+    return 2*float2(atan2(a*n2, cosi),    // TE wave
+                    atan2(a,    cosi));   // TM wave
+}
+// Fresnel reflectivity power ratio and phase shift for s- and p-polarized waves incident from a dielectric to a conductor. 
+// ior2 is the complex ior of the reflecting surface.
+void fresnel_conductor(float cosi, float ior1, float2 ior2, out float R_s, out float R_p, out float Phase_s, out float Phase_p)
+{
+    // Born&Wolf's notation for complex refractive indices is n(1+i*k) which is common in optical literature while our notation is n+i*k.
+    const float n = ior2.x;
+    const float k = ior2.y / ior2.x;
+    const float e = ior1;
+
+    const float cosi2 = sqr(cosi);
+    const float sini2 = 1-cosi2;
+    const float n2 = sqr(n);
+    const float n4 = sqr(n2);
+    const float k2 = sqr(k);
+    const float e2 = sqr(e);
+
+    const float a = sqr(n)*(1-k2) - e2*sini2;
+    const float b = sqrt(sqr(a) + sqr(2*n2*k));
+    const float u = sqrt((a+b)*.5f);
+    const float v = sqrt((b-a)*.5f);
+    const float u2 = sqr(u);
+    const float v2 = sqr(v);
+    
+    // TE wave
+    R_s = (sqr(e*cosi - u) + v2) / (sqr(e*cosi + u) + v2);
+    Phase_s = atan2(2*v*e*cosi, u2 + v2 - e2*cosi2);
+
+    // TM wave
+    R_p = (sqr(n2*(1-k2)*cosi - e*u) + sqr(2*n2*k*cosi - e*v)) / (sqr(n2*(1-k2)*cosi + e*u) + sqr(2*n2*k*cosi + e*v));
+    Phase_p = atan2(2*e*n2*cosi*(2*k*u - (1-k2)*v), n4*sqr(1+k2)*cosi2 - e2*(u2+v2));
+}
+
+// Roughness value to variance
+float roughness_to_sigma(float roughness)
+{
+	const float x = pow(clamp(roughness,0,1),1.1f);
+	return x / (1-x);
+}
+// Variance to roughness value
+float sigma_to_roughness(float sigma)
+{
+    if (!isfinite(sigma)) return 1;
+	const float x = sigma / (1+sigma);
+	return pow(x,1.f/1.1f);
+}
+
+// Typical microfacet GGX NDF and seperated shadowing-masking ("geometry") terms
+float MicrofacetSpecularBRDFGGX(float3 N, float3 V, float3 L, float roughness)
+{
+    const float a = max(sqr(roughness), 1e-11f);
+	const float a2 = sqr(a);
+	const float3 H = normalize(V + L);
+
+	// GGX NDF
+	const float NoH = max(0, dot(N, H));
+	const float denom = (a2 - 1) * sqr(NoH) + 1;
+	const float NDF = a2 / max(1e-11f, PI * sqr(denom));
+	
+	// Correlated Smith visibility term (including Cook-Torrance BRDF denominator)
+	const float NoL = max(0, dot(N, L));
+	const float NoV = max(0, dot(N, V));
+	const float G_V = NoV + sqrt((1 - a2) * sqr(NoV) + a2);
+	const float G_L = NoL + sqrt((1 - a2) * sqr(NoL) + a2);
+    const float G = 1.f / (G_V * G_L);
+
+	return max(0, G * NDF);
+}
+
+float3 BRDF(float3 specular, float3 diffuse, float roughness, float3 n, float3 i, float3 o)
+{
+	const float ggx = MicrofacetSpecularBRDFGGX(n, o, i, roughness);
+	const float3 S = ggx * specular;
+	const float3 D = diffuse / PI;
+
+	return S + D;
+}
+
+// Artist-friendly remapping of refractive indices
+float dielectric_eta_from_reflectivity(float r, float m)
+{
+    const float r_scale = min(sqr(1-m)/sqr(1+m), 1 - 1e-2f);
+    r *= r_scale;
+    const float sqrt_r = sqrt(r);
+    return max((1 + sqrt_r)/(1 - sqrt_r), 1+1e-3f);
+}
+float2 complex_eta_from_reflectivity_edgetint(float in_r, float in_g)
+{
+    const float n_max = 6;
+    const float r_scale = min(sqr(1 - n_max) / sqr(1 + n_max), 1 - 1e-2f);
+    const float r = max(in_r * r_scale, 2e-4f);
+    const float g = clamp(in_g,2e-4f,1);
+    
+    const float sqrt_r = sqrt(r);
+    const float n = g*(1-r)/(1+r) + (1-g)*((1+sqrt_r)/(1-sqrt_r));
+    const float k = sqrt(max(0, 1/(1-r)*(r*sqr(n+1) - sqr(n-1))));
+
+    return float2(n,k);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Pixel shader
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct layer_properties_t
+{
+	float roughness;
+    float2 eta[3];
+	float tau;
+	float3 albedo;
+};
+
+void build_layer_properties(float2 uv, out layer_properties_t props[layers_count+thin_film])
+{
+	// Base
+#ifdef !%BASE_LAYER_CONDUCTOR
+    props[0].eta[0].x = dielectric_eta_from_reflectivity(GetTexture2D(reflectivity0Tex, ssMaterialTrilinear, uv).x, Layer0ReflectivityScale);
+    props[0].albedo = GetDiffuseTex(diffuseTex, uv).rgb;
+#else
+    const float3 r = GetTexture2D(reflectivity0Tex, ssMaterialTrilinear, uv).xyz;
+    const float3 g = GetDiffuseTex(diffuseTex, uv).xyz;
+    props[0].eta[0] = complex_eta_from_reflectivity_edgetint(r.x, g.x);
+    props[0].eta[1] = complex_eta_from_reflectivity_edgetint(r.y, g.y);
+    props[0].eta[2] = complex_eta_from_reflectivity_edgetint(r.z, g.z);
+    props[0].albedo = 0;
+#endif
+    props[0].roughness = sqr(1.f - MatSpecColor.w * GetSmoothnessTex(smoothnessTex, uv));
+	props[0].tau = 0;
+
+	// Layers
+	const float2 layersSmoothness = GetTexture2D(LayersSmoothnessMap, ssMaterialTrilinear, uv).xy;
+	
+#if %LAYERS2_MAP
+	const float4 diffuse1 = GetDiffuseTex(diffuse1Tex, uv);
+	props[1].roughness = sqr(1.f - layersSmoothness.x * Layer1Smoothness);
+	props[1].eta[0].x = dielectric_eta_from_reflectivity(GetTexture2D(reflectivity1Tex, ssMaterialTrilinear, uv).x, Layer1ReflectivityScale);
+	props[1].tau = Layer1Thickness * diffuse1.a;
+	props[1].albedo = diffuse1.rgb;
+#endif
+	
+#if %LAYERS3_MAP
+	const float4 diffuse2 = GetDiffuseTex(diffuse2Tex, uv);
+	props[2].roughness = sqr(1.f - layersSmoothness.y * Layer2Smoothness);
+	props[2].eta[0].x = dielectric_eta_from_reflectivity(GetTexture2D(reflectivity2Tex, ssMaterialTrilinear, uv).x, Layer2ReflectivityScale);
+	props[2].tau = Layer2Thickness * diffuse2.a;
+	props[2].albedo = diffuse2.rgb;
+#endif
+
+#if %THIN_FILM
+    const float2 reflectivity_thickness = GetTexture2D(ThinFilmReflectivityMap, ssMaterialTrilinear, uv).xw;
+	props[layers_count].roughness = 0;
+	props[layers_count].eta[0].x = dielectric_eta_from_reflectivity(reflectivity_thickness.x, ThinFilmReflectivityScale);
+	props[layers_count].tau = ThinFilmThickness * reflectivity_thickness.y;
+	props[layers_count].albedo = 0;
+#endif
+}
+
+// Adding-doubling
+void accumulate(float k, float sR_ab, float sT_ab, float sT_ba,
+				      float R_ab,	    float T_ab,		  float R_ba,		float T_ba, 
+				inout float R_0a, inout float T_0a, inout float R_a0, inout float T_a0,
+				inout float V_0a, inout float V_a0)
+{
+	const float VK = (sR_ab + V_a0) * R_a0*R_ab / (1.f - R_a0*R_ab);
+	const float J_a0 = 1, J_ab = 1;
+    V_0a = V_0a * J_ab  + sT_ab + VK * J_ab;
+    V_a0 = sT_ba * J_a0 + V_a0  + VK * J_a0;
+
+	const float k2 = sqr(k);
+	const float K = 1.f / (1.f - k*R_a0*R_ab);
+
+	R_0a += k2*T_0a*R_ab*T_a0*K;
+	T_0a  = k*T_0a*T_ab*K;
+	R_a0  = R_ba + k2*R_a0*T_ab*T_ba*K;
+	T_a0  = k*T_a0*T_ba*K;
+}
+
+bool traverse_layer(float3 n, inout float3 i, inout float3 o, inout float cosi, inout float eta_a, float eta_b, 
+                    float roughness, float modulation,
+					out float R_ab_s, out float R_ab_p, out float P_ab_s, out float P_ab_p,
+                    out float R_ab,   out float T_ab,   out float R_ba,   out float T_ba, 
+					out float sT_ab,  out float sT_ba,  out float sR)
+{
+    const float eta_ab = eta_a / eta_b;
+
+    // Refract incident ray
+    const float D = 1 - sqr(eta_ab)*(1-sqr(cosi));
+    const bool tr = D<0;
+    const float3 t = -refract(-i,n,eta_ab);
+	const float cost = max(0, dot(t,n));
+
+    float R_ba_s, R_ba_p;
+	sR = roughness_to_sigma(roughness);
+	if (tr)
+	{
+		// Total-reflection
+        R_ab_s = 1;
+        R_ab_p = 1;
+        R_ba_s = 1;
+        R_ba_p = 1;
+        // Phase shift
+        const float2 P = fresnel_tr_phase_shift(cosi, eta_ab);
+        P_ab_s = P.x;
+        P_ab_p = P.y;
+
+        sT_ab = 0;
+        sT_ba = 0;
+    }
+	else
+    {
+        // Dielectric fresnel coefficients
+        const float2 r_ab = fresnel_coeff(cosi, cost, eta_ab);
+        const float2 r_ba = -r_ab;
+        // Fresnel power ratio is the coefficient's squared magnitude
+        R_ab_s = sqr(r_ab.x);
+        R_ab_p = sqr(r_ab.y);
+        R_ba_s = sqr(r_ba.x);
+        R_ba_p = sqr(r_ba.y);
+        // Negative fresnel coefficients correspond to phase inversion (phase shift of PI)
+        P_ab_s = r_ab.x > 0 ? 0 : PI;
+        P_ab_p = r_ab.y > 0 ? 0 : PI;
+		
+        // Accumulate transmitted variance
+        const float z = 1;
+        eta_ab * cosi / cost;
+        sT_ab = modulation*roughness_to_sigma(roughness * .5f*(1 + z));
+        sT_ba = modulation*roughness_to_sigma(roughness * .5f*(1 + 1/z));
+	}
+	
+    R_ab = lerp(R_ab_s, R_ab_p, .5f);
+    R_ba = lerp(R_ba_s, R_ba_p, .5f);
+	// TODO: Transmissivity map
+	T_ab = 1 - R_ab;
+	T_ba = 1 - R_ba;
+
+	cosi = cost;
+	eta_a = eta_b;
+	i = t;
+	o = -refract(-o,n,eta_ab);
+
+	return tr;
+}
+
+// Curve-fitted spectral integrals of cos(phase_shift) multiplied by the XYZ colour matching functions. Returns spectral power ratio in CIE XYZ space.
+// Intergrals are taken from 0.38 to 0.78 micrometre wavelength. Phase shift is assumed to be in micrometre.
+// m>0 controls maximal order difference between interfering paths. 1 is usually good enough.
+float3 spectral_integral(float3 phase_shift_23, float3 phase_shift_21, float3 C, int m=1)
+{
+    // Fitting data
+    const float max_phase_shift = 5;
+	const float3 V1 = float3(0.1203,-84.76,70.01);
+	const float3 V2 = float3(0.9032,85.75,-69.02);
+	const float3 V3 = float3(14.32,11.12,-13.97);
+	const float3 V4 = float3(10.51,11.12,-13.97);
+	const float3 V5 = float3(0.1624,1.382,1.117);
+	const float3 V6 = float3(0.3337,1.362,1.136);
+	const float3 V7 = float3(1.008,1.218,1.187);
+    const float3 V8 = float3(1,1,1) - V1 - V2;
+
+    const float P23 = abs(phase_shift_23);
+    const float P21 = abs(phase_shift_21);
+	float3 XYZ = 0;
+	float3 Cm = C;
+	for (int i=0;i<m;++i)
+	{
+		const float3 x = min(P23 + float(i)*(P23+P21), max_phase_shift.xxx);
+		const float3 S = V1*cos(V3*x)*exp(-V5*x) + V2*cos(V4*x)*exp(-V6*x) + V8*cos(V7*x);
+        XYZ += 2*Cm*S;
+
+		Cm *= C;
+	}
+
+    return XYZ;
+}
+
+float3 thin_film_interference(float in_eta, float src_eta, float film_eta, float d,
+                              float cosi, float cost, float cosh, float coshi, 
+                              float3 R3_ab_s, float3 R3_ab_p, float3 phase_shift_ab_s, float3 phase_shift_ab_p)
+{
+    // As phase shifts are different for s- and p-polarized incident light, we need to deal with each orthogonal component separately.
+    const float eta_0a = in_eta / src_eta;
+    const float2 r_0a = fresnel_coeff(cosi, cost, eta_0a);
+    const float2 r_a0 = -r_0a;
+    const float2 R_a0 = sqr(r_a0);
+    const float2 R_0a = sqr(r_0a);
+    const float2 T_a0 = float2(1,1) - R_a0;
+    const float2 T_0a = float2(1,1) - R_0a;
+    const float phase_shift_a0_s = r_a0.x>0 ? 0 : PI;
+    const float phase_shift_a0_p = r_a0.y>0 ? 0 : PI;
+                
+    const float2 T = T_0a*T_a0;
+    const float3 Rs = T.x*R3_ab_s / (float3(1,1,1) - R3_ab_s*R_a0.x);
+    const float3 Rp = T.y*R3_ab_p / (float3(1,1,1) - R3_ab_p*R_a0.y);
+
+    const float sin2_theta = 1.f - sqr(cosh);
+    const float sin2_phi = 1.f - sqr(coshi);
+
+	// Spectrally integrate
+    const int m = 1; // Maximal order difference between paths. m==1/2 is already accurate and additional iterations do very little for a small overhead.
+    const float DeltaP = 2*d/coshi * (film_eta - in_eta * sqrt(sin2_theta * sin2_phi));
+    const float3 S_s = XYZtoRGB(spectral_integral(DeltaP.xxx + phase_shift_ab_s, phase_shift_a0_s, sqrt(R3_ab_s*R_a0.x), m));
+    const float3 S_p = XYZtoRGB(spectral_integral(DeltaP.xxx + phase_shift_ab_p, phase_shift_a0_p, sqrt(R3_ab_p*R_a0.y), m));
+			
+	// Reflection of the thin film, of the current layer and the interference between the two
+    const float3 specular_s = Rs + R_0a.xxx + (Rs - sqrt(T.x)) * S_s;
+    const float3 specular_p = Rp + R_0a.yyy + (Rp - sqrt(T.y)) * S_p;
+                
+    // We assume incoherent light source, so just average.
+    return max(float3(0,0,0), lerp(specular_s, specular_p, .5f));
+}
+
+void selectPredefinedConductor(out float2 base_eta_r, out float2 base_eta_g, out float2 base_eta_b)
+{
+    if (floor(ConductorID) == 1)
+    {
+	    // Gold
+        base_eta_r = float2(0.18879, 3.2416);
+        base_eta_g = float2(0.32393, 2.5972);
+        base_eta_b = float2(1.53830, 1.9107);
+    }
+    else if (floor(ConductorID) == 2)
+    {
+	    // Silver
+        base_eta_r = float2(0.047410, 4.0419);
+        base_eta_g = float2(0.043817, 3.6101);
+        base_eta_b = float2(0.040932, 2.6758);
+    }
+    else if (floor(ConductorID) == 3)
+    {
+	    // Iron
+        base_eta_r = float2(2.9091, 3.0209);
+        base_eta_g = float2(2.7592, 2.8848);
+        base_eta_b = float2(2.5845, 2.7670);
+    }
+    else if (floor(ConductorID) == 4)
+    {
+	    // Aluminum
+        base_eta_r = float2(1.398, 7.457);
+        base_eta_g = float2(1.052, 6.627);
+        base_eta_b = float2(0.633, 5.454);
+    }
+    else if (floor(ConductorID) == 5)
+    {
+	    // Titanium
+        base_eta_r = float2(2.6871, 3.7429);
+        base_eta_g = float2(2.5418, 3.4345);
+        base_eta_b = float2(2.2670, 3.0385);
+    }
+    else if (floor(ConductorID) == 6)
+    {
+	    // Gallium arsenide
+        base_eta_r = float2(3.9198, 0.23056);
+        base_eta_g = float2(4.0613, 0.30042);
+        base_eta_b = float2(4.8427, 0.86149);
+    }
+    else if (floor(ConductorID) == 7)
+    {
+	    // Beryllium
+        base_eta_r = float2(3.3745, 3.1591);
+        base_eta_g = float2(3.3109, 3.1347);
+        base_eta_b = float2(3.0769, 3.1265);
+    }
+    else if (floor(ConductorID) == 8)
+    {
+	    // Cobalt
+        base_eta_r = float2(0.55454, 5.3156);
+        base_eta_g = float2(0.60043, 4.7432);
+        base_eta_b = float2(0.84744, 3.6547);
+    }
+    else if (floor(ConductorID) == 9)
+    {
+	    // Chromium
+        base_eta_r = float2(3.1943, 3.3);
+        base_eta_g = float2(3.1812, 3.3291);
+        base_eta_b = float2(2.3230, 3.1350);
+    }
+    else if (floor(ConductorID) == 10)
+    {
+	    // Copper
+        base_eta_r = float2(0.15343, 3.1248);
+        base_eta_g = float2(0.79746, 2.5642);
+        base_eta_b = float2(1.0482, 2.4136);
+    }
+    else if (floor(ConductorID) == 11)
+    {
+	    // Mercury
+        base_eta_r = float2(1.8077, 5.0085);
+        base_eta_g = float2(1.5523, 4.6510);
+        base_eta_b = float2(1.0606, 3.8628);
+    }
+    else if (floor(ConductorID) == 12)
+    {
+	    // Lithium
+        base_eta_r = float2(0.19300, 2.9200);
+        base_eta_g = float2(0.20068, 2.6284);
+        base_eta_b = float2(0.24006, 2.0294);
+    }
+    else if (floor(ConductorID) == 13)
+    {
+	    // Magnesium
+        base_eta_r = float2(0.3629, 5.5397);
+        base_eta_g = float2(0.31501, 5.0363);
+        base_eta_b = float2(0.21917, 4.0295);
+    }
+    else if (floor(ConductorID) == 14)
+    {
+	    // Manganese
+        base_eta_r = float2(2.2230, 3.4420);
+        base_eta_g = float2(2.0265, 3.2710);
+        base_eta_b = float2(1.5940, 2.8765);
+    }
+    else if (floor(ConductorID) == 15)
+    {
+	    // Titanium nitride
+        base_eta_r = float2(0.867, 2.1102);
+        base_eta_g = float2(0.96656, 1.7246);
+        base_eta_b = float2(1.4949, 0.976);
+    }
+    else if (floor(ConductorID) == 16)
+    {
+	    // Nickel
+        base_eta_r = float2(1.1926, 5.8973);
+        base_eta_g = float2(1.0753, 5.1763);
+        base_eta_b = float2(1.1336, 3.7544);
+    }
+    else if (floor(ConductorID) == 17)
+    {
+	    // Lead
+        base_eta_r = float2(0.9358, 6.0995);
+        base_eta_g = float2(0.66178, 5.6363);
+        base_eta_b = float2(0.38744, 4.4821);
+    }
+    else if (floor(ConductorID) == 18)
+    {
+	    // Palladium
+        base_eta_r = float2(0.34460, 4.8913);
+        base_eta_g = float2(0.42927, 4.3386);
+        base_eta_b = float2(0.80110, 3.2775);
+    }
+    else if (floor(ConductorID) == 19)
+    {
+	    // Platinum
+        base_eta_r = float2(0.46203, 5.7285);
+        base_eta_g = float2(0.46521, 5.1073);
+        base_eta_b = float2(0.63275, 3.7481);
+    }
+    else if (floor(ConductorID) == 20)
+    {
+	    // Tungsten
+        base_eta_r = float2(1.0477, 6.0434);
+        base_eta_g = float2(1.3437, 5.2293);
+        base_eta_b = float2(2.2323, 5.1461);
+    }
+}
+
+// Speeds up probe look ups
+struct probeLayeredData
+{
+    // Used for specular probes
+    float layered_roughness[layers_count];
+    float3 layered_reflectivity[layers_count];
+    // And diffuse probes
+    float3 S2_transmittance;
+};
+
+float3 layeredBRDFimpl(float in_eta, layer_properties_t properties[layers_count + thin_film], float3 i, float3 o, float3 n,
+                       out probeLayeredData probeData, bool accumulate_layered_data = false)
+{
+	// Base conductor layer properties
+	// TODO - Do not hardcode
+    
+#ifdef %BASE_LAYER_CONDUCTOR
+    float2 base_eta_r = properties[0].eta[0];
+    float2 base_eta_g = properties[0].eta[1];
+    float2 base_eta_b = properties[0].eta[2];
+    
+    if (floor(ConductorID) != 0)
+        selectPredefinedConductor(base_eta_r, base_eta_g, base_eta_b);
+#endif
+	
+	
+	const float dot_in = max(0, dot(i,n));
+	const float3 h = normalize(i+o);
+	const float cosh = dot(i,h);
+	
+	float eta = in_eta;
+	float cost = dot_in;
+
+	// Energy
+	float R_0a = 0;
+	float T_0a = 1;
+	float R_a0 = 0;
+	float T_a0 = 1;
+	// Variance
+	float V_0a = 0;
+	float V_a0 = 0;
+
+	float3 intensity = 0;
+	for (int j=0;j<layers_count;++j)
+	{
+        probeData.layered_reflectivity[j] = 0;
+        probeData.layered_roughness[j] = 0;
+        probeData.S2_transmittance = 0;
+    }
+
+	bool total_reflection = false;
+    bool has_thin_film_on_top = false;
+	for (int idx=layers_count+thin_film-1; idx>=0; --idx)
+	{
+		const layer_properties_t props = properties[idx];
+
+        if ((idx==0 || props.tau>.0f) && !total_reflection)
+        {
+            float cosi = cost;
+            const float coshi = dot(i, h);
+            const float src_eta = eta;
+
+            const bool is_conductor =
+#ifdef %BASE_LAYER_CONDUCTOR
+			    idx == 0;
+#endif
+			    false;
+            const bool is_thin_film = thin_film == 1 && idx == layers_count;
+
+            // Representative eta
+            float eta_e =
+#ifdef %BASE_LAYER_CONDUCTOR
+                is_conductor ? GetLuminance(float3(sqrt(cabs2(base_eta_r)), 
+                                                   sqrt(cabs2(base_eta_g)), 
+                                                   sqrt(cabs2(base_eta_b)))) : 
+#endif
+                props.eta[0].x;
+
+            // Clamp eta and variance contributions when thickness is very small to avoid strong reflective highlight on virtually non-existant layers.
+            // This isn't the correct approach, which would go beyond classical physics which cannot predict light-matter interaction in a satisfactory manner.
+            const float modulation = min(1, props.tau/0.025);
+            eta_e = idx>0 ? lerp(eta, eta_e, modulation) : eta_e;
+
+		    // Layer reflectivity and transmissivity coefficients
+            float R_ab_s, R_ab_p, P_ab_s, P_ab_p;
+            float R_ab, T_ab, R_ba, T_ba;
+		    // Reflection, refraction variance
+		    float sT_ab, sT_ba, sR;
+
+		    // Traverse into layer
+            total_reflection = traverse_layer(n, i, o, cosi, eta, eta_e, props.roughness, modulation,
+                                              R_ab_s, R_ab_p, P_ab_s, P_ab_p,
+                                              R_ab, T_ab, R_ba, T_ba, 
+                                              sT_ab, sT_ba, sR);
+
+		    // Variance and transmittance till layer surface
+            const float V = V_0a + sR + V_a0;
+		    const float T = T_0a * T_a0;
+
+            // Component-wise reflectivity and induced phase shift for incident s- and p-polarized waves
+            float3 R3_ab_s = R_ab_s.xxx;
+            float3 R3_ab_p = R_ab_p.xxx;
+            float3 phase_shift_ab_s = P_ab_s.xxx;
+            float3 phase_shift_ab_p = P_ab_p.xxx;
+#ifdef %BASE_LAYER_CONDUCTOR
+            if (is_conductor) {
+                fresnel_conductor(cost,src_eta,base_eta_r, R3_ab_s.r,R3_ab_p.r, phase_shift_ab_s.r,phase_shift_ab_p.r);
+                fresnel_conductor(cost,src_eta,base_eta_g, R3_ab_s.g,R3_ab_p.g, phase_shift_ab_s.g,phase_shift_ab_p.g);
+                fresnel_conductor(cost,src_eta,base_eta_b, R3_ab_s.b,R3_ab_p.b, phase_shift_ab_s.b,phase_shift_ab_p.b);
+            }
+#endif
+
+		    // Specular
+            float3 specular;
+#if %THIN_FILM
+		    if (has_thin_film_on_top) {
+			    // Thin-film interference
+	            // For films tau is re-expressed in micrometres
+                const float d = properties[layers_count].tau * 1e-3f;
+                const float film_eta = properties[layers_count].eta[0].x;
+                specular = thin_film_interference(in_eta, src_eta, film_eta, d, 
+                                                  dot_in, cost, cosh, coshi, 
+                                                  R3_ab_s, R3_ab_p, phase_shift_ab_s, phase_shift_ab_p);
+            }
+            else 
+#endif
+            {
+                const float3 R3_ab = lerp(R3_ab_s, R3_ab_p, .5f);
+                specular = T*R3_ab / (float3(1,1,1) - R3_ab*R_a0);
+            }
+
+		    // Extinction
+		    // We assume no extinction in thin-films and full extinction in dielectric base layers (TODO: translucency).
+            const float k = is_thin_film ? 1 : (idx == 0 ? 0 : exp(-props.tau / max(1e-8f, cost)));
+		
+		    // Aggregate dielectric layers
+            if (!is_conductor && !total_reflection) {
+                accumulate(k, sR, sT_ab, sT_ba,
+					       R_ab, T_ab, R_ba, T_ba,
+					       R_0a, T_0a, R_a0, T_a0,
+					       V_0a, V_a0);
+            }
+
+		    // The contribution from the thin film is accounted for in the next layer
+            if (!is_thin_film || total_reflection) {
+    		    // Diffuse
+                const float3 diffuse = !is_conductor ? (1 - sqr(k)) * props.albedo * T : 0;
+
+			    // Add lobe for idx->(idx-1)
+                const float accmulated_roughness = sigma_to_roughness(V);
+                intensity += BRDF(specular, diffuse, accmulated_roughness, n, i, o) * dot_in;
+
+                if (accumulate_layered_data)
+                {
+                    probeData.layered_reflectivity[idx] = specular;
+                    probeData.layered_roughness[idx] = accmulated_roughness;
+                    if (!is_conductor)
+                        probeData.S2_transmittance += (1 - sqr(idx == 0 ? 0 : exp(-props.tau))) * props.albedo;
+                }
+            }
+
+            cost = cosi;
+            has_thin_film_on_top = is_thin_film;
+        }
+    }
+	
+	return intensity;
+}
+float3 layeredBRDF(float in_eta, layer_properties_t properties[layers_count + thin_film], float3 i, float3 o, float3 n)
+{
+    probeLayeredData probeData;
+    return layeredBRDFimpl(in_eta, properties, i, o, n, probeData, false);
+}
+float3 layeredBRDF(float in_eta, layer_properties_t properties[layers_count + thin_film], float3 i, float3 o, float3 n,
+                   out probeLayeredData probeData)
+{
+    return layeredBRDFimpl(in_eta, properties, i, o, n, probeData, true);
+}
+
+struct CustomForwardShadingAttribs
+{
+    float in_eta;
+    layer_properties_t properties[layers_count + thin_film];
+    probeLayeredData probeData;
+};
+#include "ShadeLib.cfi"
+
+void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightParams light, out float3 diffuse, out float3 specular)
+{
+    const float3 o = -normalize(attribs.worldPos);
+    const float3 n = attribs.normalSpecProbe;
+    const float3 i = light.lightVec;
+
+    diffuse = 0;
+    specular = light.illuminance * layeredBRDF(attribs.custom.in_eta, attribs.custom.properties, i, o, n);
+}
+void Callback_ShadingProbe(in ForwardShadingAttribs attribs, in STiledLightShadeInfo light, float3 lightVec,
+                           float probeWeight, float NdotV, float occlusion, float occlSpec, uint4 resIndexClamps, SamplerState ssTrilinearClamp,
+                           inout float3 diffuse_contributions, inout float3 acc)
+{
+    const float3 o = -normalize(attribs.worldPos);
+    const float3 n = attribs.normalSpecProbe;
+
+	// Diffuse
+    float4 diffuseProbe = Fwd_DiffuseCubeArray.SampleLevel(ssTrilinearClamp, float4(n, resIndexClamps.x), resIndexClamps.y);
+    diffuse_contributions += DecodeHDRCubemap(diffuseProbe) * occlusion * probeWeight;
+				
+    float3 tmpReflVec = reflect(-o, n);
+	[loop] for (int l = 0; l < layers_count; ++l)
+    {
+        const float3 R = attribs.custom.probeData.layered_reflectivity[l];
+        const float roughness = attribs.custom.probeData.layered_roughness[l];
+
+		// Specular
+        const float specCubeLod = roughness * TILED_SHADING_SPECPROBE_MAXMIP;
+        const float spec_occlusion = DeriveSpecularOcclusion(NdotV, max(sqr(occlSpec), 0.3), 1.f - roughness);
+
+        float tmpGloss = 0;
+        CubemapBoxParallaxCorrection(tmpReflVec, lightVec, light.shadowMatrix[0].xyz, light.shadowMatrix[1].xyz, tmpGloss);
+        const float4 specularProbe1 = Fwd_SpecCubeArray.SampleLevel(ssTrilinearClamp, float4(tmpReflVec, resIndexClamps.x), max(resIndexClamps.z, floor(specCubeLod)));
+        const float4 specularProbe2 = Fwd_SpecCubeArray.SampleLevel(ssTrilinearClamp, float4(tmpReflVec, resIndexClamps.x), max(resIndexClamps.z, ceil(specCubeLod)));
+        const float3 specProbe = lerp(DecodeHDRCubemap(specularProbe1).rgb, DecodeHDRCubemap(specularProbe2).rgb, specCubeLod - floor(specCubeLod));
+
+        acc += R * probeWeight * specProbe * spec_occlusion * light.color.rgb * light.color.a;
+    }
+}
+
+#define TILED_SHADING_USER_DEFINED_PROBE_CALLBACK
+#include "ForwardShading.cfi"
+
+float3 tiledShading(float in_eta, layer_properties_t properties[layers_count + thin_film], float3 P, float3 o, float3 n,
+					float2 uv, float2 screenUV, SamplerState ssTrilinearClamp, SamplerComparisonState ssComparison,
+                    probeLayeredData probeData,
+					out float3 diffuse_contributions)
+{
+    ForwardShadingAttribs attribs;
+    attribs.screenUV = screenUV;
+    attribs.worldPos = P;
+    attribs.normal = attribs.normalSpecProbe = n;
+
+    // TODO: Incompatible and only used for GI in practice
+    attribs.reflectance = .0f;
+    attribs.smoothness = .0f;
+
+    attribs.custom.in_eta = in_eta;
+    attribs.custom.properties = properties;
+    attribs.custom.probeData = probeData;
+
+    float3 acc = float3(0,0,0);
+    diffuse_contributions = 0;
+    TiledForwardShading(attribs, diffuse_contributions, acc, ssTrilinearClamp, ssComparison,
+                        true, true, true, false, true);
+
+	return max(0, acc);
+}
+
+half3 GetEmittanceMask(float2 baseTC)
+{
+    half4 emittanceMap = GetEmittanceTex(emittanceTex, baseTC.xy);
+	
+	// Increase the range of non-HDR textures:
+	//   AdjustLuminance(emittanceMap.rgb, pow(GetLuminance(emittanceMap.rgb), Gamma));
+    emittanceMap.rgb *= pow(max(GetLuminance(emittanceMap.rgb), 1e-6), EmittanceMapGamma - 1);
+	
+	// DEPRECATED: Just for backwards compatibility (up to 3.8.3)
+    emittanceMap.rgb *= emittanceMap.a;
+	
+    return emittanceMap.rgb;
+}
+
+pixout MultiLayeredMaterialsPS(vert2FragGeneral IN)
+{
+    const float in_eta = 1.f;
+
+	const float3 E = GetWorldViewPos();	// Eye
+	const float3 P = IN.vView.xyz;		// Fragment
+	const float3 O = -normalize(P);		// Fragment to Eye
+
+	const float2 screenUV = IN.screenProj.xy / IN.screenProj.w;
+	
+	// Dissolve thingie
+	ApplyDissolve(Get_SPI_Dissolve(), (int2)IN.WPos.xy);
+	
+	// Normal map
+	const float3 vNormal = cross(IN.vTangent.xyz, IN.vBinormal.xyz) * IN.vTangent.w;
+	const float3x3 matTangentToWS = float3x3(IN.vTangent.xyz, IN.vBinormal.xyz, vNormal.xyz);
+	const float3 normalMap = GetNormalMap(normalsTex, IN.baseTC.xy * BumpMapTile);
+	const float3 n = normalize(mul(normalMap, matTangentToWS));
+
+    layer_properties_t properties[layers_count + thin_film];
+	build_layer_properties(IN.baseTC.xy, properties);
+    
+	float3 acc = 0;
+
+	{
+		float shadowMask = 0;
+#if !%_RT_SECONDARY_VIEW
+		shadowMask = Fwd_SunShadowMask.Load(int4(screenUV * CV_ScreenSize.xy, 0, 0)).r;
+#endif
+
+		const float3 I = CV_SunLightDir.xyz;
+		const float L = CV_SunColor.xyz * (1 - shadowMask);
+		acc += L * layeredBRDF(in_eta, properties, I, O, n);
+	}
+	
+	{
+#if %_RT_TILED_SHADING
+		// Generate layered data for spec probes
+        probeLayeredData probeData;
+		layeredBRDF(in_eta, properties, reflect(-O, n), O, n, probeData);
+
+		float3 diffuse_contributions = .0f;
+		acc += tiledShading(in_eta, properties, P, O, n,
+							IN.baseTC.xy, screenUV, ssFwdBilinearWrap, ssFwdComparison,
+							probeData, diffuse_contributions);
+
+		// Add fake diffuse (with normal incidence)
+		acc += diffuse_contributions * probeData.S2_transmittance;
+#endif
+    }
+
+    half3 emittance = MatEmissiveColor.xyz * MatEmissiveColor.w * (1000.0 / 10000.0);
+    const bool bEmissive = GetLuminance(emittance.xyz) > 0;
+    if (bEmissive)
+        emittance *= GetEmittanceMask(IN.baseTC);
+	
+	half4 cFinal = half4(acc + emittance, 1);	
+	Fwd_ApplyFog(P + E, P, IN.WPos, cFinal.xyz);
+    
+    pixout OUT = (pixout) 0;
+    OUT.Color.rgb = cFinal;
+
+	return OUT;  
+}
+
+///////////////// vertex shader //////////////////
+
+vert2FragGeneral MultiLayeredMaterialsVS(app2vertGeneral IN)
+{
+	vert2FragGeneral OUT = (vert2FragGeneral)0; 
+
+	streamPos vertPassPos = (streamPos)0;
+	vs_shared_output(IN, OUT, vertPassPos, true);
+	
+	return OUT;
+}
+
+//////////////////////////////// technique ////////////////
+technique General
+<
+  string Script = 
+		"TechniqueZPrepass=ZPrepass;"
+		"TechniqueCustomRender=CustomRenderPass;"
+		"TechniqueMotionBlur=MotionBlurPass;"
+		"TechniqueShadowGen=ShadowGen;"
+		"TechniqueDebug=DebugPass;"
+>
+{  
+	pass p0
+	{
+		VertexShader = MultiLayeredMaterialsVS() MultiLayeredMaterialsVS;
+		PixelShader = MultiLayeredMaterialsPS() MultiLayeredMaterialsPS;
+		GeometryShader = $AutoGS_MultiRes();
+		
+		ZEnable = true;
+		ZWriteEnable = true;
+	}
+}
+
+
+
+//////////////////////////////// Common techniques ////////////////
+
+#include "CommonZPrePass.cfi"
+#include "CommonMotionBlurPass.cfi"
+#include "ShadowCommon.cfi"
+#include "CommonShadowGenPass.cfi"
+#include "CommonDebugPass.cfi"
+#include "CommonViewsPass.cfi"
+ 

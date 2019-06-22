@@ -15,6 +15,7 @@
 #include "FlowSystemCVars.h"
 #include "Inspectors/FlowFilters.h"
 #include <CryFlowGraph/IFlowSystem.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include <CryAISystem/IAgent.h>
 

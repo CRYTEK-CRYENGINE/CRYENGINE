@@ -513,7 +513,7 @@ void CVegetationModel::BeginResetOnLevelChange()
 
 void CVegetationModel::EndResetOnLevelChange()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	beginResetModel();
 	m_pVegetationMap = GetIEditorImpl()->GetVegetationMap();
 	ConnectVegetationMap();

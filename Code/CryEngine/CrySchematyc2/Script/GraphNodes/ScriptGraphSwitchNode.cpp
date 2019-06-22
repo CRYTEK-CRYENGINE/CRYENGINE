@@ -74,7 +74,7 @@ namespace Schematyc2
 
 	void CScriptGraphSwitchNode::Refresh(const SScriptRefreshParams& params)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		CScriptGraphNodeBase::Refresh(params);
 
@@ -105,7 +105,7 @@ namespace Schematyc2
 
 	void CScriptGraphSwitchNode::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		CScriptGraphNodeBase::Serialize(archive);
 
@@ -276,7 +276,15 @@ namespace Schematyc2
 		{
 			Serialization::StringListValue typeName(typeNames, 0);
 			archive(typeName, "typeName", "Type");
-			m_typeId = typeIds[typeName.index()];
+
+			const CAggregateTypeId oldTypeId = m_typeId;
+			const CAggregateTypeId newTypeId = typeIds[typeName.index()];
+			m_typeId = newTypeId;
+			if (oldTypeId != newTypeId)
+			{
+				m_cases.clear();
+				CScriptGraphNodeBase::GetGraph()->RemoveLinks(CScriptGraphNodeBase::GetGUID());
+			}
 			CreateDefaultValue();
 		}
 		else if(archive.isOutput())
@@ -331,16 +339,25 @@ namespace Schematyc2
 
 	SRuntimeResult CScriptGraphSwitchNode::Execute(IObject* pObject, const SRuntimeActivationParams& activationParams, CRuntimeNodeData& data)
 	{
-		/*const IAny*  pValue = data.GetInput(EInputIdx::Value);
-		const uint32 caseCount = *data.GetAttribute<uint32>(EAttributeId::CaseCount);
-		for(uint32 caseIdx = 0; caseIdx < caseCount; ++ caseIdx)
+		const IAny* pValue = data.GetInput(EInputIdx::Value);
+		// Note: we can't make this into a fatal assert because this will then crash the editor when the user 
+		// changes the type of the switch node.
+		//SCHEMATYC2_SYSTEM_ASSERT_FATAL(pValue != nullptr);
+		if (pValue != nullptr)
 		{
-			const IAny* pCaseValue = data.GetAttribute(EAttributeId::FirstCase + caseIdx);
-			if(pValue->Equal(*pCaseValue))
+			const uint32 caseCount = *data.GetAttribute<uint32>(EAttributeId::CaseCount);
+			for (uint32 caseIdx = 0; caseIdx < caseCount; ++caseIdx)
 			{
-
+				const IAny* pCaseValue = data.GetAttribute(EAttributeId::FirstCase + caseIdx);
+				if (pCaseValue != nullptr)
+				{
+					if (*pValue == *pCaseValue)
+					{
+						return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::FirstCase + caseIdx);
+					}
+				}
 			}
-		}*/
+		}
 		return SRuntimeResult(ERuntimeStatus::Continue, EOutputIdx::Default);
 	}
 }

@@ -15,7 +15,7 @@
 #endif
 #include <CrySerialization/yasli/Config.h>
 #include <CrySerialization/yasli/Assert.h>
-#include <string.h>
+#include <cstring>
 
 
 namespace yasli{

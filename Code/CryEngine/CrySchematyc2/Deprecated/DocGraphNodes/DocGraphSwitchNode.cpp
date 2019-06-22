@@ -65,7 +65,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocGraphSwitchNode::Refresh(const SScriptRefreshParams& params)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		CDocGraphNodeBase::Refresh(params);
 
@@ -97,7 +97,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocGraphSwitchNode::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		CDocGraphNodeBase::Serialize(archive);
 
@@ -236,7 +236,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocGraphSwitchNode::SCase::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 		CDocGraphSwitchNode* pSwitchNode = archive.context<CDocGraphSwitchNode>();
 		SCHEMATYC2_SYSTEM_ASSERT(pSwitchNode);

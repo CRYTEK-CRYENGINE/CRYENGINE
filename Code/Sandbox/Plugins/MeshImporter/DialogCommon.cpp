@@ -174,7 +174,7 @@ void CBaseDialog::CreateMenu(IDialogHost* pDialogHost)
 {
 	if (GetToolButtons() & eToolButtonFlags_Reimport)
 	{
-		pDialogHost->Host_AddToMenu("File", "meshimporter.reimport");
+		pDialogHost->Host_AddToMenu("File", "general.reimport");
 	}
 }
 

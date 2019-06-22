@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "AutoConfigDownloader.h"
 #include <CryNetwork/INetwork.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CAutoConfigDownloader* CAutoConfigDownloader::m_pThis = 0;
 

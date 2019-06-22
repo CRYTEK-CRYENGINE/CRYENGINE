@@ -94,7 +94,7 @@ bool fxIsFirstPass(const char* buf)
 	char* s = com;
 	while (*s != 0)
 	{
-		char* pStart = fxFillPr(&s, tok);
+		fxFillPr(&s, tok);
 		if (tok[0] == '%' && tok[1] == '_')
 			return false;
 	}
@@ -291,9 +291,7 @@ float shGetFloat(const char* buf)
 	if (!buf)
 		return 0;
 	float f = 0;
-
-	int res = sscanf(buf, "%f", &f);
-	assert(res);
+	CRY_VERIFY(sscanf(buf, "%f", &f) != 0);
 
 	return f;
 }
@@ -325,13 +323,11 @@ int shGetInt(const char* buf)
 
 	if (buf[0] == '0' && buf[1] == 'x')
 	{
-		int res = sscanf(&buf[2], "%x", &i);
-		assert(res);
+		CRY_VERIFY(sscanf(&buf[2], "%x", &i) != 0);
 	}
 	else
 	{
-		int res = sscanf(buf, "%i", &i);
-		assert(res);
+		CRY_VERIFY(sscanf(buf, "%i", &i) != 0);
 	}
 
 	return i;
@@ -342,9 +338,7 @@ int shGetHex(const char* buf)
 	if (!buf)
 		return 0;
 	int i = 0;
-
-	int res = sscanf(buf, "%x", &i);
-	assert(res);
+	CRY_VERIFY(sscanf(buf, "%x", &i) != 0);
 
 	return i;
 }
@@ -355,11 +349,10 @@ uint64 shGetHex64(const char* buf)
 		return 0;
 	uint64 i = 0;
 #if defined(CRY_COMPILER_GCC) || defined(CRY_COMPILER_CLANG)
-	int res = sscanf(buf, "%llx", &i);
+CRY_VERIFY(sscanf(buf, "%llx", &i) != 0);
 #else
-	int res = sscanf(buf, "%I64x", &i);
+CRY_VERIFY(sscanf(buf, "%I64x", &i) != 0);
 #endif
-	assert(res);
 	return i;
 }
 
@@ -367,24 +360,21 @@ void shGetVector(const char* buf, Vec3& v)
 {
 	if (!buf)
 		return;
-	int res = sscanf(buf, "%f %f %f", &v[0], &v[1], &v[2]);
-	assert(res);
+CRY_VERIFY(sscanf(buf, "%f %f %f", &v[0], &v[1], &v[2]) != 0);
 }
 
 void shGetVector(const char* buf, float v[3])
 {
 	if (!buf)
 		return;
-	int res = sscanf(buf, "%f %f %f", &v[0], &v[1], &v[2]);
-	assert(res);
+CRY_VERIFY(sscanf(buf, "%f %f %f", &v[0], &v[1], &v[2]) != 0);
 }
 
 void shGetVector4(const char* buf, Vec4& v)
 {
 	if (!buf)
 		return;
-	int res = sscanf(buf, "%f %f %f %f", &v.x, &v.y, &v.z, &v.w);
-	assert(res);
+CRY_VERIFY(sscanf(buf, "%f %f %f %f", &v.x, &v.y, &v.z, &v.w) != 0);
 }
 
 static struct SColAsc
@@ -894,7 +884,6 @@ bool fxCheckMacroses(const char** str, int nPass)
 bool fxIgnorePreprBlock(char** buf)
 {
 	int nLevel = 0;
-	char* start = *buf;
 	bool bEnded = false;
 	SkipCharacters(buf, kWhiteSpace);
 	SkipComments(buf, true);
@@ -904,7 +893,6 @@ bool fxIgnorePreprBlock(char** buf)
 		char ch;
 		while ((ch = **buf) && SkipChar((unsigned)ch))
 		{
-			char* b = *buf;
 			while ((ch = **buf) != 0)
 			{
 				if (ch == '/' && IsComment(*buf))
@@ -915,7 +903,6 @@ bool fxIgnorePreprBlock(char** buf)
 			}
 			SkipComments(buf, true);
 		}
-		int n = 0;
 		char* posS = *buf;
 		char* st = posS;
 		PREFAST_ASSUME(posS);

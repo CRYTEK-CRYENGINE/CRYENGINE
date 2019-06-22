@@ -1,23 +1,13 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _BREAKABLE_GLASS_RENDERNODE_
-#define _BREAKABLE_GLASS_RENDERNODE_
-
 #pragma once
 
-// Includes
 #include <CryRenderer/RenderElements/CREBreakableGlass.h>
 #include <CryRenderer/RenderElements/CREBreakableGlassHelpers.h>
 
-// Forward declares
 class CREBreakableGlass;
 struct IParticleEffect;
 
-//==================================================================================================
-// Name: CBreakableGlassRenderNode
-// Desc: Breakable glass sim render node
-// Author: Chris Bunner
-//==================================================================================================
 class CBreakableGlassRenderNode final : public IBreakableGlassRenderNode, Cry3DEngineBase
 {
 public:
@@ -90,6 +80,4 @@ private:
 	uint16                             m_id;
 	uint8                              m_state;
 	uint8                              m_nextPhysFrag;
-};//------------------------------------------------------------------------------------------------
-
-#endif // _BREAKABLE_GLASS_RENDERNODE_
+};

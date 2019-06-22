@@ -8,6 +8,7 @@
 #include <CrySerialization/CryStrings.h>
 #include <CrySerialization/IArchiveHost.h>
 #include <CryMath/Random.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if defined(DRS_COLLECT_DEBUG_DATA)
 	#include "ResponseSystem.h"

@@ -28,7 +28,7 @@ public:
 	virtual void OnCompilationQueueTriggered(int nPending) override;
 	virtual void OnCompilationQueueDepleted() override;
 
-	void GenerateCryasset(const string& filePath);
+	void GenerateCryasset(const string& filePath, const string& destFolder = "");
 
 	//! Generates/repair *.cryasset files for the current project.
 	static bool GenerateCryassets();

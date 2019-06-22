@@ -1,19 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ParticleUtils.h
-//  Version:     v1.00
-//  Created:     11/03/2010 by Corey (split out from other files).
-//  Compilers:   Visual Studio.NET
-//  Description: Splitting out some of the particle specific containers to here.
-//							 Will be moved to a proper home eventually.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __particleutils_h__
-#define __particleutils_h__
 #pragma once
 
 //////////////////////////////////////////////////////////////////////////
@@ -87,5 +73,3 @@ inline bool CheckNormalize(Vec3& v)
 {
 	return CheckNormalize(v, v);
 }
-
-#endif // __particleutils_h__

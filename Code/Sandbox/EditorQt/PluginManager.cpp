@@ -98,7 +98,7 @@ void ParseManifest(const string& manifestPath, SPlugin& plugin)
 // missing dependencies or there is a cycle in the dependency tree.
 void SortPluginsByDependency(std::list<SPlugin>& plugins)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	std::list<SPlugin> finalList;
 	std::set<string, stl::less_stricmp<string>> loadedPlugins;
 
@@ -145,7 +145,7 @@ void SortPluginsByDependency(std::list<SPlugin>& plugins)
 
 bool CPluginManager::LoadPlugins(const char* pPathWithMask)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	CString strPath = PathUtil::GetPathWithoutFilename(pPathWithMask).c_str();
 	string strMask = PathUtil::GetFile(pPathWithMask);
@@ -199,7 +199,7 @@ bool CPluginManager::LoadPlugins(const char* pPathWithMask)
 
 	for (auto iter = plugins.begin(); iter != plugins.end(); ++iter)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Loading plugin", iter->m_path);
+		CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Loading plugin", iter->m_path);
 
 		// Load the plugin's DLL
 		HMODULE hPlugin = LoadLibraryA(iter->m_path);

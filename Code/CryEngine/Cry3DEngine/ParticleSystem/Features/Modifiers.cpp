@@ -536,22 +536,22 @@ public:
 		CRY_PFX2_PROFILE_DETAIL;
 
 		const uint particleSpec = runtime.GetEmitter()->GetParticleSpec();
-		floatv multiplier = ToFloatv(1.0f);
+		float multiplier = 1.0f;
 
 		for (uint i = 0; i < gNumConfigSpecs; ++i)
 		{
 			if (gConfigSpecs[i].m_index == particleSpec)
 			{
-				multiplier = ToFloatv(m_specMultipliers[i]);
+				multiplier = m_specMultipliers[i];
 				break;
 			}
 		}
 
-		for (auto particleGroupId : SGroupRange(range))
+		if (multiplier != 1.0f)
 		{
-			const floatv inValue = stream.Load(particleGroupId);
-			const floatv outvalue = inValue * multiplier;
-			stream.Store(particleGroupId, outvalue);
+			floatv multiplierV = ToFloatv(multiplier);
+			for (auto particleGroupId : SGroupRange(range))
+				stream[particleGroupId] *= multiplierV;
 		}
 	}
 
@@ -624,7 +624,7 @@ class CModInherit : public IFFieldModifier
 public:
 	virtual EDataDomain GetDomain() const
 	{
-		return m_spawnOnly ? EDD_PerInstance : EDD_InstanceUpdate;
+		return m_spawnOnly ? EDD_Spawner : EDD_SpawnerUpdate;
 	}
 
 	virtual void SetDataType(EParticleDataType dataType)

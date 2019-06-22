@@ -10,7 +10,7 @@
 ACE::Impl::SDLMixer::CImpl* g_pSdlMixerInterface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API ACE::Impl::IImpl * GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::Impl::IImpl* GetAudioInterface(ISystem * const pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorSDLMixer");
 
@@ -29,15 +29,25 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-		g_hInstance = hinstDLL;
-		break;
-	case DLL_PROCESS_DETACH:
-		if (g_pSdlMixerInterface != nullptr)
 		{
-			delete g_pSdlMixerInterface;
-			g_pSdlMixerInterface = nullptr;
+			g_hInstance = hinstDLL;
+			break;
 		}
-		break;
+	case DLL_PROCESS_DETACH:
+		{
+			if (g_pSdlMixerInterface != nullptr)
+			{
+				delete g_pSdlMixerInterface;
+				g_pSdlMixerInterface = nullptr;
+			}
+
+			break;
+		}
+	default:
+		{
+			break;
+		}
 	}
+
 	return TRUE;
 }

@@ -157,14 +157,14 @@ namespace Private_TagLocationCommands
 void TagLocation(int slot)
 {
 	char buffer[64];
-	cry_sprintf(buffer, "level.tag_location '%i'", slot);
+	cry_sprintf(buffer, "level.tag_location %i", slot);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
 void GoToTagLocation(int slot)
 {
 	char buffer[64];
-	cry_sprintf(buffer, "level.go_to_tag_location '%i'", slot);
+	cry_sprintf(buffer, "level.go_to_tag_location %i", slot);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 }

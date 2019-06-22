@@ -6,13 +6,12 @@
 #include <CrySystem/ISystem.h>
 #include <CryRenderer/IRenderer.h>
 #include <CryRenderer/IStereoRenderer.h>
-#include <CrySystem/IConsole.h>
 
-#include "../XRenderD3D9/DriverD3D.h"
-#include "../Common/Textures/Texture.h"
-#include "../Common/Textures/TextureHelpers.h"
-#include "../Common/RenderDisplayContext.h"
-#include "ScaleformRender.h"
+	#include "../XRenderD3D9/DriverD3D.h"
+	#include "../Common/Textures/Texture.h"
+	#include "../Common/Textures/TextureHelpers.h"
+	#include "../Common/RenderDisplayContext.h"
+	#include "ScaleformRender.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -123,7 +122,7 @@ static size_t IndexSizes[] =
 IScaleformPlayback::DeviceData* CScaleformPlayback::CreateDeviceData(const void* pVertices, int numVertices, VertexFormat vf, bool bTemp)
 {
 	DeviceData* pData = new DeviceData;
-	CRY_ASSERT((vf == Vertex_XY16i || vf == Vertex_XY16iC32 || vf == Vertex_XY16iCF32) && "CScaleformPlayback::SetVertexData() -- Unsupported source vertex format!");
+	CRY_ASSERT_MESSAGE((vf == Vertex_XY16i || vf == Vertex_XY16iC32 || vf == Vertex_XY16iCF32), "CScaleformPlayback::SetVertexData() -- Unsupported source vertex format!");
 
 	pData->Type = DevDT_Vertex;
 	pData->NumElements = numVertices;
@@ -142,7 +141,7 @@ IScaleformPlayback::DeviceData* CScaleformPlayback::CreateDeviceData(const void*
 IScaleformPlayback::DeviceData* CScaleformPlayback::CreateDeviceData(const void* pIndices, int numIndices, IndexFormat idxf, bool bTemp)
 {
 	DeviceData* pData = new DeviceData;
-	CRY_ASSERT((idxf == Index_16) && "CScaleformPlayback::SetIndexData() -- Unsupported source index format!");
+	CRY_ASSERT_MESSAGE((idxf == Index_16), "CScaleformPlayback::SetIndexData() -- Unsupported source index format!");
 
 	pData->Type = DevDT_Index;
 	pData->NumElements = numIndices;
@@ -287,11 +286,11 @@ void CScaleformPlayback::Clear(const ColorF& backgroundColor)
 		return;
 	if (backgroundColor.a == 255.f)
 	{
-		RECT rect = 
+		RECT rect =
 		{
-			LONG(params.viewport.TopLeftX), 
-			LONG(params.viewport.TopLeftY), 
-			LONG(params.viewport.TopLeftX + params.viewport.Width), 
+			LONG(params.viewport.TopLeftX),
+			LONG(params.viewport.TopLeftY),
+			LONG(params.viewport.TopLeftX + params.viewport.Width),
 			LONG(params.viewport.TopLeftY + params.viewport.Height)
 		};
 
@@ -537,7 +536,7 @@ void CScaleformPlayback::ApplyBlendMode(BlendType blendMode)
 	const float fPreMul = params.premultipliedAlpha ? 1.f : 0.f;
 
 	params.m_bScaleformRenderParametersDirty = params.m_bScaleformRenderParametersDirty ||
-		(rparams->bPremultiplyAlpha != fPreMul);
+	                                           (rparams->bPremultiplyAlpha != fPreMul);
 
 	rparams->bPremultiplyAlpha = fPreMul;
 }
@@ -557,8 +556,8 @@ void CScaleformPlayback::ApplyColor(const ColorF& src)
 	}
 
 	params.m_bScaleformRenderParametersDirty = params.m_bScaleformRenderParametersDirty ||
-		(rparams->cBitmapColorTransform[0] != premultiplied) ||
-		(rparams->cBitmapColorTransform[1] != ColorF(0, 0, 0, 0));
+	                                           (rparams->cBitmapColorTransform[0] != premultiplied) ||
+	                                           (rparams->cBitmapColorTransform[1] != ColorF(0, 0, 0, 0));
 
 	rparams->cBitmapColorTransform[0] = premultiplied;
 	rparams->cBitmapColorTransform[1] = ColorF(0, 0, 0, 0);
@@ -579,13 +578,13 @@ void CScaleformPlayback::ApplyTextureInfo(unsigned int texSlot, const FillTextur
 		const Matrix23& m(pFill->TextureMatrix);
 		assert(pTex->GetSrcFormat() != eTF_YUV && pTex->GetSrcFormat() != eTF_YUVA);
 
-		texInfo.pTex   = pTex;
-		texInfo.texState  = (pFill->WrapMode   == Wrap_Clamp   ) ? SSF_GlobalDrawParams::TS_Clamp        : 0;
+		texInfo.pTex = pTex;
+		texInfo.texState = (pFill->WrapMode == Wrap_Clamp) ? SSF_GlobalDrawParams::TS_Clamp : 0;
 		texInfo.texState |= (pFill->SampleMode == Sample_Linear) ? SSF_GlobalDrawParams::TS_FilterTriLin : 0;
 
 		m_drawParams.m_bScaleformMeshAttributesDirty = m_drawParams.m_bScaleformMeshAttributesDirty ||
-			(mparams->cTexGenMat[texSlot][0] != Vec4(m.m00, m.m01, 0, m.m02)) ||
-			(mparams->cTexGenMat[texSlot][1] != Vec4(m.m10, m.m11, 0, m.m12));
+		                                               (mparams->cTexGenMat[texSlot][0] != Vec4(m.m00, m.m01, 0, m.m02)) ||
+		                                               (mparams->cTexGenMat[texSlot][1] != Vec4(m.m10, m.m11, 0, m.m12));
 
 		mparams->cTexGenMat[texSlot][0] = Vec4(m.m00, m.m01, 0, m.m02);
 		mparams->cTexGenMat[texSlot][1] = Vec4(m.m10, m.m11, 0, m.m12);
@@ -603,8 +602,8 @@ void CScaleformPlayback::ApplyTextureInfo(unsigned int texSlot, const FillTextur
 		texInfo.texState = 0;
 
 		m_drawParams.m_bScaleformMeshAttributesDirty = m_drawParams.m_bScaleformMeshAttributesDirty ||
-			(mparams->cTexGenMat[texSlot][0] != Vec4(1, 0, 0, 0)) ||
-			(mparams->cTexGenMat[texSlot][1] != Vec4(0, 1, 0, 0));
+		                                               (mparams->cTexGenMat[texSlot][0] != Vec4(1, 0, 0, 0)) ||
+		                                               (mparams->cTexGenMat[texSlot][1] != Vec4(0, 1, 0, 0));
 
 		mparams->cTexGenMat[texSlot][0] = Vec4(1, 0, 0, 0);
 		mparams->cTexGenMat[texSlot][1] = Vec4(0, 1, 0, 0);
@@ -616,8 +615,8 @@ void CScaleformPlayback::ApplyCxform()
 	SSF_GlobalDrawParams::SScaleformRenderParameters* __restrict rparams = m_drawParams.m_pScaleformRenderParameters;
 
 	m_drawParams.m_bScaleformRenderParametersDirty = m_drawParams.m_bScaleformRenderParametersDirty ||
-		(rparams->cBitmapColorTransform[0] != (m_cxform[0])) ||
-		(rparams->cBitmapColorTransform[1] != (m_cxform[1] * (1.0f / 255.0f)));
+	                                                 (rparams->cBitmapColorTransform[0] != (m_cxform[0])) ||
+	                                                 (rparams->cBitmapColorTransform[1] != (m_cxform[1] * (1.0f / 255.0f)));
 
 	rparams->cBitmapColorTransform[0] = m_cxform[0];
 	rparams->cBitmapColorTransform[1] = m_cxform[1] * (1.0f / 255.0f);
@@ -656,7 +655,7 @@ void CScaleformPlayback::CalcTransMat3D(const Matrix23* pSrc, Matrix44* __restri
 	if (m_matCachedWVPDirty)
 	{
 		Matrix44 matProjPatched = m_matProj3D;
-		assert((matProjPatched.m23 == -1.0f || matProjPatched.m23 == 0.0f) && "CScaleformPlayback::SetPerspective3D() -- projMatIn is not right handed");
+		CRY_ASSERT_MESSAGE((matProjPatched.m23 == -1.0f || matProjPatched.m23 == 0.0f), "CScaleformPlayback::SetPerspective3D() -- projMatIn is not right handed");
 		if (!m_stereoFixedProjDepth)
 		{
 			matProjPatched.m20 = -m_maxParallax;   // negative here as m_matProj3D is RH
@@ -772,18 +771,18 @@ void CScaleformPlayback::ApplyMatrix(const Matrix23* pMatIn)
 
 ITexture* CScaleformPlayback::CreateRenderTarget()
 {
-	assert(0 && "CScaleformPlayback::CreateRenderTarget() -- Not implemented!");
+	CRY_ASSERT_MESSAGE(false, "CScaleformPlayback::CreateRenderTarget() -- Not implemented!");
 	return 0;
 }
 
 void CScaleformPlayback::SetDisplayRenderTarget(ITexture* /*pRT*/, bool /*setState*/)
 {
-	assert(0 && "CScaleformPlayback::SetDisplayRenderTarget() -- Not implemented!");
+	CRY_ASSERT_MESSAGE(false, "CScaleformPlayback::SetDisplayRenderTarget() -- Not implemented!");
 }
 
 void CScaleformPlayback::PushRenderTarget(const RectF& /*frameRect*/, ITexture* /*pRT*/)
 {
-	assert(0 && "CScaleformPlayback::PushRenderTarget() -- Not implemented!");
+	CRY_ASSERT_MESSAGE(false, "CScaleformPlayback::PushRenderTarget() -- Not implemented!");
 }
 
 void CScaleformPlayback::PopOutputTarget()
@@ -825,17 +824,17 @@ void CScaleformPlayback::PopOutputTarget()
 	m_pRenderer->SF_GetResources().FreeStencilSurfaces();
 }
 
-void CScaleformPlayback::PushOutputTarget(const Viewport &viewport)
+void CScaleformPlayback::PushOutputTarget(const Viewport& viewport)
 {
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 
-	m_renderTargetStack.emplace_back();
+	std::shared_ptr<CGraphicsPipeline> pGraphicsPipeline = m_pRenderer->FindGraphicsPipeline(SGraphicsPipelineKey::BaseGraphicsPipelineKey);
+	m_renderTargetStack.emplace_back(pGraphicsPipeline.get());
 	SSF_GlobalDrawParams::OutputParams& sNewOutput = m_renderTargetStack.back();
 
 	sNewOutput.key = m_renderTargetStack.size() - 1;
 	sNewOutput.oldViewMat = m_matViewport;
-	sNewOutput.oldViewportHeight = 0;
-	sNewOutput.oldViewportWidth = 0;
+	sNewOutput.oldViewport = params.viewport;
 
 	// NOTE: this is a hacky workaround for all custom resolution outputs
 	if (auto* pDC = m_pRenderOutput->GetDisplayContext())
@@ -908,12 +907,11 @@ void CScaleformPlayback::PopRenderTarget()
 	ApplyTextureInfo(0);
 //	ApplyTextureInfo(1);
 
-	// restore viewport matrix when popping render target
-	m_matViewport = pCurOutput->oldViewMat;
-
 	// Graphics pipeline >= 1
 	{
-		params.viewport = SSF_GlobalDrawParams::_D3DViewPort(0.f, 0.f, float(pCurOutput->oldViewportWidth), float(pCurOutput->oldViewportHeight));
+		// restore viewport matrix when popping render target
+		m_matViewport = pCurOutput->oldViewMat;
+		params.viewport = pCurOutput->oldViewport;
 	}
 
 	m_renderTargetStack.pop_back();
@@ -946,16 +944,16 @@ int32 CScaleformPlayback::PushTempRenderTarget(const RectF& frameRect, uint32 ta
 
 	CTexture* pNewTempRT = m_pRenderer->SF_GetResources().GetColorSurface(m_pRenderer, RTWidth, RTHeight, eTF_R8G8B8A8, RTWidth, RTHeight);// TODO: allow larger RTs upto ST (needs viewport adjustment), pNewTempST->pTexture->GetWidth(), pNewTempST->pTexture->GetHeight());
 	CTexture* pNewTempST = wantStencil ?
-		m_pRenderer->SF_GetResources().GetStencilSurface(m_pRenderer, pNewTempRT->GetWidth(), pNewTempRT->GetHeight(), CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(eTF_D24S8)) :
-		nullptr;
+	                       m_pRenderer->SF_GetResources().GetStencilSurface(m_pRenderer, pNewTempRT->GetWidth(), pNewTempRT->GetHeight(), CRendererResources::s_hwTexFormatSupport.GetClosestFormatSupported(eTF_D24S8)) :
+	                       nullptr;
 
-	m_renderTargetStack.emplace_back();
+	std::shared_ptr<CGraphicsPipeline> pGraphicsPipeline = m_pRenderer->FindGraphicsPipeline(SGraphicsPipelineKey::BaseGraphicsPipelineKey);
+	m_renderTargetStack.emplace_back(pGraphicsPipeline.get());
 	SSF_GlobalDrawParams::OutputParams& sNewOutput = m_renderTargetStack.back();
 
 	sNewOutput.key = m_renderTargetStack.size() - 1;
 	sNewOutput.oldViewMat = m_matViewport;
-	sNewOutput.oldViewportHeight = 0; // Previous width
-	sNewOutput.oldViewportWidth = 0;  // Previous height
+	sNewOutput.oldViewport = params.viewport;
 	sNewOutput.pRenderTarget = pNewTempRT;
 	sNewOutput.pStencilTarget = pNewTempST;
 	sNewOutput.bRenderTargetClear = pNewTempRT && wantClear;
@@ -1160,7 +1158,7 @@ void CScaleformPlayback::EndDisplay()
 	{
 		if (m_pRenderOutput == pDC->GetRenderOutput() && pDC->IsNativeScalingEnabled())
 		{
-			m_pRenderer->GetGraphicsPipeline().m_UpscalePass->Execute(m_pRenderOutput->GetColorTarget(), pDC->GetCurrentBackBuffer());
+			m_pRenderer->GetActiveGraphicsPipeline()->m_UpscalePass->Execute(m_pRenderOutput->GetColorTarget(), pDC->GetCurrentBackBuffer());
 		}
 	}
 #endif
@@ -1178,7 +1176,7 @@ void CScaleformPlayback::SetMatrix(const Matrix23& m)
 
 void CScaleformPlayback::SetUserMatrix(const Matrix23& /*m*/)
 {
-	assert(0 && "CScaleformPlayback::SetUserMatrix() -- Not implemented!");
+	CRY_ASSERT_MESSAGE(false, "CScaleformPlayback::SetUserMatrix() -- Not implemented!");
 }
 
 void CScaleformPlayback::SetCxform(const ColorF& cx0, const ColorF& cx1)
@@ -1199,7 +1197,7 @@ void CScaleformPlayback::PushBlendMode(BlendType mode)
 
 void CScaleformPlayback::PopBlendMode()
 {
-	assert(m_blendOpStack.size() && "CScaleformPlayback::PopBlendMode() -- Blend mode stack is empty!");
+	CRY_ASSERT_MESSAGE(!m_blendOpStack.empty(), "CScaleformPlayback::PopBlendMode() -- Blend mode stack is empty!");
 
 	if (m_blendOpStack.size())
 	{
@@ -1362,7 +1360,8 @@ void CScaleformPlayback::DrawBitmaps(const DeviceData* pBitmaps, int startIndex,
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 	SSF_GlobalDrawParams& __restrict params = m_drawParams;
 
-	CTexture* pTex(static_cast<CTexture*>(pTi)); pTi->AddRef();
+	CTexture* pTex(static_cast<CTexture*>(pTi));
+	pTi->AddRef();
 	Vec2 texGenStereo(1.0f, 0.0f);
 
 	params.texture[0].texState = SSF_GlobalDrawParams::TS_FilterLin | SSF_GlobalDrawParams::TS_Clamp;
@@ -1372,8 +1371,8 @@ void CScaleformPlayback::DrawBitmaps(const DeviceData* pBitmaps, int startIndex,
 	ApplyMatrix(&m);
 
 	params.m_bScaleformMeshAttributesDirty = params.m_bScaleformMeshAttributesDirty ||
-		(params.m_pScaleformMeshAttributes->cTexGenMat[0][0] != Vec4(1, 0, 0, 0)) ||
-		(params.m_pScaleformMeshAttributes->cTexGenMat[0][1] != Vec4(0, 1, 0, 0));
+	                                         (params.m_pScaleformMeshAttributes->cTexGenMat[0][0] != Vec4(1, 0, 0, 0)) ||
+	                                         (params.m_pScaleformMeshAttributes->cTexGenMat[0][1] != Vec4(0, 1, 0, 0));
 
 	params.m_pScaleformMeshAttributes->cTexGenMat[0][0] = Vec4(1, 0, 0, 0);
 	params.m_pScaleformMeshAttributes->cTexGenMat[0][1] = Vec4(0, 1, 0, 0);
@@ -1406,7 +1405,7 @@ void CScaleformPlayback::DrawBitmaps(const DeviceData* pBitmaps, int startIndex,
 	}
 
 	params.m_bScaleformRenderParametersDirty = params.m_bScaleformRenderParametersDirty ||
-		(params.m_pScaleformMeshAttributes->cStereoVideoFrameSelect != texGenStereo);
+	                                           (params.m_pScaleformMeshAttributes->cStereoVideoFrameSelect != texGenStereo);
 
 	params.m_pScaleformMeshAttributes->cStereoVideoFrameSelect = texGenStereo;
 
@@ -1430,7 +1429,7 @@ void CScaleformPlayback::BeginSubmitMask(SubmitMaskMode maskMode)
 
 	m_renderMasked = true;
 	IF(!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)
-	return;
+		return;
 
 	m_drawParams.pRenderOutput->bStencilTargetClear = m_drawParams.pRenderOutput->pStencilTarget && (!m_avoidStencilClear) && (maskMode == Mask_Clear);
 
@@ -1464,8 +1463,8 @@ void CScaleformPlayback::EndSubmitMask()
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_renderMasked = true;
-	IF(!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)
-	return;
+	IF (!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)
+		return;
 
 	ApplyStencilMask(SSF_GlobalDrawParams::EndSubmitMask, m_stencilCounter);
 }
@@ -1475,8 +1474,8 @@ void CScaleformPlayback::DisableMask()
 	CRY_PROFILE_FUNCTION(PROFILE_SYSTEM);
 
 	m_renderMasked = false;
-	IF(!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)
-	return;
+	IF (!m_stencilAvail || ms_sys_flash_debugdraw == 2, 0)
+		return;
 
 	m_drawParams.pRenderOutput->bStencilTargetClear = m_drawParams.pRenderOutput->pStencilTarget && false;
 
@@ -1496,7 +1495,9 @@ void CScaleformPlayback::DrawBlurRect(ITexture* _pSrcIn, const RectF& inSrcRect,
 	SetWorld3D(NULL);
 
 	// Flash can call in-to-out cases
-	ITexture* pSrcIn = _pSrcIn; _pSrcIn->AddRef();
+	ITexture* pSrcIn = _pSrcIn;
+	pSrcIn->AddRef();
+
 	if (pSrcIn == params.pRenderOutput->pRenderTarget)
 	{
 		// TODO: Don't allocate a RenderTarget here, even though there might be a chance that it clones the surface with color-compression
@@ -1526,7 +1527,7 @@ void CScaleformPlayback::DrawBlurRect(ITexture* _pSrcIn, const RectF& inSrcRect,
 	passis[0] = passis[1] = SSF_GlobalDrawParams::Box2Blur;
 	passis[2] = mul ? SSF_GlobalDrawParams::Box2BlurMul : SSF_GlobalDrawParams::Box2Blur;
 
-	params.blendOp   = SSF_GlobalDrawParams::Add;
+	params.blendOp = SSF_GlobalDrawParams::Add;
 
 	if (filter.Mode & Filter_Shadow)
 	{
@@ -1900,7 +1901,8 @@ void CScaleformPlayback::RenderFlashPlayerToTexture(IFlashPlayer* pFlashPlayer, 
 {
 	CRenderOutputPtr pTempRenderOutput = std::make_shared<CRenderOutput>(pOutput, FRT_CLEAR_COLOR /* no automatic clears */, Clr_Transparent, 0.0f);
 
-	int x, y, width, height; float aspect;
+	int x, y, width, height;
+	float aspect;
 	pFlashPlayer->GetViewport(x, y, width, height, aspect);
 
 	pTempRenderOutput->SetViewport(SRenderViewport(x, y, width, height));
@@ -1908,7 +1910,7 @@ void CScaleformPlayback::RenderFlashPlayerToTexture(IFlashPlayer* pFlashPlayer, 
 	RenderFlashPlayerToOutput(pFlashPlayer, pTempRenderOutput);
 }
 
-void CScaleformPlayback::RenderFlashPlayerToOutput(IFlashPlayer* pFlashPlayer, const std::shared_ptr<CRenderOutput> &output)
+void CScaleformPlayback::RenderFlashPlayerToOutput(IFlashPlayer* pFlashPlayer, const std::shared_ptr<CRenderOutput>& output)
 {
 	CScaleformPlayback* pScaleformPlayback = static_cast<CScaleformPlayback*>(pFlashPlayer->GetPlayback());
 	CRY_ASSERT(pScaleformPlayback->IsRenderThread());

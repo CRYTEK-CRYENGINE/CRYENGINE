@@ -147,19 +147,27 @@ private:
 
 	bool        IsRelatedToTopLevelObject(CBaseObject* pObject) const;
 
-	void StartBatchProcess();
-	void FinishBatchProcess();
+	void        StartBatchProcess();
+	void        FinishBatchProcess();
 
-	CObjectLayer* m_pLayer;
-	const CBaseObject*  m_pTopLevelNotificationObj;
+	CObjectLayer*      m_pLayer;
+	const CBaseObject* m_pTopLevelNotificationObj;
 
 	// Cached data
 	CBaseObjectsArray                m_rootObjects;
 	std::map<CBaseObjectPtr, string> m_flowGraphMap;
 	std::map<string, int>            m_geometryCountMap;
 
-	bool m_isRuningBatchProcess{ false };
-	bool m_isDisconnected{ false };
+	// Precached icons: prevents CryIcon ctor on each data() call
+	CryIcon m_iconVisibilityTrue;
+	CryIcon m_iconVisibilityFalse;
+	CryIcon m_iconGeneralLockFalse;
+	CryIcon m_iconLink;
+	CryIcon m_iconPlaceHolder;
+	CryIcon m_iconLevelExplorerLockTrue;
+
+	bool    m_isRuningBatchProcess{ false };
+	bool    m_isDisconnected{ false };
 
 	friend class CLevelModelsManager;
 };

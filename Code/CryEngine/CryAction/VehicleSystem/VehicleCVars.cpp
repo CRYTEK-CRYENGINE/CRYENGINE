@@ -15,6 +15,7 @@
 #include "VehicleCVars.h"
 #include "VehicleSystem.h"
 #include "Vehicle.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 CVehicleCVars* CVehicleCVars::s_pThis = 0;
 

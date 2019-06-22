@@ -216,7 +216,7 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 		transG = GridTrans((CPhysicalPlaceholder*)pent,this);
 	Vec3 ptloc = ((transG*pt-m_offset)*m_R)*m_rscale;
 
-	if (!is_unused(m_pb.waterPlane.origin) && 
+	if (!is_unused(m_pb.waterPlane.origin) && fabs(m_pb.waterDensity)+fabs(m_pb.waterResistance)>0.0f &&
 			!(pent && ((CPhysicalEntity*)pent)->m_flags & pef_ignore_ocean && this==m_pWorld->m_pGlobalArea)) 
 	{
 		if (m_pb.iMedium==iMedium0)

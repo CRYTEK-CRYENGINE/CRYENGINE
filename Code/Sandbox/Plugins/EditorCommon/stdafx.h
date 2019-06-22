@@ -135,3 +135,5 @@ Q_DECLARE_METATYPE(CryGUID);
 	#include <CrySerialization/yasli/STL.h>
 
 #endif // USE_PCH
+	
+#include <CrySystem/Profilers/ICryProfilingSystem.h>

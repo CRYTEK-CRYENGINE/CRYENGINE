@@ -6,6 +6,7 @@
 #include "Qt/QtMainFrame.h"
 
 #include <QAdvancedItemDelegate.h>
+#include <Commands/QCommandAction.h>
 #include <EditorFramework/PersonalizationManager.h>
 #include <FileDialogs/SystemFileDialog.h>
 #include <ProxyModels/DeepFilterProxyModel.h>
@@ -210,7 +211,7 @@ CCVarModel::CCVarModel()
 	const auto pConsole = gEnv->pConsole;
 	std::vector<const char*> commands;
 	commands.resize(pConsole->GetNumVars());
-	const size_t cmdCount = pConsole->GetSortedVars(&commands[0], commands.size(),nullptr,1);
+	const size_t cmdCount = pConsole->GetSortedVars(&commands[0], commands.size(), nullptr, 1);
 
 	m_cvars.reserve(commands.size());
 	for (auto szCommand : commands)
@@ -218,7 +219,7 @@ CCVarModel::CCVarModel()
 		if (szCommand && *szCommand)
 			m_cvars.push_back(szCommand);
 	}
-	std::sort(m_cvars.begin(),m_cvars.end());
+	std::sort(m_cvars.begin(), m_cvars.end());
 
 	gEnv->pConsole->AddConsoleVarSink(this);
 }
@@ -231,14 +232,14 @@ CCVarModel::~CCVarModel()
 ICVar* CCVarModel::GetCVar(const QModelIndex& idx) const
 {
 	CRY_ASSERT(idx.row() < m_cvars.size());
-	const char *cvarName = m_cvars[idx.row()].c_str();
+	const char* cvarName = m_cvars[idx.row()].c_str();
 	return gEnv->pConsole->GetCVar(cvarName);
 }
 
 QVariant CCVarModel::data(const QModelIndex& index, int role /*= Qt::DisplayRole*/) const
 {
 	CRY_ASSERT(index.row() < m_cvars.size());
-	ICVar *pCVar = GetCVar(index);
+	ICVar* pCVar = GetCVar(index);
 	if (!pCVar)
 		return QVariant();
 
@@ -335,7 +336,7 @@ QVariant CCVarModel::data(const QModelIndex& index, int role /*= Qt::DisplayRole
 
 		case ECVarType::Int64:
 			CRY_ASSERT_MESSAGE(false, "CCVarModel::data int64 cvar not implemented");
-			// fall through
+		// fall through
 
 		default:
 			return -1;
@@ -398,7 +399,7 @@ bool CCVarModel::setData(const QModelIndex& index, const QVariant& value, int ro
 			CRY_ASSERT(index.row() <= m_cvars.size());
 			if (index.column() == eCVarListColumn_Value)
 			{
-				ICVar *pCVar = GetCVar(index);
+				ICVar* pCVar = GetCVar(index);
 				switch (pCVar->GetType())
 				{
 				case ECVarType::Int:
@@ -424,7 +425,7 @@ bool CCVarModel::setData(const QModelIndex& index, const QVariant& value, int ro
 
 				case ECVarType::Int64:
 					CRY_ASSERT_MESSAGE(false, "CCVarModel::setData int64 cvar not implemented");
-					// fall through
+				// fall through
 
 				default:
 					return false;
@@ -450,7 +451,7 @@ void CCVarModel::OnCVarChanged(ICVar* const pCVar)
 	{
 		const auto index = std::distance(m_cvars.cbegin(), it);
 		const auto modelIndex = this->index(index, 0);
-		const auto modelIndex2 = this->index(index+1, 0);
+		const auto modelIndex2 = this->index(index + 1, 0);
 
 		QVector<int> roles;
 		roles.push_back(Qt::DisplayRole);
@@ -526,7 +527,7 @@ CCVarBrowser::CCVarBrowser(QWidget* pParent /* = nullptr*/)
 		if (!index.isValid())
 			return;
 
-		ICVar *pCVar = m_pModel->GetCVar(mappedIndex);
+		ICVar* pCVar = m_pModel->GetCVar(mappedIndex);
 		if (pCVar)
 		{
 			signalOnClick(pCVar->GetName());
@@ -539,7 +540,7 @@ CCVarBrowser::CCVarBrowser(QWidget* pParent /* = nullptr*/)
 		if (!index.isValid())
 			return;
 
-		ICVar *pCVar = 	m_pModel->GetCVar(mappedIndex);
+		ICVar* pCVar = m_pModel->GetCVar(mappedIndex);
 		if (pCVar)
 		{
 			signalOnDoubleClick(pCVar->GetName());
@@ -635,20 +636,31 @@ void CCVarBrowserDialog::CVarsSelected(const QStringList& cvars)
 CCVarListDockable::CCVarListDockable(QWidget* const pParent)
 	: CDockableEditor(pParent)
 {
-	const auto pMenuBar = new QMenuBar();
-	const auto pFileMenu = pMenuBar->addMenu("&File");
-	const auto pImportAction = pFileMenu->addAction("&Import...");
-	const auto pExportAction = pFileMenu->addAction("&Export...");
-
-	QObject::connect(pImportAction, &QAction::triggered, &Private_CVarListDockable::PyImportCVarList);
-	QObject::connect(pExportAction, &QAction::triggered, &Private_CVarListDockable::PyExportCVarList);
-
-	const auto pLayout = new QVBoxLayout();
-	pLayout->setContentsMargins(1, 1, 1, 1);
 	m_pCVarBrowser = new CCVarBrowser(this);
-	pLayout->setMenuBar(pMenuBar);
-	pLayout->addWidget(m_pCVarBrowser);
-	SetContent(pLayout);
+	SetContent(m_pCVarBrowser);
+	RegisterActions();
+}
+
+void CCVarListDockable::Initialize()
+{
+	CDockableEditor::Initialize();
+
+	CreateMenu();
+}
+
+void CCVarListDockable::RegisterActions()
+{
+	RegisterAction("general.copy", &CCVarListDockable::OnCopy);
+	RegisterAction("general.import", &Private_CVarListDockable::PyImportCVarList);
+	RegisterAction("general.export", &Private_CVarListDockable::PyExportCVarList);
+}
+
+void CCVarListDockable::CreateMenu()
+{
+	AddToMenu({ CEditor::MenuItems::FileMenu, CEditor::MenuItems::EditMenu, CEditor::MenuItems::Copy });
+	CAbstractMenu* pFileMenu = GetMenu(CEditor::MenuItems::FileMenu);
+	pFileMenu->AddAction(GetAction("general.import"));
+	pFileMenu->AddAction(GetAction("general.export"));
 }
 
 bool CCVarListDockable::OnCopy()

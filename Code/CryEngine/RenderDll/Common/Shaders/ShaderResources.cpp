@@ -422,7 +422,7 @@ void CShaderResources::SetInvalid()
 
 void CShaderResources::UpdateConstants(IShader* pISH)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CShaderResources::UpdateConstants");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CShaderResources::UpdateConstants");
 
 	_smart_ptr<CShaderResources> pSelf(this);
 	_smart_ptr<IShader> pShader = pISH;
@@ -599,7 +599,7 @@ inline void AddShaderParamToArray(SShaderFXParams& FXParams, FixedDynArray<SFXPa
 
 void CShaderResources::RT_UpdateConstants(IShader* pISH)
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CShaderResources::RT_UpdateConstants");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CShaderResources::RT_UpdateConstants");
 	//assert(gRenDev->m_pRT->IsRenderThread());
 
 	CShader* pSH = (CShader*)pISH;

@@ -1,25 +1,12 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   MaterialHelpers.h
-//  Version:     v1.00
-//  Created:     6/6/2014 by NielsF.
-//  Compilers:   Visual Studio 2012
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __MaterialHelpers_h__
-#define __MaterialHelpers_h__
 #pragma once
 
 #include <Cry3DEngine/IMaterial.h>
 
 // Description:
 //   Namespace "implementation", not a class "implementation", no member-variables, only const functions;
-//   Used to encapsulate the material-definition/io into Cry3DEngine (and make it plugable that way).
+//   Used to encapsulate the material-definition/io into Cry3DEngine (and make it pluggable that way).
 struct MaterialHelpers : public IMaterialHelpers
 {
 	//////////////////////////////////////////////////////////////////////////
@@ -67,5 +54,3 @@ struct MaterialHelpers : public IMaterialHelpers
 	//////////////////////////////////////////////////////////////////////////
 	virtual void MigrateXmlLegacyData(SInputShaderResources& pShaderResources, const XmlNodeRef& node) const final;
 };
-
-#endif

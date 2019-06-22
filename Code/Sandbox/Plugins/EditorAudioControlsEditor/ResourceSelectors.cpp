@@ -2,23 +2,23 @@
 
 #include "StdAfx.h"
 
-#include "AudioControlsEditorPlugin.h"
+#include "AssetsManager.h"
 #include "ResourceSelectorDialog.h"
+#include "ListenerSelectorDialog.h"
 
 #include <IResourceSelectorHost.h>
 #include <ListSelectionDialog.h>
-#include <CryGame/IGameFramework.h>
 #include <IEditor.h>
 
 namespace ACE
 {
-SResourceSelectionResult ShowSelectDialog(SResourceSelectorContext const& context, char const* szPreviousValue, EAssetType controlType)
+SResourceSelectionResult ShowSelectDialog(
+	SResourceSelectorContext const& context,
+	char const* szPreviousValue,
+	EAssetType controlType,
+	bool const combinedAssets)
 {
-	char* szLevelName;
-	gEnv->pGameFramework->GetEditorLevel(&szLevelName, nullptr);
-	CResourceSelectorDialog dialog(controlType, g_assetsManager.GetScope(szLevelName), context.parentWidget);
-	dialog.setModal(true);
-
+	CResourceSelectorDialog dialog(controlType, combinedAssets, context.parentWidget);
 	CResourceSelectorDialog::SResourceSelectionDialogResult dialogResult = dialog.ChooseItem(szPreviousValue);
 	SResourceSelectionResult result{ dialogResult.selectionAccepted, dialogResult.selectedItem.c_str() };
 	return result;
@@ -26,44 +26,59 @@ SResourceSelectionResult ShowSelectDialog(SResourceSelectorContext const& contex
 
 SResourceSelectionResult AudioTriggerSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EAssetType::Trigger);
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::Trigger, false);
 }
 
-SResourceSelectionResult AudioSwitchSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
+SResourceSelectionResult AudioSwitchSelector(SResourceSelectorContext const& context, char const* szPreviousValue) // Deprecated.
 {
-	return ShowSelectDialog(context, szPreviousValue, EAssetType::Switch);
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::Switch, false);
+}
+
+SResourceSelectionResult AudioStateSelector(SResourceSelectorContext const& context, char const* szPreviousValue) // Deprecated.
+{
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::State, false);
 }
 
 SResourceSelectionResult AudioSwitchStateSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EAssetType::State);
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::State, true);
 }
 
 SResourceSelectionResult AudioParameterSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EAssetType::Parameter);
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::Parameter, false);
 }
 
 SResourceSelectionResult AudioEnvironmentSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EAssetType::Environment);
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::Environment, false);
 }
 
 SResourceSelectionResult AudioPreloadRequestSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EAssetType::Preload);
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::Preload, false);
 }
 
 SResourceSelectionResult AudioSettingSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
 {
-	return ShowSelectDialog(context, szPreviousValue, EAssetType::Setting);
+	return ShowSelectDialog(context, szPreviousValue, EAssetType::Setting, false);
+}
+
+SResourceSelectionResult AudioListenerSelector(SResourceSelectorContext const& context, char const* szPreviousValue)
+{
+	CListenerSelectorDialog dialog(context.parentWidget);
+	CListenerSelectorDialog::SResourceSelectionDialogResult dialogResult = dialog.ChooseListener(szPreviousValue);
+	SResourceSelectionResult result{ dialogResult.selectionAccepted, dialogResult.selectedListener.c_str() };
+	return result;
 }
 
 REGISTER_RESOURCE_SELECTOR("AudioTrigger", AudioTriggerSelector, "")
-REGISTER_RESOURCE_SELECTOR("AudioSwitch", AudioSwitchSelector, "")
+REGISTER_RESOURCE_SELECTOR("AudioSwitch", AudioSwitchSelector, "") // Deprecated.
+REGISTER_RESOURCE_SELECTOR("AudioState", AudioStateSelector, "")   // Deprecated.
 REGISTER_RESOURCE_SELECTOR("AudioSwitchState", AudioSwitchStateSelector, "")
-REGISTER_RESOURCE_SELECTOR("AudioRTPC", AudioParameterSelector, "")
+REGISTER_RESOURCE_SELECTOR("AudioParameter", AudioParameterSelector, "")
 REGISTER_RESOURCE_SELECTOR("AudioEnvironment", AudioEnvironmentSelector, "")
 REGISTER_RESOURCE_SELECTOR("AudioPreloadRequest", AudioPreloadRequestSelector, "")
 REGISTER_RESOURCE_SELECTOR("AudioSetting", AudioSettingSelector, "")
+REGISTER_RESOURCE_SELECTOR("AudioListener", AudioListenerSelector, "")
 } // namespace ACE

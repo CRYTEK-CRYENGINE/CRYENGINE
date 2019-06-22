@@ -359,3 +359,19 @@ void CModelMesh::CreateMorphsBuffer(CMesh* pMesh)
 		}
 	}
 }
+
+CModelMesh::sModelCache& CModelMesh::CreateModelCache()
+{
+	m_modelCache = stl::make_unique<sModelCache>();
+	return *m_modelCache.get();
+}
+
+CModelMesh::sModelCache const& CModelMesh::GetModelCache() const
+{
+	return *m_modelCache.get();
+}
+
+bool CModelMesh::HasModelCache() const
+{
+	return m_modelCache != nullptr;
+}

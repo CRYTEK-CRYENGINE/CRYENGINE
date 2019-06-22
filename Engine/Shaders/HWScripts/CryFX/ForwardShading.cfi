@@ -54,8 +54,10 @@ cbuffer CBPerPassForward : register(b5)
 		float4 vfHeightDensityParams;
 		float4 vfHeightDensityRampParams;
 		float4 vfDistanceParams;
+#if %_RT_VOLUMETRIC_FOG
 		float4 vfGlobalEnvProbeParams0;
 		float4 vfGlobalEnvProbeParams1;
+#endif
 	} cbVoxelFog;
 
 	// Forward shadow map sampling parameters
@@ -216,11 +218,13 @@ SVolumetricFogParams GetVolumetricFogParams()
 	params.farDistCenterLeft = cbVoxelFog.vfDistanceParams.z;
 	params.farDistCenter = cbVoxelFog.vfDistanceParams.w;
 
+#if %_RT_VOLUMETRIC_FOG
 	params.globalProbeColor0 = cbVoxelFog.vfGlobalEnvProbeParams0.xyz;
 	params.globalProbeAttenuation0 = cbVoxelFog.vfGlobalEnvProbeParams0.w;
 
 	params.globalProbeColor1 = cbVoxelFog.vfGlobalEnvProbeParams1.xyz;
 	params.globalProbeAttenuation1 = cbVoxelFog.vfGlobalEnvProbeParams1.w;
+#endif
 
 	params.timeParams.x = CV_AnimGenParams.z;
 	params.timeParams.y = CV_AnimGenParams.z * 0.5f;
@@ -300,6 +304,7 @@ void Fwd_StandardOpaqueShading(in MaterialAttribsCommon commonAttribs, inout For
 	fwdAttribs.reflectance = commonAttribs.Reflectance;
 	fwdAttribs.albedo = commonAttribs.Albedo;
 	fwdAttribs.smoothness = commonAttribs.Smoothness;
+    fwdAttribs.areaAttribs = (AreaLightShadingAttribs) 0; // will be filled out by TiledForwardShading
 	
 	// Sun shading
 	{
@@ -310,7 +315,7 @@ void Fwd_StandardOpaqueShading(in MaterialAttribsCommon commonAttribs, inout For
 	#endif
 		
 		ForwardLightParams lightParams;
-		lightParams.type = LT_DIRECTIONAL;
+		lightParams.type = LIGHT_TYPE_SUN;
 		lightParams.lightVec = CV_SunLightDir.xyz;
 		lightParams.illuminance = CV_SunColor.xyz * (1 - shadowMask);
 		Callback_ShadingDirect(fwdAttribs, lightParams, diffuseAcc, specularAcc);

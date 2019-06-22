@@ -63,9 +63,7 @@ struct SInputLayoutCompositionDescriptor
 	{}
 
 	SInputLayoutCompositionDescriptor(SInputLayoutCompositionDescriptor&&) = default;
-	SInputLayoutCompositionDescriptor &operator=(SInputLayoutCompositionDescriptor&&) = default;
 	SInputLayoutCompositionDescriptor(const SInputLayoutCompositionDescriptor&) = default;
-	SInputLayoutCompositionDescriptor &operator=(const SInputLayoutCompositionDescriptor&) = default;
 
 	bool operator==(const SInputLayoutCompositionDescriptor &rhs) const noexcept
 	{

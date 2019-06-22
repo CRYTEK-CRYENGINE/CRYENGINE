@@ -4,6 +4,7 @@
 
 #include <CrySystem/IConsole.h>
 #include <CrySystem/ISystem.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include <CrySystem/VR/IHMDManager.h>
 

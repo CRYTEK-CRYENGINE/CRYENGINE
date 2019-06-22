@@ -10,7 +10,6 @@ namespace Impl
 namespace PortAudio
 {
 CImpl* g_pImpl = nullptr;
-CListener* g_pListener = nullptr;
 } // namespace PortAudio
 } // namespace Impl
 } // namespace CryAudio

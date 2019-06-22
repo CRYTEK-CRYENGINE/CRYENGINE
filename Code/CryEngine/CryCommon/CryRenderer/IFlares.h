@@ -1,23 +1,20 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
-////////////////////////////////////////////////////////////////////////////
-// -------------------------------------------------------------------------
-//  File name:   IFlares.h
-//  Created:     8/12/2011
-////////////////////////////////////////////////////////////////////////////
+
 #include <CrySandbox/IFuncVariable.h> // <> required for Interfuscator
 #include <CrySystem/XML/IXml.h>       // <> required for Interfuscator
 #include <CryCore/smartptr.h>
 #include <CryCore/Containers/CryArray.h>
 
-struct IShader;
 class CCamera;
-struct SRenderingPassInfo;
+class CRenderView;
+struct IShader;
 
 class __MFPA
 {
 };
+
 class __MFPB
 {
 };
@@ -98,10 +95,10 @@ private:
 
 struct SLensFlareRenderParam
 {
-	SLensFlareRenderParam(CCamera* pCamera, IShader* pShader, const SRenderingPassInfo& passInfo) :
+	SLensFlareRenderParam(CCamera* pCamera, IShader* pShader, CRenderView* pRenderView) :
 		pCamera(pCamera),
 		pShader(pShader),
-		passInfo(passInfo)
+		pRenderView(pRenderView)
 	{
 	}
 	~SLensFlareRenderParam(){}
@@ -111,7 +108,7 @@ struct SLensFlareRenderParam
 	}
 	CCamera* pCamera;
 	IShader* pShader;
-	const SRenderingPassInfo& passInfo;
+	CRenderView* pRenderView;
 };
 
 class ISoftOcclusionQuery
@@ -182,9 +179,8 @@ private:
 	volatile int m_nRefCount;
 };
 
-class IOpticsManager
+struct IOpticsManager
 {
-public:
 	// <interfuscator:shuffle>
 	virtual ~IOpticsManager(){}
 	virtual void                Reset() = 0;

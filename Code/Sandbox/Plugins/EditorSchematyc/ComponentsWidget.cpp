@@ -12,7 +12,7 @@
 
 #include <QtUtil.h>
 #include <QFilteringPanel.h>
-#include <QAdvancedPropertyTree.h>
+#include <QAdvancedPropertyTreeLegacy.h>
 #include <QCollapsibleFrame.h>
 #include <ProxyModels/AttributeFilterProxyModel.h>
 #include <Controls/QPopupWidget.h>

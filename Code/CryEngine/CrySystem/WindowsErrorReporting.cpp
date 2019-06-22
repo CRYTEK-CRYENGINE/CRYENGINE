@@ -130,14 +130,14 @@ LONG WINAPI CryEngineExceptionFilterWER(struct _EXCEPTION_POINTERS* pExceptionPo
 
 	if (g_cvars.sys_WER > 1)
 	{
-		char szScratch[_MAX_PATH];
-		const char* szDumpPath = gEnv->pCryPak->AdjustFileName("%USER%/CE2Dump.dmp", szScratch, 0);
+		CryPathString dumpPath;
+		gEnv->pCryPak->AdjustFileName("%USER%/CE2Dump.dmp", dumpPath, 0);
 
 		MINIDUMP_TYPE mdumpValue = (MINIDUMP_TYPE)(MiniDumpNormal);
 		if (g_cvars.sys_WER > 1)
 			mdumpValue = (MINIDUMP_TYPE)(g_cvars.sys_WER - 2);
 
-		return CryEngineExceptionFilterMiniDump(pExceptionPointers, szDumpPath, mdumpValue);
+		return CryEngineExceptionFilterMiniDump(pExceptionPointers, dumpPath, mdumpValue);
 	}
 
 	LONG lRet = EXCEPTION_CONTINUE_SEARCH;

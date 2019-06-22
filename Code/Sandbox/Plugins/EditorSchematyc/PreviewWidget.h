@@ -14,7 +14,7 @@ struct SRenderContext;
 struct SMouseEvent;
 // Forward declare classes.
 class QBoxLayout;
-class QAdvancedPropertyTree;
+class QAdvancedPropertyTreeLegacy;
 class QPushButton;
 class QSplitter;
 class QViewport;
@@ -37,7 +37,7 @@ protected:
 	void showEvent(QShowEvent* pEvent);
 
 private:
-	QAdvancedPropertyTree* m_pPropertyTree;
+	QAdvancedPropertyTreeLegacy* m_pPropertyTree;
 };
 
 struct IGizmoTransformOp // #SchematycTODO : Use generalized transform system.

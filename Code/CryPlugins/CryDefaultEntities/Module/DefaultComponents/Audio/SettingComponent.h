@@ -16,10 +16,10 @@ namespace Audio
 {
 namespace DefaultComponents
 {
-struct SSettingSerializeHelper
+struct SSettingSerializeHelper final
 {
 	void Serialize(Serialization::IArchive& archive);
-	bool operator==(SSettingSerializeHelper const& other) const { return m_name == other.m_name; }
+	bool operator==(SSettingSerializeHelper const& other) const { return m_id == other.m_id; }
 
 	CryAudio::ControlId m_id = CryAudio::InvalidControlId;
 	string              m_name;

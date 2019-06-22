@@ -21,6 +21,7 @@ struct IEvent;
 struct IParameterConnection;
 struct ISwitchStateConnection;
 struct ITriggerConnection;
+struct IListener;
 
 /**
  * An implementation may use this interface to define a class for storing implementation-specific
@@ -54,10 +55,12 @@ struct IObject
 
 	/**
 	 * Set the provided occlusion value.
+	 * @param pIListener - listener which listens to the occluded sound.
 	 * @param occlusion - the occlusion value to be set, it describes how much all sound paths (direct and indirect) are obstructed
+	 * @param numRemainingListeners - the number of remaining listeners which will get an occlusion update. Is 1 for the last listener.
 	 * @return void
 	 */
-	virtual void SetOcclusion(float const occlusion) = 0;
+	virtual void SetOcclusion(IListener* const pIListener, float const occlusion, uint8 const numRemainingListeners) = 0;
 
 	/**
 	 * Set the provided occlusion type.
@@ -79,6 +82,20 @@ struct IObject
 	 * @return ERequestStatus - indicates the outcome of underlying process
 	 */
 	virtual ERequestStatus SetName(char const* const szName) = 0;
+
+	/**
+	 * Adds a listener to the audio object.
+	 * @param pIListener - listener to add.
+	 * @return void
+	 */
+	virtual void AddListener(IListener* const pIListener) = 0;
+
+	/**
+	 * Removes a listener from the audio object.
+	 * @param pIListener - listener to remove.
+	 * @return void
+	 */
+	virtual void RemoveListener(IListener* const pIListener) = 0;
 
 	/**
 	 * Enables and disables a certain functionality on the object.

@@ -14,7 +14,7 @@ namespace Schematyc2
 		//////////////////////////////////////////////////////////////////////////
 		void EnumFilesInFolder(const char* szFolderName, const char* szExtension, FileEnumCallback callback, EFileEnumFlags flags)
 		{
-			LOADING_TIME_PROFILE_SECTION_ARGS(szFolderName);
+			CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, szFolderName);
 			SCHEMATYC2_SYSTEM_ASSERT(szFolderName);
 			if(szFolderName)
 			{

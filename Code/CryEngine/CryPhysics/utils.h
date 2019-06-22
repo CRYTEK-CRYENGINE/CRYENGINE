@@ -739,7 +739,7 @@ struct costab {
 	float operator[](int idx) const { return g_sintab[SINCOSTABSZ-idx]; }
 };
 
-#ifdef __clang__
+#if CRY_COMPILER_CLANG || CRY_COMPILER_GCC
 #define g_costab costab()	// WORKAROUND: For some reason gets confused and expects lambda function
 #else
 #define g_costab (costab())

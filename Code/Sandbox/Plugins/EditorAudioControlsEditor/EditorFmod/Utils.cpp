@@ -52,35 +52,55 @@ string GetTypeName(EItemType const type)
 	switch (type)
 	{
 	case EItemType::Folder:
-		name = "folder:";
-		break;
+		{
+			name = "folder:";
+			break;
+		}
 	case EItemType::Event:
-		name = "event:";
-		break;
+		{
+			name = "event:";
+			break;
+		}
 	case EItemType::Parameter:
-		name = "parameter:";
-		break;
+		{
+			name = "parameter:";
+			break;
+		}
 	case EItemType::Snapshot:
-		name = "snapshot:";
-		break;
+		{
+			name = "snapshot:";
+			break;
+		}
 	case EItemType::Bank:
-		name = "bank:";
-		break;
+		{
+			name = "bank:";
+			break;
+		}
 	case EItemType::Return:
-		name = "return:";
-		break;
+		{
+			name = "return:";
+			break;
+		}
 	case EItemType::VCA:
-		name = "vca:";
-		break;
+		{
+			name = "vca:";
+			break;
+		}
 	case EItemType::MixerGroup:
-		name = "group:";
-		break;
+		{
+			name = "group:";
+			break;
+		}
 	case EItemType::EditorFolder:
-		name = "editorfolder:";
-		break;
+		{
+			name = "editorfolder:";
+			break;
+		}
 	default:
-		name = "";
-		break;
+		{
+			name = "";
+			break;
+		}
 	}
 
 	return name;

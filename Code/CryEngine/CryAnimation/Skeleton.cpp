@@ -87,7 +87,7 @@ bool CPoseData::Initialize(const CDefaultSkeleton& skeleton)
 
 bool CPoseData::Initialize(const CPoseData& poseData)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Character Pose Data Cloned");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Character Pose Data Cloned");
 
 	m_jointCount = poseData.GetJointCount();
 	m_jointsBuffer = poseData.m_jointsBuffer;

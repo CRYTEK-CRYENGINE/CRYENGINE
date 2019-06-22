@@ -8,7 +8,7 @@
 #include <AssetSystem/Asset.h>
 #include <AssetSystem/Browser/AssetBrowserDialog.h>
 #include <IUndoObject.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 
 #include <Cry3DEngine/I3DEngine.h>
 #include <CrySerialization/Decorators/Resources.h>
@@ -27,14 +27,12 @@ struct SPreset
 {
 	void Serialize(Serialization::IArchive& ar)
 	{
-		ar(isDefault, "default", "Default");
-		ar(Serialization::MakeResourceSelector<>(name, "Environment"), "name", "Name");
+		ar(Serialization::MakeResourceSelector<>(name, "Environment"), "name", "^Name");
 	}
 
 	friend bool operator<(const SPreset& a, const SPreset& b)
 	{
-		const int i = a.name.CompareNoCase(b.name);
-		return (i < 0);
+		return a.name.CompareNoCase(b.name) < 0;
 	}
 
 	friend bool operator==(const SPreset& a, const SPreset& b)
@@ -72,11 +70,33 @@ public:
 			oldValues = m_presets;
 		}
 
+		string defaultPreset = GetDefault();
+		Serialization::StringList items;
+		for (const SPreset& preset : m_presets)
+		{
+			items.push_back(preset.name);
+		}
+
+		if (!items.empty())
+		{
+			if (defaultPreset.empty())
+			{
+				defaultPreset = items.front();
+			}
+
+			Serialization::StringListValue dropDown(items, defaultPreset);
+			ar(dropDown, "default", "Default Preset");
+
+			if (ar.isInput())
+			{
+				SetDefault(dropDown.c_str());
+			}
+		}
+
 		ar(m_presets, "presets", "Presets");
 
 		if (ar.isInput())
 		{
-			UpdateRadioButtons(oldValues);
 			UpdateTimeOfDay(oldValues, std::vector<SPreset>(m_presets));
 		}
 	}
@@ -89,43 +109,26 @@ public:
 	}
 
 private:
-	// Disables mark of the old default preset if changed
-	void UpdateRadioButtons(const std::vector<SPreset>& oldValues)
+	string GetDefault() const
 	{
-		string oldDefault;
-		auto it = std::find_if(oldValues.cbegin(), oldValues.cend(), [](const SPreset& x)
+		auto it = std::find_if(m_presets.cbegin(), m_presets.cend(), [](const SPreset& x)
 		{
 			return x.isDefault;
 		});
 
-		if (it != oldValues.cend())
+		if (it != m_presets.cend())
 		{
-			oldDefault = it->name;
+			return it->name;
 		}
 
+		return string();
+	}
+
+	void SetDefault(const string& defaultPreset)
+	{
 		for (SPreset& preset : m_presets)
 		{
-			if (preset.name.empty())
-			{
-				preset.isDefault = false;
-				continue;
-			}
-
-			if (!preset.isDefault || preset.name.CompareNoCase(oldDefault) == 0)
-			{
-				continue;
-			}
-
-			auto it = std::find_if(m_presets.begin(), m_presets.end(), [&oldDefault](const SPreset& x)
-			{
-				return x.isDefault && x.name.CompareNoCase(oldDefault) == 0;
-			});
-
-			if (it != m_presets.end())
-			{
-				it->isDefault = false;
-			}
-			break;
+			preset.isDefault = preset.name.CompareNoCase(defaultPreset) == 0;
 		}
 	}
 
@@ -179,6 +182,7 @@ private:
 	}
 private:
 	std::vector<SPreset> m_presets;
+	string m_default;
 };
 
 class CUndoLevelPresets : public IUndoObject
@@ -217,15 +221,18 @@ CEnvironmentPresetsWidget::CEnvironmentPresetsWidget(QWidget* pParent /*= nullpt
 {
 	using namespace Private_EnvironmentPresetWidget;
 
-	m_pPropertyTree = new QPropertyTree(this);
+	m_pPropertyTree = new QPropertyTreeLegacy(this);
+	
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalBeginUndo, this, &CEnvironmentPresetsWidget::OnBeginUndo);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalEndUndo, this, &CEnvironmentPresetsWidget::OnEndUndo);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalAboutToSerialize, this, &CEnvironmentPresetsWidget::BeforeSerialization);
+	connect(m_pPropertyTree, &QPropertyTreeLegacy::signalSerialized, this, &CEnvironmentPresetsWidget::AfterSerialization);
+	setAttribute(Qt::WA_DeleteOnClose);
 
-	connect(m_pPropertyTree, &QPropertyTree::signalBeginUndo, this, &CEnvironmentPresetsWidget::OnBeginUndo);
-	connect(m_pPropertyTree, &QPropertyTree::signalEndUndo, this, &CEnvironmentPresetsWidget::OnEndUndo);
-	connect(m_pPropertyTree, &QPropertyTree::signalAboutToSerialize, this, &CEnvironmentPresetsWidget::BeforeSerialization);
-	connect(m_pPropertyTree, &QPropertyTree::signalSerialized, this, &CEnvironmentPresetsWidget::AfterSerialization);
-
+	m_pPropertyTree->setSizeHint(QSize(70, 70));
+	m_pPropertyTree->setValueColumnWidth(0.70f);
 	m_pPropertyTree->setExpandLevels(2);
-	m_pPropertyTree->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+	m_pPropertyTree->setShowContainerIndices(false);
 
 	m_pPresetsSerializer.reset(new SPresetsSerializer());
 	m_pPresetsSerializer->Init();

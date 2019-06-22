@@ -18,7 +18,6 @@
 #pragma once
 #include <algorithm>
 #include <cstddef>
-#include "../CryCore/Assert/CryAssert.h"
 
 #if !defined(_RELEASE)
 //! Enable this to check for heap corruption on windows systems by walking the crt.
@@ -521,7 +520,7 @@ void CryGetMemoryInfoForModule(CryModuleMemoryInfo* pInfo);
 #if defined(NOT_USE_CRY_MEMORY_MANAGER)
 CRYMM_INLINE void* CryModuleMalloc(size_t size) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	void* ptr = malloc(size);
 	MEMREPLAY_SCOPE_ALLOC(ptr, size, 0);
 	return ptr;
@@ -529,7 +528,7 @@ CRYMM_INLINE void* CryModuleMalloc(size_t size) noexcept
 
 CRYMM_INLINE void* CryModuleRealloc(void* memblock, size_t size) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	void* ret = realloc(memblock, size);
 	MEMREPLAY_SCOPE_REALLOC(memblock, ret, size, 0);
 	return ret;
@@ -537,14 +536,14 @@ CRYMM_INLINE void* CryModuleRealloc(void* memblock, size_t size) noexcept
 
 CRYMM_INLINE void CryModuleFree(void* memblock) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	free(memblock);
 	MEMREPLAY_SCOPE_FREE(memblock);
 }
 
 CRYMM_INLINE void* CryModuleCalloc(size_t num, size_t size) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	void* ptr = calloc(num, size);
 	MEMREPLAY_SCOPE_ALLOC(ptr, num * size, 0);
 	return ptr;
@@ -552,7 +551,7 @@ CRYMM_INLINE void* CryModuleCalloc(size_t num, size_t size) noexcept
 
 CRYMM_INLINE void CryModuleMemalignFree(void* memblock) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
     #if (defined(CRY_COMPILER_CLANG) || defined(CRY_COMPILER_GCC)) && !CRY_PLATFORM_APPLE
 	free(memblock);
 	#else
@@ -563,7 +562,7 @@ CRYMM_INLINE void CryModuleMemalignFree(void* memblock) noexcept
 
 CRYMM_INLINE void* CryModuleReallocAlign(void* memblock, size_t size, size_t alignment) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
     #if defined(CRY_COMPILER_CLANG) || defined(CRY_COMPILER_GCC)
 	// realloc makes no guarantees about the alignment of memory.  Rather than unconditionally
 	// copying data, if the new allocation we got back from realloc isn't properly aligned:
@@ -599,7 +598,7 @@ CRYMM_INLINE void* CryModuleReallocAlign(void* memblock, size_t size, size_t ali
 
 CRYMM_INLINE void* CryModuleMemalign(size_t size, size_t alignment) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
     #if (defined(CRY_COMPILER_CLANG) || defined(CRY_COMPILER_GCC)) && !CRY_PLATFORM_APPLE
 	void* ret = memalign(alignment, size);
 	#else
@@ -637,7 +636,7 @@ extern "C"
 
 CRYMM_INLINE void* CryModuleCRTMalloc(size_t s) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CrtMalloc);
 	void* ret = CryModuleMalloc(s);
 	MEMREPLAY_SCOPE_ALLOC(ret, s, 0);
 	return ret;
@@ -645,7 +644,7 @@ CRYMM_INLINE void* CryModuleCRTMalloc(size_t s) noexcept
 
 CRYMM_INLINE void* CryModuleCRTRealloc(void* p, size_t s) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CrtMalloc);
 	void* ret = CryModuleRealloc(p, s);
 	MEMREPLAY_SCOPE_REALLOC(p, ret, s, 0);
 	return ret;
@@ -653,7 +652,7 @@ CRYMM_INLINE void* CryModuleCRTRealloc(void* p, size_t s) noexcept
 
 CRYMM_INLINE void CryModuleCRTFree(void* p) noexcept
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CrtMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CrtMalloc);
 	CryModuleFree(p);
 	MEMREPLAY_SCOPE_FREE(p);
 }

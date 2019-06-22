@@ -158,10 +158,10 @@ public:
 			return eTaskResult_Failed;
 		}
 
-		char buffer[ICryPak::g_nMaxPath] = { 0 };
-		string filename = gEnv->pCryPak->AdjustFileName(m_createdFile.c_str(), buffer, 0);
-		m_outputFileSize = gEnv->pCryPak->GetFileSizeOnDisk(filename.c_str());
-		m_compressedCafSize = gEnv->pCryPak->FGetSize(m_animationPath.c_str(), true);
+		CryPathString filename;
+		gEnv->pCryPak->AdjustFileName(m_createdFile, filename, 0);
+		m_outputFileSize = gEnv->pCryPak->GetFileSizeOnDisk(filename);
+		m_compressedCafSize = gEnv->pCryPak->FGetSize(m_animationPath, true);
 		return eTaskResult_Completed;
 	}
 

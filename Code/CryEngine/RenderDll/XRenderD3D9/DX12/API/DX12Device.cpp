@@ -24,7 +24,7 @@ CDevice* CDevice::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatur
 
 #if USE_DXC
 	// Enable shader model 6.x
-	if (CRenderer::ShaderTargetFlag & SF_D3D12)
+	if (CRenderer::ShaderTargetFlag& SF_D3D12)
 	{
 		HRESULT res = D3D12EnableExperimentalFeatures(1, &D3D12ExperimentalShaderModels, nullptr, nullptr);
 		DX12_ASSERT(res == S_OK, "Enabling experimental features for D3D12 Device didn't work!");
@@ -66,7 +66,7 @@ CDevice* CDevice::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatur
 	// On console there is only one adapter (the default one which can be reached using nullptr)
 	if (pDXGIAdapter == nullptr)
 	{
-		DX12_ASSERT(0, "No adapter available to create D3D12 Device!");
+		DX12_ERROR("No adapter available to create D3D12 Device!");
 		return NULL;
 	}
 #endif // !CRY_PLATFORM_CONSOLE
@@ -87,7 +87,7 @@ CDevice* CDevice::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatur
 
 	if (hr != S_OK)
 	{
-		DX12_ASSERT(0, "Failed to create D3D12 Device!");
+		DX12_ERROR("Failed to create D3D12 Device!");
 		return NULL;
 	}
 
@@ -104,13 +104,13 @@ CDevice* CDevice::Create(CCryDX12GIAdapter* pAdapter, D3D_FEATURE_LEVEL* pFeatur
 		nodeMask = (1UL << 2) - 1UL;
 		switch (nodeCount)
 		{
-		case  2:
+		case 2:
 			pDevice12 = new BroadcastableD3D12Device<2>(pDevice12, __uuidof(*pDevice12));
 			break;
-		case  3:
+		case 3:
 			pDevice12 = new BroadcastableD3D12Device<2>(pDevice12, __uuidof(*pDevice12));
 			break;
-		case  4:
+		case 4:
 			pDevice12 = new BroadcastableD3D12Device<2>(pDevice12, __uuidof(*pDevice12));
 			break;
 		default:
@@ -171,10 +171,10 @@ bool CDevice::WaitForCompletion(ID3D12Fence* pFence, UINT64 fenceValue) const
 
 //---------------------------------------------------------------------------------------------------------------------
 HRESULT STDMETHODCALLTYPE CDevice::DuplicateNativeCommittedResource(
-  _In_ UINT creationMask,
-  _In_ UINT visibilityMask,
-  _In_ ID3D12Resource* pInputResource,
-  _Out_ ID3D12Resource** ppOutputResource)
+	_In_ UINT creationMask,
+	_In_ UINT visibilityMask,
+	_In_ ID3D12Resource* pInputResource,
+	_Out_ ID3D12Resource** ppOutputResource)
 {
 	D3D12_HEAP_PROPERTIES sHeap;
 	D3D12_RESOURCE_DESC resourceDesc = pInputResource->GetDesc();
@@ -286,7 +286,7 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 
 	// Timer query heap
 	{
-		D3D12_QUERY_HEAP_DESC desc = { D3D12_QUERY_HEAP_TYPE_TIMESTAMP, 4096, m_nodeMask };
+		D3D12_QUERY_HEAP_DESC desc = { D3D12_QUERY_HEAP_TYPE_TIMESTAMP, MAX_TIMESTAMP_GROUPS * 1024 /*CDeviceTimestampGroup_Base::kMaxTimestamps*/, m_nodeMask };
 		m_TimestampHeap.Init(this, desc);
 	}
 
@@ -297,23 +297,23 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 	}
 
 	if (S_OK != CreateOrReuseCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, blsi(m_nodeMask), m_nodeMask),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * m_TimestampHeap.GetCapacity()),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_GFX_ARGS(&m_TimestampDownloadBuffer)))
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, blsi(m_nodeMask), m_nodeMask),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * m_TimestampHeap.GetCapacity()),
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_GFX_ARGS(&m_TimestampDownloadBuffer)))
 	{
 		DX12_ERROR("Could not create intermediate timestamp download buffer!");
 	}
 
 	if (S_OK != CreateOrReuseCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, blsi(m_nodeMask), m_nodeMask),
-		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * m_OcclusionHeap.GetCapacity()),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_GFX_ARGS(&m_OcclusionDownloadBuffer)))
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, blsi(m_nodeMask), m_nodeMask),
+				D3D12_HEAP_FLAG_NONE,
+				&CD3DX12_RESOURCE_DESC::Buffer(sizeof(UINT64) * m_OcclusionHeap.GetCapacity()),
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_GFX_ARGS(&m_OcclusionDownloadBuffer)))
 	{
 		DX12_ERROR("Could not create intermediate occlusion download buffer!");
 	}
@@ -639,7 +639,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheSampler(const D3D12_SAMPLER_DESC* pDes
 	{
 		if (!m_SamplerCacheFreeTable.size() && (m_SamplerCache.GetCursor() >= m_SamplerCache.GetCapacity()))
 		{
-			DX12_ASSERT(false, "Sampler heap is too small!");
+			DX12_ERROR("Sampler heap is too small!");
 			return INVALID_CPU_DESCRIPTOR_HANDLE;
 		}
 
@@ -683,7 +683,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheShaderResourceView(const D3D12_SHADER_
 	{
 		if (!m_ShaderResourceDescriptorFreeTable.size() && (m_ShaderResourceDescriptorCache.GetCursor() >= m_ShaderResourceDescriptorCache.GetCapacity()))
 		{
-			DX12_ASSERT(false, "ShaderResourceView heap is too small!");
+			DX12_ERROR("ShaderResourceView heap is too small!");
 			return INVALID_CPU_DESCRIPTOR_HANDLE;
 		}
 
@@ -720,7 +720,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheUnorderedAccessView(const D3D12_UNORDE
 	{
 		if (!m_UnorderedAccessDescriptorFreeTable.size() && (m_UnorderedAccessDescriptorCache.GetCursor() >= m_UnorderedAccessDescriptorCache.GetCapacity()))
 		{
-			DX12_ASSERT(false, "UnorderedAccessView heap is too small!");
+			DX12_ERROR("UnorderedAccessView heap is too small!");
 			return INVALID_CPU_DESCRIPTOR_HANDLE;
 		}
 
@@ -757,7 +757,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheDepthStencilView(const D3D12_DEPTH_STE
 	{
 		if (!m_DepthStencilDescriptorFreeTable.size() && (m_DepthStencilDescriptorCache.GetCursor() >= m_DepthStencilDescriptorCache.GetCapacity()))
 		{
-			DX12_ASSERT(false, "DepthStencilView heap is too small!");
+			DX12_ERROR("DepthStencilView heap is too small!");
 			return INVALID_CPU_DESCRIPTOR_HANDLE;
 		}
 
@@ -794,7 +794,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheRenderTargetView(const D3D12_RENDER_TA
 	{
 		if (!m_RenderTargetDescriptorFreeTable.size() && (m_RenderTargetDescriptorCache.GetCursor() >= m_RenderTargetDescriptorCache.GetCapacity()))
 		{
-			DX12_ASSERT(false, "DepthStencilView heap is too small!");
+			DX12_ERROR("RenderTargetView heap is too small!");
 			return INVALID_CPU_DESCRIPTOR_HANDLE;
 		}
 
@@ -822,9 +822,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE CDevice::CacheRenderTargetView(const D3D12_RENDER_TA
 
 //---------------------------------------------------------------------------------------------------------------------
 HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseStagingResource(
-  _In_ ID3D12Resource* pInputResource,
-  _Out_ ID3D12Resource** ppStagingResource,
-  _In_ BOOL Upload) threadsafe
+	_In_ ID3D12Resource* pInputResource,
+	_Out_ ID3D12Resource** ppStagingResource,
+	_In_ BOOL Upload) threadsafe
 {
 	D3D12_HEAP_PROPERTIES sHeap;
 	D3D12_RESOURCE_DESC resourceDesc = pInputResource->GetDesc();
@@ -903,7 +903,7 @@ HRESULT STDMETHODCALLTYPE CDevice::DuplicateCommittedResource(
 
 //---------------------------------------------------------------------------------------------------------------------
 HRESULT STDMETHODCALLTYPE CDevice::SubstituteUsedCommittedResource(
-	_In_ const FVAL64 (&fenceValues)[CMDQUEUE_NUM],
+	_In_ const FVAL64(&fenceValues)[CMDQUEUE_NUM],
 	_In_ D3D12_RESOURCE_STATES OutputState,
 	_Inout_ ID3D12Resource** ppSubstituteResource) threadsafe
 {
@@ -986,8 +986,8 @@ HRESULT STDMETHODCALLTYPE CDevice::CreateOrReuseCommittedResource(
 	}
 
 	return GetD3D12Device()->CreateCommittedResource(
-	  pHeapProperties, HeapFlags, pResourceDesc, InitialResourceState,
-	  pOptimizedClearValue, riidResource, ppvResource);
+		pHeapProperties, HeapFlags, pResourceDesc, InitialResourceState,
+		pOptimizedClearValue, riidResource, ppvResource);
 }
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -1039,8 +1039,8 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				}
 				else
 				{
-					ULONG counter = it->first->Release();
-					DX12_ASSERT(counter == 0, "Ref-Counter of D3D12 resource %s is not 0 but %d, memory will leak!", GetDebugName(it->first).c_str(), counter);
+					if (it->first->Release() != 0)
+						DX12_ERROR("Invalid ref-count of D3D12 resource %s, memory will leak!", GetDebugName(it->first).c_str());
 
 					releases++;
 				}
@@ -1068,8 +1068,8 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				// so even when the CResource is destructed and the d3d resource
 				// given up for release, they can continue being in use
 				// This means the ref-count here doesn't necessarily need to be 0
-				ULONG counter = it->second.back().pObject->Release();
-				DX12_ASSERT(counter == 0, "Ref-Counter of D3D12 resource %s is not 0 but %d, memory will leak!", GetDebugName(it->second.back().pObject).c_str(), counter);
+				if (it->second.back().pObject->Release() != 0)
+					DX12_ERROR("Invalid ref-count of D3D12 resource %s, memory will leak!", GetDebugName(it->second.back().pObject).c_str());
 
 				it->second.pop_back();
 				evictions++;
@@ -1095,18 +1095,16 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 		int rowPos = 25;
 		int rowMax = 25;
 		float colPos = 20;
-		size_t releaseSize = 0;
 		size_t recycleSize = 0;
-		size_t releaseNums = 0;
-		size_t recycleNums = 0; 
+		size_t recycleNums = 0;
 
 		const auto& fenceManager = GetScheduler().GetFenceManager();
 
 		IRenderAuxText::Draw2dLabel(colPos, float(rowPos += rowHeight), 2.0f, Col_Blue, false, "GPU Resource Heap Debug");
 		IRenderAuxText::Draw2dLabel(colPos, float(rowPos += rowHeight), fontSize, Col_Blue, false, "Fences: Current %lli, Submitted %lli, Completed %lli",
-			fenceManager.GetCurrentValue(CMDQUEUE_GRAPHICS), fenceManager.GetSubmittedValue(CMDQUEUE_GRAPHICS), fenceManager.GetLastCompletedFenceValue(CMDQUEUE_GRAPHICS));
+		                            fenceManager.GetCurrentValue(CMDQUEUE_GRAPHICS), fenceManager.GetSubmittedValue(CMDQUEUE_GRAPHICS), fenceManager.GetLastCompletedFenceValue(CMDQUEUE_GRAPHICS));
 		IRenderAuxText::Draw2dLabel(colPos, float(rowPos += rowHeight), fontSize, Col_Blue, false, "Movements: Releases %lli, Recyclations %lli, Evictions %lli",
-			releases, recyclations, evictions);
+		                            releases, recyclations, evictions);
 
 		IRenderAuxText::Draw2dLabel(colPos, float(rowPos += rowHeight), 2.0f, Col_Yellow, false, "Recycle-heap:");
 
@@ -1137,9 +1135,9 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				recycleSize += counter * size;
 				recycleNums += counter;
 
-				IRenderAuxText::Draw2dLabel /* Ex */(colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
-					"%2x: BUF %8d bytes [%2x %2x %1x %1x]", counter, size,
-					sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type);
+				IRenderAuxText::Draw2dLabel/* Ex */ (colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
+				                                     "%2x: BUF %8d bytes [%2x %2x %1x %1x]", counter, size,
+				                                     sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type);
 			}
 			else if (sDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE1D)
 			{
@@ -1147,10 +1145,10 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				recycleSize += counter * size;
 				recycleNums += counter;
 
-				IRenderAuxText::Draw2dLabel /* Ex */(colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
-					"%2x: T1D %8d bytes [%2x %2x %1x %1x], %d[%d]*%d", counter, size,
-					sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type,
-					uint32(sDesc.Width), sDesc.DepthOrArraySize, sDesc.MipLevels);
+				IRenderAuxText::Draw2dLabel/* Ex */ (colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
+				                                     "%2x: T1D %8d bytes [%2x %2x %1x %1x], %d[%d]*%d", counter, size,
+				                                     sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type,
+				                                     uint32(sDesc.Width), sDesc.DepthOrArraySize, sDesc.MipLevels);
 			}
 			else if (sDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D)
 			{
@@ -1158,10 +1156,10 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				recycleSize += counter * size;
 				recycleNums += counter;
 
-				IRenderAuxText::Draw2dLabel /* Ex */(colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
-					"%2x: T2D %8d bytes [%2x %2x %1x %1x], %dx%d[%d]*%d", counter, size,
-					sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type,
-					uint32(sDesc.Width), sDesc.Height, sDesc.DepthOrArraySize, sDesc.MipLevels);
+				IRenderAuxText::Draw2dLabel/* Ex */ (colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
+				                                     "%2x: T2D %8d bytes [%2x %2x %1x %1x], %dx%d[%d]*%d", counter, size,
+				                                     sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type,
+				                                     uint32(sDesc.Width), sDesc.Height, sDesc.DepthOrArraySize, sDesc.MipLevels);
 			}
 			else if (sDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
 			{
@@ -1169,10 +1167,10 @@ void CDevice::FlushReleaseHeap(const UINT64 (&completedFenceValues)[CMDQUEUE_NUM
 				recycleSize += counter * size;
 				recycleNums += counter;
 
-				IRenderAuxText::Draw2dLabel /* Ex */(colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
-					"%2x: T3D %8d bytes [%2x %2x %1x %1x], %dx%dx%d*%d", counter, size,
-					sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type,
-					uint32(sDesc.Width), sDesc.Height, sDesc.DepthOrArraySize, sDesc.MipLevels);
+				IRenderAuxText::Draw2dLabel/* Ex */ (colPos, float(rowPos += rowHeightSmall), fontSizeSmall, Col_Yellow, false /* eDrawText_Monospace */,
+				                                     "%2x: T3D %8d bytes [%2x %2x %1x %1x], %dx%dx%d*%d", counter, size,
+				                                     sHeapFlags, sDesc.Flags, sHeapProperties.CPUPageProperty, sHeapProperties.Type,
+				                                     uint32(sDesc.Width), sDesc.Height, sDesc.DepthOrArraySize, sDesc.MipLevels);
 			}
 
 			if (rowPos >= (400 - rowHeightSmall))
@@ -1222,7 +1220,7 @@ void CDevice::ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], ID3D12Reso
 			hashableBlob.sHeapProperties.Type == D3D11_USAGE_DEFAULT;
 
 		UINT64 fenceValuesWithPrunningDelay[CMDQUEUE_NUM];
-		const FVAL64 (&completedFenceValues)[CMDQUEUE_NUM] = m_Scheduler.GetFenceManager().GetLastCompletedFenceValues();
+		const FVAL64(&completedFenceValues)[CMDQUEUE_NUM] = m_Scheduler.GetFenceManager().GetLastCompletedFenceValues();
 		MaxFenceValues(fenceValuesWithPrunningDelay, fenceValues, completedFenceValues);
 		const bool isUnused =
 			SmallerEqualFenceValues(fenceValuesWithPrunningDelay, completedFenceValues);
@@ -1293,6 +1291,25 @@ void CDevice::FlushAndWaitForGPU()
 	m_Scheduler.Flush(false);
 	m_Scheduler.GetCommandListPool(CMDQUEUE_GRAPHICS).GetAsyncCommandQueue().Flush();
 	m_Scheduler.GetCommandListPool(CMDQUEUE_GRAPHICS).WaitForFenceOnCPU();
+}
+
+void CDevice::FlushAndWaitForGPU(const UINT64 (&fenceValues)[CMDQUEUE_NUM])
+{
+	// Submit pending command-lists containing some fence-value in case there are left-overs, make sure it's flushed to and executed on the hardware
+	auto& rScheduler = GetScheduler();
+	auto& rFenceSet = rScheduler.GetFenceManager();
+
+	// Group-FlushToFence()
+	rScheduler.SubmitCommands(CMDQUEUE_GRAPHICS, false, fenceValues[CMDQUEUE_GRAPHICS]);
+	rScheduler.SubmitCommands(CMDQUEUE_COMPUTE , false, fenceValues[CMDQUEUE_COMPUTE ]);
+	rScheduler.SubmitCommands(CMDQUEUE_COPY    , false, fenceValues[CMDQUEUE_COPY    ]);
+
+	rScheduler.GetCommandListPool(CMDQUEUE_GRAPHICS).GetAsyncCommandQueue().Flush(fenceValues[CMDQUEUE_GRAPHICS]);
+	rScheduler.GetCommandListPool(CMDQUEUE_COMPUTE ).GetAsyncCommandQueue().Flush(fenceValues[CMDQUEUE_COMPUTE ]);
+	rScheduler.GetCommandListPool(CMDQUEUE_COPY    ).GetAsyncCommandQueue().Flush(fenceValues[CMDQUEUE_COPY    ]);
+
+	// Group-WaitForFence()
+	rFenceSet.WaitForFence(fenceValues);
 }
 
 }

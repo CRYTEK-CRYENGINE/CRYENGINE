@@ -169,7 +169,10 @@ CryEditorPlugin(EditorAnimation PCH "stdafx.cpp" SOLUTION_FOLDER "Sandbox/Plugin
 target_include_directories(${THIS_PROJECT} PRIVATE ..)
 target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt)	
 target_include_directories(${THIS_PROJECT} PRIVATE ../../EditorQt/Include)
+target_include_directories(${THIS_PROJECT} PRIVATE ../MFCToolsPlugin)
+
 target_link_libraries(${THIS_PROJECT} PRIVATE Sandbox)
+target_link_libraries(${THIS_PROJECT} PRIVATE Sandbox MFCToolsPlugin)
 set_libpath_flag()
 set_property(TARGET ${THIS_PROJECT} APPEND_STRING PROPERTY LINK_FLAGS " ${LIBPATH_FLAG}OpenCollada/COLLADAStreamWriter/lib/win/Win32/Release")
 

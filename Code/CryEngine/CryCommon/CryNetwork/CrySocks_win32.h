@@ -17,7 +17,7 @@
 #define CRY_INVALID_SOCKET INVALID_SOCKET
 #define CRY_SOCKET_ERROR   SOCKET_ERROR
 
-#include <string.h>
+#include <cstring>
 
 ///////////////////////////////////////////////////////////////////////////////
 

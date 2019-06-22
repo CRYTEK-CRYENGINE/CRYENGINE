@@ -12,6 +12,7 @@
 #include <vector>
 
 class QAction;
+class QCommandAction;
 
 //! CAbstractMenu is a simple menu abstraction which is similar to QMenu and provides the following benefits:
 //! - Priority based ordering
@@ -91,6 +92,15 @@ public:
 	//! \sa CreateMenu
 	void AddAction(QAction* pAction, int sectionHint = eSections_Default, int priorityHint = ePriorities_Append);
 
+	//! Add an action to the menu.
+	//! \param priority If value is EPriorities::ePriorities_Append, the item is assigned the next integer that is
+	//! greater than the maximum priority of all existing items. This effectively appends the item
+	//! to the menu. Otherwise the value is the priority of the menu item.
+	//! \param section If value is ESections::eSections_Default, the item will be added to the default section.
+	//! Otherwise the menu item is added to this section.
+	//! \sa ICommandManager
+	void AddCommandAction(QCommandAction* pAction, int sectionHint = eSections_Default, int priorityHint = ePriorities_Append);
+
 	//! Add an action based on editor commands to the menu. The command must be registered and be a UI command.
 	//! \param priority If value is EPriorities::ePriorities_Append, the item is assigned the next integer that is
 	//! greater than the maximum priority of all existing items. This effectively appends the item
@@ -98,7 +108,7 @@ public:
 	//! \param section If value is ESections::eSections_Default, the item will be added to the default section.
 	//! Otherwise the menu item is added to this section.
 	//! \sa ICommandManager
-	void AddCommandAction(const char* szCommand, int sectionHint = eSections_Default, int priorityHint = ePriorities_Append);
+	QCommandAction* CreateCommandAction(const char* szCommand, int sectionHint = eSections_Default, int priorityHint = ePriorities_Append);
 
 	//! Creates an action and adds it to the menu.
 	//! \param priority If value is EPriorities::ePriorities_Append, the item is assigned the next integer that is
@@ -134,6 +144,9 @@ public:
 	//! \sa AddAction
 	CAbstractMenu* CreateMenu(const QString& name, int sectionHint = eSections_Default, int priorityHint = ePriorities_Append);
 
+	//! Finds a command action by it's id.
+	QCommandAction* FindAction(const QString& name) const;
+
 	void           SetSectionName(int section, const char* szName);
 
 	bool           IsNamedSection(int section) const;
@@ -157,9 +170,35 @@ public:
 
 	void        Build(IWidgetBuilder& widgetBuilder) const;
 
-	CCrySignal<void()>               signalActionAdded;
-	CCrySignal<void(CAbstractMenu*)> signalMenuAdded;
-	CCrySignal<void(CAbstractMenu*)> signalAboutToShow;
+	class CDescendantModifiedEvent
+	{
+	public:
+		enum class Type
+		{
+			ActionAdded,
+		};
+
+		virtual ~CDescendantModifiedEvent() { }
+
+		virtual Type GetType() const = 0;
+	};
+
+	class CActionAddedEvent : public CDescendantModifiedEvent
+	{
+	public:
+		CActionAddedEvent(QAction* pAction) : m_pAction(pAction) {}
+
+		Type     GetType() const   { return Type::ActionAdded; }
+		QAction* GetAction() const { return m_pAction; }
+
+	private:
+		QAction* m_pAction;
+	};
+
+	CCrySignal<void(CDescendantModifiedEvent&)> signalDescendantModified;
+	CCrySignal<void(QAction*)>                  signalActionAdded;
+	CCrySignal<void(CAbstractMenu*)>            signalMenuAdded;
+	CCrySignal<void(CAbstractMenu*)>            signalAboutToShow;
 
 private:
 	CAbstractMenu(const char* szName);
@@ -170,6 +209,8 @@ private:
 
 	void InsertItem(SMenuItem* pItem);
 	void InsertNamedSection(std::unique_ptr<SNamedSection>&& namedSection);
+
+	void OnMenuAdded(CAbstractMenu* pMenu);
 
 private:
 	std::vector<_smart_ptr<CAbstractMenu>>      m_subMenus;

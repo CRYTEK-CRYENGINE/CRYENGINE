@@ -206,31 +206,94 @@ void AttachToGroup()
 	GetIEditorImpl()->GetLevelEditorSharedState()->PickObject(pCallback);
 }
 
-void Detach_Impl(bool shouldKeepPosition, bool shouldPlaceOnRoot)
+//! Add objects identified by name to a group identified by name  
+void AddObjectsToGroup(const std::vector<std::string>& objectsToAttachNames, const std::string& groupName)
 {
-	const CSelectionGroup* pSelection = GetIEditorImpl()->GetSelection();
-	for (int i = 0, cnt = pSelection->GetCount(); i < cnt; ++i)
+	//Register the Attach undo
+	CUndo undo("Add to Group");
+	
+	//Get the group object from the groupName
+	CBaseObject* pGroup = GetIEditorImpl()->GetObjectManager()->FindObject(groupName.c_str());
+	
+	//Make sure the name refers to an object and that object is a group
+	if (!pGroup)
 	{
-		if (pSelection->GetObject(i)->GetGroup())
+		throw std::logic_error(string("\"") + groupName.c_str() + "\" is not an existing group.");
+	}
+	if (!pGroup->IsKindOf(RUNTIME_CLASS(CGroup)))
+	{
+		throw std::logic_error(string("\"") + groupName.c_str() + "\" is not a group.");
+	}
+	//Now go through all the object names, get the objects and add them to the group
+	for (size_t i = 0; i < objectsToAttachNames.size(); ++i)
+	{
+		CBaseObject* pObjectToAttach = GetIEditorImpl()->GetObjectManager()->FindObject(objectsToAttachNames[i].c_str());
+		if (!pObjectToAttach)
 		{
-			CGroup* pGroup = static_cast<CGroup*>(pSelection->GetObject(i)->GetGroup());
-			pGroup->RemoveMember(pSelection->GetObject(i), shouldKeepPosition, shouldPlaceOnRoot);
+			throw std::logic_error(string("\"") + objectsToAttachNames[i].c_str() + "\" is an invalid object.");
 		}
+		pGroup->AddMember(pObjectToAttach);
 	}
 }
 
-void DetachFromGroup()
+//!Detach all the objects in a selection group from the group they are in
+void Detach(const CSelectionGroup& selection, bool shouldKeepPosition, bool shouldPlaceOnRoot)
+{
+	for (int i = 0, count = selection.GetCount(); i < count; ++i)
+	{
+		if (selection.GetObject(i)->GetGroup())
+		{
+			CGroup* pGroup = static_cast<CGroup*>(selection.GetObject(i)->GetGroup());
+			pGroup->RemoveMember(selection.GetObject(i), shouldKeepPosition, shouldPlaceOnRoot);
+		}
+	}
+}
+//! Detach all the objects in the current editor selection from the group they are in 
+void DetachSelectionFromGroup()
 {
 	CUndo undo("Detach from Group");
-	Detach_Impl(true, false);
+	Detach(*GetIEditorImpl()->GetSelection(), true, false);
 }
 
+//! Detach all the objects in the current editor selection from the group they are in to the root of their hierarchy
 void DetachToRoot()
 {
 	CUndo undo("Detach Selection from Hierarchy");
-	Detach_Impl(true, true);
+	Detach(*GetIEditorImpl()->GetSelection(), true, true);
 }
 
+//! Detach all the objects identified by name from the group they are in 
+//! \param toRoot detach the objects to the root of their hierarchy
+void DetachObjectsFromNames(const std::vector<std::string>& objectsToDetachNames, bool toRoot)
+{
+	//Create a selection group with the objects to detach and pass it to the detach function
+	CSelectionGroup selectionGroup;
+	for (auto const& name : objectsToDetachNames)
+	{
+		CBaseObject* pObjectToDetach = GetIEditorImpl()->GetObjectManager()->FindObject(name.c_str());
+		if (!pObjectToDetach)
+		{
+			throw std::logic_error(string("\"") + name.c_str() + "\" is an invalid object.");
+		}
+		selectionGroup.AddObject(pObjectToDetach);
+	}
+
+	Detach(selectionGroup, true, toRoot);
+}
+
+//! Detach all the objects identified by name from the group they are in to the root of their hierarchy and register an undo
+void DetachObjectsFromGroup(const std::vector<std::string>& objectsToDetachNames)
+{
+	CUndo undo("Detach from Group");
+	DetachObjectsFromNames(objectsToDetachNames, false);
+}
+
+//! Detach all the objects identified by name from the group they are in and register an undo
+void DetachObjectsToRoot(const std::vector<std::string>& objectsToDetachNames)
+{
+	CUndo undo("Detach from Hierarchy");
+	DetachObjectsFromNames(objectsToDetachNames, true);
+}
 }
 
 DECLARE_PYTHON_MODULE(group);
@@ -260,7 +323,16 @@ REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::AttachToGroup, group,
 REGISTER_EDITOR_UI_COMMAND_DESC(group, attach_to, "Attach to...", "", "", false);
 REGISTER_COMMAND_REMAPPING(ui_action, actionGroup_Attach, group, attach_to)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::DetachFromGroup, group, detach,
+REGISTER_ONLY_PYTHON_COMMAND(Private_EditorCommands::AddObjectsToGroup, group, attach_objects_to,
+                             CCommandDescription("Attaches a list of objects referenced by their names to a group also referenced by name").Param("objectsToAttachNames", "A list of names containing the objects to attach").Param("groupName", "The name of the group we want to attach the objects to"))
+
+REGISTER_ONLY_PYTHON_COMMAND(Private_EditorCommands::DetachObjectsFromGroup, group, detach_objects_from,
+                             CCommandDescription("Detaches a list of objects referenced by their names from the group they are in").Param("objectsToDetachNames", "A list of names containing the objects to detach"))
+
+REGISTER_ONLY_PYTHON_COMMAND(Private_EditorCommands::DetachObjectsToRoot, group, detach_objects_to_root,
+                             CCommandDescription("Detaches a list of objects referenced by their names to the root of the hierarchy").Param("objectsToDetachNames", "A list of names containing the objects to detach"))
+
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::DetachSelectionFromGroup, group, detach,
                                    CCommandDescription("Detaches selected objects from group. The object will be placed relative to the group's parent (or layer if the group doesn't have a parent)"))
 REGISTER_EDITOR_UI_COMMAND_DESC(group, detach, "Detach", "", "", false);
 REGISTER_COMMAND_REMAPPING(ui_action, actionGroup_Detach, group, detach)

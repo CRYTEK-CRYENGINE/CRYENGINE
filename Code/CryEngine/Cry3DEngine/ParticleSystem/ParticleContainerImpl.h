@@ -8,11 +8,11 @@ namespace pfx2
 //////////////////////////////////////////////////////////////////////////
 // CParticleContainer
 
-ILINE TParticleId CParticleContainer::GetRealId(TParticleId pId) const
+ILINE TParticleId CParticleContainer::RealId(TParticleId pId) const
 {
 	if (pId < m_lastId)
 		return pId;
-	const uint numSpawn = GetNumSpawnedParticles();
+	const uint numSpawn = NumSpawned();
 	const uint gapSize = m_firstSpawnId - m_lastId;
 	const uint movingId = m_lastSpawnId - min(gapSize, numSpawn);
 	const uint offset = movingId - m_lastId;

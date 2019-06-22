@@ -126,7 +126,7 @@ int32 CChrParamLoader::FindAlreadyProcessedListID(const char* paramFileName) con
 // finds the first occurence of
 CAF_ID CChrParamLoader::MemFindFirst(const char** ppAnimPath, const char* szMask, uint32 crcFolder, CAF_ID nCafID)
 {
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	(*ppAnimPath) = NULL;
 
@@ -176,7 +176,7 @@ void CChrParamLoader::ExpandWildcardsForPath(SAnimListInfo& animList, const char
 
 bool CChrParamLoader::ExpandWildcards(uint32 listID)
 {
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	CDefaultSkeleton* pDefaultSkeleton = m_pDefaultSkeleton;
 	SAnimListInfo& animList = m_parsedLists[listID];
@@ -217,112 +217,119 @@ bool CChrParamLoader::ExpandWildcards(uint32 listID)
 
 	//----------------------------------------------------------------------------------------
 	// expand wildcards
-	uint32 numWildcard = animList.arrWildcardAnimFiles.size();
-	for (uint32 w = 0; w < numWildcard; ++w)
+	for (const SAnimFile& wildcardFileEntry : animList.arrWildcardAnimFiles)
 	{
-		const char* szFolder = animList.arrWildcardAnimFiles[w].m_FilePathQ;
-		const char* szFile = PathUtil::GetFile(szFolder);
-		const char* szExt = PathUtil::GetExt(szFolder);
+		const char* szFilePath = wildcardFileEntry.m_FilePathQ;
+		const char* szFileWithExt = PathUtil::GetFile(szFilePath);
+		const char* szExt = PathUtil::GetExt(szFilePath);
 
-		uint32 IsLMG = (strcmp(szExt, "lmg") == 0) || (strcmp(szExt, "bspace") == 0) || (strcmp(szExt, "comb") == 0);
-		uint32 IsFSQ = strcmp(szExt, "fsq") == 0;
+		const bool bIsBlendspace = (strcmp(szExt, "lmg") == 0) || (strcmp(szExt, "bspace") == 0) || (strcmp(szExt, "comb") == 0);
+		const bool bIsFSQ = strcmp(szExt, "fsq") == 0;
 
 		char szAnimName[MAX_STRING_LENGTH];
-		cry_strcpy(szAnimName, animList.arrWildcardAnimFiles[w].m_AnimNameQ);
+		cry_strcpy(szAnimName, wildcardFileEntry.m_AnimNameQ);
 
-		const char* firstWildcard = strchr(szFolder, '*');
-		if (const char* qm = strchr(szFolder, '?'))
-			if (firstWildcard == NULL || firstWildcard > qm)
-				firstWildcard = qm;
-		int32 iFirstWildcard = (int32)(firstWildcard - szFolder);
-		int32 iPathLength = min((int32)(szFile - szFolder), iFirstWildcard);
-
-		bool parseSubfolders = (iFirstWildcard != (int32)(szFile - szFolder));
-
-		stack_string filepath = PathUtil::GetParentDirectory(stack_string(szFolder));
-		char* starPos = strchr(szAnimName, '*');
-		if (starPos)
-			*starPos++ = 0;
-
-		char strAnimName[MAX_STRING_LENGTH];
-		uint32 img = g_pCharacterManager->IsInitializedByIMG();
-		if (img & 2 && IsLMG == 0 && IsFSQ == 0)
+		int32 iPathLength; //The path until either a folder wildcard
+		bool bParseSubfolders;
 		{
-			uint32 crcFolder = CCrc32::ComputeLowercase(szFolder, size_t(iPathLength), 0);
-
-			memset(strAnimName, 0, sizeof(strAnimName));
-
-			AnimSearchHelper::TSubFolderCrCVector* subFolders = parseSubfolders ? g_AnimationManager.m_animSearchHelper.GetSubFoldersVector(crcFolder) : NULL;
-
-			if (subFolders)
+			const char* pFirstWildcard = strchr(szFilePath, '*');
+			if (const char* pQuestionMark = strchr(szFilePath, '?'))
 			{
-				for (uint32 i = 0; i < subFolders->size(); i++)
+				if (pFirstWildcard == nullptr || pFirstWildcard > pQuestionMark)
 				{
-					ExpandWildcardsForPath(animList, szFile, (*subFolders)[i], szAnimName, starPos);
+					pFirstWildcard = pQuestionMark;
+				}
+			}
+			int32 iFirstWildcardPosition = (int32)(pFirstWildcard - szFilePath);
+			//The length of the path up until either the first folder wildcard or the file name
+			iPathLength = min((int32)(szFileWithExt - szFilePath), iFirstWildcardPosition);
+			//Whether the first wildcard is part of the file or not
+			bParseSubfolders = (iFirstWildcardPosition != (int32)(szFileWithExt - szFilePath));
+		}
+		
+		stack_string strParentDirectory = PathUtil::GetParentDirectory(stack_string(szFilePath));
+		char* pAnimNameStarPosition = strchr(szAnimName, '*');
+		if (pAnimNameStarPosition)
+		{
+			*pAnimNameStarPosition = '\0';
+			pAnimNameStarPosition++;
+		}
+
+		EIMGLoadedFlags imgLoadedFlags = g_pCharacterManager->GetIMGLoadedFlags();
+		if (!!(imgLoadedFlags & EIMGLoadedFlags::CAFLoaded) && !bIsBlendspace && !bIsFSQ)
+		{
+			uint32 crcCurrentFolder = CCrc32::ComputeLowercase(szFilePath, size_t(iPathLength), 0);
+
+			AnimSearchHelper::TSubFolderCrCVector* subFolderCRCs = bParseSubfolders
+				? g_AnimationManager.m_animSearchHelper.GetSubFoldersVector(crcCurrentFolder)
+				: NULL;
+
+			if (subFolderCRCs)
+			{
+				for (uint32 folderCRC : *subFolderCRCs)
+				{
+					ExpandWildcardsForPath(animList, szFileWithExt, folderCRC, szAnimName, pAnimNameStarPosition);
 				}
 			}
 			else
 			{
-				ExpandWildcardsForPath(animList, szFile, crcFolder, szAnimName, starPos);
+				ExpandWildcardsForPath(animList, szFileWithExt, crcCurrentFolder, szAnimName, pAnimNameStarPosition);
 			}
 
-			const uint32 numAIM = g_AnimationManager.m_arrGlobalAIM.size();
-			for (uint32 nCafID = 0; nCafID < numAIM; nCafID++)
+			for (const GlobalAnimationHeaderAIM& aimPose : g_AnimationManager.m_arrGlobalAIM)
 			{
-				GlobalAnimationHeaderAIM& rAIM = g_AnimationManager.m_arrGlobalAIM[nCafID];
-				stack_string strFilename = PathUtil::GetFile(rAIM.GetFilePath());
-				stack_string strFilePath = PathUtil::GetPathWithoutFilename(rAIM.GetFilePath());
+				stack_string strFilename = PathUtil::GetFile(aimPose.GetFilePath());
+				stack_string strFilePath = PathUtil::GetPathWithoutFilename(aimPose.GetFilePath());
 				const int32 filePathLen = strFilePath.length();
 
-				if (parseSubfolders)
+				if (bParseSubfolders)
 				{
-					if ((iPathLength > filePathLen) || (strnicmp(szFolder, rAIM.GetFilePath(), iPathLength) != 0))
+					if ((iPathLength > filePathLen) || (strnicmp(szFilePath, aimPose.GetFilePath(), iPathLength) != 0))
 						continue;
 				}
 				else
 				{
-					if ((iPathLength != filePathLen) || (strnicmp(szFolder, rAIM.GetFilePath(), iPathLength) != 0))
+					if ((iPathLength != filePathLen) || (strnicmp(szFilePath, aimPose.GetFilePath(), iPathLength) != 0))
 						continue;
 				}
-				if (PathUtil::MatchWildcard(strFilename.c_str(), szFile))
+				if (PathUtil::MatchWildcard(strFilename.c_str(), szFileWithExt))
 				{
 					stack_string animName = szAnimName;
 					animName.append(PathUtil::GetFileName(strFilename));
-					if (starPos)
+					if (pAnimNameStarPosition)
 					{
-						animName.append(starPos);
+						animName.append(pAnimNameStarPosition);
 					}
 
-					AddIfNewAnimationAlias(animList, animName.c_str(), rAIM.GetFilePath());
+					AddIfNewAnimationAlias(animList, animName.c_str(), aimPose.GetFilePath());
 				}
 			}
 		}
-		else if (parseSubfolders)
+		else if (bParseSubfolders)
 		{
-			stack_string path(szFolder, 0, iPathLength);
+			stack_string path(szFilePath, 0, iPathLength);
 			PathUtil::ToUnixPath(path);
 
 			std::vector<string> cafFiles;
 			SDirectoryEnumeratorHelper dirParser;
-			dirParser.ScanDirectoryRecursive("", path, szFile, cafFiles);
+			dirParser.ScanDirectoryRecursive("", path, szFileWithExt, cafFiles);
 
-			const uint32 numCAFs = cafFiles.size();
-			for (uint32 i = 0; i < numCAFs; i++)
+			for (const string& cafFile : cafFiles)
 			{
 				stack_string animName = szAnimName;
-				animName.append(PathUtil::GetFileName(cafFiles[i].c_str()).c_str());
-				if (starPos)
+				animName.append(PathUtil::GetFileName(cafFile).c_str());
+				if (pAnimNameStarPosition)
 				{
-					animName.append(starPos);
+					animName.append(pAnimNameStarPosition);
 				}
 
-				if (IsFSQ)
+				if (bIsFSQ)
 				{
-					AddIfNewFacialAnimationAlias(animList, animName.c_str(), cafFiles[i].c_str());
+					AddIfNewFacialAnimationAlias(animList, animName, cafFile);
 				}
 				else
 				{
-					AddIfNewAnimationAlias(animList, animName.c_str(), cafFiles[i].c_str());
+					AddIfNewAnimationAlias(animList, animName, cafFile);
 				}
 			}
 		}
@@ -330,27 +337,27 @@ bool CChrParamLoader::ExpandWildcards(uint32 listID)
 		{
 			//extend the files from disk
 			_finddata_t fd;
-			intptr_t handle = g_pIPak->FindFirst(szFolder, &fd, ICryPak::FLAGS_NO_LOWCASE);
+			intptr_t handle = g_pIPak->FindFirst(szFilePath, &fd, ICryPak::FLAGS_NO_LOWCASE);
 			if (handle != -1)
 			{
 				do
 				{
 					stack_string animName = szAnimName;
 					animName.append(PathUtil::GetFileName(fd.name).c_str());
-					if (starPos)
+					if (pAnimNameStarPosition)
 					{
-						animName.append(starPos);
+						animName.append(pAnimNameStarPosition);
 					}
 
 					// Check whether the filename is a facial animation, by checking the extension.
-					if (IsFSQ)
+					if (bIsFSQ)
 					{
 						// insert unique
-						AddIfNewFacialAnimationAlias(animList, animName.c_str(), filepath + "/" + fd.name);
+						AddIfNewFacialAnimationAlias(animList, animName.c_str(), strParentDirectory + "/" + fd.name);
 					}
 					else
 					{
-						stack_string fpath = filepath + stack_string("/") + fd.name;
+						stack_string fpath = strParentDirectory + stack_string("/") + fd.name;
 						AddIfNewAnimationAlias(animList, animName.c_str(), fpath);
 					}
 				}
@@ -385,22 +392,22 @@ bool CChrParamLoader::ExpandWildcards(uint32 listID)
 							const char* file = PathUtil::GetFile(currentFile);
 							const char* ext = PathUtil::GetExt(currentFile);
 
-							bool match1 = strnicmp(szFolder, currentFile, iPathLength) == 0;
-							bool match2 = PathUtil::MatchWildcard(file, szFile);
+							bool match1 = strnicmp(szFilePath, currentFile, iPathLength) == 0;
+							bool match2 = PathUtil::MatchWildcard(file, szFileWithExt);
 							if (match1 && match2)
 							{
 								stack_string folderPathCurrentFile = PathUtil::GetParentDirectory(stack_string(currentFile));
-								stack_string folderPathFileName = PathUtil::GetParentDirectory(stack_string(szFolder));
+								stack_string folderPathFileName = PathUtil::GetParentDirectory(stack_string(szFilePath));
 
-								if (parseSubfolders || (!parseSubfolders && folderPathCurrentFile == folderPathFileName))
+								if (bParseSubfolders || (!bParseSubfolders && folderPathCurrentFile == folderPathFileName))
 								{
 									stack_string name = "";
-									if (starPos == NULL)
+									if (pAnimNameStarPosition == NULL)
 										name = szAnimName;
 									else
 									{
 										uint32 folderPos = folderPathCurrentFile.length() + 1;
-										stack_string sa = stack_string(szAnimName) + stack_string(currentFile + folderPos, ext - currentFile - 1 - folderPos) + starPos;
+										stack_string sa = stack_string(szAnimName) + stack_string(currentFile + folderPos, ext - currentFile - 1 - folderPos) + pAnimNameStarPosition;
 										name = sa;
 									}
 
@@ -439,20 +446,20 @@ bool CChrParamLoader::ExpandWildcards(uint32 listID)
 
 					const char* file = PathUtil::GetFile(currentFile.c_str());
 					const char* ext = PathUtil::GetExt(currentFile.c_str());
-					if (strnicmp(szFolder, currentFile, iPathLength) == 0 && PathUtil::MatchWildcard(file, szFile))
+					if (strnicmp(szFilePath, currentFile, iPathLength) == 0 && PathUtil::MatchWildcard(file, szFileWithExt))
 					{
 						stack_string folderPathCurrentFile = PathUtil::GetParentDirectory(currentFile);
-						stack_string folderPathFileName = PathUtil::GetParentDirectory(szFolder);
+						stack_string folderPathFileName = PathUtil::GetParentDirectory(szFilePath);
 
-						if (parseSubfolders || (!parseSubfolders && folderPathCurrentFile == folderPathFileName))
+						if (bParseSubfolders || (!bParseSubfolders && folderPathCurrentFile == folderPathFileName))
 						{
 							stack_string name = "";
-							if (starPos == NULL)
+							if (pAnimNameStarPosition == NULL)
 								name = szAnimName;
 							else
 							{
 								uint32 folderPos = folderPathCurrentFile.length() + 1;
-								stack_string sa = stack_string(szAnimName) + stack_string(currentFile.c_str() + folderPos, ext - currentFile - 1 - folderPos) + starPos;
+								stack_string sa = stack_string(szAnimName) + stack_string(currentFile.c_str() + folderPos, ext - currentFile - 1 - folderPos) + pAnimNameStarPosition;
 								name = sa;
 							}
 
@@ -473,7 +480,7 @@ bool CChrParamLoader::ExpandWildcards(uint32 listID)
 // check if a list has already been parsed and is in memory, if not, parse it and load it into m_parsedLists
 int32 CChrParamLoader::LoadAnimList(const XmlNodeRef animListXmlNode, const char* paramFileName, string strAnimDirName)
 {
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	if (!animListXmlNode)
 		return -1;
@@ -860,7 +867,7 @@ bool CChrParamLoader::NoFacialAnimationAliasInDependencies(SAnimListInfo& animLi
 // this function needs some better error management
 bool CChrParamLoader::LoadFromXml(CDefaultSkeleton* pDefaultSkeleton, string defaultAnimDir, const char* const szParamFileName, DynArray<uint32>& listIDs)
 {
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	XmlNodeRef xmlRootNode;
 #ifdef EDITOR_PCDEBUGCODE

@@ -45,7 +45,7 @@ class EDITOR_COMMON_API QViewport : public QWidget
 {
 	Q_OBJECT
 public:
-	QViewport(SSystemGlobalEnvironment* env, QWidget* parent, int supersamplingFactor = 1);
+	QViewport(SSystemGlobalEnvironment* env, IRenderer::SGraphicsPipelineDescription graphicsPipelineDesc, QWidget* parent, int supersamplingFactor = 1);
 	~QViewport();
 
 	void                     AddConsumer(QViewportConsumer* consumer);
@@ -126,6 +126,7 @@ private:
 	std::vector<SPreviousContext>            m_previousContexts;
 	std::unique_ptr<CCamera>                 m_camera;
 	SDisplayContextKey                       m_displayContextKey;
+	SGraphicsPipelineKey                     m_graphicsPipelineKey;
 
 	int                                      m_width;
 	int                                      m_height;
@@ -162,4 +163,7 @@ private:
 
 	std::unique_ptr<CDisplayViewportAdapter> m_pViewportAdapter;
 	CGizmoManager                            m_gizmoManager;
+	IRenderer::SGraphicsPipelineDescription  m_graphicsPipelineDesc;
+
+	string                                   m_prevCharacterToolCubemapName;
 };

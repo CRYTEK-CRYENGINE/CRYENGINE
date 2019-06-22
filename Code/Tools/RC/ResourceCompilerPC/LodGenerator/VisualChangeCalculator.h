@@ -235,7 +235,7 @@ namespace LODGenerator
 					// Patch vertex
 					for (std::vector<idT>::const_iterator it=srcV.polys.begin(), end=srcV.polys.end(); it!=end; ++it)
 					{
-						const Poly &p=m_polys[*it];
+						//const Poly &p=m_polys[*it];
 						//if (p.v[0]!=p.v[1] && p.v[0]!=p.v[2] && p.v[1]!=p.v[2]) // Can't ignore degenerate in case two polys are connected by one
 						{
 							bool found=false;
@@ -339,7 +339,6 @@ namespace LODGenerator
 					
 					Vec3* pVertices = pMesh->GetStreamPtr<Vec3>(CMesh::POSITIONS);
 					vtx_idx *pIndices = pMesh->GetStreamPtr<vtx_idx>(CMesh::INDICES);
-					SMeshFace* pFaces = pMesh->GetStreamPtr<SMeshFace>(CMesh::FACES);
 					int faces = pMesh->GetIndexCount()/3;
 				
 					// Set polys/vertices
@@ -357,11 +356,7 @@ namespace LODGenerator
 					const int subsets = pMesh->GetSubSetCount();
 					for (int subsetidx = 0; subsetidx < subsets; ++subsetidx)
 					{
-						int matId = pMesh->m_subsets[subsetidx].nMatID;
-
 						int indexFirst = pMesh->m_subsets[subsetidx].nFirstIndexId;
-						int indexLast = pMesh->m_subsets[subsetidx].nNumIndices + indexFirst;
-
 						int subsetFaces = pMesh->m_subsets[subsetidx].nNumIndices/3;
 
 						for (int i=0; i<subsetFaces; i++)
@@ -510,7 +505,7 @@ namespace LODGenerator
 			m_numViews=directions.size();
 			// Batch up starting new threads as initial render causes lots of allocations which contend if lots of threads are active
 			m_views=new VisualChangeCalculatorViewJob[m_numViews];
-			int batch=8;
+
 			for (int view=0; view<m_numViews; view++)
 			{
 				if ( pProgress->eStatus == ESTATUS_CANCEL )

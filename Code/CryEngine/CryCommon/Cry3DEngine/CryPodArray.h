@@ -54,16 +54,16 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	PodArray() : m_pElements(0), m_nCount(0), m_nAllocatedCount(0)
 	{
-		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::MSC_Vector, T);
+		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::Vector, T);
 	}
 	PodArray(int elem_count, int nNewCount = 0) : m_pElements(0), m_nCount(0), m_nAllocatedCount(0)
 	{
-		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::MSC_Vector, T);
+		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::Vector, T);
 		PreAllocate(elem_count, nNewCount);
 	}
 	PodArray(const PodArray<T>& from) :m_pElements(0), m_nCount(0), m_nAllocatedCount(0)
 	{
-		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::MSC_Vector, T);
+		MEMSTAT_REGISTER_CONTAINER(this, EMemStatContainerType::Vector, T);
 		AddList(from);
 	}
 	~PodArray()

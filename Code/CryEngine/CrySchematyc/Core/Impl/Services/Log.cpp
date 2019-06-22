@@ -9,6 +9,7 @@
 #include <CrySerialization/STL.h>
 #include <CryString/CryStringUtils.h>
 #include <CrySystem/File/ICryPak.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CrySchematyc/Utils/Assert.h>
 #include <CrySchematyc/Utils/ScopedConnection.h>
 

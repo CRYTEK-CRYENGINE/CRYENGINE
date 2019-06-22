@@ -681,7 +681,6 @@ void CTrackStorage::SaveDataBase905(const char* name, bool bPrepareForInPlaceStr
 	for (uint32 p = 0; p < keyPos; ++p)
 	{
 		uint16 numKeyPos = m_arrPositionTracks[p]->GetDataCount();
-		uint8 format = m_arrPositionTracks[p]->GetFormat();
 		sizesPos.push_back(numKeyPos);
 	}
 

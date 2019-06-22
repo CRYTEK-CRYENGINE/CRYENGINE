@@ -275,7 +275,7 @@ namespace cpx // CryPhysX helper
 		std::vector<PxActor*> vActors;
 		physx::PxActorTypeFlags flags = physx::PxActorTypeFlag::eRIGID_STATIC | physx::PxActorTypeFlag::eRIGID_DYNAMIC;
 		vActors.resize(m_Scene->getNbActors( flags ));
-		int32 nActors = m_Scene->getActors(flags, &vActors[0], vActors.size());
+		m_Scene->getActors(flags, &vActors[0], vActors.size());
 
 		for (int actorIdx = 0; actorIdx < vActors.size(); actorIdx++)
 		{
@@ -285,7 +285,7 @@ namespace cpx // CryPhysX helper
 	
 			std::vector<PxShape*> vShapes;
 			vShapes.resize(actor->getNbShapes());
-			int32 nShapes = actor->getShapes(vShapes.data(), vShapes.size());
+			actor->getShapes(vShapes.data(), vShapes.size());
 
 			// Iterate over each shape
 			for (int shapeIdx = 0; shapeIdx < vShapes.size(); shapeIdx++)

@@ -85,7 +85,7 @@ public:
 	virtual bool KickTempWorker() { return false; }
 	virtual bool StopTempWorker() { return false; }
 
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	JobManager::IWorkerBackEndProfiler* GetBackEndWorkerProfiler() const { return m_pBackEndWorkerProfiler; }
 #endif
 
@@ -102,7 +102,7 @@ private:
 	uint32                   m_nRegularWorkerThreads;
 
 	// members required for profiling jobs in the frame profiler
-#if defined(JOBMANAGER_SUPPORT_FRAMEPROFILER)
+#if defined(JOBMANAGER_SUPPORT_STATOSCOPE)
 	JobManager::IWorkerBackEndProfiler* m_pBackEndWorkerProfiler;
 #endif
 };

@@ -107,7 +107,7 @@ public:
 		float u0, v0, u1, v1;
 		float lineardepth;
 	};
-	void GetOcclusionSectorInfo(SOcclusionSectorInfo& out_occlusionSector,const SRenderViewInfo& viewInfo);
+	void GetOcclusionSectorInfo(SOcclusionSectorInfo& out_occlusionSector, const SRenderViewInfo& viewInfo);
 
 	void UpdateCachedResults();
 	int  GetID()
@@ -166,31 +166,31 @@ public:
 	CSoftOcclusionManager();
 	~CSoftOcclusionManager();
 
-	void Init();
+	void                      Init();
 
-	void AddSoftOcclusionQuery(CFlareSoftOcclusionQuery* pQuery, const Vec3& vPos);
+	void                      AddSoftOcclusionQuery(CFlareSoftOcclusionQuery* pQuery, const Vec3& vPos);
 	CFlareSoftOcclusionQuery* GetSoftOcclusionQuery(int nIndex) const;
 
-	int  GetSize() const { return m_nPos; }
-	void Reset();
+	int                       GetSize() const { return m_nPos; }
+	void                      Reset();
 
-	bool                      Update(SRenderViewInfo* pViewInfo, int viewInfoCount);
+	bool                      Update(SRenderViewInfo* pViewInfo, int viewInfoCount, CRenderView* pRenderView);
 
 private:
 
-	bool                      PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass,const SRenderViewInfo& viewInfo);
-	bool                      PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, SRenderViewInfo* pViewInfo, int viewInfoCount);
+	bool PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, const SRenderViewInfo& viewInfo, CRenderView* pRenderView);
+	bool PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, SRenderViewInfo* pViewInfo, int viewInfoCount, CRenderView* pRenderView);
 
-	int    m_nPos;
+	int m_nPos;
 	_smart_ptr<CFlareSoftOcclusionQuery> m_SoftOcclusionQueries[CFlareSoftOcclusionQuery::s_nIDMax];
 
-	CRenderPrimitive m_occlusionPrimitive;
-	CRenderPrimitive m_gatherPrimitive;
+	CRenderPrimitive                     m_occlusionPrimitive;
+	CRenderPrimitive                     m_gatherPrimitive;
 
-	CPrimitiveRenderPass m_occlusionPass;
-	CPrimitiveRenderPass m_gatherPass;
+	CPrimitiveRenderPass                 m_occlusionPass;
+	CPrimitiveRenderPass                 m_gatherPass;
 
-	buffer_handle_t m_indexBuffer;
-	buffer_handle_t m_occlusionVertexBuffer;
-	buffer_handle_t m_gatherVertexBuffer;
+	buffer_handle_t                      m_indexBuffer;
+	buffer_handle_t                      m_occlusionVertexBuffer;
+	buffer_handle_t                      m_gatherVertexBuffer;
 };

@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _3DENGINE_POLYGONCLIPCONTEXT_H_
-#define _3DENGINE_POLYGONCLIPCONTEXT_H_
+#pragma once
 
 #if defined(LINUX)
 	#include <CryCore/Platform/platform.h>
@@ -65,5 +64,3 @@ private:
 	PodArray<Vec3> m_lstPolygonA;
 	PodArray<Vec3> m_lstPolygonB;
 };
-
-#endif // _3DENGINE_POLYGONCLIPCONTEXT_H_

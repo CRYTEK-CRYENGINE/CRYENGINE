@@ -8,6 +8,7 @@
 #include <CrySerialization/IArchiveHost.h>
 #include <CrySerialization/STL.h>
 #include <CrySerialization/Enum.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include <cctype>
 

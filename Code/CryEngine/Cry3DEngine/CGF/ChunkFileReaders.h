@@ -1,13 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name: ChunkFileReaders.h
-//  Created:   2013/11/18 by Sergey Sokov
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __ChunkFileReaders_h__
-#define __ChunkFileReaders_h__
+#pragma once
 
 #include "ChunkFileComponents.h"
 #include <Cry3DEngine/CGF/IChunkFile.h>
@@ -17,9 +10,7 @@ namespace ChunkFile
 
 struct IReader
 {
-	virtual ~IReader()
-	{
-	}
+	virtual ~IReader() {}
 
 	virtual void  Close() = 0;
 	virtual int32 GetSize() = 0;
@@ -31,7 +22,6 @@ class CryFileReader
 	: public IReader
 {
 public:
-	CryFileReader();
 	virtual ~CryFileReader();
 
 	bool Open(const char* filename);
@@ -54,7 +44,6 @@ class MemoryReader
 {
 public:
 	MemoryReader();
-	virtual ~MemoryReader();
 
 	bool Start(void* ptr, int32 size);
 
@@ -82,5 +71,3 @@ const char* StripChunkHeaders_0x744_0x745(IReader* pReader, std::vector<IChunkFi
 const char* StripChunkHeaders_0x744_0x745(IReader* pReader, std::vector<IChunkFile::ChunkDesc*>& chunks);
 
 }  // namespace ChunkFile
-
-#endif

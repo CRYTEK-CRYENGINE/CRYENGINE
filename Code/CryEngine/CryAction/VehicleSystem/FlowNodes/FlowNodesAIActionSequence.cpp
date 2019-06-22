@@ -262,7 +262,7 @@ void CFlowNode_AISequenceAction_ApproachAndEnterVehicle::HandleSequenceEvent(AIA
 			{
 				EnterVehicleSeat(true, pSeat);
 			}
-			else if (m_actInfo.pEntity->GetAI())
+			else if (m_actInfo.pEntity->HasAI())
 			{
 				if (m_fast)
 				{

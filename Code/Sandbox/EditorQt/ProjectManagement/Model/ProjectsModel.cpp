@@ -13,10 +13,12 @@
 namespace Private_ProjectsModel
 {
 
-CItemModelAttribute s_lastOpenTimeAttribute("Last Open Time", &Attributes::s_stringAttributeType, CItemModelAttribute::Visible, false, "");
-CItemModelAttribute s_pathAttribute("Path", &Attributes::s_floatAttributeType, CItemModelAttribute::Visible, false, "");
+CItemModelAttribute s_runOnStartupAttribute("Startup Project", &Attributes::s_booleanAttributeType, CItemModelAttribute::Visible, true);
+CItemModelAttribute s_lastOpenTimeAttribute("Last Open Time", &Attributes::s_stringAttributeType, CItemModelAttribute::Visible, false);
+CItemModelAttribute s_pathAttribute("Path", &Attributes::s_floatAttributeType, CItemModelAttribute::Visible, false);
 
 const CItemModelAttribute* s_attributes[] = {
+	&s_runOnStartupAttribute,
 	&Attributes::s_nameAttribute,
 	&s_lastOpenTimeAttribute,
 	&s_pathAttribute };
@@ -45,18 +47,19 @@ int CProjectsModel::columnCount(const QModelIndex& parent) const
 
 QVariant CProjectsModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-	if (orientation != Qt::Horizontal)
+	if (orientation != Qt::Horizontal || section >= Private_ProjectsModel::s_attributeCount)
 	{
 		return QVariant();
 	}
 
-	if (Private_ProjectsModel::s_attributeCount > section)
+	switch (role)
 	{
-		switch (role)
-		{
-		case Qt::DisplayRole:
-			return Private_ProjectsModel::s_attributes[section]->GetName();
-		}
+	case Qt::DisplayRole:
+		return Private_ProjectsModel::s_attributes[section]->GetName();
+
+	case Qt::DecorationRole:
+		if (section == eColumn_RunOnStartup)
+			return CryIcon("icons:General/Startup_Project.ico");
 	}
 
 	return QVariant();
@@ -128,6 +131,13 @@ QVariant CProjectsModel::data(const QModelIndex& index, int role) const
 
 	switch (role)
 	{
+	case UserRoles::SortRole:
+		switch (col)
+		{
+		case eColumn_RunOnStartup:
+			return pDescr->startupProject;
+		}
+		// Intentional fall through, rest of columns use display role for sorting
 	case Qt::DisplayRole:
 		switch (col)
 		{
@@ -142,13 +152,16 @@ QVariant CProjectsModel::data(const QModelIndex& index, int role) const
 
 	case Qt::DecorationRole:
 	case QThumbnailsView::s_ThumbnailRole:
-		if (col == eColumn_Name)
+		switch (col)
 		{
+		case eColumn_RunOnStartup:
+			return pDescr->startupProject ? CryIcon("icons:General/Startup_Project.ico") : QVariant();
+		case eColumn_Name:
 			return pDescr->icon;
 		}
 		break;
 	case QThumbnailsView::s_ThumbnailIconsRole:
-		return m_subicons.GetLanguageIcon(pDescr->language);
+		return m_subicons.GetIcons(pDescr->language, pDescr->startupProject);
 	}
 
 	return QVariant();
@@ -175,6 +188,7 @@ QModelIndex CProjectsModel::parent(const QModelIndex& child) const
 CProjectSortProxyModel::CProjectSortProxyModel(QObject* pParent)
 	: QSortFilterProxyModel(pParent)
 {
+	setSortRole(CProjectsModel::SortRole);
 }
 
 bool CProjectSortProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const

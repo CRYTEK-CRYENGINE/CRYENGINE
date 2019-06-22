@@ -740,7 +740,7 @@ bool ZipDir::CacheFactory::FindCDREnd()
 // builds up the m_mapFileEntries
 bool ZipDir::CacheFactory::BuildFileEntryMap()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	Seek(m_CDREnd.lCDROffset);
 

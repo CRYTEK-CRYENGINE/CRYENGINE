@@ -301,7 +301,7 @@ CPrefabObject::CPrefabObject()
 
 void CPrefabObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 
 	SetPrefab(nullptr);
 	DeleteAllMembers();
@@ -371,24 +371,29 @@ bool CPrefabObject::CreateFrom(std::vector<CBaseObject*>& objects)
 	return true;
 }
 
-void CPrefabObject::CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center, CPrefabItem* pItem)
+CPrefabObject* CPrefabObject::CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center, CPrefabItem* pItem)
 {
 	CUndo undo("Create Prefab");
+
 	CPrefabObject* pPrefab = static_cast<CPrefabObject*>(GetIEditorImpl()->NewObject(PREFAB_OBJECT_CLASS_NAME, pItem->GetGUID().ToString().c_str()));
 	pPrefab->SetPrefab(pItem, false);
 
 	if (!pPrefab)
 	{
 		undo.Cancel();
-		return;
+		return nullptr;
 	}
 
 	// Snap center to grid.
 	pPrefab->SetPos(gSnappingPreferences.Snap3D(center));
+
 	if (!pPrefab->CreateFrom(objects))
 	{
 		undo.Cancel();
+		return nullptr;
 	}
+
+	return pPrefab;
 }
 
 bool CPrefabObject::Init(CBaseObject* prev, const string& file)
@@ -427,44 +432,6 @@ void CPrefabObject::OnShowInFG()
 	}
 }
 
-void CPrefabObject::ConvertToProceduralObject()
-{
-	GetIEditor()->GetObjectManager()->ClearSelection();
-
-	GetIEditor()->GetIUndoManager()->Suspend();
-	GetIEditor()->SetModifiedFlag();
-	CBaseObject* pObject = GetIEditor()->GetObjectManager()->NewObject("Entity", 0, "ProceduralObject");
-	if (!pObject)
-	{
-		string sError = "Could not convert prefab to " + this->GetName();
-		CryWarning(VALIDATOR_MODULE_ENTITYSYSTEM, VALIDATOR_ERROR, "Conversion Failure.");
-		return;
-	}
-
-	string sName = this->GetName();
-	pObject->SetName(sName + "_prc");
-	pObject->SetWorldTM(this->GetWorldTM());
-
-	pObject->SetLayer(GetLayer());
-	GetIEditor()->GetObjectManager()->AddObjectToSelection(pObject);
-
-	CEntityObject* pEntityObject = static_cast<CEntityObject*>(pObject);
-
-	CPrefabItem* pPrefab = static_cast<CPrefabObject*>(this)->GetPrefabItem();
-	if (pPrefab)
-	{
-		if (pPrefab->GetLibrary() && pPrefab->GetLibrary()->GetName())
-			pEntityObject->SetEntityPropertyString("filePrefabLibrary", pPrefab->GetLibrary()->GetFilename());
-
-		string sPrefabName = pPrefab->GetFullName();
-		pEntityObject->SetEntityPropertyString("sPrefabVariation", sPrefabName);
-	}
-
-	GetIEditor()->GetObjectManager()->DeleteObject(this);
-
-	GetIEditor()->GetIUndoManager()->Resume();
-}
-
 void CPrefabObject::OnContextMenu(CPopupMenuItem* menu)
 {
 	CGroup::OnContextMenu(menu);
@@ -474,7 +441,6 @@ void CPrefabObject::OnContextMenu(CPopupMenuItem* menu)
 	}
 
 	menu->Add("Find in FlowGraph", [=]() { OnShowInFG(); });
-	menu->Add("Convert to Procedural Object", [=]() { ConvertToProceduralObject(); });
 	menu->Add("Swap Prefab...", [this]()
 	{
 		CPrefabPicker picker;
@@ -744,7 +710,7 @@ void CPrefabObject::OnEvent(ObjectEvent event)
 
 void CPrefabObject::DeleteAllPrefabObjects()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	std::vector<CBaseObject*> descendants;
 	GetAllPrefabFlagedDescendants(descendants);
 	DetachAll(false, true);
@@ -1278,7 +1244,7 @@ void CPrefabObject::AddMembers(std::vector<CBaseObject*>& objects, bool shouldKe
 
 void CPrefabObject::RemoveMembers(std::vector<CBaseObject*>& members, bool keepPos /*= true*/, bool placeOnRoot /*= false*/)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!m_pPrefabItem)
 	{
 		SetPrefab(m_prefabGUID, true);
@@ -1335,7 +1301,7 @@ void CPrefabObject::DeleteAllMembers()
 
 void CPrefabObject::SyncPrefab(const SObjectChangedContext& context)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!m_autoUpdatePrefabs)
 	{
 		for (SObjectChangedContext& change : m_pendingChanges)
@@ -1702,128 +1668,3 @@ bool CPrefabObjectClassDesc::IsCreatable() const
 	return false;
 }
 
-namespace
-{
-boost::python::tuple PyGetPrefabOfChild(const char* pObjName)
-{
-	boost::python::tuple result;
-	CBaseObject* pObject;
-	if (GetIEditor()->GetObjectManager()->FindObject(pObjName))
-		pObject = GetIEditor()->GetObjectManager()->FindObject(pObjName);
-	else if (GetIEditor()->GetObjectManager()->FindObject(CryGUID::FromString(pObjName)))
-		pObject = GetIEditor()->GetObjectManager()->FindObject(CryGUID::FromString(pObjName));
-	else
-	{
-		throw std::logic_error(string("\"") + pObjName + "\" is an invalid object.");
-		return result;
-	}
-
-	result = boost::python::make_tuple(pObject->GetParent()->GetName(), pObject->GetParent()->GetId().ToString());
-	return result;
-}
-
-static void PyNewPrefabFromSelection(const char* itemName)
-{
-	const CAssetType* const pPrefabAssetType = GetIEditor()->GetAssetManager()->FindAssetType("Prefab");
-	if (!pPrefabAssetType)
-	{
-		return;
-	}
-
-	const string prefabFilename = PathUtil::ReplaceExtension(itemName, pPrefabAssetType->GetFileExtension());
-	const string matadataFilename = string().Format("%s.%s", prefabFilename.c_str(), "cryasset");
-
-	pPrefabAssetType->Create(matadataFilename);
-}
-
-static void PyDeletePrefabItem(const char* itemName)
-{
-	CAssetManager* const pAssetManager = GetIEditor()->GetAssetManager();
-	const CAssetType* const pPrefabAssetType = GetIEditor()->GetAssetManager()->FindAssetType("Prefab");
-	if (!pPrefabAssetType)
-	{
-		return;
-	}
-
-	const string prefabFilename = PathUtil::ReplaceExtension(itemName, pPrefabAssetType->GetFileExtension());
-	CAsset* pAsset = pAssetManager->FindAssetForFile(prefabFilename);
-	if (!pAsset)
-	{
-		return;
-	}
-	pAssetManager->DeleteAssetsWithFiles({ pAsset });
-}
-
-static std::vector<string> PyGetPrefabItems()
-{
-	CAssetManager* const pAssetManager = GetIEditor()->GetAssetManager();
-	const CAssetType* const pPrefabAssetType = GetIEditor()->GetAssetManager()->FindAssetType("Prefab");
-	if (!pPrefabAssetType)
-	{
-		return {};
-	}
-
-	std::vector<string> results;
-	pAssetManager->ForeachAsset([&results, pPrefabAssetType](CAsset* pAsset)
-		{
-			if (pAsset->GetType() == pPrefabAssetType)
-			{
-			  results.push_back(pAsset->GetFile(0));
-			}
-		});
-
-	return results;
-}
-
-boost::python::tuple PyGetPrefabChildWorldPos(const char* pObjName, const char* pChildName)
-{
-	CBaseObject* pObject;
-	if (GetIEditor()->GetObjectManager()->FindObject(pObjName))
-		pObject = GetIEditor()->GetObjectManager()->FindObject(pObjName);
-	else if (GetIEditor()->GetObjectManager()->FindObject(CryGUID::FromString(pObjName)))
-		pObject = GetIEditor()->GetObjectManager()->FindObject(CryGUID::FromString(pObjName));
-	else
-	{
-		throw std::logic_error(string("\"") + pObjName + "\" is an invalid object.");
-		return boost::python::make_tuple(false);
-	}
-
-	for (int i = 0, iChildCount(pObject->GetChildCount()); i < iChildCount; ++i)
-	{
-		CBaseObject* pChild = pObject->GetChild(i);
-		if (pChild == NULL)
-			continue;
-		if (strcmp(pChild->GetName(), pChildName) == 0 || stricmp(pChild->GetId().ToString().c_str(), pChildName) == 0)
-		{
-			Vec3 childPos = pChild->GetPos();
-			Vec3 parentPos = pChild->GetParent()->GetPos();
-			return boost::python::make_tuple(parentPos.x - childPos.x, parentPos.y - childPos.y, parentPos.z - childPos.z);
-		}
-	}
-	return boost::python::make_tuple(false);
-}
-
-static bool PyHasPrefabItem(const char* pItemName)
-{
-	const string prefabFilename = PathUtil::ReplaceExtension(pItemName, "Prefab");
-	return GetIEditor()->GetAssetManager()->FindAssetForFile(prefabFilename) != nullptr;
-}
-}
-
-DECLARE_PYTHON_MODULE(prefab);
-
-REGISTER_PYTHON_COMMAND(PyNewPrefabFromSelection, prefab, new_prefab_from_selection, "Set the pivot position of a specified prefab.");
-REGISTER_ONLY_PYTHON_COMMAND_WITH_EXAMPLE(PyGetPrefabOfChild, prefab, get_parent,
-                                          "Get the parent prefab object of a given child object.",
-                                          "prefab.get_parent(str childName)");
-
-REGISTER_PYTHON_COMMAND(PyDeletePrefabItem, prefab, delete_prefab_item, "Delete a prefab item from a specified prefab library.");
-REGISTER_ONLY_PYTHON_COMMAND_WITH_EXAMPLE(PyGetPrefabItems, prefab, get_items,
-                                          "Get the avalible prefab item of a specified library and group.",
-                                          "prefab.get_items()");
-REGISTER_ONLY_PYTHON_COMMAND_WITH_EXAMPLE(PyGetPrefabChildWorldPos, prefab, get_world_pos,
-                                          "Get the absolute world position of the specified prefab object.",
-                                          "prefab.get_world_pos()");
-REGISTER_ONLY_PYTHON_COMMAND_WITH_EXAMPLE(PyHasPrefabItem, prefab, has_item,
-                                          "Return true if in the specified prefab library, and in the specified group, the specified item exists.",
-                                          "prefab.has_item()");

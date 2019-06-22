@@ -48,12 +48,11 @@ int CryArchiveRW::UpdateFileCRC(const char* szRelativePath, const uint32 dwCRC)
 	if (m_nFlags & FLAGS_READ_ONLY)
 		return ZipDir::ZD_ERROR_INVALID_CALL;
 
-	char szFullPath[CCryPak::g_nMaxPath];
-	const char* pPath = AdjustPath(szRelativePath, szFullPath);
-	if (!pPath)
+	CryPathString fullPath;
+	if (!AdjustPath(szRelativePath, fullPath))
 		return ZipDir::ZD_ERROR_INVALID_PATH;
 
-	m_pCache->UpdateFileCRC(pPath, dwCRC);
+	m_pCache->UpdateFileCRC(fullPath, dwCRC);
 
 	return ZipDir::ZD_ERROR_SUCCESS;
 }
@@ -65,11 +64,10 @@ int CryArchiveRW::RemoveFile(const char* szRelativePath)
 	if (m_nFlags & FLAGS_READ_ONLY)
 		return ZipDir::ZD_ERROR_INVALID_CALL;
 
-	char szFullPath[CCryPak::g_nMaxPath];
-	const char* pPath = AdjustPath(szRelativePath, szFullPath);
-	if (!pPath)
+	CryPathString fullPath;
+	if (!AdjustPath(szRelativePath, fullPath))
 		return ZipDir::ZD_ERROR_INVALID_PATH;
-	return m_pCache->RemoveFile(pPath);
+	return m_pCache->RemoveFile(fullPath);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -79,11 +77,10 @@ int CryArchiveRW::RemoveDir(const char* szRelativePath)
 	if (m_nFlags & FLAGS_READ_ONLY)
 		return ZipDir::ZD_ERROR_INVALID_CALL;
 
-	char szFullPath[CCryPak::g_nMaxPath];
-	const char* pPath = AdjustPath(szRelativePath, szFullPath);
-	if (!pPath)
-		return ZipDir::ZD_ERROR_INVALID_PATH;
-	return m_pCache->RemoveDir(pPath);
+	CryPathString fullPath;
+	if (!AdjustPath(szRelativePath, fullPath))
+			return ZipDir::ZD_ERROR_INVALID_PATH;
+	return m_pCache->RemoveDir(fullPath);
 }
 
 int CryArchiveRW::RemoveAll()
@@ -106,11 +103,10 @@ int CryArchiveRW::UpdateFile(const char* szRelativePath, void* pUncompressed, un
 	if (m_nFlags & FLAGS_READ_ONLY)
 		return ZipDir::ZD_ERROR_INVALID_CALL;
 
-	char szFullPath[CCryPak::g_nMaxPath];
-	const char* pPath = AdjustPath(szRelativePath, szFullPath);
-	if (!pPath)
+	CryPathString fullPath;
+	if (!AdjustPath(szRelativePath, fullPath))
 		return ZipDir::ZD_ERROR_INVALID_PATH;
-	return m_pCache->UpdateFile(pPath, pUncompressed, nSize, nCompressionMethod, nCompressionLevel);
+	return m_pCache->UpdateFile(fullPath, pUncompressed, nSize, nCompressionMethod, nCompressionLevel);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -120,11 +116,10 @@ int CryArchiveRW::StartContinuousFileUpdate(const char* szRelativePath, unsigned
 	if (m_nFlags & FLAGS_READ_ONLY)
 		return ZipDir::ZD_ERROR_INVALID_CALL;
 
-	char szFullPath[CCryPak::g_nMaxPath];
-	const char* pPath = AdjustPath(szRelativePath, szFullPath);
-	if (!pPath)
+	CryPathString fullPath;
+	if (!AdjustPath(szRelativePath, fullPath))
 		return ZipDir::ZD_ERROR_INVALID_PATH;
-	return m_pCache->StartContinuousFileUpdate(pPath, nSize);
+	return m_pCache->StartContinuousFileUpdate(fullPath, nSize);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -135,11 +130,10 @@ int CryArchiveRW::UpdateFileContinuousSegment(const char* szRelativePath, unsign
 	if (m_nFlags & FLAGS_READ_ONLY)
 		return ZipDir::ZD_ERROR_INVALID_CALL;
 
-	char szFullPath[CCryPak::g_nMaxPath];
-	const char* pPath = AdjustPath(szRelativePath, szFullPath);
-	if (!pPath)
+	CryPathString fullPath;
+	if (!AdjustPath(szRelativePath, fullPath))
 		return ZipDir::ZD_ERROR_INVALID_PATH;
-	return m_pCache->UpdateFileContinuousSegment(pPath, nSize, pUncompressed, nSegmentSize, nOverwriteSeekPos);
+	return m_pCache->UpdateFileContinuousSegment(fullPath, nSize, pUncompressed, nSegmentSize, nOverwriteSeekPos);
 }
 
 #endif //#ifndef OPTIMIZED_READONLY_ZIP_ENTRY

@@ -28,7 +28,7 @@ namespace Cry
 			//! Gets the user's rich presence
 			virtual void GetPresence(SRichPresence& presence) const = 0;
 			//! Gets the user's avatar of the requested size as a texture
-			virtual ITexture* GetAvatar(EAvatarSize size) const = 0;
+			virtual TextureId GetAvatar(EAvatarSize size) const = 0;
 			//! Gets other services' accounts that were linked to this account
 			virtual const DynArray<AccountIdentifier>& GetConnectedAccounts() const = 0;
 			//! Returns true if this is the local player's account

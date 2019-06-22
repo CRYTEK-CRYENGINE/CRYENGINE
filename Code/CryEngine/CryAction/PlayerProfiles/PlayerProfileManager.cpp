@@ -8,6 +8,7 @@
 #include <CryCore/Platform/IPlatformOS.h>
 #include <CryCore/CryCrc32.h>
 #include <CryCore/Platform/CryWindows.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define SHARED_SAVEGAME_FOLDER            "%USER%/SaveGames"
 
@@ -265,7 +266,7 @@ CPlayerProfileManager::~CPlayerProfileManager()
 //------------------------------------------------------------------------
 bool CPlayerProfileManager::Initialize()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (m_bInitialized)
 		return true;
 
@@ -1427,7 +1428,7 @@ bool CPlayerProfileManager::IsOnlineOnlyAttribute(const char* name)
 //------------------------------------------------------------------------
 bool CPlayerProfileManager::RegisterOnlineAttributes()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	ECryLobbyError error = eCLE_ServiceNotSupported;
 	ICryStats* stats = gEnv->pLobby ? gEnv->pLobby->GetStats() : nullptr;
 
@@ -2419,8 +2420,8 @@ void CPlayerProfileManager::DbgTestOnlineAttributes(IConsoleCmdArgs* args)
 #if CRY_PLATFORM_WINDOWS
 bool CPlayerProfileManager::MoveFileHelper(const char* existingFileName, const char* newFileName)
 {
-	char oldPath[ICryPak::g_nMaxPath];
-	char newPath[ICryPak::g_nMaxPath];
+	CryPathString oldPath;
+	CryPathString newPath;
 	// need to adjust aliases and paths (use FLAGS_FOR_WRITING)
 	gEnv->pCryPak->AdjustFileName(existingFileName, oldPath, ICryPak::FLAGS_FOR_WRITING);
 	gEnv->pCryPak->AdjustFileName(newFileName, newPath, ICryPak::FLAGS_FOR_WRITING);
@@ -2430,10 +2431,10 @@ bool CPlayerProfileManager::MoveFileHelper(const char* existingFileName, const c
 // on all other platforms, just a warning
 bool CPlayerProfileManager::MoveFileHelper(const char* existingFileName, const char* newFileName)
 {
-	char oldPath[ICryPak::g_nMaxPath];
+	CryPathString oldPath;
 	gEnv->pCryPak->AdjustFileName(existingFileName, oldPath, ICryPak::FLAGS_FOR_WRITING);
 	string msg;
-	msg.Format("CPlayerProfileManager::MoveFileHelper for this Platform not implemented yet.\nOriginal '%s' will be lost!", oldPath);
+	msg.Format("CPlayerProfileManager::MoveFileHelper for this Platform not implemented yet.\nOriginal '%s' will be lost!", oldPath.c_str());
 	CRY_ASSERT_MESSAGE(0, msg.c_str());
 	GameWarning("%s", msg.c_str());
 	return false;

@@ -42,7 +42,7 @@ protected:
 			: primitive(std::move(other.primitive))
 		{}
 
-		void GenMesh() override {};
+		void GenMesh() override {}
 
 		CRenderPrimitive             primitive;
 	};

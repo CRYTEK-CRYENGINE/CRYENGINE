@@ -4,8 +4,15 @@
 #include "DeviceCommandListCommon_D3D12.h"
 #include "DevicePSO_D3D12.h"
 
+#if CRY_PLATFORM_WINDOWS
+#	ifdef ENABLE_PROFILING_CODE
+#		define USE_PIX
+#	endif
+#	include <WinPixEventRuntime/pix3.h>
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool CDeviceTimestampGroup::s_reservedGroups[MAX_FRAMES_IN_FLIGHT] = { false, false, false, false };
+bool CDeviceTimestampGroup::s_reservedGroups[MAX_TIMESTAMP_GROUPS] = { false };
 
 CDeviceTimestampGroup::CDeviceTimestampGroup()
 	: m_numTimestamps(0)
@@ -39,7 +46,7 @@ void CDeviceTimestampGroup::Init()
 		}
 	}
 
-	assert(m_groupIndex < 0xFFFFFFFF);
+	DX12_ASSERT(m_groupIndex < 0xFFFFFFFF);
 }
 
 void CDeviceTimestampGroup::BeginMeasurement()
@@ -68,7 +75,7 @@ uint32 CDeviceTimestampGroup::IssueTimestamp(CDeviceCommandList* pCommandList)
 	auto* pDX12Device = GetDeviceObjectFactory().GetDX12Device();
 	auto* pDX12CmdList = (pCommandList ? *pCommandList : GetDeviceObjectFactory().GetCoreCommandList()).GetDX12CommandList();
 
-	assert(m_numTimestamps < kMaxTimestamps);
+	DX12_ASSERT(m_numTimestamps < kMaxTimestamps);
 
 	const uint32 timestampIndex = m_groupIndex * kMaxTimestamps + m_numTimestamps;
 	pDX12Device->InsertTimestamp(pDX12CmdList, timestampIndex);
@@ -133,12 +140,15 @@ void CDeviceCommandListImpl::CeaseCommandListEvent(int nPoolId)
 	if (nPoolId != CMDQUEUE_GRAPHICS)
 		return;
 
+#if defined(USE_CRY_ASSERT) || defined(ENABLE_FRAME_PROFILER_LABELS)
 	auto* pCommandList = GetScheduler()->GetCommandList(nPoolId);
+#endif
+
 	CRY_ASSERT(m_sharedState.pCommandList == pCommandList || m_sharedState.pCommandList == nullptr);
 	m_sharedState.pCommandList = nullptr;
 
 #if defined(ENABLE_FRAME_PROFILER_LABELS)
-	for (auto pEventLabel : m_profilerEventStack)
+	for (size_t num = m_profilerEventStack.size(), i = 0; i < num; ++i)
 	{
 		PIXEndEvent(pCommandList->GetD3D12CommandList());
 	}
@@ -458,14 +468,13 @@ void CDeviceGraphicsCommandInterfaceImpl::BeginRenderPassImpl(const CDeviceRende
 	if (renderPass.m_pDepthStencilView)
 	{
 		const NCryDX12::CView& View = renderPass.m_pDepthStencilView->GetDX12View();
-		NCryDX12::CResource& Resource = View.GetDX12Resource();
 
 		pDSV = &View;
 
 		D3D11_DEPTH_STENCIL_VIEW_DESC Desc; renderPass.m_pDepthStencilView->GetDesc(&Desc);
 		const D3D12_RESOURCE_STATES desiredState = Desc.Flags & D3D11_DSV_READ_ONLY_DEPTH ? D3D12_RESOURCE_STATE_DEPTH_READ : D3D12_RESOURCE_STATE_DEPTH_WRITE;
 
-		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, View, desiredState));
+		DX12_ASSERT(!View.GetDX12Resource().NeedsTransitionBarrier(pCommandListDX12, View, desiredState));
 	}
 
 	// Get current render target views
@@ -476,7 +485,7 @@ void CDeviceGraphicsCommandInterfaceImpl::BeginRenderPassImpl(const CDeviceRende
 
 		pRTV[i] = &View;
 
-		assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, *pRTV[i], D3D12_RESOURCE_STATE_RENDER_TARGET));
+		DX12_ASSERT(!Resource.NeedsTransitionBarrier(pCommandListDX12, *pRTV[i], D3D12_RESOURCE_STATE_RENDER_TARGET));
 	}
 
 	pCommandListDX12->BindAndSetOutputViews(renderPass.m_RenderTargetCount, pRTV, pDSV);
@@ -533,9 +542,8 @@ void CDeviceGraphicsCommandInterfaceImpl::SetVertexBuffersImpl(uint32 numStreams
 			// TODO: try not to call GetD3D() here, overhead: 1 call (and no inlinening) + 1 look-up + 2 accesses + branch
 			buffer_size_t offset;
 			auto* pBuffer = reinterpret_cast<CCryDX12Buffer*>(gcpRendD3D.m_DevBufMan.GetD3D(vertexStream.hStream, &offset));
-			NCryDX12::CResource& Resource = pBuffer->GetDX12Resource();
 
-			DX12_ASSERT(!Resource.InitHasBeenDeferred(), "Resource %s hasn't been uploaded prior to use!", Resource.GetName());
+			DX12_ASSERT(!pBuffer->GetDX12Resource().InitHasBeenDeferred(), "Resource %s hasn't been uploaded prior to use!", pBuffer->GetDX12Resource().GetName());
 			DX12_ASSERT(!pBuffer->GetDX12Resource().NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER));
 
 #if defined(ENABLE_PROFILING_CODE)
@@ -559,10 +567,9 @@ void CDeviceGraphicsCommandInterfaceImpl::SetIndexBufferImpl(const CDeviceInputS
 		// TODO: try not to call GetD3D() here, overhead: 1 call (and no inlinening) + 1 look-up + 2 accesses + branch
 		buffer_size_t offset;
 		auto* pBuffer = reinterpret_cast<CCryDX12Buffer*>(gcpRendD3D.m_DevBufMan.GetD3D(indexStream->hStream, &offset));
-		NCryDX12::CResource& Resource = pBuffer->GetDX12Resource();
 
-		DX12_ASSERT(!Resource.InitHasBeenDeferred(), "Resource %s hasn't been uploaded prior to use!", Resource.GetName());
-		DX12_ASSERT(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_INDEX_BUFFER));
+		DX12_ASSERT(!pBuffer->GetDX12Resource().InitHasBeenDeferred(), "Resource %s hasn't been uploaded prior to use!", pBuffer->GetDX12Resource().GetName());
+		DX12_ASSERT(!pBuffer->GetDX12Resource().NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_INDEX_BUFFER));
 
 #if defined(ENABLE_PROFILING_CODE)
 		CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundIndexBuffers[pBuffer->GetDX12Resource().IsOffCard()]);
@@ -680,8 +687,8 @@ void CDeviceGraphicsCommandInterfaceImpl::SetInlineShaderResourceImpl(uint32 bin
 	const NCryDX12::CView& View = GET_DX12_SHADER_VIEW(pBuffer, resourceViewID)->GetDX12View();
 	NCryDX12::CResource& Resource = View.GetDX12Resource();
 
-	assert(!Resource.InitHasBeenDeferred());
-	assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+	DX12_ASSERT(!Resource.InitHasBeenDeferred());
+	DX12_ASSERT(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 
 #if defined(ENABLE_PROFILING_CODE)
 	CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundInlineBuffers[Resource.IsOffCard()]);
@@ -954,7 +961,7 @@ void CDeviceComputeCommandInterfaceImpl::SetInlineShaderResourceImpl(uint32 bind
 	const NCryDX12::CView& View = GET_DX12_SHADER_VIEW(pBuffer, resourceViewID)->GetDX12View();
 	NCryDX12::CResource& Resource = View.GetDX12Resource();
 
-	assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
+	DX12_ASSERT(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE));
 
 #if defined(ENABLE_PROFILING_CODE)
 	CryInterlockedIncrement(&SRenderStatistics::Write().m_nNumBoundInlineBuffers[Resource.IsOffCard()]);
@@ -994,7 +1001,7 @@ void CDeviceComputeCommandInterfaceImpl::DiscardUAVContentsImpl(D3DResource* pRe
 	NCryDX12::CCommandList* pCommandListDX12 = GetDX12CommandList();
 	NCryDX12::CResource& Resource = reinterpret_cast<CCryDX12Resource<IEmptyResource>*>(pResource)->GetDX12Resource();
 	D3D12_DISCARD_REGION rRegion = { numRects, pRects, 0, 1 }; // NOTE: UAV-arrays are technically possible but not supported here
-	assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+	DX12_ASSERT(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 	pCommandListDX12->DiscardResource(Resource, &rRegion);
 }
 
@@ -1004,7 +1011,7 @@ void CDeviceComputeCommandInterfaceImpl::DiscardUAVContentsImpl(D3DBaseView* pVi
 	const NCryDX12::CView& View = reinterpret_cast<CCryDX12RenderTargetView*>(pView)->GetDX12View();
 	NCryDX12::CResource& Resource = View.GetDX12Resource();
 	D3D12_DISCARD_REGION rRegion = { numRects, pRects, 0, 0x7FFFFFFF }; // TODO: calculate sub-resources and loop according to the given view
-	assert(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
+	DX12_ASSERT(!Resource.NeedsTransitionBarrier(pCommandListDX12, D3D12_RESOURCE_STATE_UNORDERED_ACCESS));
 	pCommandListDX12->DiscardResource(Resource, &rRegion);
 }
 
@@ -1151,20 +1158,20 @@ void CDeviceCopyCommandInterfaceImpl::CopyImpl(const void* pSrc, CDeviceTexture*
 
 void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceBuffer* pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout)
 {
-	assert(0);
+	DX12_ASSERT(0);
 }
 
 void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryAlignment& memoryLayout)
 {
-	assert(0);
+	DX12_ASSERT(0);
 }
 
 void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceBuffer* pSrc, void* pDst, const SResourceMemoryMapping& region)
 {
-	assert(0);
+	DX12_ASSERT(0);
 }
 
 void CDeviceCopyCommandInterfaceImpl::CopyImpl(CDeviceTexture* pSrc, void* pDst, const SResourceMemoryMapping& region)
 {
-	assert(0);
+	DX12_ASSERT(0);
 }

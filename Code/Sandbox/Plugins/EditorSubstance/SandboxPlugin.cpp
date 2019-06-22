@@ -52,11 +52,8 @@ class CFileHandler : public IFileManipulator
 
 	virtual string GetAbsolutePath(const string& filename) const override
 	{
-		//char buffer[ICryPak::g_nMaxPath];
-		//const char* absfilename = gEnv->pCryPak->AdjustFileName(filename, buffer, ICryPak::FLAGS_FOR_WRITING);
 		return PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), filename);
 	}
-
 };
 
 CSubstancePlugin::CSubstancePlugin()

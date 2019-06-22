@@ -288,7 +288,7 @@
 //change these when your compiler gets bool
 typedef bool RHCB_BOOL;
 
-//#include <string.h> //for memstuff
+//#include <cstring>  //for memstuff
 //#include <stddef.h> //for size_t
 
 //typeless representation of a function and optional object

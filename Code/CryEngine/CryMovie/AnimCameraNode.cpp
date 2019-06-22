@@ -250,6 +250,13 @@ void CAnimCameraNode::Animate(SAnimContext& animContext)
 		bNodeAnimated = true;
 	}
 
+	if (bNodeAnimated && m_pOwner && !IsSkipInterpolatedCameraNodeEnabled())
+	{
+		m_bIgnoreSetParam = true;
+		m_pOwner->OnNodeAnimated(this);
+		m_bIgnoreSetParam = false;
+	}
+
 	if (pEntity)
 	{
 		Quat rotation = pEntity->GetRotation();
@@ -265,13 +272,6 @@ void CAnimCameraNode::Animate(SAnimContext& animContext)
 
 			bNodeAnimated = true;
 		}
-	}
-
-	if (bNodeAnimated && m_pOwner && !IsSkipInterpolatedCameraNodeEnabled())
-	{
-		m_bIgnoreSetParam = true;
-		m_pOwner->OnNodeAnimated(this);
-		m_bIgnoreSetParam = false;
 	}
 }
 

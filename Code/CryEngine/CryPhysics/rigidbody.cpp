@@ -406,9 +406,10 @@ real ComputeRc(RigidBody *body0, entity_contact **pContacts, int nAngContacts,in
 
 void InitContactSolver(float time_interval)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Physics, 0, "Physics Contact Solver");
+	MEMSTAT_CONTEXT(EMemStatContextType::Physics, "Physics Contact Solver");
 
 	int iCaller = get_iCaller_int();
+	iCaller &= iCaller-MAX_PHYS_THREADS >> 31;
 	if (!g_RBdata[iCaller])
 		g_RBdata[iCaller] = new RBdata;
 	g_nContacts = g_nBodies = 0;
@@ -429,6 +430,7 @@ void CleanupContactSolvers()
 char *AllocSolverTmpBuf(int size)
 {
 	int iCaller = get_iCaller_int();
+	iCaller &= iCaller-MAX_PHYS_THREADS >> 31;
 	if (g_iSolverBufPos+size<sizeof(g_SolverBuf)) {
 		g_iSolverBufPos += size;
 		memset(g_SolverBuf+g_iSolverBufPos-size, 0, size);
@@ -455,6 +457,7 @@ extern RigidBody g_StaticRigidBodies[];
 void RegisterContact(entity_contact *pcontact)
 {
 	int iCaller = get_iCaller_int();
+	iCaller &= iCaller-MAX_PHYS_THREADS >> 31;
 	if (!(pcontact->flags & (contact_maintain_count|contact_rope)))
 		pcontact->pBounceCount = &pcontact->iCount;
 	if ((UINT_PTR)pcontact->pbody[1]-(UINT_PTR)g_StaticRigidBodies<(UINT_PTR)(sizeof(RigidBody)*MAX_PHYS_THREADS))
@@ -463,9 +466,12 @@ void RegisterContact(entity_contact *pcontact)
 	g_nContacts = min(g_nContacts,(int)(CRY_ARRAY_COUNT(g_pContacts))-1);
 }
 
+entity_contact **GetContacts(int &nContacts, int iCaller) { nContacts	= g_nContacts; return g_pContacts; }
+
 void DisablePreCG()
 {
 	int iCaller = get_iCaller_int();
+	iCaller &= iCaller-MAX_PHYS_THREADS >> 31;
 	g_bUsePreCG = false;
 }
 
@@ -490,7 +496,7 @@ inline void ApplyImpulse(body_helper *pbody, const Vec3& dP, const Vec3& dL, int
 int InvokeContactSolverMC(contact_helper *pContactsRB,contact_helper_constraint *pContactsC,body_helper *pBodies, 
 													int nContacts,int nBodies, float Ebefore, int nMaxIters,int nPasses,float e,float minSeparationSpeed)
 {
-	CRY_PROFILE_REGION(PROFILE_PHYSICS, "LCPMC");
+	CRY_PROFILE_SECTION(PROFILE_PHYSICS, "LCPMC");
 	int iCaller = get_iCaller_int();
 	int i,j,bBounced,istart,iend,istep,nBounces=0,bContactBounced;
 	float vrel,dPn,dPtang,Eafter;
@@ -1008,7 +1014,7 @@ __solver_step++;
 	g_nBodies = nBodies;
 
 	if (g_bUsePreCG && g_nContacts<16 && !bMultigrid) {
-		CRY_PROFILE_REGION(PROFILE_PHYSICS, "PreCG");
+		CRY_PROFILE_SECTION(PROFILE_PHYSICS, "PreCG");
 
 		real a,b,r2,r2new,pAp,vmax,vdiff;
 
@@ -1151,7 +1157,7 @@ __solver_step++;
 		if (maxLevel>=pss->massDecayMinLevel && iter>1) {
 			float M0=0, M1=0, massDecayInv=1/pss->massDecay, Mscale[100], MscaleInv[100];
 			for(i=1,Mscale[0]=MscaleInv[0]=1; i<=maxLevel; i++)
-				Mscale[i]=Mscale[i-1]*pss->massDecay, MscaleInv[i]=MscaleInv[i-1]*massDecayInv;
+				Mscale[i]=max(1e-5f,Mscale[i-1]*pss->massDecay), MscaleInv[i]=min_safe(1e5f,MscaleInv[i-1]*massDecayInv);
 			for(i=0;i<nBodies;i++) {
 				M0 += g_Bodies[i].M;
 				M1 += g_Bodies[i].M*Mscale[g_infos[i].iLevel];
@@ -1253,7 +1259,7 @@ __solver_step++;
 		}
 
 		if (bBounced) {
-			{ CRY_PROFILE_REGION(PROFILE_PHYSICS,"LCPCG");
+			{ CRY_PROFILE_SECTION(PROFILE_PHYSICS,"LCPCG");
 
 			cgiter = pss->nMaxLCPCGiters;
 			for(i=0;i<nBodies;i++) {
@@ -1518,7 +1524,7 @@ __solver_step++;
 			}//"LCPCG"
 
 			if (bBounced) {
-				CRY_PROFILE_REGION(PROFILE_PHYSICS, "LCPCG-unproj");
+				CRY_PROFILE_SECTION(PROFILE_PHYSICS, "LCPCG-unproj");
 
 				///////////////////////////////////////////////////////////////////////////////////
 				// now, use a separate solver for unprojections (unproject each body independently)

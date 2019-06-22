@@ -157,7 +157,11 @@ public:
 	
 	virtual void QueueCustomFragment(IAction& action)
 	{
-		m_pActionController->Queue(action);
+		CRY_ASSERT(m_pActionController != nullptr);
+		if (m_pActionController != nullptr)
+		{
+			m_pActionController->Queue(action);
+		}
 	}
 
 	// TODO: Expose resource selector for tags
@@ -178,17 +182,33 @@ public:
 
 	TagID GetTagId(const char* szTagName) const
 	{
+		CRY_ASSERT(m_pControllerDefinition != nullptr);
+		if (m_pControllerDefinition == nullptr)
+		{
+			return TAG_ID_INVALID;
+		}
+
 		return m_pControllerDefinition->m_tags.Find(szTagName);
 	}
 
 	FragmentID GetFragmentId(const char* szFragmentName) const
 	{
+		CRY_ASSERT(m_pControllerDefinition != nullptr);
+		if (m_pControllerDefinition == nullptr)
+		{
+			return FRAGMENT_ID_INVALID;
+		}
+
 		return m_pControllerDefinition->m_fragmentIDs.Find(szFragmentName);
 	}
 
 	virtual void SetTagWithId(TagID id, bool bSet)
 	{
-		m_pAnimationContext->state.Set(id, bSet);
+		CRY_ASSERT(m_pAnimationContext != nullptr);
+		if (m_pAnimationContext != nullptr)
+		{
+			m_pAnimationContext->state.Set(id, bSet);
+		}
 	}
 
 	ICharacterInstance* GetCharacter() const { return m_pCachedCharacter; }

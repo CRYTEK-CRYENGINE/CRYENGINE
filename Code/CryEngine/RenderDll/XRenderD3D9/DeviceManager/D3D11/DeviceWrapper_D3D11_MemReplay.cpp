@@ -16,13 +16,13 @@ MemReplayD3DAnnotation::MemReplayD3DAnnotation(ID3D11DeviceChild* pRes, size_t s
 	: m_nRefCount(0)
 	, m_pRes(pRes)
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_D3DManaged, 0);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::D3DManaged, EMemReplayUserPointerClass::Unknown);
 	MEMREPLAY_SCOPE_ALLOC(pRes, sz, 0);
 }
 
 MemReplayD3DAnnotation::~MemReplayD3DAnnotation()
 {
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_D3DManaged, 0);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::D3DManaged, EMemReplayUserPointerClass::Unknown);
 	MEMREPLAY_SCOPE_FREE(m_pRes);
 }
 
@@ -33,7 +33,7 @@ void MemReplayD3DAnnotation::AddMap(UINT nSubRes, void* pData, size_t sz)
 	desc.pData = pData;
 	m_maps.push_back(desc);
 
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	MEMREPLAY_SCOPE_ALLOC(pData, sz, 0);
 }
 
@@ -43,7 +43,7 @@ void MemReplayD3DAnnotation::RemoveMap(UINT nSubRes)
 	{
 		if (it->nSubResource == nSubRes)
 		{
-			MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+			MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 			MEMREPLAY_SCOPE_FREE(it->pData);
 
 			m_maps.erase(m_maps.begin() + std::distance(&*m_maps.begin(), &*it));

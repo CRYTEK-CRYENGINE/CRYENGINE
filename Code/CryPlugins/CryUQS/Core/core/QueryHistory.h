@@ -121,8 +121,7 @@ namespace UQS
 
 			CDebugRenderWorldPersistent&                        GetDebugRenderWorldPersistent();
 			CDebugMessageCollection&                            GetDebugMessageCollection();
-			void                                                OnQueryCreated(size_t queryCreatedFrame, const CTimeValue& queryCreatedTimestamp);
-			void                                                OnQueryBlueprintInstantiationStarted(const char* szQueryBlueprintName);
+			void                                                OnQueryCreated(size_t queryCreatedFrame, const CTimeValue& queryCreatedTimestamp, const char* szQueryBlueprintName);
 			void                                                OnQueryCanceled(const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnQueryFinished(const CQueryBase::SStatistics& finalStatistics);
 			void                                                OnQueryDestroyed();
@@ -237,6 +236,7 @@ namespace UQS
 			bool                                           SerializeToXmlFile(const char* szXmlFilePath, string& error) const;
 			bool                                           DeserializeFromXmlFile(const char* szXmlFilePath, string& error);
 			void                                           StartAsyncXmlSerializeJob(const char* szFileName);
+			void                                           AsyncXmlSerializeJob(string xmlFilePath, SHistoryData snapshot);
 			void                                           PrintStatisticsToConsole(const char* szMessagePrefix) const;
 
 		private:

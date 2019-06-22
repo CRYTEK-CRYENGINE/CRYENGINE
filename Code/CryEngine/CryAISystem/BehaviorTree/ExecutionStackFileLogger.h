@@ -32,7 +32,7 @@ private:
 	void                      LogNodeRecursively(const DebugNode& debugNode, const int indentLevel);
 
 	string           m_agentName;
-	char             m_logFilePath[ICryPak::g_nMaxPath];
+	CryPathString    m_logFilePath;
 	LogFileOpenState m_openState;
 	CCryFile         m_logFile;
 };

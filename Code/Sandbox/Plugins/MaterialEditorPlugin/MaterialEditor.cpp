@@ -7,7 +7,6 @@
 #include <PathUtils.h>
 
 #include <EditorFramework/Events.h>
-#include <EditorFramework/InspectorLegacy.h>
 #include <EditorFramework/Inspector.h>
 #include <LevelEditor/LevelEditorSharedState.h>
 
@@ -104,52 +103,9 @@ private:
 CMaterialEditor::CMaterialEditor()
 	: CAssetEditor("Material")
 	, m_pMaterial(nullptr)
-	, m_useLegacyPropertyTree(true)
 {
-	InitMenuBar();
-	CreateToolbar();
-	EnableDockingSystem();
-
-	//Create a legacy or new inspector based on what property tree we want to use
-	RegisterDockableWidget("Properties", [&]()
-	{
-		QWidget* pInspectorToUse = nullptr;
-		if (m_useLegacyPropertyTree)
-		{
-		  CInspectorLegacy* pLegacyInspector = new CInspectorLegacy(this);
-		  pLegacyInspector->SetLockable(false);
-		  pInspectorToUse = pLegacyInspector;
-		}
-		else
-		{
-		  CInspector* pInspector = new CInspector(this);
-		  pInspector->SetLockable(false);
-		  pInspectorToUse = pInspector;
-		}
-
-		return pInspectorToUse;
-	}, true);
-
-	RegisterDockableWidget("Material", [&]() { return new CSubMaterialView(this); }, true);
-	RegisterDockableWidget("Preview", [&]() { return new CMaterialPreviewWidget(this); });
-
+	RegisterActions();
 	GetIEditor()->GetMaterialManager()->AddListener(this);
-}
-
-void CMaterialEditor::CreateToolbar()
-{
-	const auto pToolbar = new QWidget;
-	const auto pSpacer = new QWidget();
-	pSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-	auto toolbarLayout = new QHBoxLayout(pToolbar);
-	toolbarLayout->addWidget(pSpacer);
-	toolbarLayout->addWidget(CreateInstantEditorToolbar());
-	toolbarLayout->setContentsMargins(0, 0, 0, 0);
-
-	QVBoxLayout* pMainLayout = new QVBoxLayout();
-	pMainLayout->setContentsMargins(1, 1, 1, 1);
-	pMainLayout->addWidget(pToolbar);
-	SetContent(pMainLayout);
 }
 
 CMaterialEditor::~CMaterialEditor()
@@ -157,12 +113,15 @@ CMaterialEditor::~CMaterialEditor()
 	GetIEditor()->GetMaterialManager()->RemoveListener(this);
 }
 
+void CMaterialEditor::RegisterActions()
+{
+	RegisterAction("general.undo", &CMaterialEditor::OnUndo);
+	RegisterAction("general.redo", &CMaterialEditor::OnRedo);
+}
+
 void CMaterialEditor::InitMenuBar()
 {
-	AddToMenu(CEditor::MenuItems::SaveAs);
-	AddToMenu(CEditor::MenuItems::EditMenu);
-	AddToMenu(CEditor::MenuItems::Undo);
-	AddToMenu(CEditor::MenuItems::Redo);
+	AddToMenu({ CEditor::MenuItems::FileMenu, CEditor::MenuItems::SaveAs, CEditor::MenuItems::EditMenu, CEditor::MenuItems::Undo, CEditor::MenuItems::Redo });
 
 	CAbstractMenu* pFileMenu = GetMenu(CEditor::MenuItems::FileMenu);
 	QAction* pAction = pFileMenu->CreateAction(CryIcon("icons:General/Picker.ico"), tr("Pick Material From Scene"), 0, 1);
@@ -172,10 +131,6 @@ void CMaterialEditor::InitMenuBar()
 	//TODO: consider adding a toolbar for material actions
 	CAbstractMenu* materialMenu = GetRootMenu()->CreateMenu(tr("Material"), 0, 3);
 	materialMenu->signalAboutToShow.Connect(this, &CMaterialEditor::FillMaterialMenu);
-
-	// Enable instant editing if possible
-	CAbstractMenu* const pEditMenu = GetMenu(CEditor::MenuItems::EditMenu);
-	pEditMenu->AddAction(m_pLockAction);
 }
 
 void CMaterialEditor::OnEditorNotifyEvent(EEditorNotifyEvent event)
@@ -290,9 +245,24 @@ void CMaterialEditor::OnSubMaterialsChanged(CMaterial::SubMaterialChange change)
 	}
 }
 
-void CMaterialEditor::CreateDefaultLayout(CDockableContainer* pSender)
+void CMaterialEditor::OnInitialize()
 {
-	QWidget* pCenterWidget = pSender->SpawnWidget("Properties");
+	RegisterDockableWidget("Properties", [&]()
+	{
+		CInspector* pInspector = new CInspector(this);
+		pInspector->SetLockable(false);
+		return pInspector;
+	}, true);
+
+	RegisterDockableWidget("Material", [&]() { return new CSubMaterialView(this); }, true);
+	RegisterDockableWidget("Preview", [&]() { return new CMaterialPreviewWidget(this); });
+
+	InitMenuBar();
+}
+
+void CMaterialEditor::OnCreateDefaultLayout(CDockableContainer* pSender, QWidget* pAssetBrowser)
+{
+	QWidget* pCenterWidget = pSender->SpawnWidget("Properties", pAssetBrowser, QToolWindowAreaReference::VSplitRight);
 	pSender->SpawnWidget("Preview", pCenterWidget, QToolWindowAreaReference::Right);
 	QWidget* pMaterialWidget = pSender->SpawnWidget("Material", pCenterWidget, QToolWindowAreaReference::Top);
 	pSender->SetSplitterSizes(pMaterialWidget, { 1, 4 });
@@ -352,11 +322,6 @@ bool CMaterialEditor::OnOpenAsset(CAsset* pAsset)
 	return true;
 }
 
-bool CMaterialEditor::OnSaveAsset(CEditableAsset& editAsset)
-{
-	return GetAssetBeingEdited()->GetEditingSession()->OnSaveAsset(editAsset);
-}
-
 void CMaterialEditor::OnCloseAsset()
 {
 	SetMaterial(nullptr);
@@ -408,36 +373,16 @@ void CMaterialEditor::BroadcastPopulateInspector()
 			title += "]";
 		}
 
-		//Decide which inspector event to use based on the property tree we are supporting in this editor
-		if (m_useLegacyPropertyTree)
-		{
-			PopulateLegacyInspectorEvent event([this](CInspectorLegacy& inspector)
-			  {
-			                                   inspector.AddWidget(m_pMaterialSerializer->CreateLegacyPropertyTree());
-				}, title);
-			event.Broadcast(this);
-		}
-		else
-		{
-			PopulateInspectorEvent event([this](CInspector& inspector)
-			  {
-				inspector.AddWidget(m_pMaterialSerializer->CreatePropertyTree());
-			  }, title);
-			event.Broadcast(this);
-		}
+		PopulateInspectorEvent event([this](CInspector& inspector)
+		  {
+		                             inspector.AddPropertyTree(m_pMaterialSerializer->CreatePropertyTree());
+			}, title);
+		event.Broadcast(this);
 	}
 	else
 	{
 		m_pMaterialSerializer.reset();
-
-		if (m_useLegacyPropertyTree)
-		{
-			ClearLegacyInspectorEvent().Broadcast(this);
-		}
-		else
-		{
-			ClearInspectorEvent().Broadcast(this);
-		}
+		ClearInspectorEvent().Broadcast(this);
 	}
 }
 

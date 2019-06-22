@@ -58,7 +58,7 @@ namespace GameAI
 			{
 				if (pAI->CastToIAIActor() != nullptr)
 				{
-					const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupMemberGrabbedByPlayer(), pAI->GetAIObjectID());
+					const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupMemberGrabbedByPlayer(), pAI->GetEntityID());
 					gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_GROUPONLY_EXCEPT, pSignal);
 				}
 			}
@@ -180,7 +180,7 @@ namespace GameAI
 			if (IAIGroupProxy* group = aiSystem.GetAIGroupProxy(ddr.groupID))
 			{
 				InjectDeadGroupMemberDataIntoScriptTable(group->GetScriptTable(), ddr.victimID, ddr.killerID, ddr.deathPos);
-				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupMemberDied(), arbitraryMember.GetAIObject() ? arbitraryMember.GetAIObject()->GetAIObjectID() : 0);
+				const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGroupMemberDied(), arbitraryMember.GetAIObject() ? arbitraryMember.GetAIObject()->GetEntityID() : INVALID_ENTITYID);
 				aiSystem.SendSignal(AISignals::ESignalFilter::SIGNALFILTER_GROUPONLY_EXCEPT, pSignal);
 			}
 		}

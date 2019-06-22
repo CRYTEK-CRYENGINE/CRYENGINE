@@ -7,7 +7,7 @@
 #include "AbstractNodeGraphViewModelItem.h"
 
 #include <CrySandbox/CrySignal.h>
-#include <Serialization/PropertyTree/Serialization.h>
+#include <Serialization/PropertyTreeLegacy/Serialization.h>
 
 #include <QColor>
 #include <QString>

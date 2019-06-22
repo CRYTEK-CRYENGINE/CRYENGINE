@@ -139,6 +139,7 @@ public:
 	void ReleaseLater(const FVAL64 (&fenceValues)[CMDQUEUE_NUM], ID3D12Resource* pObject, bool bReusable = true) threadsafe;
 
 	void FlushAndWaitForGPU();
+	void FlushAndWaitForGPU(const UINT64 (&fenceValues)[CMDQUEUE_NUM]);
 
 private:
 	// Queries ------------------------------------------------------------------------------------

@@ -144,7 +144,7 @@ bool CAnimationManager::LoadAnimationTCB(int nAnimId, DynArray<CControllerTCB>& 
 		return 0;
 	const CDefaultSkeleton* pDefaultSkeleton = (const CDefaultSkeleton*)pIDefaultSkeleton;
 
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	GlobalAnimationHeaderCAF& rGlobalAnim = m_arrGlobalCAF[nAnimId];
 	int32 nStartKey = pCGA->m_start;

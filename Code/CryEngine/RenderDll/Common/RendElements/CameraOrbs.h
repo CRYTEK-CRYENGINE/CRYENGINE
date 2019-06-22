@@ -66,7 +66,7 @@ public:
 protected:
 	void ApplyOrbFlags(uint64& rtFlags, bool detailShading) const;
 	void ApplyAdvancedShadingFlag(uint64& rtFlags) const;
-	void ApplyAdvancedShadingParams(SShaderParams& shaderParams, CRenderPrimitive& primitive, const ColorF& ambDiffuseRGBK, float absorptance, float transparency, float scattering) const;
+	void ApplyAdvancedShadingParams(CGraphicsPipeline* pGraphicsPipeline, SShaderParams& shaderParams, CRenderPrimitive& primitive, const ColorF& ambDiffuseRGBK, float absorptance, float transparency, float scattering) const;
 
 public:
 

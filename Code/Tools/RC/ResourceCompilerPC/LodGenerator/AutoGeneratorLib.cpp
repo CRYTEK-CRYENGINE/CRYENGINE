@@ -9,14 +9,8 @@ Copyright (C), Crytek Studios, 2014.
 #include <Cry3DEngine/IIndexedMesh.h>
 #include "AutoGeneratorLib.h"
 #include <CryThreading/IThreadManager.h>
-//#include "AtlasGenerator.h"
-//#include "TopologyGraph.h"
-//#include "TopologyTransform.h"
 #include "AutoGeneratorUVUnwrap.h"
 #include <Cry3DEngine/CGF/CGFContent.h>
-
-// Provides definition for PushProfilingMarker() in debug builds.
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler_impl.h>
 
 #include "StealingThreadPool.h"
 

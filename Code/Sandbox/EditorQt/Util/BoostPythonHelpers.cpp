@@ -2689,7 +2689,7 @@ void RemoveListener(IPyScriptListener* pListener)
 
 void LoadPluginFromPath(string path)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(path.c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, path.c_str());
 	CFileEnum fileEnum;
 	__finddata64_t fileData;
 	if (fileEnum.StartEnumeration(path, "startup.py", &fileData))
@@ -2702,7 +2702,7 @@ void LoadPluginFromPath(string path)
 
 void LoadPythonPlugins()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	string userFolder(PathUtil::GetUserSandboxFolder());
 	boost::python::object mainModule(boost::python::handle<>(boost::python::borrowed(PyImport_ImportModule("sandbox"))));
 	boost::python::scope main_scope = mainModule;

@@ -1,20 +1,12 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   IShader.h : Shaders common interface.
+#pragma once
 
-   Revision history:
-* Created by Anton Kaplanyan
-
-   =============================================================================*/
-
-#ifndef _ITEXTURE_H_
-#define _ITEXTURE_H_
+#include "Tarray.h"
 
 #include <CryCore/CryEnumMacro.h>
 #include <CryMath/Cry_Math.h>
 #include <CryMath/Cry_Color.h>
-#include "Tarray.h"
 
 class CTexture;
 
@@ -448,7 +440,7 @@ public:
 typedef STexData* STexDataPtr;
 
 //! Texture object interface.
-class ITexture
+struct ITexture
 {
 protected:
 	virtual ~ITexture() {}
@@ -470,7 +462,6 @@ public:
 	virtual const uint32    GetDataSize() const = 0;
 	virtual const ETEX_Type GetTextureType() const = 0;
 	virtual const bool      IsTextureLoaded() const = 0;
-	virtual void            PrecacheAsynchronously(float fMipFactor, int nFlags, int nUpdateId, int nCounter = 1) = 0;
 	virtual uint8*          GetData32(int nSide = 0, int nLevel = 0, uint8* pDst = NULL, ETEX_Format eDstFormat = eTF_R8G8B8A8) = 0;
 	virtual bool            SetFilter(int nFilter) = 0; //!< FILTER_ flags.
 	virtual void            SetClamp(bool bEnable) = 0; //!< Texture addressing set.
@@ -671,5 +662,3 @@ struct STexAnim
 	}
 };
 //! \endcond
-
-#endif// _ITEXTURE_H_

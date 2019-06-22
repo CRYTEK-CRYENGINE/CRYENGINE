@@ -1,0 +1,6 @@
+For each toolset that comes with this version of Visual Studio, there are
+variants that are themselves compiled for 32-bit (x86) and 64-bit (x64) hosts
+(independent of the architecture they target).  By default Visual Studio
+chooses the 32-bit variant even on a 64-bit host.  One may request use of the
+64-bit host tools by adding a ``host=x64`` option to the toolset specification.
+See the :variable:`CMAKE_GENERATOR_TOOLSET` variable for details.

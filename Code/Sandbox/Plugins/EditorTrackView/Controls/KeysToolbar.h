@@ -11,6 +11,10 @@ class CTrackViewKeysToolbar : public QToolBar, public CTrackViewCoreComponent
 {
 	Q_OBJECT
 
+	//TODO: avoid friend class
+	friend class CTrackViewWindow; 
+	//~TODO
+
 public:
 	CTrackViewKeysToolbar(CTrackViewCore* pTrackViewCore);
 	~CTrackViewKeysToolbar() {}
@@ -19,9 +23,13 @@ protected:
 	virtual void        OnTrackViewEditorEvent(ETrackViewEditorEvent event) override;
 	virtual const char* GetComponentTitle() const override { return "Keys Toolbar"; }
 
+private:
+	void                SetupSlideAction(QAction* pAction);
+
 private slots:
 	void OnGoToPreviousKey();
 	void OnGoToNextKey();
+	void OnMoveKeys();
 	void OnSlideKeys();
 	void OnScaleKeys();
 	void OnSnapModeChanged();

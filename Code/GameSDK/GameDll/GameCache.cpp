@@ -86,7 +86,7 @@ void CGameCache::Init()
 //////////////////////////////////////////////////////////////////////////
 void CGameCache::PrecacheLevel()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	// Cache player model
 	if (g_pGameCVars->g_loadPlayerModelOnLoad != 0)

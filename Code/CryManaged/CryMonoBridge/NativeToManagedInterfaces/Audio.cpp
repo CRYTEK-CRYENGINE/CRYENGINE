@@ -130,17 +130,17 @@ static void ReleaseAudioObject(CryAudio::IObject* pAudioObject)
 	gEnv->pAudioSystem->ReleaseObject(pAudioObject);
 }
 
-static void ExecuteAudioObjectTrigger(CryAudio::IObject* pAudioObject, uint triggerId, bool bExecuteSync)
+static void ExecuteAudioObjectTrigger(CryAudio::IObject* pAudioObject, uint triggerId, bool bExecuteSync, EntityId entityId = INVALID_ENTITYID)
 {
 	if (bExecuteSync)
 	{
 		const CryAudio::SRequestUserData data(CryAudio::ERequestFlags::ExecuteBlocking | CryAudio::ERequestFlags::CallbackOnExternalOrCallingThread | CryAudio::ERequestFlags::DoneCallbackOnExternalThread);
-		pAudioObject->ExecuteTrigger(triggerId, data);
+		pAudioObject->ExecuteTrigger(triggerId, entityId, data);
 	}
 	else
 	{
 		const CryAudio::SRequestUserData data(CryAudio::ERequestFlags::CallbackOnExternalOrCallingThread | CryAudio::ERequestFlags::DoneCallbackOnExternalThread);
-		pAudioObject->ExecuteTrigger(triggerId, data);
+		pAudioObject->ExecuteTrigger(triggerId, entityId, data);
 	}
 
 }
@@ -199,9 +199,9 @@ static void RemoveAudioRequestListener(AudioRequestListener listener)
 	gEnv->pAudioSystem->RemoveRequestListener(listener, nullptr);
 }
 
-static CryAudio::IListener* CreateAudioListener(CryAudio::CTransformation const& transformation)
+static CryAudio::IListener* CreateAudioListener(CryAudio::CTransformation const& transformation, const char* szName)
 {
-	return gEnv->pAudioSystem->CreateListener(transformation);
+	return gEnv->pAudioSystem->CreateListener(transformation, szName);
 }
 
 static void SetAudioListenerTransformation(CryAudio::IListener* pAudioListener, CryAudio::CTransformation* pCObjectTransformation)

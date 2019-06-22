@@ -31,8 +31,6 @@ bool SIntersectionData::Init(IRenderMesh* param_pRenderMesh, SRayHitInfo* param_
 	pMtl = param_pMtl;
 	bDecalPlacementTestRequested = param_bRequestDecalPlacementTest;
 
-	bool bAllDMeshData = pHitInfo->bGetVertColorAndTC;
-
 	nVerts = pRenderMesh->GetVerticesCount();
 	nInds = pRenderMesh->GetIndicesCount();
 
@@ -44,13 +42,14 @@ bool SIntersectionData::Init(IRenderMesh* param_pRenderMesh, SRayHitInfo* param_
 	if (!pPos || !pInds)
 		return false;
 
-	if (bAllDMeshData)
+#if defined(FEATURE_SVO_GI)
+	if (pHitInfo->bGetVertColorAndTC)
 	{
 		pUV = (uint8*)pRenderMesh->GetUVPtr(nUVStride, FSL_READ);
 		pCol = (uint8*)pRenderMesh->GetColorPtr(nColStride, FSL_READ);
-
 		pTangs = pRenderMesh->GetTangentPtr(nTangsStride, FSL_READ);
 	}
+#endif
 
 	return true;
 }
@@ -173,8 +172,10 @@ void CRenderMeshUtils::RayIntersectionAsync(SIntersectionData* pIntersectionRMDa
 
 bool CRenderMeshUtils::RayIntersectionImpl(SIntersectionData* pIntersectionRMData, SRayHitInfo* phitInfo, IMaterial* pMtl, bool bAsync)
 {
+#if defined(FEATURE_SVO_GI)
 	IF (phitInfo->bGetVertColorAndTC, 0)
 		return RayIntersectionFastImpl(*pIntersectionRMData, *phitInfo, pMtl, bAsync);
+#endif
 
 	SIntersectionData& rIntersectionRMData = *pIntersectionRMData;
 	SRayHitInfo& hitInfo = *phitInfo;
@@ -228,7 +229,6 @@ bool CRenderMeshUtils::RayIntersectionImpl(SIntersectionData* pIntersectionRMDat
 					//CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
 					//CryLogAlways( "TestTime :%.2f", (t1-t0).GetMilliSeconds() );
 					//static int nCount = 0; CryLogAlways( "Cached Hit %d",++nCount );
-					hitInfo.pRenderMesh = rIntersectionRMData.pRenderMesh;
 					rIntersectionRMData.bResult = true;
 					return true;
 				}
@@ -386,8 +386,6 @@ bool CRenderMeshUtils::RayIntersectionImpl(SIntersectionData* pIntersectionRMDat
 AnyHit:
 	if (bAnyHit)
 	{
-		hitInfo.pRenderMesh = rIntersectionRMData.pRenderMesh;
-
 		// return closest to the shooter
 		hitInfo.fDistance = (float)sqrt_tpl(fMinDistance2);
 		hitInfo.vHitNormal = (tri[1] - tri[0]).Cross(tri[2] - tri[0]).GetNormalized();
@@ -457,6 +455,7 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 	int nPosStride = rIntersectionRMData.nPosStride;
 	uint8* pPos = rIntersectionRMData.pPos;
 
+#if defined(FEATURE_SVO_GI)
 	int nUVStride = rIntersectionRMData.nUVStride;
 	uint8* pUV = rIntersectionRMData.pUV;
 
@@ -465,6 +464,7 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 
 	int nTangsStride = rIntersectionRMData.nTangsStride;
 	byte* pTangs = rIntersectionRMData.pTangs;
+#endif
 
 	// get indices
 	vtx_idx* pInds = rIntersectionRMData.pInds;
@@ -484,7 +484,7 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 
 	Line inLine(inRay.origin, inRay.direction);
 
-	if (!inRay.direction.IsZero() && hitInfo.nHitTriID >= 0)
+	if (hitInfo.nHitTriID >= 0)
 	{
 		if (hitInfo.nHitTriID + 2 >= nInds)
 			return false;
@@ -519,11 +519,13 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 
 	if (hitInfo.nHitTriID == HIT_UNKNOWN)
 	{
-		if (inRay.direction.IsZero())
+#if defined(FEATURE_SVO_GI)
+		if (hitInfo.useBoxIntersection)
 		{
 			ProcessBoxIntersection(inRay, hitInfo, rIntersectionRMData, pMtl, pInds, nVerts, pPos, nPosStride, pUV, nUVStride, pCol, nColStride, pTangs, nTangsStride, nInds, bAnyHit, fBestDist, vHitPos, tri);
 		}
 		else
+#endif
 		{
 			if (const PodArray<std::pair<int, int>>* pTris = rIntersectionRMData.pRenderMesh->GetTrisForPosition(inRay.origin + inRay.direction * 0.5f, pMtl))
 			{
@@ -569,8 +571,6 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 
 	if (bAnyHit)
 	{
-		hitInfo.pRenderMesh = rIntersectionRMData.pRenderMesh;
-
 		// return closest to the shooter
 		hitInfo.fDistance = fBestDist;
 		hitInfo.vHitNormal = (tri[1] - tri[0]).Cross(tri[2] - tri[0]).GetNormalized();
@@ -584,6 +584,7 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 				hitInfo.nHitSurfaceID = pMtl->GetSurfaceTypeId();
 		}
 
+#if defined(FEATURE_SVO_GI)
 		if (hitInfo.bGetVertColorAndTC && hitInfo.nHitTriID >= 0 && !inRay.direction.IsZero())
 		{
 			int I0 = pInds[hitInfo.nHitTriID + 0];
@@ -633,6 +634,7 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 				hitInfo.vHitColor = (c0 * arrVertWeight[0] + c1 * arrVertWeight[1] + c2 * arrVertWeight[2]) / 255.f;
 			}
 		}
+#endif
 	}
 
 	//CTimeValue t1 = gEnv->pTimer->GetAsyncTime();
@@ -641,12 +643,16 @@ bool CRenderMeshUtils::RayIntersectionFastImpl(SIntersectionData& rIntersectionR
 	return bAnyHit;
 }
 
+#if defined(FEATURE_SVO_GI)
+
 // used for CPU voxelization
 bool CRenderMeshUtils::ProcessBoxIntersection(Ray& inRay, SRayHitInfo& hitInfo, SIntersectionData& rIntersectionRMData, IMaterial* pMtl, vtx_idx* pInds, int nVerts, uint8* pPos, int nPosStride, uint8* pUV, int nUVStride, uint8* pCol, int nColStride, byte* pTangs, int nTangsStride, int nInds, bool& bAnyHit, float& fBestDist, Vec3& vHitPos, Vec3* tri)
 {
 	AABB voxBox;
 	voxBox.min = inRay.origin - Vec3(hitInfo.fMaxHitDistance);
 	voxBox.max = inRay.origin + Vec3(hitInfo.fMaxHitDistance);
+
+	assert(hitInfo.pHitTris);
 
 	if (hitInfo.pHitTris)
 	{
@@ -677,12 +683,6 @@ bool CRenderMeshUtils::ProcessBoxIntersection(Ray& inRay, SRayHitInfo& hitInfo, 
 				b2Sided = true;
 
 			float fOpacity = shaderItem.m_pShaderResources->GetStrengthValue(EFTT_OPACITY) * shaderItem.m_pShaderResources->GetVoxelCoverage();
-			if (fOpacity < hitInfo.fMinHitOpacity)
-				continue;
-
-			//          ColorB colEm = shaderItem.m_pShaderResources->GetEmissiveColor();
-			//          if(!colEm.r && !colEm.g && !colEm.b)
-			//            colEm = Col_DarkGray;
 
 			// make line triangle intersection
 			for (uint ii = pChunk->nFirstIndexId; ii < pChunk->nFirstIndexId + pChunk->nNumIndices; ii += 3)
@@ -724,82 +724,30 @@ bool CRenderMeshUtils::ProcessBoxIntersection(Ray& inRay, SRayHitInfo& hitInfo, 
 
 						ht.nOpacity = SATURATEB(int(fOpacity * 255.f));
 
-#if defined(FEATURE_SVO_GI)
-						if (GetCVars()->e_svoTI_RT_Active)
+						// store and validate vertex normals
+						bool bValid = true;
+
+						const int arrId[3] = { I0, I1, I2 };
+
+						for (int ii = 0; ii < 3; ii++)
 						{
-							// store and validate vertex normals
-							bool bValid = true;
+							ht.vn[ii] = ((SPipTangents*)&pTangs[nTangsStride * arrId[ii]])->GetN().GetNormalized();
 
-							const int arrId[3] = { I0, I1, I2 };
-
-							for (int ii = 0; ii < 3; ii++)
-							{
-								ht.vn[ii] = ((SPipTangents*)&pTangs[nTangsStride * arrId[ii]])->GetN().GetNormalized();
-
-								if (ht.vn[ii].IsZero())
-									bValid = false;
-							}
-
-							if (!bValid)
-								continue;
+							if (ht.vn[ii].IsZero())
+								bValid = false;
 						}
-#endif
-						  
+
+						if (!bValid)
+							continue;
+					  
 						hitInfo.pHitTris->Add(ht);
 					}
 				}
 			}
 		}
 	}
-	else if (const PodArray<std::pair<int, int>>* pTris = rIntersectionRMData.pRenderMesh->GetTrisForPosition(inRay.origin, pMtl))
-	{
-		for (int nId = 0; nId < pTris->Count(); ++nId)
-		{
-			std::pair<int, int>& t = pTris->GetAt(nId);
-
-			if (t.first + 2 >= nInds)
-				return false;
-
-			int I0 = pInds[t.first + 0];
-			int I1 = pInds[t.first + 1];
-			int I2 = pInds[t.first + 2];
-
-			if (I0 >= nVerts || I1 >= nVerts || I2 >= nVerts)
-				return false;
-
-			// get tri vertices
-			Vec3& tv0 = *((Vec3*)&pPos[nPosStride * I0]);
-			Vec3& tv1 = *((Vec3*)&pPos[nPosStride * I1]);
-			Vec3& tv2 = *((Vec3*)&pPos[nPosStride * I2]);
-
-			if (Overlap::AABB_Triangle(voxBox, tv0, tv2, tv1))
-			{
-				{
-					IMaterial* pSubMtl = pMtl->GetSafeSubMtl(t.second);
-					if (pSubMtl)
-					{
-						if (!pSubMtl->GetShaderItem().IsZWrite())
-							continue;
-						if (!pSubMtl->GetShaderItem().m_pShader)
-							continue;
-						if (pSubMtl->GetShaderItem().m_pShader->GetShaderType() != eST_Metal && pSubMtl->GetShaderItem().m_pShader->GetShaderType() != eST_General)
-							continue;
-					}
-				}
-
-				bAnyHit = true;
-				fBestDist = 0;
-				vHitPos = voxBox.GetCenter();
-				tri[0] = tv0;
-				tri[1] = tv1;
-				tri[2] = tv2;
-				hitInfo.nHitMatID = t.second;
-				hitInfo.nHitTriID = t.first;
-
-				break;
-			}
-		}
-	}
 
 	return bAnyHit;
 }
+
+#endif

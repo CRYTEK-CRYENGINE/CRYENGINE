@@ -1017,7 +1017,7 @@ float3 GatherCubemapSpecular(float2 screenTC, float3 worldPos, float3 normal, fl
 		if (lightIndex < 0)
 			break;
 			
-		if (Water_TiledLightsShadeInfo[lightIndex].lightType == TILEDLIGHT_TYPE_PROBE && probeWeightSum < 1)
+		if (Water_TiledLightsShadeInfo[lightIndex].lightType == LIGHT_TYPE_PROBE && probeWeightSum < 1)
 		{
 			STiledLightShadeInfo light = Water_TiledLightsShadeInfo[lightIndex];
 			
@@ -1046,7 +1046,7 @@ float3 GatherCubemapSpecular(float2 screenTC, float3 worldPos, float3 normal, fl
 				probeWeightSum += probeWeight;
 			}
 		}
-		else if (Water_TiledLightsShadeInfo[lightIndex].lightType > TILEDLIGHT_TYPE_PROBE)
+		else if (Water_TiledLightsShadeInfo[lightIndex].lightType > LIGHT_TYPE_PROBE)
 		{
 			break;
 		}

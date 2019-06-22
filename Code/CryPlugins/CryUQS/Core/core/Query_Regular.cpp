@@ -127,7 +127,7 @@ namespace UQS
 		//===================================================================================
 
 		CQuery_Regular::CQuery_Regular(const SCtorContext& ctorContext)
-			: CQueryBase(ctorContext, true)  // true = yes, we need some time budget from CQueryManager for some potentially complex computations
+			: CQueryBase(ctorContext)
 			, m_currentPhaseFn(&CQuery_Regular::Phase1_PrepareGenerationPhase)
 			, m_currentItemIndexForCreatingDebugRepresentations(0)
 			, m_maxCandidates(0)
@@ -138,19 +138,19 @@ namespace UQS
 			m_peakElapsedTimePerPhaseUpdate.resize(1);    // ditto for the peak call duration
 		}
 
-		bool CQuery_Regular::OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error)
+		bool CQuery_Regular::OnStart(const Shared::IVariantDict& runtimeParams, Shared::IUqsString& error)
 		{
 			// ensure that a generator exists in the query-blueprint (CQuery_Regular::Phase1_PrepareGenerationPhase() uses it)
 			if (!m_pQueryBlueprint->GetGeneratorBlueprint())
 			{
-				error.Format("CQuery_Regular::OnInstantiateFromQueryBlueprint: the query-blueprint '%s' has no generator specified", m_pQueryBlueprint->GetName());
+				error.Format("CQuery_Regular::OnStart: the query-blueprint '%s' has no generator specified", m_pQueryBlueprint->GetName());
 				return false;
 			}
 
 			return true;
 		}
 
-		CQuery_Regular::EUpdateState CQuery_Regular::OnUpdate(Shared::CUqsString& error)
+		CQuery_Regular::EUpdateState CQuery_Regular::OnUpdate(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error)
 		{
 			CRY_ASSERT(m_currentPhaseFn);	// query has already finished before; cannot recycle a query
 
@@ -290,7 +290,7 @@ namespace UQS
 			//
 
 			const CGeneratorBlueprint* pGenBP = m_pQueryBlueprint->GetGeneratorBlueprint();
-			CRY_ASSERT(pGenBP);   // should have been detected by OnInstantiateFromQueryBlueprint() already
+			CRY_ASSERT(pGenBP);   // should have been detected by OnStart() already
 			m_pGenerator = pGenBP->InstantiateGenerator(m_queryContext, phaseUpdateContext.error);
 			if (!m_pGenerator)
 			{

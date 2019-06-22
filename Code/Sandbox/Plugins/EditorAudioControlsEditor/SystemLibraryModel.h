@@ -48,6 +48,5 @@ private:
 	QModelIndex IndexFromItem(CAsset const* pAsset) const;
 
 	CLibrary* const m_pLibrary;
-	int const       m_nameColumn;
 };
 } // namespace ACE

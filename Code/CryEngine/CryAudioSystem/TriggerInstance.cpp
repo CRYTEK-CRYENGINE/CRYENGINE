@@ -33,17 +33,17 @@ void CTriggerInstance::SetPendingToPlaying()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTriggerInstance::SendFinishedRequest(EntityId const entityId)
+void CTriggerInstance::SendFinishedRequest()
 {
 	if ((m_flags& ERequestFlags::DoneCallbackOnExternalThread) != 0)
 	{
-		SCallbackRequestData<ECallbackRequestType::ReportFinishedTriggerInstance> const requestData(m_triggerId, entityId);
+		SCallbackRequestData<ECallbackRequestType::ReportFinishedTriggerInstance> const requestData(m_triggerId, m_entityId);
 		CRequest const request(&requestData, ERequestFlags::CallbackOnExternalOrCallingThread, m_pOwner, m_pUserData, m_pUserDataOwner);
 		g_system.PushRequest(request);
 	}
 	else if ((m_flags& ERequestFlags::DoneCallbackOnAudioThread) != 0)
 	{
-		SCallbackRequestData<ECallbackRequestType::ReportFinishedTriggerInstance> const requestData(m_triggerId, entityId);
+		SCallbackRequestData<ECallbackRequestType::ReportFinishedTriggerInstance> const requestData(m_triggerId, m_entityId);
 		CRequest const request(&requestData, ERequestFlags::CallbackOnAudioThread, m_pOwner, m_pUserData, m_pUserDataOwner);
 		g_system.PushRequest(request);
 	}

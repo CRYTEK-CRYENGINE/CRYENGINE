@@ -92,11 +92,11 @@ const SThreadConfig* CThreadConfigManager::GetDefaultThreadConfig() const
 bool CThreadConfigManager::LoadConfig(const char* pcPath)
 {
 	// Adjust filename for OnDisk or in .pak file loading
-	char szFullPathBuf[ICryPak::g_nMaxPath];
-	gEnv->pCryPak->AdjustFileName(pcPath, szFullPathBuf, 0);
+	CryPathString fullPath;
+	gEnv->pCryPak->AdjustFileName(pcPath, fullPath, 0);
 
 	// Open file
-	XmlNodeRef xmlRoot = GetISystem()->LoadXmlFromFile(szFullPathBuf);
+	XmlNodeRef xmlRoot = GetISystem()->LoadXmlFromFile(fullPath);
 	if (!xmlRoot)
 	{
 		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "<ThreadConfigInfo>: File \"%s\" not found!", pcPath);

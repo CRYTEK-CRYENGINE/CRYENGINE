@@ -210,7 +210,7 @@ CHyperGraphDialog::CHyperGraphDialog()
 	, m_pNavGraph(nullptr)
 	, m_bIgnoreObjectEvents(false)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	m_pWndProps.reset(new CPropertyCtrl());
 
 	GetIEditorImpl()->RegisterNotifyListener(this);
@@ -1881,7 +1881,7 @@ void CHyperGraphDialog::OnHyperGraphManagerEvent(EHyperGraphEvent event, IHyperG
 
 void CHyperGraphDialog::SetIgnoreEvents(bool bIgnore, bool bRefresh)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (m_bIgnoreObjectEvents != bIgnore)
 	{

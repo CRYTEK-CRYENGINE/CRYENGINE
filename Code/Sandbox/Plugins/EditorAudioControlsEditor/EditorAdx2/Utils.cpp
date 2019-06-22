@@ -50,44 +50,68 @@ string GetTypeName(EItemType const type)
 
 	switch (type)
 	{
-	case EItemType::FolderCue:
-	case EItemType::FolderCueSheet:
+	case EItemType::FolderCue:      // Intentional fall-through.
+	case EItemType::FolderCueSheet: // Intentional fall-through.
 	case EItemType::FolderGlobal:
-		name = "folder:";
-		break;
+		{
+			name = "folder:";
+			break;
+		}
 	case EItemType::Cue:
-		name = "cue:";
-		break;
+		{
+			name = "cue:";
+			break;
+		}
 	case EItemType::CueSheet:
-		name = "cuesheet:";
-		break;
+		{
+			name = "cuesheet:";
+			break;
+		}
 	case EItemType::AisacControl:
-		name = "aisaccontrol:";
-		break;
+		{
+			name = "aisaccontrol:";
+			break;
+		}
 	case EItemType::Binary:
-		name = "binary:";
-		break;
+		{
+			name = "binary:";
+			break;
+		}
 	case EItemType::DspBusSetting:
-		name = "dspbussettiing:";
-		break;
+		{
+			name = "dspbussettiing:";
+			break;
+		}
 	case EItemType::GameVariable:
-		name = "gamevariable:";
-		break;
+		{
+			name = "gamevariable:";
+			break;
+		}
 	case EItemType::Selector:
-		name = "selector:";
-		break;
+		{
+			name = "selector:";
+			break;
+		}
 	case EItemType::SelectorLabel:
-		name = "selectorlabel:";
-		break;
+		{
+			name = "selectorlabel:";
+			break;
+		}
 	case EItemType::Snapshot:
-		name = "snapshot:";
-		break;
+		{
+			name = "snapshot:";
+			break;
+		}
 	case EItemType::WorkUnit:
-		name = "workunit:";
-		break;
+		{
+			name = "workunit:";
+			break;
+		}
 	default:
-		name = "";
-		break;
+		{
+			name = "";
+			break;
+		}
 	}
 
 	return name;

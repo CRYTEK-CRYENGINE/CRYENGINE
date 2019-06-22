@@ -145,6 +145,12 @@ bool CPreviewModelCtrl::CreateRenderContext()
 		desc.screenResolution.y = rc.Height();
 
 		m_displayContextKey = m_pRenderer->CreateSwapChainBackedContext(desc);
+
+		m_graphicsPipelineDesc.type = EGraphicsPipelineType::Minimum;
+		m_graphicsPipelineDesc.shaderFlags = SHDF_SECONDARY_VIEWPORT | SHDF_ALLOWHDR | SHDF_FORWARD_MINIMAL;
+
+		m_graphicsPipelineKey = m_pRenderer->CreateGraphicsPipeline(m_graphicsPipelineDesc);
+
 		m_renderContextCreated = true;
 
 		return true;
@@ -162,6 +168,7 @@ void CPreviewModelCtrl::DestroyRenderContext()
 		if (m_displayContextKey != reinterpret_cast<HWND>(m_pRenderer->GetHWND()))
 			m_pRenderer->DeleteContext(m_displayContextKey);
 
+		m_pRenderer->DeleteGraphicsPipeline(m_graphicsPipelineKey);
 		m_renderContextCreated = false;
 	}
 }
@@ -476,7 +483,7 @@ bool CPreviewModelCtrl::Render()
 		// Configures Aux to draw to the current display-context
 		SDisplayContext context = InitDisplayContext(m_displayContextKey);
 
-		m_pRenderer->BeginFrame(m_displayContextKey);
+		m_pRenderer->BeginFrame(m_displayContextKey, m_graphicsPipelineKey);
 
 		result = RenderInternal(context);
 
@@ -512,8 +519,7 @@ bool CPreviewModelCtrl::RenderInternal(SDisplayContext& context)
 	gEnv->pConsole->GetCVar("r_displayInfo")->Set((int)m_bShowRenderInfo);
 
 	// Render object.
-	SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_camera, SRenderingPassInfo::DEFAULT_FLAGS, true, context.GetDisplayContextKey());
-	passInfo.GetIRenderView()->SetShaderRenderingFlags(SHDF_NOASYNC | SHDF_ALLOWHDR | SHDF_SECONDARY_VIEWPORT);
+	SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_graphicsPipelineKey, m_camera, SRenderingPassInfo::DEFAULT_FLAGS, true, context.GetDisplayContextKey());
 	m_pRenderer->EF_StartEf(passInfo);
 
 	{
@@ -575,7 +581,7 @@ bool CPreviewModelCtrl::RenderInternal(SDisplayContext& context)
 		if (m_bShowObject)
 			RenderObject(pMaterial, passInfo);
 
-		m_pRenderer->EF_EndEf3D(-1, -1, passInfo);
+		m_pRenderer->EF_EndEf3D(-1, -1, passInfo, m_graphicsPipelineDesc.shaderFlags);
 
 		if (true)
 			RenderEffect(pMaterial, passInfo);

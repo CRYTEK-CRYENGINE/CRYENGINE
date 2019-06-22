@@ -74,7 +74,6 @@ struct Cry3DEngineBase
 	static CGeomCacheManager*       m_pGeomCacheManager;
 #endif
 
-	static bool              m_bProfilerEnabled;
 	static threadID          m_nMainThreadId;
 	static bool              m_bLevelLoadingInProgress;
 	static bool              m_bIsInRenderScene;
@@ -135,7 +134,7 @@ struct Cry3DEngineBase
 		CRenderObject* pCRenderObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 		if (!pCRenderObject)
 			return NULL;
-		pCRenderObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
+		pCRenderObject->SetMatrix(Matrix34::CreateIdentity());
 		return pCRenderObject;
 	}
 

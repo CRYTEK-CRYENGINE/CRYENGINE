@@ -133,7 +133,6 @@ struct SPlanningTextureOrderKey
 	uint32    bUnloaded        : 1;
 	uint32    nStreamPrio      : 3;
 	uint32    nSlicesMinus1    : 9;
-	uint32    nSlicesPotMinus1 : 9;
 
 	enum
 	{
@@ -171,7 +170,6 @@ struct SPlanningTextureOrderKey
 
 		uint32 nSlices   = pTex->StreamGetNumSlices();
 		nSlicesMinus1    = nSlices - 1;
-		nSlicesPotMinus1 = (1u << (32 - (nSlices > 1 ? countLeadingZeros32(nSlices - 1) : 32))) - 1;
 
 		nCurMip          = pTex->StreamGetLoadedMip();
 		eTF              = pTex->GetDstFormat();
@@ -210,7 +208,7 @@ public:
 	virtual void  EndPrepare(STexStreamPrepState*& pState);
 
 	virtual void  Precache(CTexture* pTexture);
-	virtual void  UpdateMip(CTexture* pTexture, const float fMipFactor, const int nFlags, const int nUpdateId, const int nCounter);
+	virtual void  UpdateMip(CTexture* pTexture, const float fMipFactor, const int nFlags, const int nUpdateId);
 
 	virtual void  OnTextureDestroy(CTexture* pTexture);
 

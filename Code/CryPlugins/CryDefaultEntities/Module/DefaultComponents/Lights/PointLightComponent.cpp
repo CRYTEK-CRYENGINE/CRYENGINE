@@ -42,8 +42,39 @@ namespace Cry
 			light.SetLightColor(m_color.m_color * m_color.m_diffuseMultiplier);
 			light.SetSpecularMult(m_color.m_specularMultiplier);
 
+			light.m_nAreaShape = (uint8)m_shape.m_areaShape;
+			light.m_bAreaTwoSided = m_shape.m_twoSided;
+			light.m_fAreaWidth = m_shape.m_width;
+			light.m_fAreaHeight = m_shape.m_height;
+			light.m_bAreaTextured = true;
+
 			light.m_fHDRDynamic = 0.f;
 
+			// Area Light
+			if (m_shape.m_areaShape != ELightShape::Point)
+			{
+				const char* szProjectorTexturePath = m_shape.m_texturePath.value;
+				if (szProjectorTexturePath[0] == '\0')
+				{
+					light.m_bAreaTextured = false;
+
+					if (m_shape.m_areaShape == ELightShape::Rectangle)
+						szProjectorTexturePath = "%ENGINE%/EngineAssets/Textures/Lights/white_rectangle_areatex.dds";
+					else if (m_shape.m_areaShape == ELightShape::Disk)
+						szProjectorTexturePath = "%ENGINE%/EngineAssets/Textures/Lights/white_disk_areatex.dds";
+				}
+
+				light.m_pLightImage = gEnv->pRenderer->EF_LoadTexture(szProjectorTexturePath, 0);
+
+				if ((light.m_pLightImage == nullptr || !light.m_pLightImage->IsTextureLoaded()) && light.m_pLightDynTexSource == nullptr)
+				{
+					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "Light projector texture %s not found, disabling projector component for entity %s", szProjectorTexturePath, m_pEntity->GetName());
+					FreeEntitySlot();
+					return;
+				}
+				light.m_Flags |= DLF_AREA;
+			}
+				
 			if (m_options.m_bAffectsOnlyThisArea)
 				light.m_Flags |= DLF_THIS_AREA_ONLY;
 

@@ -99,24 +99,24 @@ void PyUnhideObject(const char* objName)
 		GetIEditorImpl()->GetObjectManager()->HideObject(pObject, false);
 }
 
-void MakeAllEditable()
+void UnlockAllObjects()
 {
-	CUndo undo("Make All Objects Editable");
+	CUndo undo("Unlock All Objects");
 	GetIEditorImpl()->GetObjectManager()->UnfreezeAll();
 }
 
-void PyMakeObjectUneditable(const char* objName)
+void PyLockObject(const char* objName)
 {
-	CUndo undo("Make Object Uneditable");
+	CUndo undo("Lock Object");
 
 	CBaseObject* pObject = GetIEditorImpl()->GetObjectManager()->FindObject(objName);
 	if (pObject)
 		GetIEditorImpl()->GetObjectManager()->FreezeObject(pObject, true);
 }
 
-void PyMakeObjectEditable(const char* objName)
+void PyUnlockObject(const char* objName)
 {
-	CUndo undo("Make Object Editable");
+	CUndo undo("Unlock Object");
 
 	CBaseObject* pObject = GetIEditorImpl()->GetObjectManager()->FindObject(objName);
 	if (pObject)
@@ -790,7 +790,7 @@ void LoadObjectsFromGrpFile()
 	}
 
 	ar.LoadInCurrentLayer(true);
-	pObjectManager->LoadObjects(ar, true);
+	pObjectManager->CreateAndSelectObjects(ar);
 	GetIEditorImpl()->SetModifiedFlag();
 }
 }
@@ -825,20 +825,23 @@ REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(Private_ObjectCommands::PyUnhideObject, obj
 REGISTER_COMMAND_REMAPPING(general, unhide_object, object, show)
 
 // Editability
-REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(Private_ObjectCommands::PyMakeObjectUneditable, object, make_uneditable,
-                                     "Makes specific object uneditable",
-                                     "object.make_uneditable(str objectName)");
-REGISTER_COMMAND_REMAPPING(general, freeze_object, object, make_uneditable)
+REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(Private_ObjectCommands::PyLockObject, object, lock,
+                                     "Locks specified object",
+                                     "object.lock(str objectName)");
+REGISTER_COMMAND_REMAPPING(general, freeze_object, object, lock)
+REGISTER_COMMAND_REMAPPING(object, make_uneditable, object, lock)
 
-REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(Private_ObjectCommands::PyMakeObjectEditable, object, make_editable,
-                                     "Makes specific object editable",
-                                     "object.make_editable(str objectName)");
-REGISTER_COMMAND_REMAPPING(general, unfreeze_object, object, make_editable)
+REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(Private_ObjectCommands::PyUnlockObject, object, unlock,
+                                     "Unlocks specified object",
+                                     "object.unlock(str objectName)");
+REGISTER_COMMAND_REMAPPING(general, unfreeze_object, object, unlock)
+REGISTER_COMMAND_REMAPPING(object, make_editable, object, unlock)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_ObjectCommands::MakeAllEditable, object, make_all_editable,
-                                   CCommandDescription("Makes all objects editable"));
-REGISTER_EDITOR_UI_COMMAND_DESC(object, make_all_editable, "Make Objects All Editable", "Shift+F", "icons:General/editable_true.ico", false)
-REGISTER_COMMAND_REMAPPING(ui_action, actionUnfreeze_All, object, make_all_editable)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_ObjectCommands::UnlockAllObjects, object, unlock_all,
+                                   CCommandDescription("Unlocks all objects"));
+REGISTER_EDITOR_UI_COMMAND_DESC(object, unlock_all, "Unlock All Objects", "Shift+F", "icons:general_lock_false.ico", false)
+REGISTER_COMMAND_REMAPPING(ui_action, actionUnfreeze_All, object, unlock_all)
+REGISTER_COMMAND_REMAPPING(object, make_all_editable, object, unlock_all)
 
 // General
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_ObjectCommands::PyGenerateAllCubemaps, object, generate_all_cubemaps,

@@ -6,7 +6,7 @@
 #include <CryRenderer/IRenderer.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CrySystem/ITimer.h>
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CrySystem/IStreamEngine.h>
 #include "System.h"
 #include "CrySizerImpl.h"

@@ -1,18 +1,9 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   D3DCGPShader.h : Direct3D9 CG pixel shaders interface declaration.
+#pragma once
 
-   Revision history:
-* Created by Honitch Andrey
-
-   =============================================================================*/
-
-#ifndef __D3DHWSHADER_H__
-#define __D3DHWSHADER_H__
-
-#include "Common/Shaders/ShaderComponents.h"                 // SCGBind, SCGParam, etc.
-#include "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h" // CSubmissionQueue_DX11
+#include "Common/Shaders/ShaderComponents.h"
+#include "DeviceManager/D3D11/DeviceSubmissionQueue_D3D11.h"
 
 #if CRY_PLATFORM_ORBIS && defined(USE_SCUE)
 //#define USE_PER_FRAME_CONSTANT_BUFFER_UPDATES // TODO: Restore this
@@ -52,8 +43,6 @@ union CRY_ALIGN (16) UFloat4
 class CConstantBuffer;
 
 //==============================================================================
-
-int D3DXGetSHParamHandle(void* pSH, SCGBind* pParam);
 
 struct SParamsGroup
 {
@@ -162,17 +151,17 @@ class SD3DShader
 
 	std::size_t    m_refCount = 0;
 
-	SD3DShader(d3dShaderHandleType *handle, EHWShaderClass eSHClass, std::size_t size) : m_pHandle(handle), m_eSHClass(eSHClass), m_nSize(size) {}
+	SD3DShader(d3dShaderHandleType* handle, EHWShaderClass eSHClass, std::size_t size) : m_pHandle(handle), m_eSHClass(eSHClass), m_nSize(size) {}
 
 public:
 	~SD3DShader() noexcept;
 	SD3DShader(const SD3DShader&) = delete;
-	SD3DShader &operator=(const SD3DShader&) = delete;
-	
-	void* GetHandle() const { return m_pHandle; }
-	void GetMemoryUsage(ICrySizer* pSizer) const { pSizer->AddObject(this, sizeof(*this)); }
+	SD3DShader& operator=(const SD3DShader&) = delete;
 
-	void AddRef() { ++m_refCount; }
+	void*       GetHandle() const                       { return m_pHandle; }
+	void        GetMemoryUsage(ICrySizer* pSizer) const { pSizer->AddObject(this, sizeof(*this)); }
+
+	void        AddRef()                                { ++m_refCount; }
 	std::size_t Release()
 	{
 		const auto referencesLeft = --m_refCount;
@@ -194,8 +183,8 @@ struct SD3DShaderHandle
 	byte        m_bStatus = 0;
 
 	SD3DShaderHandle() = default;
-	SD3DShaderHandle(_smart_ptr<SD3DShader> &&handle) noexcept : m_pShader(std::move(handle)) {}
-	SD3DShaderHandle(d3dShaderHandleType *handle, EHWShaderClass eSHClass, std::size_t size) noexcept : m_pShader(new SD3DShader(handle, eSHClass, size)) {}
+	SD3DShaderHandle(_smart_ptr<SD3DShader>&& handle) noexcept : m_pShader(std::move(handle)) {}
+	SD3DShaderHandle(d3dShaderHandleType* handle, EHWShaderClass eSHClass, std::size_t size) noexcept : m_pShader(new SD3DShader(handle, eSHClass, size)) {}
 	SD3DShaderHandle(const SD3DShaderHandle&) = default;
 	SD3DShaderHandle(SD3DShaderHandle&&) noexcept = default;
 	SD3DShaderHandle& operator=(const SD3DShaderHandle&) = default;
@@ -240,8 +229,8 @@ struct SShaderAsyncInfo
 	static void FlushPendingShaders();
 
 #if CRY_PLATFORM_DURANGO //|| CRY_RENDERER_OPENGL
-	#define LPD3DXBUFFER    D3DBlob *
-	#define ID3DXBuffer     D3DBlob
+	#define LPD3DXBUFFER D3DBlob*
+	#define ID3DXBuffer  D3DBlob
 #endif
 
 	int                  m_nHashInstance;
@@ -499,7 +488,7 @@ class CHWShader_D3D : public CHWShader
 		}
 
 		void Release();
-		void GetInstancingAttribInfo(uint8 Attributes[32], int32 & nUsedAttr, int& nInstAttrMask);
+		void GetInstancingAttribInfo(uint8 Attributes[32], int32& nUsedAttr, int& nInstAttrMask);
 
 		int  Size()
 		{
@@ -579,7 +568,7 @@ public:
 	static void mfInit();
 	void        mfConstruct();
 
-	void mfFree()
+	void        mfFree()
 	{
 #if CRY_PLATFORM_DESKTOP
 		SAFE_DELETE(m_pTree);
@@ -592,14 +581,14 @@ public:
 
 	//============================================================================
 	// Binary cache support
-	SDeviceShaderEntry mfGetCacheItem(CShader* pFX, const char *name, SDiskShaderCache *cache, uint32& nFlags);
-	bool         mfAddCacheItem(SDiskShaderCache* pCache, SShaderCacheHeaderItem* pItem, const byte* pData, int nLen, bool bFlush, CCryNameTSCRC Name);
+	SDeviceShaderEntry mfGetCacheItem(CShader* pFX, const char* name, SDiskShaderCache* cache, uint32& nFlags);
+	bool               mfAddCacheItem(SDiskShaderCache* pCache, SShaderCacheHeaderItem* pItem, const byte* pData, int nLen, bool bFlush, CCryNameTSCRC Name);
 
-	static byte* mfBindsToCache(SHWSInstance* pInst, std::vector<SCGBind>* Binds, int nParams, byte* pP);
-	const  byte* mfBindsFromCache(std::vector<SCGBind>& Binds, int nParams, const byte* pP);
+	static byte*       mfBindsToCache(SHWSInstance* pInst, std::vector<SCGBind>* Binds, int nParams, byte* pP);
+	const byte*        mfBindsFromCache(std::vector<SCGBind>& Binds, int nParams, const byte* pP);
 
-	bool         mfActivateCacheItem(CShader* pSH, const SDeviceShaderEntry* cacheEntry, uint32 nFlags);
-	bool         mfCreateCacheItem(SHWSInstance* pInst, CShader *ef, std::vector<SCGBind>& InstBinds, byte* pData, int nLen, bool bShaderThread);
+	bool               mfActivateCacheItem(CShader* pSH, const SDeviceShaderEntry* cacheEntry, uint32 nFlags);
+	bool               mfCreateCacheItem(SHWSInstance* pInst, CShader* ef, std::vector<SCGBind>& InstBinds, byte* pData, int nLen, bool bShaderThread);
 
 	//============================================================================
 
@@ -638,15 +627,14 @@ public:
 
 		return mfIsValid_Int(pInst, bFinalise);
 	}
-	
+
 	ED3DShError mfFallBack(SHWSInstance*& pInst, int nStatus);
 	void        mfCommitCombinations(int nFrame, int nFrameDiff);
 	void        mfCommitCombination(SHWSInstance* pInst, int nFrame, int nFrameDiff);
 	void        mfLogShaderCacheMiss(SHWSInstance* pInst);
 	void        mfLogShaderRequest(SHWSInstance* pInst);
 
-	
-	static void   mfSetParameters(SCGParam* pParams, const int nParams, EHWShaderClass eSH, int nMaxRegs, Vec4* pOutBuffer, uint32 outBufferSize, const D3DViewPort* pVP);   // handles all the parameter except PI and SI ones
+	static void mfSetParameters(SCGParam* pParams, const int nParams, EHWShaderClass eSH, int nMaxRegs, Vec4* pOutBuffer, uint32 outBufferSize, const D3DViewPort* pVP, CRenderView* pRenderView);     // handles all the parameter except PI and SI ones
 
 	//============================================================================
 
@@ -658,13 +646,13 @@ public:
 		pInst->m_Handle.m_nData = nSize;
 	}
 
-	bool PrecacheShader(CShader* pSH, const SShaderCombIdent &cache,uint32 nFlags) override;
+	bool          PrecacheShader(CShader* pSH, const SShaderCombIdent& cache, uint32 nFlags) override;
 
-	int CheckActivation(CShader* pSH, SHWSInstance*& pInst, uint32 nFlags);
+	int           CheckActivation(CShader* pSH, SHWSInstance*& pInst, uint32 nFlags);
 
 	SHWSInstance* mfGetInstance(SShaderCombIdent& Ident, uint32 nFlags);
 	SHWSInstance* mfGetInstance(int nHashInstance, SShaderCombIdent& Ident);
-	SHWSInstance* mfGetHashInst(InstContainer *pInstCont, uint32 identHash, SShaderCombIdent& Ident, InstContainerIt& it);
+	SHWSInstance* mfGetHashInst(InstContainer* pInstCont, uint32 identHash, SShaderCombIdent& Ident, InstContainerIt& it);
 	void          mfPrepareShaderDebugInfo(SHWSInstance* pInst, const char* szAsm, std::vector<SCGBind>& InstBindVars, void* pBuffer);
 	void          mfGetSrcFileName(char* srcName, int nSize);
 	void          mfGetDstFileName(SHWSInstance* pInst, char* dstname, int nSize, byte bType);
@@ -676,7 +664,7 @@ public:
 	void          AddResourceLayoutToBinScript(CParserBin& Parser, SHWSInstance* pInst, FXShaderToken* Table);
 	bool          mfStoreCacheTokenMap(const FXShaderToken& Table, const TArray<uint32>& pSHData);
 	void          mfSetDefaultRT(uint64& nAndMask, uint64& nOrMask);
-	bool          AutoGenMultiresGS(TArray<char>& sNewScr, CShader *pSH);
+	bool          AutoGenMultiresGS(TArray<char>& sNewScr, CShader* pSH);
 
 public:
 	bool        mfGetCacheTokenMap(FXShaderToken& Table, TArray<uint32>& pSHData);
@@ -696,8 +684,8 @@ public:
 	static bool mfAddFXParameter(SHWSInstance* pInst, SParamsGroup& OutParams, SShaderFXParams& FXParams, const char* param, SCGBind* bn, bool bInstParam, EHWShaderClass eSHClass, CShader* pFXShader);
 	static void mfGatherFXParameters(SHWSInstance* pInst, std::vector<SCGBind>& BindVars, CHWShader_D3D* pSH, int nFlags, CShader* pFXShader);
 
-	static void mfCreateBinds(std::vector<SCGBind> &binds, const void* pConstantTable, std::size_t nSize);
-	static void mfPostVertexFormat(SHWSInstance * pInst, CHWShader_D3D * pHWSH, bool bCol, byte bNormal, bool bTC0, bool bTC1[2], bool bPSize, bool bTangent[2], bool bBitangent[2], bool bHWSkin, bool bSH[2], bool bMorphTarget, bool bMorph);
+	static void mfCreateBinds(std::vector<SCGBind>& binds, const void* pConstantTable, std::size_t nSize);
+	static void mfPostVertexFormat(SHWSInstance* pInst, CHWShader_D3D* pHWSH, bool bCol, byte bNormal, bool bTC0, bool bTC1[2], bool bPSize, bool bTangent[2], bool bBitangent[2], bool bHWSkin, bool bSH[2], bool bMorphTarget, bool bMorph);
 	void        mfUpdateFXVertexFormat(SHWSInstance* pInst, CShader* pSH);
 
 	void        ModifyLTMask(uint32& nMask);
@@ -711,23 +699,23 @@ public:
 	virtual void        mfReset() override;
 	virtual const char* mfGetEntryName() override { return m_EntryFunc.c_str(); }
 	virtual bool        mfFlushCacheFile() override;
-	virtual bool        Export(CShader *pSH, SShaderSerializeContext& SC) override;
+	virtual bool        Export(CShader* pSH, SShaderSerializeContext& SC) override;
 
 	enum class cacheValidationResult { ok, no_lookup, version_mismatch, checksum_mismatch };
-	cacheValidationResult mfValidateCache(const SDiskShaderCache &cache);
+	cacheValidationResult mfValidateCache(const SDiskShaderCache& cache);
 
-	bool               mfWarmupCache(CShader* pFX);
-	void               mfPrecacheAllCombinations(CShader* pFX, CResFileOpenScope &rfOpenGuard, SDiskShaderCache &cache);
-	SDeviceShaderEntry mfShaderEntryFromCache(CShader* pFX, const CDirEntry& de, CResFileOpenScope &rfOpenGuard, SDiskShaderCache &cache);
+	bool                  mfWarmupCache(CShader* pFX);
+	void                  mfPrecacheAllCombinations(CShader* pFX, CResFileOpenScope& rfOpenGuard, SDiskShaderCache& cache);
+	SDeviceShaderEntry    mfShaderEntryFromCache(CShader* pFX, const CDirEntry& de, CResFileOpenScope& rfOpenGuard, SDiskShaderCache& cache);
 
 	// Vertex shader specific functions
 	virtual InputLayoutHandle mfVertexFormat(bool& bUseTangents, bool& bUseLM, bool& bUseHWSkin) override;
 	static InputLayoutHandle  mfVertexFormat(SHWSInstance* pInst, CHWShader_D3D* pSH, D3DBlob* pBuffer, void* pConstantTable);
-	virtual void          mfUpdatePreprocessFlags(SShaderTechnique* pTech) override;
+	virtual void              mfUpdatePreprocessFlags(SShaderTechnique* pTech) override;
 
-	virtual const char*   mfGetActivatedCombinations(bool bForLevel) override;
+	virtual const char*       mfGetActivatedCombinations(bool bForLevel) override;
 
-	static EStreamMasks GetDeclaredVertexStreamMask(void* pHwInstance)
+	static EStreamMasks       GetDeclaredVertexStreamMask(void* pHwInstance)
 	{
 		CRY_ASSERT(pHwInstance && reinterpret_cast<SHWSInstance*>(pHwInstance)->m_eClass == eHWSC_Vertex);
 		return reinterpret_cast<SHWSInstance*>(pHwInstance)->m_VStreamMask_Decl;
@@ -755,5 +743,3 @@ public:
 	static int                          s_nDevicePSDataSize;
 	static int                          s_nDeviceVSDataSize;
 };
-
-#endif  // __D3DHWSHADER_H__

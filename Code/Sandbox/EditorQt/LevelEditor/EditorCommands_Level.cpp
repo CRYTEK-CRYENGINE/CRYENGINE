@@ -1,18 +1,19 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
-#include <StdAfx.h>
+#include "StdAfx.h"
 
 // Sandbox
 #include "CryEditDoc.h"
-#include "IEditorImpl.h"
-#include "Objects/ObjectManager.h"
-#include "Objects/ObjectLayerManager.h"
-#include "Vegetation/VegetationMap.h"
 #include "Geometry/EdMesh.h"
-#include "ViewManager.h"
+#include "IEditorImpl.h"
+#include "LogFile.h"
+#include "Material/MaterialManager.h"
+#include "Objects/ObjectLayerManager.h"
+#include "Objects/ObjectManager.h"
+#include "QT/QtMainFrame.h"
 #include "Terrain/Heightmap.h"
 #include "Terrain/TerrainManager.h"
-#include "Material/MaterialManager.h"
-#include "LogFile.h"
+#include "Vegetation/VegetationMap.h"
+#include "ViewManager.h"
 
 // EditorCommon
 #include <Commands/ICommandManager.h>
@@ -25,17 +26,18 @@
 
 // CryCommon
 #include <CryGame/IGameFramework.h>
-#include <IItemSystem.h>
 #include <CrySystem/ICryLink.h>
+#include <IItemSystem.h>
 
 namespace
 {
 namespace Private_LevelCommands
 {
+
 void PySnapToGrid(const bool bEnable)
 {
 	char buffer[31];
-	cry_sprintf(buffer, "level.snap_to_grid '%i'", bEnable);
+	cry_sprintf(buffer, "level.snap_to_grid %i", bEnable);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
@@ -47,13 +49,20 @@ void PyToggleSnapToGrid()
 void PySnapToAngle(const bool bEnable)
 {
 	char buffer[32];
-	cry_sprintf(buffer, "level.snap_to_angle '%i'", bEnable);
+	cry_sprintf(buffer, "level.snap_to_angle %i", bEnable);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
 void PyToggleSnapToAngle()
 {
 	CommandEvent("level.toggle_snap_to_angle").SendToKeyboardFocus();
+}
+
+void PySnapToScale(const bool bEnable)
+{
+	char buffer[32];
+	cry_sprintf(buffer, "level.snap_to_scale %i", bEnable);
+	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
 void PyToggleSnapToScale()
@@ -64,7 +73,7 @@ void PyToggleSnapToScale()
 void PySnapToVertex(const bool bEnable)
 {
 	char buffer[33];
-	cry_sprintf(buffer, "level.snap_to_vertex '%i'", bEnable);
+	cry_sprintf(buffer, "level.snap_to_vertex %i", bEnable);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
@@ -76,7 +85,7 @@ void PyToggleSnapToVertex()
 void PySnapToPivot(const bool bEnable)
 {
 	char buffer[32];
-	cry_sprintf(buffer, "level.snap_to_pivot '%i'", bEnable);
+	cry_sprintf(buffer, "level.snap_to_pivot %i", bEnable);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
@@ -88,7 +97,7 @@ void PyToggleSnapToPivot()
 void PySnapToTerrain(const bool bEnable)
 {
 	char buffer[34];
-	cry_sprintf(buffer, "level.snap_to_terrain '%i'", bEnable);
+	cry_sprintf(buffer, "level.snap_to_terrain %i", bEnable);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
@@ -100,7 +109,7 @@ void PyToggleSnapToTerrain()
 void PySnapToGeometry(const bool bEnable)
 {
 	char buffer[35];
-	cry_sprintf(buffer, "level.snap_to_geometry '%i'", bEnable);
+	cry_sprintf(buffer, "level.snap_to_geometry %i", bEnable);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
@@ -112,7 +121,7 @@ void PyToggleSnapToGeometry()
 void PySnapToSurfaceNormal(const bool bEnable)
 {
 	char buffer[41];
-	cry_sprintf(buffer, "level.snap_to_surface_normal '%i'", bEnable);
+	cry_sprintf(buffer, "level.snap_to_surface_normal %i", bEnable);
 	CommandEvent(buffer).SendToKeyboardFocus();
 }
 
@@ -139,16 +148,6 @@ void PyDisplayInfoMedium()
 void PyDisplayInfoHigh()
 {
 	GetIEditorImpl()->GetLevelEditorSharedState()->SetDisplayInfoLevel(CLevelEditorSharedState::eDisplayInfoLevel_High);
-}
-
-void IsolateEditability()
-{
-	CommandEvent("level.isolate_editability").SendToKeyboardFocus();
-}
-
-void IsolateVisibility()
-{
-	CommandEvent("level.isolate_visibility").SendToKeyboardFocus();
 }
 
 void ReloadAllScripts()
@@ -370,6 +369,9 @@ REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_LevelCommands::PyToggleSnapToAngle, l
                                    CCommandDescription("Toggle snapping to angle"));
 REGISTER_EDITOR_UI_COMMAND_DESC(level, toggle_snap_to_angle, "", "L", "icons:Viewport/viewport-snap-angle.ico", true)
 
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_LevelCommands::PySnapToScale, level, snap_to_scale,
+	CCommandDescription("Enable/Disable snapping to scale").Param("enable", "0: Disable, 1: Enable"));
+
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_LevelCommands::PyToggleSnapToScale, level, toggle_snap_to_scale,
                                    CCommandDescription("Toggle snapping to scale"));
 REGISTER_EDITOR_UI_COMMAND_DESC(level, toggle_snap_to_scale, "", "K", "icons:Viewport/viewport-snap-scale.ico", true)
@@ -423,14 +425,6 @@ REGISTER_EDITOR_UI_COMMAND_DESC(level, display_info_medium, "Verbosity Level Med
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_LevelCommands::PyDisplayInfoHigh, level, display_info_high, CCommandDescription("Verbosity level high"));
 REGISTER_EDITOR_UI_COMMAND_DESC(level, display_info_high, "Verbosity Level High", "", "", true)
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_LevelCommands::IsolateEditability, level, isolate_editability, CCommandDescription("Isolate editability of objects or layers"))
-REGISTER_EDITOR_UI_COMMAND_DESC(level, isolate_editability, "Isolate Editability", "Ctrl+Shift+F", "", false)
-REGISTER_COMMAND_REMAPPING(level, toggle_freeze_all_other_layers, level, isolate_editability)
-
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_LevelCommands::IsolateVisibility, level, isolate_visibility, CCommandDescription("Isolate visibility of objects or layers"))
-REGISTER_EDITOR_UI_COMMAND_DESC(level, isolate_visibility, "Isolate Visibility", "Ctrl+Shift+H", "", false)
-REGISTER_COMMAND_REMAPPING(level, toggle_hide_all_other_layers, level, isolate_visibility)
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_LevelCommands::ReloadAllScripts, level, reload_all_scripts, CCommandDescription("Reloads all scripts"))
 REGISTER_EDITOR_UI_COMMAND_DESC(level, reload_all_scripts, "Reload All Scripts", "", "", false)

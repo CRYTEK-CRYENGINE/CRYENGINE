@@ -161,95 +161,87 @@ void Voxelizer::RasterizeTriangle(const Vec3 v0World, const Vec3 v1World, const 
 		Evaluate2DEdge(ne2_yz, de2_yz, yzcw, Vec2(e2.y, e2.z), Vec2(v2.y, v2.z), Vec2(dp.y, dp.z));
 	}
 
+	for (int y = minVoxelIndex.y; y <= maxVoxelIndex.y; ++y)
 	{
-		for (int y = minVoxelIndex.y; y <= maxVoxelIndex.y; ++y)
-		{
-			const float minY = spaceMin.y + y * voxelSize.y;
+		const float minY = spaceMin.y + y * voxelSize.y;
 
-			if ((minY + dp.y < minTriangleBoundingBox.y) || (minY > maxTriangleBoundingBox.y))
+		if ((minY + dp.y < minTriangleBoundingBox.y) || (minY > maxTriangleBoundingBox.y))
+			continue;
+
+		for (int x = minVoxelIndex.x; x <= maxVoxelIndex.x; ++x)
+		{
+			const float minX = spaceMin.x + x * voxelSize.x;
+
+			if ((minX + dp.x < minTriangleBoundingBox.x) || (minX > maxTriangleBoundingBox.x))
 				continue;
 
-			for (int x = minVoxelIndex.x; x <= maxVoxelIndex.x; ++x)
+			if (ne0_xy.Dot(Vec2(minX, minY)) + de0_xy < 0.0f)
+				continue;
+			if (ne1_xy.Dot(Vec2(minX, minY)) + de1_xy < 0.0f)
+				continue;
+			if (ne2_xy.Dot(Vec2(minX, minY)) + de2_xy < 0.0f)
+				continue;
+
+			if (zPlanar)
 			{
-				const float minX = spaceMin.x + x * voxelSize.x;
+				m_spanGrid.AddVoxel(x, y, minVoxelIndex.z, backface);
+				continue;
+			}
 
-				if ((minX + dp.x < minTriangleBoundingBox.x) || (minX > maxTriangleBoundingBox.x))
+			bool wasPreviousVoxelBelowTheTriangle = true;
+
+			for (int z = minVoxelIndex.z; z <= maxVoxelIndex.z; ++z)
+			{
+				const float minZ = spaceMin.z + z * voxelSize.z;
+
+				if ((minZ + dp.z < minTriangleBoundingBox.z) || (minZ > maxTriangleBoundingBox.z))
 					continue;
 
-				if (ne0_xy.Dot(Vec2(minX, minY)) + de0_xy < 0.0f)
-					continue;
-				if (ne1_xy.Dot(Vec2(minX, minY)) + de1_xy < 0.0f)
-					continue;
-				if (ne2_xy.Dot(Vec2(minX, minY)) + de2_xy < 0.0f)
-					continue;
+				// This projection value is amplified by the n length (it is not normalized)
+				const float currentVoxelProjectedOnTriangleNormal = n.Dot(Vec3(minX, minY, minZ));
 
-				if (zPlanar)
+				// Here we check if the current voxel is containing the triangle
+				// in-between his height limits.
+				const float firstDistance = (currentVoxelProjectedOnTriangleNormal + firstVericalLimitForTriangleRasterization);
+				const float secondDistance = (currentVoxelProjectedOnTriangleNormal + secondVerticalLimitForTriangleRasterization);
+				const bool isVoxelAboveOrBelowTheTriangle = firstDistance * secondDistance > 0.0f;
+
+				// We start the voxelization process from the bottom of a tile to the top.
+				// This allows us to consider the first voxel always below the triangle we are considering.
+				// For small voxels and triangles with tiny slopes, due to numerical errors,
+				// we could end up skipping the voxel that correctly rasterizes a particular point.
+				// So if we pass directly from a situation in which we were below the triangle
+				// and we are now above it, then we don't skip the voxel and we continue to check
+				// if the other requirements are fulfilled.
+				if (isVoxelAboveOrBelowTheTriangle)
 				{
-					m_spanGrid.AddVoxel(x, y, minVoxelIndex.z, backface);
+					if (!wasPreviousVoxelBelowTheTriangle)
+						break;
 
+					// It is guaranteed that firstDistance and secondDistance have the same sign here, so only firstDistance needs to be checked
+					const bool isTheCurrentVoxelAboveTheTriangle = xycw ? firstDistance < 0.0f : firstDistance > 0.0f;
+					if (!isTheCurrentVoxelAboveTheTriangle)
+						continue;
+				}
+				wasPreviousVoxelBelowTheTriangle = false;
+
+				if (ne0_xz.Dot(Vec2(minX, minZ)) + de0_xz < 0.0f)
 					continue;
-				}
+				if (ne1_xz.Dot(Vec2(minX, minZ)) + de1_xz < 0.0f)
+					continue;
+				// cppcheck-suppress uninitvar
+				if (ne2_xz.Dot(Vec2(minX, minZ)) + de2_xz < 0.0f)
+					continue;
 
-				bool wasPreviousVoxelBelowTheTriangle = true;
+				if (ne0_yz.Dot(Vec2(minY, minZ)) + de0_yz < 0.0f)
+					continue;
+				if (ne1_yz.Dot(Vec2(minY, minZ)) + de1_yz < 0.0f)
+					continue;
+				// cppcheck-suppress uninitvar
+				if (ne2_yz.Dot(Vec2(minY, minZ)) + de2_yz < 0.0f)
+					continue;
 
-				for (int z = minVoxelIndex.z; z <= maxVoxelIndex.z; ++z)
-				{
-					const float minZ = spaceMin.z + z * voxelSize.z;
-
-					if ((minZ + dp.z < minTriangleBoundingBox.z) || (minZ > maxTriangleBoundingBox.z))
-						continue;
-
-					// This projection value is amplified by the n length (it is not normalized)
-					float currentVoxelProjectedOnTriangleNormal = n.Dot(Vec3(minX, minY, minZ));
-
-					// Here we check if the current voxel is containing the triangle
-					// in-between his height limits.
-					const float firstDistance = (currentVoxelProjectedOnTriangleNormal + firstVericalLimitForTriangleRasterization);
-					const float secondDistance = (currentVoxelProjectedOnTriangleNormal + secondVerticalLimitForTriangleRasterization);
-					const bool isVoxelAboveOrBelowTheTriangle = firstDistance * secondDistance > 0.0f;
-					if (isVoxelAboveOrBelowTheTriangle)
-					{
-						// We start the voxelization process from the bottom of a tile to the top.
-						// This allows us to consider the first voxel always below the triangle we are considering.
-						// For small voxels and triangles with tiny slopes, due to numerical errors,
-						// we could end up skipping the voxel that correctly rasterizes a particular point.
-						// So if we pass directly from a situation in which we were below the triangle
-						// and we are now above it, then we don't skip the voxel and we continue to check
-						// if the other requirements are fulfilled.
-						if (wasPreviousVoxelBelowTheTriangle)
-						{
-							const bool isTheCurrentVoxelAboveTheTriangle = firstDistance > 0.0f && secondDistance > 0.0f;
-							if (isTheCurrentVoxelAboveTheTriangle)
-							{
-								wasPreviousVoxelBelowTheTriangle = false;
-							}
-						}
-						else
-						{
-							continue;
-						}
-					}
-
-					wasPreviousVoxelBelowTheTriangle = false;
-
-					if (ne0_xz.Dot(Vec2(minX, minZ)) + de0_xz < 0.0f)
-						continue;
-					if (ne1_xz.Dot(Vec2(minX, minZ)) + de1_xz < 0.0f)
-						continue;
-					// cppcheck-suppress uninitvar
-					if (ne2_xz.Dot(Vec2(minX, minZ)) + de2_xz < 0.0f)
-						continue;
-
-					if (ne0_yz.Dot(Vec2(minY, minZ)) + de0_yz < 0.0f)
-						continue;
-					if (ne1_yz.Dot(Vec2(minY, minZ)) + de1_yz < 0.0f)
-						continue;
-					// cppcheck-suppress uninitvar
-					if (ne2_yz.Dot(Vec2(minY, minZ)) + de2_yz < 0.0f)
-						continue;
-
-					m_spanGrid.AddVoxel(x, y, z, backface);
-				}
+				m_spanGrid.AddVoxel(x, y, z, backface);
 			}
 		}
 	}
@@ -641,8 +633,8 @@ void WorldVoxelizer::VoxelizeGeometry(const strided_pointer<Vec3>& vertices, con
 		for (size_t i = 0; i < triCount; ++i)
 		{
 			RasterizeTriangle(worldTM.TransformPoint(vertices[indices[i * 3 + 0]]),
-			                  worldTM.TransformPoint(vertices[indices[i * 3 + 1]]),
-			                  worldTM.TransformPoint(vertices[indices[i * 3 + 2]]));
+				worldTM.TransformPoint(vertices[indices[i * 3 + 1]]),
+				worldTM.TransformPoint(vertices[indices[i * 3 + 2]]));
 		}
 	}
 }

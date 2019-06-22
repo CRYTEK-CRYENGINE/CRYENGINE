@@ -1754,13 +1754,6 @@ bool CMaterial::Save(bool bSkipReadOnly)
 	CBaseLibraryItem::SerializeContext ctx(mtlNode, false);
 	Serialize(ctx);
 
-	//CMaterialManager *pMatMan = (CMaterialManager*)GetLibrary()->GetManager();
-	// get file name from material name.
-	//string filename = pMatMan->MaterialToFilename( GetName() );
-
-	//char path[ICryPak::g_nMaxPath];
-	//filename = gEnv->pCryPak->AdjustFileName( filename,path,0 );
-
 	if (XmlHelpers::SaveXmlNode(mtlNode, GetFilename(true)))
 	{
 		// If material successfully saved, clear modified flag.

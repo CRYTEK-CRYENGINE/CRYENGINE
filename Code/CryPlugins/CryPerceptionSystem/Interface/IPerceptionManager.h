@@ -131,10 +131,11 @@ struct SAIStimulusTypeDesc
 	//! The subtype is sometimes converted to a mask and stored in a byte (8bits), no more than 8 subtypes.
 	static const uint32 AI_MAX_SUBTYPES = 8;
 
-	inline void         SetName(const char* n)
+	inline void SetName(const char* n)
 	{
-		assert(strlen(n) < sizeof(name));
-		cry_strcpy(name, n);
+		const size_t length = strlen(n);
+		CRY_ASSERT(length < sizeof(name));
+		cry_strcpy(name, n, length + 1);
 	}
 
 	inline void Reset()

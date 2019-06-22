@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 
 #include "DrsSpokenLinesWindow.h"
-#include "Serialization/QPropertyTree/QPropertyTree.h"
+#include "Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h"
 #include <QBoxLayout>
 #include <QTimer>
 #include <QPushButton>
@@ -14,8 +14,8 @@
 CSpokenLinesWidget::CSpokenLinesWidget()
 {
 	m_SerializationFilter = 0;
-	m_pPropertyTree = new QPropertyTree(this);
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	m_pPropertyTree = new QPropertyTreeLegacy(this);
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	m_pPropertyTree->setTreeStyle(treeStyle);
 

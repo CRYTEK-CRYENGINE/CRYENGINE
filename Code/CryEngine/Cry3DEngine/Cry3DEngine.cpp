@@ -241,7 +241,7 @@ IMaterial* Cry3DEngineBase::MakeSystemMaterialFromShader(const char* sShaderName
 //////////////////////////////////////////////////////////////////////////
 bool Cry3DEngineBase::IsValidFile(const char* sFilename)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	return gEnv->pCryPak->IsFileExist(sFilename);
 }

@@ -1,14 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   DeferredRenderUtils.h :
-
-   Revision history:
-* Created by Nick Kasyan
-   =============================================================================*/
-
-#ifndef __DEFERRED_RENDER_UTILS_H__
-#define __DEFERRED_RENDER_UTILS_H__
+#pragma once
 
 #define SDeferMeshVert SVF_P3F_C4B_T2F
 
@@ -35,5 +27,3 @@ private:
 	static void SphereTessR(Vec3& v0, Vec3& v1, Vec3& v2, int depth, t_arrDeferredMeshIndBuff& indBuff, t_arrDeferredMeshVertBuff& vertBuff);
 
 };
-
-#endif

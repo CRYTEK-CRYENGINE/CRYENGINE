@@ -5,6 +5,7 @@
 #ifndef STANDALONE_PHYSICS
 
 #include "cvars.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace PhysicsCVars
 {

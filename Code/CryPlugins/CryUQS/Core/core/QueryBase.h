@@ -9,7 +9,17 @@ namespace UQS
 	namespace Core
 	{
 
+		class CQueryBase;
 		class CHistoricQuery;
+		class CQueryBlueprint;
+
+		//===================================================================================
+		//
+		// QueryBaseUniquePtr
+		//
+		//===================================================================================
+
+		typedef std::unique_ptr<CQueryBase> QueryBaseUniquePtr;
 
 		//===================================================================================
 		//
@@ -28,8 +38,6 @@ namespace UQS
 		// - the actual classes will get instantiated from a CQueryBlueprint at game runtime through their query factories
 		//
 		//===================================================================================
-
-		class CQueryBlueprint;
 
 		class CQueryBase
 		{
@@ -126,11 +134,12 @@ namespace UQS
 			};
 
 		public:
-			explicit                                     CQueryBase(const SCtorContext& ctorContext, bool bRequiresSomeTimeBudgetForExecution);
+			explicit                                     CQueryBase(const SCtorContext& ctorContext);
 			virtual                                      ~CQueryBase();
 
-			bool                                         RequiresSomeTimeBudgetForExecution() const;
-			bool                                         InstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error);
+			static QueryBaseUniquePtr                    CreateQuery(const CQueryID& parentQueryID, std::shared_ptr<const CQueryBlueprint> pQueryBlueprint, const char* szQuerierName, const std::shared_ptr<CItemList>& pPotentialResultingItemsFromPreviousQuery, int priority);
+
+			bool                                         Start(const Shared::IVariantDict& runtimeParams, Shared::IUqsString& error);
 			void                                         AddItemMonitor(Client::ItemMonitorUniquePtr&& pItemMonitor);
 			void                                         TransferAllItemMonitorsToOtherQuery(CQueryBase& receiver);
 			EUpdateState                                 Update(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error);
@@ -141,12 +150,13 @@ namespace UQS
 			QueryResultSetUniquePtr                      ClaimResultSet();
 
 			// debugging
+			const CQueryID&                              GetQueryID() const;
 			const char*                                  GetQuerierName() const;
 			HistoricQuerySharedPtr                       GetHistoricQuery() const;   // might return a nullptr if history logging was not enabled
 
 		private:
-			virtual bool                                 OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error) = 0;
-			virtual EUpdateState                         OnUpdate(Shared::CUqsString& error) = 0;
+			virtual bool                                 OnStart(const Shared::IVariantDict& runtimeParams, Shared::IUqsString& error) = 0;
+			virtual EUpdateState                         OnUpdate(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error) = 0;
 			virtual void                                 OnCancel() = 0;
 			virtual void                                 OnGetStatistics(SStatistics& out) const = 0;
 
@@ -156,7 +166,7 @@ namespace UQS
 			// debugging
 			string                                       m_querierName;                    // debug name that the caller passed in to re-identify his query for debugging purposes
 			HistoricQuerySharedPtr                       m_pHistory;                       // optional; used to build a history of the ongoing query (and to pass its debug-renderworld to all evaluators)
-			bool                                         m_bAlreadyInstantiated;           // debug flag to prevent recycling a query instance (by accidentally calling InstantiateFromQueryBlueprint() multiple times)
+			bool                                         m_bAlreadyStarted;                // debug flag to prevent recycling a query instance (by accidentally calling Start() multiple times)
 			// ~debugging
 
 			const CQueryID                               m_queryID;                        // the unique queryID that can be used to identify this instance from inside the CQueryManager
@@ -174,7 +184,6 @@ namespace UQS
 			std::vector<SGrantedAndUsedTime>             m_grantedAndUsedTimePerFrame;     // keeps track of how much time we were given to do some work on each frame and how much time we actually spent; grows on each Update() call
 			// ~debugging
 
-			const bool                                   m_bRequiresSomeTimeBudgetForExecution;
 			Shared::CVariantDict                         m_globalParams;                   // merge between constant- and runtime-params
 			std::vector<Client::ItemMonitorUniquePtr>    m_itemMonitors;                   // Update() checks these to ensure that no corruption of the reasoning space goes unnoticed; when the query finishes, these monitors may get transferred to the parent to carry on monitoring alongside further child queries
 
@@ -183,6 +192,7 @@ namespace UQS
 			SQueryContext                                m_queryContext;                   // bundles some stuff for functions, generators and evaluators to read from it
 
 		private:
+			static CQueryID                              s_queryIDProvider;
 			static const CDebugRenderWorldImmediate      s_debugRenderWorldImmediate;      // handed out to all generators, evaluators and functions if immediate debug-rendering is turned on via SCvars::debugDraw
 		};
 

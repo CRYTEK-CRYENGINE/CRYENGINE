@@ -54,10 +54,11 @@ bool CubemapUtils::GenCubemapWithObjectPathAndSize(string& filename, CBaseObject
 	IRenderNode* pRenderNode = pObject->GetEngineNode();
 	IEntity* pIEnt = NULL;
 	bool bIsHidden = false;
+
 	// Hide object before Cubemap generation.
 	if (pRenderNode)
 	{
-		bIsHidden = (pRenderNode->GetRndFlags() & ERF_HIDDEN) != 0;
+		bIsHidden = pRenderNode->IsHidden();
 		pRenderNode->SetRndFlags(ERF_HIDDEN, true);
 	}
 	else if (pObject->GetType() == OBJTYPE_ENTITY)

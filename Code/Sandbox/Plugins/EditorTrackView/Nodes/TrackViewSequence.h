@@ -121,7 +121,7 @@ public:
 
 	// Rendering
 	virtual void Render(const SAnimContext& animContext) override;
-
+	
 	// Playback control
 	virtual void Animate(const SAnimContext& animContext) override;
 	void         Resume()      { m_pAnimSequence->Resume(); }
@@ -130,7 +130,8 @@ public:
 	bool         IsPaused()    { return m_pAnimSequence->IsPaused(); }
 
 	// Returns true while animating (see Animate)
-	bool IsAnimating() { return m_bAnimating; }
+	bool IsAnimating() const { return m_bAnimating; }
+	void SetAnimating(bool isAnimating) { m_bAnimating = isAnimating; }
 
 	// Active & deactivate
 	void Activate()                         { m_pAnimSequence->Activate(); }
@@ -185,7 +186,7 @@ public:
 	void StoreUndoForTracksWithSelectedKeys();
 
 	// Copy keys to clipboard (in XML form)
-	void CopyKeysToClipboard(const bool bOnlySelectedKeys, const bool bOnlyFromSelectedTracks);
+	void CopyKeysToClipboard(const bool bOnlySelectedKeys, const bool bOnlyFromSelectedTracks, size_t selectedKeysCount = 0);
 
 	// Paste keys from clipboard. Tries to match the given data to the target track first,
 	// then the target anim node and finally the whole sequence. If it doesn't find any

@@ -21,27 +21,54 @@ CCollisionAvoidanceSystem::CCollisionAvoidanceSystem()
 {
 }
 
-void CCollisionAvoidanceSystem::RegisterAgent(IAgent* pAgent)
+bool CCollisionAvoidanceSystem::RegisterAgent(IAgent* pAgent)
 {
-	CRY_ASSERT(pAgent != nullptr);
-	CRY_ASSERT(m_isUpdating == false);
-
 	if (!pAgent)
-		return;
+	{
+		CRY_ASSERT_MESSAGE(pAgent, "Parameter 'pAgent' must be non-null.");
+		return false;
+	}
+
+	if (m_isUpdating)
+	{
+		CRY_ASSERT_MESSAGE(!m_isUpdating, "Collision Avoidance System should not be updating while an agent is being registered.");
+		return false;
+	}
+
+	// The magic number '3' was already a constraint. See ComputeFeasibleArea function.
+	if (m_registeredAgentsPtrs.size() + 3 >= FeasibleAreaMaxVertexCount)
+	{
+		// With this early return we avoid registering more agents that the maximum allowed to prevent memory corruptions in 'ComputeFeasibleArea' function.
+		CRY_ASSERT_MESSAGE(m_registeredAgentsPtrs.size() + 3 < FeasibleAreaMaxVertexCount, "Maximum number of agents is 61 (value of enum 'FeasibleAreaMaxVertexCount' minus 3).");
+		return false;
+	}
 
 	auto actorIt = std::find(m_registeredAgentsPtrs.begin(), m_registeredAgentsPtrs.end(), pAgent);
 	if (actorIt == m_registeredAgentsPtrs.end())
 	{
 		m_registeredAgentsPtrs.push_back(pAgent);
 	}
+	return true;
 }
 
-void CCollisionAvoidanceSystem::UnregisterAgent(IAgent* pAgent)
+bool CCollisionAvoidanceSystem::UnregisterAgent(IAgent* pAgent)
 {
-	CRY_ASSERT(pAgent != nullptr);
-	CRY_ASSERT(m_isUpdating == false);
-
-	m_registeredAgentsPtrs.erase(std::remove(m_registeredAgentsPtrs.begin(), m_registeredAgentsPtrs.end(), pAgent), m_registeredAgentsPtrs.end());
+	if (pAgent)
+	{
+		if (!m_isUpdating)
+		{
+			const std::vector<IAgent*>::const_iterator it = std::remove(m_registeredAgentsPtrs.begin(), m_registeredAgentsPtrs.end(), pAgent);
+			if (it != m_registeredAgentsPtrs.end())
+			{
+				m_registeredAgentsPtrs.erase(it, m_registeredAgentsPtrs.end());
+				return true;
+			}
+			CRY_ASSERT_MESSAGE(it != m_registeredAgentsPtrs.end(), "Parameter 'pAgent' was not registered.");
+		}
+		CRY_ASSERT_MESSAGE(!m_isUpdating, "Collision Avoidance System should not be updating while an agent is being unregistered.");
+	}
+	CRY_ASSERT_MESSAGE(pAgent, "Parameter 'pAgent' must be non-null.");
+	return false;
 }
 
 CCollisionAvoidanceSystem::AgentID CCollisionAvoidanceSystem::CreateAgent(NavigationAgentTypeID navigationTypeID, const INavMeshQueryFilter* pQueryFilter)
@@ -172,7 +199,7 @@ size_t CCollisionAvoidanceSystem::ComputeFeasibleArea(const SConstraintLine* lin
 	Vec2* clipped = buf1;
 	Vec2* output = clipped;
 
-	assert(3 + lineCount <= FeasibleAreaMaxVertexCount);
+	CRY_ASSERT_MESSAGE(3 + lineCount <= FeasibleAreaMaxVertexCount, "More agents/obstacles than the maximum supported are being handled. This will cause memory buffers to go beyond their limit, possibly corrupting memory. This shouldn't happen since the system should not allow to register more agents than the maximum which is equivalent to 'FeasibleAreaMaxVertexCount' - 3. See RegisterAgent function.");
 
 	const float HalfSize = 1.0f + radius;
 
@@ -414,7 +441,7 @@ void CCollisionAvoidanceSystem::PopulateState()
 
 void CCollisionAvoidanceSystem::ApplyResults(float updateTime)
 {
-	if (gAIEnv.CVars.CollisionAvoidanceUpdateVelocities || gAIEnv.CVars.CollisionAvoidanceEnableRadiusIncrement)
+	if ((gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceUpdateVelocities > 0) || (gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceEnableRadiusIncrement > 0))
 	{
 		for (size_t i = 0, count = m_avoidingAgentsPtrs.size(); i < count; ++i)
 		{
@@ -449,7 +476,7 @@ void CCollisionAvoidanceSystem::Update(float updateTime)
 		m_nearbyAgents.clear();
 		m_nearbyObstacles.clear();
 
-		const float range = gAIEnv.CVars.CollisionAvoidanceRange;
+		const float range = gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceRange;
 
 		ComputeNearbyObstacles(agent, index, range, m_nearbyObstacles);
 		ComputeNearbyAgents(agent, index, range, m_nearbyAgents);
@@ -472,7 +499,7 @@ void CCollisionAvoidanceSystem::Update(float updateTime)
 		size_t vertexCount = ComputeFeasibleArea(&m_constraintLines.front(), constraintCount, agent.maxSpeed,
 			feasibleArea);
 
-		float minSpeed = gAIEnv.CVars.CollisionAvoidanceMinSpeed;
+		float minSpeed = gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceMinSpeed;
 
 		SCandidateVelocity candidates[FeasibleAreaMaxVertexCount + 1]; // +1 for clipped desired velocity
 		size_t candidateCount = ComputeOptimalAvoidanceVelocity(feasibleArea, vertexCount, agent, minSpeed, agent.maxSpeed, &candidates[0]);
@@ -514,8 +541,8 @@ void CCollisionAvoidanceSystem::Update(float updateTime)
 		if (debugDraw)
 		{
 			const char* szAgentName = m_avoidingAgentsPtrs[index]->GetDebugName();
-			if(*gAIEnv.CVars.DebugDrawCollisionAvoidanceAgentName && szAgentName
-				&& !stricmp(szAgentName, gAIEnv.CVars.DebugDrawCollisionAvoidanceAgentName))
+			if(*gAIEnv.CVars.collisionAvoidance.DebugDrawCollisionAvoidanceAgentName && szAgentName
+				&& !stricmp(szAgentName, gAIEnv.CVars.collisionAvoidance.DebugDrawCollisionAvoidanceAgentName))
 			{
 				const Vec3 agentLocation = agent.currentLocation;
 
@@ -706,7 +733,7 @@ void CCollisionAvoidanceSystem::ComputeObstacleConstraintLine(const SAgentParams
 	static const float heuristicWeightForDistance = 0.01f;
 	static const float minimumTimeHorizonScale = 0.25f;
 	const float adjustedTimeHorizonScale = max(min(timeHorizonScale, (heuristicWeightForDistance * distanceSq)), minimumTimeHorizonScale);
-	const float TimeHorizon = gAIEnv.CVars.CollisionAvoidanceObstacleTimeHorizon * adjustedTimeHorizonScale;
+	const float TimeHorizon = gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceObstacleTimeHorizon * adjustedTimeHorizonScale;
 	const float invTimeHorizon = 1.0f / TimeHorizon;
 
 	Vec2 u;
@@ -777,10 +804,10 @@ Vec2 CCollisionAvoidanceSystem::ClampSpeedWithNavigationMesh(const SNavigationPr
 	const Vec3& currentVelocity, const Vec2& velocityToClamp) const
 {
 	Vec2 outputVelocity = velocityToClamp;
-	if (gAIEnv.CVars.CollisionAvoidanceClampVelocitiesWithNavigationMesh == 1)
+	if (gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceClampVelocitiesWithNavigationMesh == 1)
 	{
-		const float invTimeHorizon = 1.0f / gAIEnv.CVars.CollisionAvoidanceAgentTimeHorizon;
-		const float TimeStep = gAIEnv.CVars.CollisionAvoidanceTimeStep;
+		const float invTimeHorizon = 1.0f / gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceAgentTimeHorizon;
+		const float TimeStep = gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceTimeStep;
 
 		const Vec3 from = agentPosition;
 		const Vec3 to = agentPosition + Vec3(velocityToClamp.x, velocityToClamp.y, 0.0f);
@@ -864,8 +891,8 @@ void CCollisionAvoidanceSystem::ComputeAgentConstraintLine(const SAgentParams& a
 	const float radiiSq = sqr(radii);
 
 	const float TimeHorizon = timeHorizonScale *
-		(reciprocal ? gAIEnv.CVars.CollisionAvoidanceAgentTimeHorizon : gAIEnv.CVars.CollisionAvoidanceObstacleTimeHorizon);
-	const float TimeStep = gAIEnv.CVars.CollisionAvoidanceTimeStep;
+		(reciprocal ? gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceAgentTimeHorizon : gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceObstacleTimeHorizon);
+	const float TimeStep = gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceTimeStep;
 
 	const float invTimeHorizon = 1.0f / TimeHorizon;
 	const float invTimeStep = 1.0f / TimeStep;

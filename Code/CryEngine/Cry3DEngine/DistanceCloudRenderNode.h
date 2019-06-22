@@ -1,8 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _DISTANCECLOUD_RENDERNODE_
-#define _DISTANCECLOUD_RENDERNODE_
-
 #pragma once
 
 class CDistanceCloudRenderNode final : public IDistanceCloudRenderNode, public Cry3DEngineBase
@@ -50,5 +47,3 @@ private:
 	AABB                  m_WSBBox;
 	uint16                m_nLayerId;
 };
-
-#endif // #ifndef _DISTANCECLOUD_RENDERNODE_

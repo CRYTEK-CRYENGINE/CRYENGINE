@@ -1,15 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File:Renderer.cpp
-//  Description: Abstract renderer API
-//
-//	History:
-//	-Feb 05,2001:Originally Created by Marco Corbetta
-//	-: taken over by Andrey Honich
-//.
-//////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 
 #include "Shadow_Renderer.h"
@@ -105,7 +95,7 @@ static inline void AddEf_HandleForceFlags(int& nList, int& nAW, uint32& nBatchFl
 		nBatchFlags |= FB_Z;
 
 	{
-		// below branchlessw version of:
+		// below branchless version of:
 		//if      (nShaderFlags2 & EF2_FORCE_TRANSPASS  ) nList = EFSLIST_TRANSP;
 		//else if (nShaderFlags2 & EF2_FORCE_GENERALPASS) nList = EFSLIST_GENERAL;
 		//else if (nShaderFlags2 & EF2_FORCE_WATERPASS  ) nList = EFSLIST_WATER;
@@ -603,7 +593,6 @@ CRenderObject* CRenderer::EF_DuplicateRO(CRenderObject* pSrc, const SRenderingPa
 			WriteLock lock(pObjSrc->m_accessLock);
 			pObjNew->m_pNextPermanent = pObjSrc->m_pNextPermanent;
 			pObjSrc->m_pNextPermanent = pObjNew;
-			;
 		}
 
 		return pObjNew;
@@ -625,11 +614,11 @@ struct CShaderPublicParams : public IShaderPublicParams
 		m_nRefCount = 0;
 	}
 
-	virtual void          AddRef()                  { m_nRefCount++; };
-	virtual void          Release()                 { if (--m_nRefCount <= 0) delete this; };
+	virtual void          AddRef()                  { m_nRefCount++; }
+	virtual void          Release()                 { if (--m_nRefCount <= 0) delete this; }
 
 	virtual void          SetParamCount(int nParam) { m_shaderParams.resize(nParam); }
-	virtual int           GetParamCount() const     { return m_shaderParams.size(); };
+	virtual int           GetParamCount() const     { return m_shaderParams.size(); }
 
 	virtual SShaderParam& GetParam(int nIndex)
 	{

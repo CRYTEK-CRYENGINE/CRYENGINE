@@ -129,14 +129,14 @@ HRESULT STDMETHODCALLTYPE CCryDX12SwapChain::GetBuffer(
 		case D3D12_RESOURCE_DIMENSION_UNKNOWN:
 		default:
 			*ppSurface = nullptr;
-			DX12_ASSERT(0, "Not implemented!");
+			DX12_ERROR("Not implemented!");
 			break;
 		}
 	}
 	else
 	{
 		*ppSurface = nullptr;
-		DX12_ASSERT(0, "Not implemented!");
+		DX12_ERROR("Not implemented!");
 		return -1;
 	}
 
@@ -152,23 +152,17 @@ HRESULT STDMETHODCALLTYPE CCryDX12SwapChain::ResizeBuffers(
 {
 	DX12_FUNC_LOG
 
-	UINT64 FrameFenceValues[CMDQUEUE_NUM];
-	UINT64 FrameFenceNulls[CMDQUEUE_NUM] = { 0ULL, 0ULL, 0ULL };
-
 	// Submit pending barriers in case the we try to resize in the middle of a frame
 	m_pDX12SwapChain->UnblockBuffers(m_pDevice->GetDeviceContext()->GetCoreGraphicsCommandList());
 
-	// Submit pending command-lists in case there are left-overs, make sure it's flushed to and executed on the hardware
-	m_pDevice->FlushAndWaitForGPU();
-	m_pDevice->GetDeviceContext()->GetCoreGraphicsCommandListPool().GetFences().GetLastCompletedFenceValues(FrameFenceValues);
-
-	// Give up the buffers, they are passed to the release heap now
+	// Give up the buffers, they are simply dropped and not passed to the release heap (it's an internal resource of DX12)
 	m_pDX12SwapChain->ForfeitBuffers();
 
-	// Clear the release heap of all pending releases, the buffers are gone now
-	m_pDevice->GetDX12Device()->FlushReleaseHeap(FrameFenceValues, FrameFenceNulls);
+	// Submit pending command-lists in case there are left-overs, make sure it's flushed to and executed on the hardware
+	m_pDX12SwapChain->FlushAndWaitForBuffers();
 
 	HRESULT res = m_pDX12SwapChain->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
+	CRY_ASSERT_MESSAGE(res == S_OK, "Failed ResizeBuffers, the resolution of the display will be out-of-sync!");
 	if (res == S_OK)
 	{
 		m_pDX12SwapChain->AcquireBuffers();

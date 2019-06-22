@@ -1,17 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   GLResource.hpp
-//  Version:     v1.00
-//  Created:     30/04/2013 by Valerio Guagliumi.
-//  Description: Declares the resource types and related functions
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __GLRESOURCE__
-#define __GLRESOURCE__
+#pragma once
 
 #include "GLCommon.hpp"
 #include "GLFormat.hpp"
@@ -398,8 +387,8 @@ struct STexture : SResource
 	virtual SOutputMergerTextureViewPtr CreateOutputMergerView(const SOutputMergerTextureViewConfiguration& kConfiguration, CContext* pContext);
 	SOutputMergerTextureViewPtr         GetCompatibleOutputMergerView(const SOutputMergerTextureViewConfiguration& kConfiguration, CContext* pContext);
 
-	virtual void                        OnCopyRead(CContext* pContext)  {};
-	virtual void                        OnCopyWrite(CContext* pContext) {};
+	virtual void                        OnCopyRead(CContext* pContext)  {}
+	virtual void                        OnCopyWrite(CContext* pContext) {}
 
 	typedef std::vector<SMappedSubTexture>           TMappedSubTextures;
 #if !DXGL_SUPPORT_COPY_IMAGE
@@ -663,5 +652,3 @@ void                          CopySubTexture(STexture* pDstTexture, uint32 uDstS
 void                          CopySubBuffer(SBuffer* pDstBuffer, uint32 uDstSubresource, uint32 uDstX, uint32 uDstY, uint32 uDstZ, SBuffer* pSrcBuffer, uint32 uSrcSubresource, const D3D11_BOX* pSrcBox, CContext* pContext);
 
 }
-
-#endif //__GLRESOURCE__

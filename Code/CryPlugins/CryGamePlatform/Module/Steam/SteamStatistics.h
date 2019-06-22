@@ -30,16 +30,17 @@ namespace Cry
 
 				virtual bool Set(const char* name, int value) override;
 				virtual bool Set(const char* name, float value) override;
-
 				virtual bool Get(const char* name, int &value) const override;
 				virtual bool Get(const char* name, float &value) const override;
 
-				virtual IAchievement* GetAchievement(int identifier) override { CRY_ASSERT_MESSAGE(false, "Steam only provides support for retrieving achievements by name!"); return nullptr; }
-				virtual IAchievement* GetAchievement(const char* szName) override;
+				virtual IAchievement* GetAchievement(const char* szName, const SAchievementDetails* pDetails) override;
+				virtual IAchievement* GetAchievement(int id, const SAchievementDetails* pDetails) override;
+				
 				// ~IStatistics
 
 			protected:
-				IAchievement* TryGetAchievement(const char* name, bool bAchieved);
+				IAchievement* GetAchievementInternal(const char* szName);
+				IAchievement* GetOrCreateAchievement(const char* szName, const SAchievementDetails* pDetails);
 
 				STEAM_CALLBACK(CStatistics, OnUserStatsReceived, UserStatsReceived_t, m_callbackUserStatsReceived);
 				STEAM_CALLBACK(CStatistics, OnUserStatsStored, UserStatsStored_t, m_callbackUserStatsStored);

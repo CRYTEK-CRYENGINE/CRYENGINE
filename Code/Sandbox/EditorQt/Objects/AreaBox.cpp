@@ -158,6 +158,10 @@ void CAreaObjectBase::PostClone(CBaseObject* pFromObject, CObjectCloneContext& c
 
 	CAreaObjectBase const* const pFrom = static_cast<CAreaObjectBase*>(pFromObject);
 	// Clone event targets.
+
+	// Make sure that the area has no entities in it.
+	ClearArea();
+
 	if (!pFrom->m_entities.IsEmpty())
 	{
 		size_t const numEntities = pFrom->m_entities.GetCount();
@@ -962,6 +966,15 @@ void CAreaBox::OnEntityRemoved(IEntity const* const pIEntity)
 		{
 			pArea->RemoveEntity(pIEntity->GetId());
 		}
+	}
+}
+
+void CAreaBox::ClearArea()
+{
+	IEntityAreaComponent* const pArea = m_pEntity->GetComponent<IEntityAreaComponent>();
+	if (pArea)
+	{
+		pArea->RemoveEntities();
 	}
 }
 

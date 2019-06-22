@@ -18,17 +18,24 @@ namespace Cry
 		class CRenderPrimitiveBase
 		{
 		public:
+			explicit                CRenderPrimitiveBase();
+
+			const CTimeMetadata&    GetMetadata() const;
 
 			virtual                 ~CRenderPrimitiveBase() {}
 			virtual void            Draw() const = 0;
 			virtual size_t          GetRoughMemoryUsage() const = 0;
-			virtual void            Serialize(Serialization::IArchive& ar) = 0;
+			virtual void            Serialize(Serialization::IArchive& ar);
 
 		protected:
 
 			static IRenderAuxGeom*  GetRenderAuxGeom();
 			static int              GetFlags3D();    // takes care of the z-test flag via cvar
 			static void             HelpDrawAABB(const AABB& localAABB, const Vec3& pos, const Matrix33* pOrientation, const ColorF& color);
+
+		private:
+
+			CTimeMetadata           m_metadata;
 		};
 
 		//===================================================================================

@@ -64,10 +64,11 @@ class CCamera
 public:
 	enum EEye
 	{
-		eEye_Left  = 0,
+		eEye_Left = 0,
 		eEye_Right,
 
-		eEye_eCount
+		eEye_eCount,
+		eEye_Both = eEye_eCount
 	};
 
 public:
@@ -112,14 +113,14 @@ public:
 	ILINE bool            Unproject(const Vec3& viewportPos, Vec3& result, Vec2i topLeft = Vec2i(0, 0), Vec2i widthHeight = Vec2i(0, 0)) const;
 	ILINE void            CalcScreenBounds(int* vOut, const AABB* pAABB, int x, int y, int nWidth, int nHeight) const;
 	ILINE void            CalcScreenBounds(int* vOut, const AABB* pAABB, int nWidth, int nHeight) const;
-	ILINE Vec3            GetUp() const { return m_Matrix.GetColumn2(); }
+	ILINE Vec3            GetUp() const                     { return m_Matrix.GetColumn2(); }
 
-	ILINE const Matrix44& GetRenderViewMatrix() const            { return m_renderViewMatrix; }
-	ILINE const Matrix44& GetRenderProjectionMatrix() const      { return m_renderProjectionMatrix; }
-	
-	ILINE const Vec3      GetRenderVectorX() const               { return m_renderVecX; }
-	ILINE const Vec3      GetRenderVectorY() const               { return m_renderVecY; }
-	ILINE const Vec3      GetRenderVectorZ() const               { return m_renderVecZ; }
+	ILINE const Matrix44& GetRenderViewMatrix() const       { return m_renderViewMatrix; }
+	ILINE const Matrix44& GetRenderProjectionMatrix() const { return m_renderProjectionMatrix; }
+
+	ILINE const Vec3      GetRenderVectorX() const          { return m_renderVecX; }
+	ILINE const Vec3      GetRenderVectorY() const          { return m_renderVecY; }
+	ILINE const Vec3      GetRenderVectorZ() const          { return m_renderVecZ; }
 
 	//------------------------------------------------------------
 
@@ -198,28 +199,27 @@ public:
 	bool  IsOBBVisible_E(const Vec3& wpos, const OBB& obb, f32 uscale) const;
 	uint8 IsOBBVisible_EH(const Vec3& wpos, const OBB& obb, f32 uscale) const;
 
-	void GetFrustumVertices(Vec3* pVerts) const;
-	void GetFrustumVerticesCam(Vec3* pVerts) const;
+	void  GetFrustumVertices(Vec3* pVerts) const;
+	void  GetFrustumVerticesCam(Vec3* pVerts) const;
 
-	void SetJustActivated(const bool justActivated) { m_JustActivated = (int)justActivated; }
-	bool IsJustActivated() const                    { return m_JustActivated != 0; }
+	void  SetJustActivated(const bool justActivated) { m_JustActivated = (int)justActivated; }
+	bool  IsJustActivated() const                    { return m_JustActivated != 0; }
 
-	void UpdateFrustum();
-	void GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
+	void  UpdateFrustum();
+	void  GetMemoryUsage(ICrySizer* pSizer) const { /*nothing*/ }
 
-	EEye GetEye() const   { return m_eye; }
-	void SetEye(EEye eye) {	m_eye = eye; }
+	EEye  GetEye() const                          { return m_eye; }
+	void  SetEye(EEye eye)                        { m_eye = eye; }
 
-	void CalculateRenderMatrices() const;
+	void  CalculateRenderMatrices() const;
 
-	
 	//////////////////////////////////////////////////////////////////////////
 	// Oblique Clip Plane support
-	void         SetObliqueClipPlane( const Plane &plane ) { m_obliqueClipPlane = plane; }
+	void         SetObliqueClipPlane(const Plane& plane)   { m_obliqueClipPlane = plane; }
 	const Plane& GetObliqueClipPlane() const               { return m_obliqueClipPlane; }
 
-	void         SetObliqueClipPlaneEnabled( bool bEnabled ) { m_bObliqueClipPlaneEnabled = bEnabled; }
-	bool         IsObliqueClipPlaneEnabled() const           { return m_bObliqueClipPlaneEnabled; }
+	void         SetObliqueClipPlaneEnabled(bool bEnabled) { m_bObliqueClipPlaneEnabled = bEnabled; }
+	bool         IsObliqueClipPlaneEnabled() const         { return m_bObliqueClipPlaneEnabled; }
 
 private:
 	bool AdditionalCheck(const AABB& aabb) const;
@@ -240,21 +240,21 @@ private:
 	f32      m_asymL, m_asymR, m_asymB, m_asymT; //!< Shift to create asymmetric frustum (not used for culling atm).
 
 	// Usually we update these values every frame (they depend on m_Matrix).
-	Vec3   m_cltp, m_crtp, m_clbp, m_crbp; //!< These are the 4 vertices of the projection-plane in cam-space.
-	Vec3   m_cltn, m_crtn, m_clbn, m_crbn; //!< These are the 4 vertices of the near-plane in cam-space.
-	Vec3   m_cltf, m_crtf, m_clbf, m_crbf; //!< These are the 4 vertices of the farclip-plane in cam-space.
+	Vec3             m_cltp, m_crtp, m_clbp, m_crbp; //!< These are the 4 vertices of the projection-plane in cam-space.
+	Vec3             m_cltn, m_crtn, m_clbn, m_crbn; //!< These are the 4 vertices of the near-plane in cam-space.
+	Vec3             m_cltf, m_crtf, m_clbf, m_crbf; //!< These are the 4 vertices of the farclip-plane in cam-space.
 
-	Plane  m_fp[FRUSTUM_PLANES];
-	uint32 m_idx1[FRUSTUM_PLANES], m_idy1[FRUSTUM_PLANES], m_idz1[FRUSTUM_PLANES];
-	uint32 m_idx2[FRUSTUM_PLANES], m_idy2[FRUSTUM_PLANES], m_idz2[FRUSTUM_PLANES];
+	Plane            m_fp[FRUSTUM_PLANES];
+	uint32           m_idx1[FRUSTUM_PLANES], m_idy1[FRUSTUM_PLANES], m_idz1[FRUSTUM_PLANES];
+	uint32           m_idx2[FRUSTUM_PLANES], m_idy2[FRUSTUM_PLANES], m_idz2[FRUSTUM_PLANES];
 
-	float  m_zrangeMin;    //!< Near range of the z-buffer to use for this camera.
-	float  m_zrangeMax;    //!< Far range of the z-buffer to use for this camera.
+	float            m_zrangeMin; //!< Near range of the z-buffer to use for this camera.
+	float            m_zrangeMax; //!< Far range of the z-buffer to use for this camera.
 
-	EEye   m_eye;
+	EEye             m_eye;
 
-	Plane               m_obliqueClipPlane;
-	bool                m_bObliqueClipPlaneEnabled = false;
+	Plane            m_obliqueClipPlane;
+	bool             m_bObliqueClipPlaneEnabled = false;
 
 	mutable Matrix44 m_renderViewMatrix;       //!< Screen model to view transformation matrix
 	mutable Matrix44 m_renderProjectionMatrix; //!< Screen projection matrix.
@@ -707,17 +707,17 @@ inline void CCamera::CalculateRenderMatrices() const
 	// Ortho-normalize camera matrix in double precision to minimize numerical errors and improve precision when inverting matrix
 	Matrix34_tpl<f64> mCam34 = GetMatrix();
 	mCam34.OrthonormalizeFast();
-	
+
 	Vec3 vEye = GetPosition();
 	Vec3 vAt = vEye + Vec3((float)mCam34(0, 1), (float)mCam34(1, 1), (float)mCam34(2, 1));
 	Vec3 vUp = Vec3((float)mCam34(0, 2), (float)mCam34(1, 2), (float)mCam34(2, 2));
 
 	m_renderVecZ = vEye - vAt;
 	m_renderVecZ.NormalizeSafe();
-	
+
 	m_renderVecX = vUp.Cross(m_renderVecZ);
 	m_renderVecX.NormalizeSafe();
-	
+
 	m_renderVecY = m_renderVecZ.Cross(m_renderVecX);
 	m_renderVecY.NormalizeSafe();
 }
@@ -827,9 +827,9 @@ ILINE void CCamera::GetAsymmetricFrustumParams(float& outL, float& outR, float& 
 
 ILINE void CCamera::CalcAsymmetricFrustumVertices(Vec3 V[8]) const
 {
-	float fWL,fWR,fWB,fWT;
-	GetAsymmetricFrustumParams(fWL,fWR,fWB,fWT);
-	
+	float fWL, fWR, fWB, fWT;
+	GetAsymmetricFrustumParams(fWL, fWR, fWB, fWT);
+
 	float fNear = GetNearPlane();
 	float fFar = GetFarPlane();
 
@@ -849,10 +849,9 @@ ILINE void CCamera::CalcAsymmetricFrustumVertices(Vec3 V[8]) const
 	for (int i = 0; i < 8; i++)
 	{
 		// Camera space to world space
-		V[i] = m_renderVecX*V[i].x + m_renderVecY*V[i].y + m_renderVecZ*V[i].z + GetPosition();
+		V[i] = m_renderVecX * V[i].x + m_renderVecY * V[i].y + m_renderVecZ * V[i].z + GetPosition();
 	}
 }
-
 
 //! Check if a point lies within camera's frustum.
 //! Example: u8 InOut=camera.IsPointVisible(point);
@@ -1207,12 +1206,12 @@ inline bool CCamera::IsOBBVisible_E(const Vec3& wpos, const OBB& obb, f32 uscale
 	//is larger then the "radius" of the OBB, then the OBB is outside the frustum.
 	f32 t0, t1, t2, t3, t4, t5;
 	bool mt0, mt1, mt2, mt3, mt4, mt5;
-	if ((mt0 = ((t0 = m_fp[0] | p) > 0.0f)))  if (t0 > (fabsf(m_fp[0].n | ax) + fabsf(m_fp[0].n | ay) + fabsf(m_fp[0].n | az))) return CULL_EXCLUSION;
-	if ((mt1 = ((t1 = m_fp[1] | p) > 0.0f)))  if (t1 > (fabsf(m_fp[1].n | ax) + fabsf(m_fp[1].n | ay) + fabsf(m_fp[1].n | az))) return CULL_EXCLUSION;
-	if ((mt2 = ((t2 = m_fp[2] | p) > 0.0f)))  if (t2 > (fabsf(m_fp[2].n | ax) + fabsf(m_fp[2].n | ay) + fabsf(m_fp[2].n | az))) return CULL_EXCLUSION;
-	if ((mt3 = ((t3 = m_fp[3] | p) > 0.0f)))  if (t3 > (fabsf(m_fp[3].n | ax) + fabsf(m_fp[3].n | ay) + fabsf(m_fp[3].n | az))) return CULL_EXCLUSION;
-	if ((mt4 = ((t4 = m_fp[4] | p) > 0.0f)))  if (t4 > (fabsf(m_fp[4].n | ax) + fabsf(m_fp[4].n | ay) + fabsf(m_fp[4].n | az))) return CULL_EXCLUSION;
-	if ((mt5 = ((t5 = m_fp[5] | p) > 0.0f)))  if (t5 > (fabsf(m_fp[5].n | ax) + fabsf(m_fp[5].n | ay) + fabsf(m_fp[5].n | az))) return CULL_EXCLUSION;
+	if ((mt0 = ((t0 = m_fp[0] | p) > 0.0f))) if (t0 > (fabsf(m_fp[0].n | ax) + fabsf(m_fp[0].n | ay) + fabsf(m_fp[0].n | az))) return CULL_EXCLUSION;
+	if ((mt1 = ((t1 = m_fp[1] | p) > 0.0f))) if (t1 > (fabsf(m_fp[1].n | ax) + fabsf(m_fp[1].n | ay) + fabsf(m_fp[1].n | az))) return CULL_EXCLUSION;
+	if ((mt2 = ((t2 = m_fp[2] | p) > 0.0f))) if (t2 > (fabsf(m_fp[2].n | ax) + fabsf(m_fp[2].n | ay) + fabsf(m_fp[2].n | az))) return CULL_EXCLUSION;
+	if ((mt3 = ((t3 = m_fp[3] | p) > 0.0f))) if (t3 > (fabsf(m_fp[3].n | ax) + fabsf(m_fp[3].n | ay) + fabsf(m_fp[3].n | az))) return CULL_EXCLUSION;
+	if ((mt4 = ((t4 = m_fp[4] | p) > 0.0f))) if (t4 > (fabsf(m_fp[4].n | ax) + fabsf(m_fp[4].n | ay) + fabsf(m_fp[4].n | az))) return CULL_EXCLUSION;
+	if ((mt5 = ((t5 = m_fp[5] | p) > 0.0f))) if (t5 > (fabsf(m_fp[5].n | ax) + fabsf(m_fp[5].n | ay) + fabsf(m_fp[5].n | az))) return CULL_EXCLUSION;
 
 	//if obb-center is in view-frustum, then stop further calculation
 	if (!(mt0 | mt1 | mt2 | mt3 | mt4 | mt5)) return CULL_OVERLAP;
@@ -1244,12 +1243,12 @@ inline uint8 CCamera::IsOBBVisible_EH(const Vec3& wpos, const OBB& obb, f32 usca
 	//is larger then the "radius" of the OBB, then the OBB is outside the frustum.
 	f32 t0, t1, t2, t3, t4, t5;
 	bool mt0, mt1, mt2, mt3, mt4, mt5;
-	if ((mt0 = ((t0 = m_fp[0] | p) > 0.0f)))  if (t0 > (fabsf(m_fp[0].n | ax) + fabsf(m_fp[0].n | ay) + fabsf(m_fp[0].n | az))) return CULL_EXCLUSION;
-	if ((mt1 = ((t1 = m_fp[1] | p) > 0.0f)))  if (t1 > (fabsf(m_fp[1].n | ax) + fabsf(m_fp[1].n | ay) + fabsf(m_fp[1].n | az))) return CULL_EXCLUSION;
-	if ((mt2 = ((t2 = m_fp[2] | p) > 0.0f)))  if (t2 > (fabsf(m_fp[2].n | ax) + fabsf(m_fp[2].n | ay) + fabsf(m_fp[2].n | az))) return CULL_EXCLUSION;
-	if ((mt3 = ((t3 = m_fp[3] | p) > 0.0f)))  if (t3 > (fabsf(m_fp[3].n | ax) + fabsf(m_fp[3].n | ay) + fabsf(m_fp[3].n | az))) return CULL_EXCLUSION;
-	if ((mt4 = ((t4 = m_fp[4] | p) > 0.0f)))  if (t4 > (fabsf(m_fp[4].n | ax) + fabsf(m_fp[4].n | ay) + fabsf(m_fp[4].n | az))) return CULL_EXCLUSION;
-	if ((mt5 = ((t5 = m_fp[5] | p) > 0.0f)))  if (t5 > (fabsf(m_fp[5].n | ax) + fabsf(m_fp[5].n | ay) + fabsf(m_fp[5].n | az))) return CULL_EXCLUSION;
+	if ((mt0 = ((t0 = m_fp[0] | p) > 0.0f))) if (t0 > (fabsf(m_fp[0].n | ax) + fabsf(m_fp[0].n | ay) + fabsf(m_fp[0].n | az))) return CULL_EXCLUSION;
+	if ((mt1 = ((t1 = m_fp[1] | p) > 0.0f))) if (t1 > (fabsf(m_fp[1].n | ax) + fabsf(m_fp[1].n | ay) + fabsf(m_fp[1].n | az))) return CULL_EXCLUSION;
+	if ((mt2 = ((t2 = m_fp[2] | p) > 0.0f))) if (t2 > (fabsf(m_fp[2].n | ax) + fabsf(m_fp[2].n | ay) + fabsf(m_fp[2].n | az))) return CULL_EXCLUSION;
+	if ((mt3 = ((t3 = m_fp[3] | p) > 0.0f))) if (t3 > (fabsf(m_fp[3].n | ax) + fabsf(m_fp[3].n | ay) + fabsf(m_fp[3].n | az))) return CULL_EXCLUSION;
+	if ((mt4 = ((t4 = m_fp[4] | p) > 0.0f))) if (t4 > (fabsf(m_fp[4].n | ax) + fabsf(m_fp[4].n | ay) + fabsf(m_fp[4].n | az))) return CULL_EXCLUSION;
+	if ((mt5 = ((t5 = m_fp[5] | p) > 0.0f))) if (t5 > (fabsf(m_fp[5].n | ax) + fabsf(m_fp[5].n | ay) + fabsf(m_fp[5].n | az))) return CULL_EXCLUSION;
 
 	//check if obb-center is in view-frustum
 	if (!(mt0 | mt1 | mt2 | mt3 | mt4 | mt5))
@@ -1387,12 +1386,12 @@ NO_INLINE_WEAK bool CCamera::AdditionalCheck(const Vec3& wpos, const OBB& obb, f
 	Vec3 iCamPos = -CamInOBBSpace * obb.m33;
 	uint32 front8 = 0;
 	AABB aabb = AABB((obb.c - obb.h) * uscale, (obb.c + obb.h) * uscale);
-	if (iCamPos.x < aabb.min.x)  front8 |= 0x008;
-	if (iCamPos.x > aabb.max.x)  front8 |= 0x010;
-	if (iCamPos.y < aabb.min.y)  front8 |= 0x020;
-	if (iCamPos.y > aabb.max.y)  front8 |= 0x040;
-	if (iCamPos.z < aabb.min.z)  front8 |= 0x080;
-	if (iCamPos.z > aabb.max.z)  front8 |= 0x100;
+	if (iCamPos.x < aabb.min.x) front8 |= 0x008;
+	if (iCamPos.x > aabb.max.x) front8 |= 0x010;
+	if (iCamPos.y < aabb.min.y) front8 |= 0x020;
+	if (iCamPos.y > aabb.max.y) front8 |= 0x040;
+	if (iCamPos.z < aabb.min.z) front8 |= 0x080;
+	if (iCamPos.z > aabb.max.z) front8 |= 0x100;
 
 	if (front8 == 0) return CULL_OVERLAP;
 

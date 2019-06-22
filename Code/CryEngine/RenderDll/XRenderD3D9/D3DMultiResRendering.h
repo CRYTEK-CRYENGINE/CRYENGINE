@@ -24,75 +24,80 @@ public:
 	};
 
 public:
-	static void Init(CD3D9Renderer* pRenderer);
-	static void Reset();
+	CVrProjectionManager(CD3D9Renderer* const pRenderer);
 
-	static CVrProjectionManager* Instance() { return m_pInstance; }
-	static bool IsMultiResEnabledStatic();
+	void Init();
+
+	void BeginFrame(CGraphicsPipeline* pGraphicsPipeline);
+
+	bool IsMultiResEnabledStatic();
 
 	bool IsMultiResEnabled() const;
 	bool IsProjectionConfigured() const;
 	void Configure(const D3D11_VIEWPORT& originalViewport, bool bMirrored);
-	
+
 	// creates a cached configuration and prepares the constant buffer for use
-	void PrepareProjectionParameters(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const D3D11_VIEWPORT& viewport);
+	void               PrepareProjectionParameters(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const D3D11_VIEWPORT& viewport);
 	// returns false if the caller needs to do SetViewports on its own
-	bool SetRenderingState(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const D3D11_VIEWPORT& viewport, bool bSetViewports, bool bBindConstantBuffer);
+	bool               SetRenderingState(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const D3D11_VIEWPORT& viewport, bool bSetViewports, bool bBindConstantBuffer);
 	// removes the ModifiedW state in case of LensMatched projection, otherwise does nothing
-	void RestoreState(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void               RestoreState(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 
-	void MapScreenPosToMultiRes(float& x, float& y) const;
+	void               MapScreenPosToMultiRes(float& x, float& y) const;
 
-	uint64    GetRTFlags() const;
-	CTexture* GetZTargetFlattened() const { return m_ptexZTargetFlattened; }
+	uint64             GetRTFlags() const;
+	CTexture*          GetZTargetFlattened() const { return m_ptexZTargetFlattened; }
 
-	EVrProjection GetProjectionType() const { return m_projection; }
-	void GetProjectionSize(int flattenedWidth, int flattenedHeight, int& projectionWidth, int& projectionHeight);
+	EVrProjection      GetProjectionType() const   { return m_projection; }
+	void               GetProjectionSize(int flattenedWidth, int flattenedHeight, int& projectionWidth, int& projectionHeight);
 	CConstantBufferPtr GetProjectionConstantBuffer(int flattenedWidth, int flattenedHeight);
 
-	void ExecuteFlattenDepth(CTexture* pSrcRT, CTexture* pDestRT);
-	void ExecuteLensMatchedOctagon(CTexture* pDestRT);
+	void               ExecuteFlattenDepth(CTexture* pSrcRT, CTexture* pDestRT);
+	void               ExecuteLensMatchedOctagon(CTexture* pDestRT);
 
 private:
-	CVrProjectionManager(CD3D9Renderer* const pRenderer);
+	CD3D9Renderer*       m_pRenderer;
+	bool                 m_isConfigured;
+	bool                 m_multiResSupported;
+	bool                 m_lensMatchedSupported;
+	bool                 m_currentConfigMirrored;
+	int                  m_currentPreset;
 
-	CD3D9Renderer*                      m_pRenderer;
-	bool                                m_isConfigured;
-	bool                                m_multiResSupported;
-	bool                                m_lensMatchedSupported;
-	bool                                m_currentConfigMirrored;
-	int                                 m_currentPreset;
+	EVrProjection        m_projection;
+	CRenderPrimitive     m_primitiveLensMatchedOctagon;
+	CPrimitiveRenderPass m_passLensMatchedOctagon;
+	_smart_ptr<CTexture> m_ptexZTargetFlattened;
 
-	EVrProjection                       m_projection;
+	struct SVRProjectionPasses
+	{
+		CFullscreenPass      passDepthFlattening;
+		SGraphicsPipelineKey currentKey;
 
-	CFullscreenPass                     m_passDepthFlattening;
-	CRenderPrimitive                    m_primitiveLensMatchedOctagon;
-	CPrimitiveRenderPass                m_passLensMatchedOctagon;
-	_smart_ptr<CTexture>                m_ptexZTargetFlattened;
+		SVRProjectionPasses(CGraphicsPipeline* pGraphicsPipeline);
+	};
 
-	static CVrProjectionManager*        m_pInstance;
-	
+	std::unique_ptr<SVRProjectionPasses> m_passes;
 
 #if defined(USE_NV_API)
 	struct VrProjectionInfo
 	{
-		bool bMirrored;
-		Nv::VR::Data data;
+		bool               bMirrored;
+		Nv::VR::Data       data;
 		CConstantBufferPtr pConstantBuffer;
 	};
 
 	void              GetDerivedData(float width, float height, Nv::VR::Data* pOutData, bool bMirrored = false) const;
 	VrProjectionInfo& GetProjectionForViewport(const D3D11_VIEWPORT& viewport);
 
-	Nv::VR::Planar::Configuration       m_planarConfig;
-	Nv::VR::MultiRes::Configuration     m_multiResConfig;
-	Nv::VR::LensMatched::Configuration  m_lensMatchedConfig;
-	Nv::VR::Data                        m_data;
-	Nv::VR::Data                        m_mirroredData;
-	Nv::VR::Data                        m_planarData;
-	Nv::VR::Viewport                    m_originalViewport;
+	Nv::VR::Planar::Configuration      m_planarConfig;
+	Nv::VR::MultiRes::Configuration    m_multiResConfig;
+	Nv::VR::LensMatched::Configuration m_lensMatchedConfig;
+	Nv::VR::Data                       m_data;
+	Nv::VR::Data                       m_mirroredData;
+	Nv::VR::Data                       m_planarData;
+	Nv::VR::Viewport                   m_originalViewport;
 
-	std::vector<VrProjectionInfo>       m_projectionCache;
+	std::vector<VrProjectionInfo>      m_projectionCache;
 #endif
 
 };

@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 #include "TileConnectivity.h"
-#include "Navigation/MNM/MNM.h"
+#include "Navigation/MNM/MNMUtils.h"
 #include <CryAISystem/NavigationSystem/MNMNavMesh.h>
 
 namespace MNM
@@ -43,7 +43,7 @@ size_t CTileConnectivityData::ComputeTriangleAdjacency(
 		for (uint16 vertexIdx = 0; vertexIdx < 3; ++vertexIdx)
 		{
 			const uint16 i1 = triangle.vertex[vertexIdx];
-			const uint16 i2 = triangle.vertex[next_mod3(vertexIdx)];
+			const uint16 i2 = triangle.vertex[Utils::next_mod3(vertexIdx)];
 
 			if (i1 < i2)
 			{
@@ -69,7 +69,7 @@ size_t CTileConnectivityData::ComputeTriangleAdjacency(
 		for (uint16 vertexIdx = 0; vertexIdx < 3; ++vertexIdx)
 		{
 			const uint16 i1 = triangle.vertex[vertexIdx];
-			const uint16 i2 = triangle.vertex[next_mod3(vertexIdx)];
+			const uint16 i2 = triangle.vertex[Utils::next_mod3(vertexIdx)];
 
 			if (i1 > i2)
 			{
@@ -102,12 +102,13 @@ size_t CTileConnectivityData::ComputeTriangleAdjacency(
 		}
 	}
 
-	ComputedSidesToCheckMasks(pOutEdges, edgesCount, pVertices, tileSize);
+	ComputeSidesToCheckMasks(pOutEdges, edgesCount, pVertices, tileSize);
 
 	return edgesCount;
 }
 
-void CTileConnectivityData::ComputedSidesToCheckMasks(Edge* pEdges, const size_t edgesCount, const Tile::Vertex* pVertices, const vector3_t& tileSize)
+// The function computes mask based on the order of sides defined in NeighbourOffset_MeshGrid (MNMNavMesh.h).
+void CTileConnectivityData::ComputeSidesToCheckMasks(Edge* pEdges, const size_t edgesCount, const Tile::Vertex* pVertices, const vector3_t& tileSize)
 {
 	for (uint16 edgeIdx = 0; edgeIdx < edgesCount; ++edgeIdx)
 	{
@@ -144,13 +145,12 @@ void CTileConnectivityData::ComputedSidesToCheckMasks(Edge* pEdges, const size_t
 					if (axisTest[2])
 					{
 						if (vertex0[2] == 0)
-							side += 2;
+							side += vertex0[dim] == 0 ? 1 : 2;
 						if (vertex0[2] == tileSize[2])
-							side += 1;
+							side += vertex0[dim] == 0 ? 2 : 1;
 					}
 					CRY_ASSERT(side < 14);
 					sidesMask |= BIT16(side);
-					break;
 				}
 			}
 			if (sidesMask == 0 && axisTest[2])

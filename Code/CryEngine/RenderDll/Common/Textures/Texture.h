@@ -1,16 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   TexMan.h : Common texture manager declarations.
-
-   Revision history:
-* Created by Khonich Andrey
-   - 19:8:2008   12:14 : * Refactored by Anton Kaplanyan
-
-   =============================================================================*/
-
-#ifndef _TEXTURE_H
-#define _TEXTURE_H
+#pragma once
 
 #include <set>
 #include <atomic>
@@ -227,14 +217,7 @@ public:
 	static size_t        s_iNumTextureBytesCheckedOut;
 	static size_t        s_iNumTextureBytesCheckedIn;
 
-	static uint32        s_SuggestedDynTexAtlasCloudsMaxsize;
-	static uint32        s_SuggestedDynTexAtlasSpritesMaxsize;
-	static uint32        s_SuggestedTexAtlasSize;
 	static uint32        s_SuggestedDynTexMaxSize;
-
-	static uint32        s_CurDynTexAtlasCloudsMaxsize;
-	static uint32        s_CurDynTexAtlasSpritesMaxsize;
-	static uint32        s_CurTexAtlasSize;
 	static uint32        s_CurDynTexMaxSize;
 
 	CTexture*           CreateDynamicRT();
@@ -676,16 +659,15 @@ struct SStreamFormatCodeKey
 	}
 };
 
-struct SStreamFormatSize
-{
-	uint32 size        : 31;
-	uint32 alignSlices : 1;
-};
-
 struct SStreamFormatCode
 {
-	enum { MaxMips = 14, MaxDim = 1 << (MaxMips - 1) };
-	SStreamFormatSize sizes[MaxMips];
+	enum
+	{
+		MaxMips = 14,
+		MaxDim = 1 << (MaxMips - 1),
+		MaxSlices = 32
+	};
+	uint32 sizes[MaxSlices][MaxMips];
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -778,9 +760,6 @@ private:
 	ColorF                    m_cMaxColor;
 	ColorF                    m_cClearColor;
 
-#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
-	uint32                    m_nDeviceAddressInvalidated;
-#endif
 #if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
 	int32                     m_nESRAMOffset;
 #endif
@@ -904,7 +883,7 @@ public:
 		SSamplerState::SetDefaultClampingMode(nMode, nMode, nMode);
 	}
 	virtual const bool IsTextureLoaded() const           final { return IsLoaded(); }
-	virtual void       PrecacheAsynchronously(float fMipFactor, int nFlags, int nUpdateId, int nCounter = 1);
+	void               PrecacheAsynchronously(float fMipFactor, int nFlags, int nUpdateId);
 	virtual byte*      GetData32(int nSide = 0, int nLevel = 0, byte* pDst = NULL, ETEX_Format eDstFormat = eTF_R8G8B8A8);
 
 	virtual const uint32  GetDeviceDataSize() const         final { return m_nDevTextureSize; }
@@ -974,7 +953,7 @@ public:
 
 	static inline bool IsTextureExist(const CTexture* pTex)          { return pTex && pTex->GetDevTexture(); }
 
-	const bool         IsNoTexture() const                           { return m_bNoTexture; };
+	const bool         IsNoTexture() const                           { return m_bNoTexture; }
 	void               SetNeedRestoring()                            { m_bNeedRestoring = true; }
 	void               SetWasUnload(bool bSet)                       { m_bWasUnloaded = bSet; }
 	const bool         IsPartiallyLoaded() const                     { return m_nMinMipVidUploaded != 0; }
@@ -1048,7 +1027,7 @@ public:
 #endif
 	}
 
-	bool            IsFPFormat() const    { return CImageExtensionHelper::IsRangeless(m_eDstFormat); };
+	bool            IsFPFormat() const    { return CImageExtensionHelper::IsRangeless(m_eDstFormat); }
 
 	CDeviceTexture* GetDevTexture(bool bMultisampled = false) const { return (!bMultisampled ? m_pDevTexture : m_pDevTexture->GetMSAATexture()); }
 	void            RefDevTexture(CDeviceTexture* pDeviceTex);
@@ -1072,20 +1051,6 @@ public:
 	const char*        GetSourceName() const  { return m_SrcName.c_str(); }
 	const size_t       GetAllocatedSystemMemory(bool bIncludePool, bool bIncludeCache = true) const;
 	void               PostCreate();
-
-#if CRY_PLATFORM_DURANGO && (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120)
-	void CheckValidateSRVs()
-	{
-		if (m_pDevTexture && m_pDevTexture->GetBaseAddressInvalidated() != m_nDeviceAddressInvalidated)
-		{
-			ValidateSRVs();
-
-			m_nDeviceAddressInvalidated = m_pDevTexture->GetBaseAddressInvalidated();
-		}
-	}
-
-	void ValidateSRVs();
-#endif
 
 	//////////////////////////////////////////////////////////////////////////
 
@@ -1488,12 +1453,12 @@ public:
 		std::shared_ptr<IFlashPlayer>           GetPermPtr(CFlashTextureSourceBase* pSrc)              { return nullptr; }
 
 		void                                    Activate(bool activate, CFlashTextureSourceBase* pSrc) {}
-		void                                    Clear(CFlashTextureSourceBase* pSrc)                   {};
+		void                                    Clear(CFlashTextureSourceBase* pSrc)                   {}
 
 		const char*                             GetSourceFilePath() const                              { return "NULLWRAPPER"; }
 
 		void                                    UpdatePlayer(CFlashTextureSourceBase* pSrc)            {}
-		void                                    Advance(float delta)                                   {};
+		void                                    Advance(float delta)                                   {}
 
 		int                                     GetWidth() const                                       { return 16; }
 		int                                     GetHeight() const                                      { return 16; }
@@ -1531,7 +1496,7 @@ public:
 		std::shared_ptr<IFlashPlayer> GetPermPtr(CFlashTextureSourceBase* pSrc);
 
 		void          Activate(bool activate, CFlashTextureSourceBase* pSrc);
-		void          Clear(CFlashTextureSourceBase* pSrc) {};
+		void          Clear(CFlashTextureSourceBase* pSrc) {}
 
 		const char*   GetSourceFilePath() const;
 
@@ -1573,7 +1538,7 @@ public:
 		const char*   GetSourceFilePath() const;
 
 		void          UpdatePlayer(CFlashTextureSourceBase* pSrc);
-		void          Advance(float delta) {};
+		void          Advance(float delta) {}
 
 		int           GetWidth() const     { return m_width; }
 		int           GetHeight() const    { return m_height; }
@@ -1606,7 +1571,7 @@ public:
 		std::shared_ptr<IFlashPlayer> GetPermPtr(CFlashTextureSourceBase* pSrc);
 
 		void          Activate(bool activate, CFlashTextureSourceBase* pSrc);
-		void          Clear(CFlashTextureSourceBase* pSrc) {};
+		void          Clear(CFlashTextureSourceBase* pSrc) {}
 
 		const char*   GetSourceFilePath() const;
 
@@ -1719,7 +1684,7 @@ protected:
 	virtual int          GetHeight() const override                       { return GetSharedRTHeight(); }
 
 	virtual SDynTexture* GetDynTexture() const override                   { return ms_pDynTexture; }
-	virtual bool         UpdateDynTex(int rtWidth, int rtHeight) override { return ms_pDynTexture->IsValid(); };
+	virtual bool         UpdateDynTex(int rtWidth, int rtHeight) override { return ms_pDynTexture->IsValid(); }
 
 	virtual bool         Update() override;
 
@@ -1749,5 +1714,3 @@ private:
 	typedef std::map<string, std::vector<string>> PerLayerDynSrcMtls;
 	static PerLayerDynSrcMtls s_perLayerDynSrcMtls;
 };
-
-#endif

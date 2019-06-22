@@ -6,7 +6,7 @@
 #include <QScrollableBox.h>
 #include <QtViewPane.h>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 class EDITOR_COMMON_API CViewportHelperWnd : public CDockableWidgetT<QScrollableBox>
 {
@@ -22,5 +22,5 @@ private:
 	void OnReset();
 
 	CViewport*     m_pViewport;
-	QPropertyTree* m_propertyTree;
+	QPropertyTreeLegacy* m_propertyTree;
 };

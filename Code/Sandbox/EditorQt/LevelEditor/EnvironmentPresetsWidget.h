@@ -5,9 +5,9 @@
 #include <Cry3DEngine/ITimeOfDay.h>
 #include <QWidget>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
-class CEnvironmentPresetsWidget : public QWidget, ITimeOfDay::IListener  
+class CEnvironmentPresetsWidget : public QWidget, public ITimeOfDay::IListener
 {
 public:
 	struct IPresetsSerializer
@@ -19,15 +19,15 @@ public:
 public:
 	CEnvironmentPresetsWidget(QWidget* pParent = nullptr);
 	virtual ~CEnvironmentPresetsWidget();
-	void OnBeginUndo();
-	void OnEndUndo(bool acceptUndo);
-	void BeforeSerialization(Serialization::IArchive& ar);
-	void AfterSerialization(Serialization::IArchive& ar);
+	void         OnBeginUndo();
+	void         OnEndUndo(bool acceptUndo);
+	void         BeforeSerialization(Serialization::IArchive& ar);
+	void         AfterSerialization(Serialization::IArchive& ar);
 
 	virtual void OnChange(const EChangeType changeType, const char* const szPresetName) override;
 
 private:
-	QPropertyTree* m_pPropertyTree = nullptr;
-	bool           m_ignoreEvent = false;
+	QPropertyTreeLegacy*                      m_pPropertyTree = nullptr;
+	bool                                m_ignoreEvent = false;
 	std::unique_ptr<IPresetsSerializer> m_pPresetsSerializer;
 };

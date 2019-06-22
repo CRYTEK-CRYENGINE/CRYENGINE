@@ -87,9 +87,9 @@ private:   // --------------------------------------------------------------
 	bool                           m_wantQuitAfterTestsDone = false;
 	bool                           m_openReport = false;
 
-	// Used for caching and restoring gEnv->noAssertDialog flag to suppress the assert window during tests
+	// Used for caching and restoring Cry::Assert::ShowDialogOnAssert() flag to suppress the assert window during tests
 	// Even though assert window is suppressed in auto testing mode, this is still useful for CryTest runner
-	bool                                  m_wasNoAssertDialog = false;
+	bool                                  m_wasShowAssertDialog = false;
 
 	volatile bool                         m_wantQuit = false;
 

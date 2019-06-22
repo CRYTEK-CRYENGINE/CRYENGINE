@@ -166,8 +166,8 @@ namespace UQS
 			                                                      UQS_NON_COPYABLE(CQuery_Regular);
 
 			// CQueryBase
-			virtual bool                                          OnInstantiateFromQueryBlueprint(const Shared::IVariantDict& runtimeParams, Shared::CUqsString& error) override;
-			virtual EUpdateState                                  OnUpdate(Shared::CUqsString& error) override;
+			virtual bool                                          OnStart(const Shared::IVariantDict& runtimeParams, Shared::IUqsString& error) override;
+			virtual EUpdateState                                  OnUpdate(const CTimeValue& amountOfGrantedTime, Shared::CUqsString& error) override;
 			virtual void                                          OnCancel() override;
 			virtual void                                          OnGetStatistics(SStatistics& out) const override;
 			// ~CQueryBase

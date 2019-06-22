@@ -18,6 +18,7 @@ SSocketBandwidth g_socketBandwidth;
 	#include "Protocol/PacketRateCalculator.h"
 	#include <CrySystem/Profilers/IPerfHud.h>
 	#include <CryExtension/CryCreateClassInstance.h>
+	#include <CrySystem/ConsoleRegistration.h>
 
 	#include "NetCVars.h"
 

@@ -352,7 +352,7 @@ bool CFlowData::SerializeXML(IFlowNode::SActivationInfo* pActInfo, const XmlNode
 
 void CFlowData::Serialize(IFlowNode::SActivationInfo* pActInfo, TSerialize ser)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Flowgraph serialization");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Flowgraph serialization");
 	SFlowNodeConfig config;
 	DoGetConfiguration(config);
 

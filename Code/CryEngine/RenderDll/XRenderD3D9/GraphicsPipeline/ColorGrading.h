@@ -3,55 +3,47 @@
 #pragma once
 
 #include "Common/GraphicsPipelineStage.h"
-#include "Common/FullscreenPass.h"
+#include "Common/PrimitiveRenderPass.h"
 
-class CColorGradingController;
 struct SColorGradingMergeParams;
 
+// Produces final color chart texture: merges (if any) layers + uses params from EPostEffectID::ColorGrading
+// Final result can be nullptr
 class CColorGradingStage : public CGraphicsPipelineStage
 {
-	typedef stl::aligned_vector<SVF_P3F_C4B_T2F, CRY_PLATFORM_ALIGNMENT> VertexArray;
-
 public:
-	CColorGradingStage();
+	static const EGraphicsPipelineStage StageID = eStage_ColorGrading;
+
+	CColorGradingStage(CGraphicsPipeline& graphicsPipeline);
 
 	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
-		return CRenderer::CV_r_colorgrading > 0 && CRenderer::CV_r_colorgrading_charts && gcpRendD3D->m_pColorGradingControllerD3D;
+		return CRenderer::CV_r_colorgrading > 0 && CRenderer::CV_r_colorgrading_charts;
 	}
 
-	void      Init() final;
-	void      Execute();
+	virtual void Init() final;
+	virtual void Execute();
 
-	void      SetStaticColorChart(_smart_ptr<CTexture> pStaticColorChart) { AUTO_LOCK_T(CryCriticalSectionNonRecursive, m_lock); std::swap(m_pChartStatic, pStaticColorChart); }
-	CTexture* GetStaticColorChart()   const                               { AUTO_LOCK_T(CryCriticalSectionNonRecursive, m_lock); return m_pChartStatic; }
-
-	CTexture* GetColorChart()         const                               { return m_pChartToUse; }
-	CTexture* GetIdentityColorChart() const                               { return m_pChartIdentity; }
-
-	// TODO: remove once graphicspipeline=0 mode is not required anymore in D3DColorGradingController
-	const std::array<_smart_ptr<CTexture>, 2>& GetMergeLayers() const { return m_pMergeLayers; }
-	CVertexBuffer                              GetSlicesVB()    const;
-
-	bool                                       IsRenderPassesDirty();
+	// Result texture of this pass for further usage
+	CTexture* GetColorChart() const { return m_pChartToUse; }
 
 private:
-	void PreparePrimitives(CColorGradingController& controller, const SColorGradingMergeParams& mergeParams);
+	void PreparePrimitives(const SColorGradingMergeParams& mergeParams);
+	bool AreRenderPassesDirty() const;
 
-	CryCriticalSectionNonRecursive      m_lock;
+	_smart_ptr<CTexture> m_pChartIdentity;
 
-	_smart_ptr<CTexture>                m_pChartIdentity;
-	_smart_ptr<CTexture>                m_pChartStatic;
-	_smart_ptr<CTexture>                m_pChartToUse;
-	std::array<_smart_ptr<CTexture>, 2> m_pMergeLayers;
-	buffer_handle_t                     m_slicesVertexBuffer;
+	// Merge all layers to one
+	CPrimitiveRenderPass          m_mergeChartsPass;
+	std::vector<CRenderPrimitive> m_mergeChartsPrimitives;
+	_smart_ptr<CTexture>          m_pMergedLayer;
 
-	std::vector<CRenderPrimitive>       m_mergeChartsPrimitives;
-	CRenderPrimitive                    m_colorGradingPrimitive;
+	// Merge m_pMergedLayer (or m_pChartIdentity) with constants
+	CPrimitiveRenderPass m_colorGradingPass;
+	buffer_handle_t      m_slicesVertexBuffer;
+	CRenderPrimitive     m_colorGradingPrimitive;
+	_smart_ptr<CTexture> m_pFinalMergedTexture;
 
-	CPrimitiveRenderPass                m_mergePass;
-	CPrimitiveRenderPass                m_colorGradingPass;
-
-	// TODO: remove once r_graphicspipeline=0 is gone
-	VertexArray m_vecSlicesData;
+	// Result texture, for use in CPostAAStage
+	_smart_ptr<CTexture> m_pChartToUse;
 };

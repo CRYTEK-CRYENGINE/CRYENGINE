@@ -2,8 +2,10 @@
 
 #include "StdAfx.h"
 #include "NamedData.h"
-#include "Util/PakFile.h"
 #include "Util/CryMemFile.h"
+#include "Util/EditorUtils.h"
+#include "Util/PakFile.h"
+
 #include <IEditor.h>
 #include <CryCore/StlUtils.h>
 #include <zlib.h>

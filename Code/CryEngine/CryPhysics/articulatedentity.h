@@ -61,7 +61,6 @@ struct ae_joint : ArticulatedBody {
 	Vec3 prev_pos,prev_v,prev_w;
 	quaternionf prev_qrot;
 	Ang3 q0;
-	Vec3 Fcollision,Tcollision;
 	Vec3 vSleep,wSleep;
 
 	unsigned int flags;
@@ -157,10 +156,13 @@ class CArticulatedEntity : public CRigidEntity {
 	void UpdateJointRotationAxes(int idx);
 	void CheckForGimbalLock(int idx);
 	int GetUnprojAxis(int idx, Vec3 &axis);
+	void RerootJoint(int idx, int iParent, int flagsParent,const Ang3 &qextParent);
+	bool Reroot(int inewRoot);
+	void MirrorInto(int jntSrc, int jntDst, CArticulatedEntity *pdst);
 
 	int StepJoint(int idx, float time_interval,int &bBounced, int bFlying, int iCaller);
 	void JointListUpdated();
-	void StepFeatherstone(float time_interval, int bBounced, Matrix33 &M0host);
+	void StepFeatherstone(float time_interval, int bBounced, Matrix33 &M0host, float *Zabuf=nullptr);
 	int CalcBodyZa(int idx, float time_interval, vectornf &Za_change);
 	int CalcBodyIa(int idx, matrixf& Ia_change, int bIncludeLimits=1);
 	void CalcBodiesIinv(int bLockLimits);
@@ -235,6 +237,11 @@ class CArticulatedEntity : public CRigidEntity {
 	float m_rhistTime;
 	int m_bContactsAssigned;
 
+	unsigned int m_constrInfoFlags = 0;
+	CArticulatedEntity *m_pSrc=nullptr;
+	int j2src(int i) { return m_pSrc->m_infos[m_joints[i].iStartPart].iJoint; }
+	bool m_saveVel = false;
+	
 	mutable volatile int m_lockJoints;
 
 	CPhysicalEntity **m_pCollEntList;

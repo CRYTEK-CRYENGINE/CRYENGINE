@@ -3,6 +3,7 @@
 #include "FacialEditorPlugin.h"
 
 #include <CryCore/Platform/platform_impl.inl>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "Vicon/Vicon_ClientCodes.h"
 

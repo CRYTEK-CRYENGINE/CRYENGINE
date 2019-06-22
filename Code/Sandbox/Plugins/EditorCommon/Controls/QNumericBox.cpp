@@ -41,16 +41,32 @@ private:
 class QNumericEdit : public QLineEdit
 {
 public:
+	//The type of editing operation the user is doing
+	enum class EditState
+	{
+		//Typing a text in the line edit
+		Text,
+		//Using the slider to change the values
+		Slider,
+		//Line edit Is not being modified
+		None
+	};
+
+	//This stores edit data and the previously set value so that we can undo when needed
+	struct EditData
+	{
+		EditState editState;
+		QString   previousValue;
+	};
+
 	QNumericEdit(QWidget* parent)
 		: QLineEdit(parent)
 		, m_lastCursor(-1)
 		, m_editMode(false)
-		, m_selectAllFromMouse(true)
 		, m_editStyle(new QNumericEditProxyStyle())
-		, m_mouseMoved(false)
 	{
 		setStyleSheet("background-color: transparent");
-		setEditMode(false);
+		setTextEditMode(false);
 		setStyle(m_editStyle);
 		setText("0");
 	}
@@ -59,72 +75,68 @@ public:
 
 	virtual ~QNumericEdit() override {}
 
-	virtual void mouseDoubleClickEvent(QMouseEvent* e) override
+	virtual void focusInEvent(QFocusEvent* pEvent) override
 	{
-		selectAll();
-	}
-
-	virtual void focusInEvent(QFocusEvent* e) override
-	{
-		m_selectAllFromMouse = false;
-		if (e->reason() == Qt::TabFocusReason ||
-		    e->reason() == Qt::BacktabFocusReason)
+		if (pEvent->reason() == Qt::TabFocusReason ||
+		    pEvent->reason() == Qt::BacktabFocusReason)
 		{
-			setEditMode(true);
+			setTextEditMode(true);
 		}
 
-		QLineEdit::focusInEvent(e);
+		QLineEdit::focusInEvent(pEvent);
 	}
 
-	virtual void focusOutEvent(QFocusEvent* e) override
+	virtual void focusOutEvent(QFocusEvent* pEvent) override
 	{
-		if (e->reason() != Qt::PopupFocusReason)
+		if (pEvent->reason() != Qt::PopupFocusReason)
 		{
-			setEditMode(false);
+			setTextEditMode(false);
 		}
 
-		QLineEdit::focusOutEvent(e);
+		QLineEdit::focusOutEvent(pEvent);
 	}
 
-	virtual void mousePressEvent(QMouseEvent* e) override
+	virtual void mousePressEvent(QMouseEvent* pEvent) override
 	{
-		if (!getEditMode() && e->button() == Qt::LeftButton)
+		//if we are not in text edit mode setup for a slide edit operation
+		if (!getTextEditMode() && pEvent->button() == Qt::LeftButton)
 		{
 			m_mouseDownLocation = QCursor::pos();
-			m_mouseMoved = false;
 			setCursor(Qt::BlankCursor);
 		}
 		else
 		{
-			if (m_selectAllFromMouse)
-			{
-				m_selectAllFromMouse = false;
-				selectAll();
-			}
-			else
-			{
-				QLineEdit::mousePressEvent(e);
-			}
+			QLineEdit::mousePressEvent(pEvent);
 		}
 	}
 
-	virtual void mouseMoveEvent(QMouseEvent* e) override
+	virtual void mouseMoveEvent(QMouseEvent* pEvent) override
 	{
-		if (!getEditMode() && QApplication::mouseButtons() == Qt::LeftButton)
+		//if we are not in text edit mode start a slide operation and save edit value
+		if (!getTextEditMode() && QApplication::mouseButtons() == Qt::LeftButton)
 		{
-			QNumericBox* numbox = qobject_cast<QNumericBox*>(parentWidget());
+
+			//Apply sliding based on mouse movement
+			QNumericBox* pNumbox = qobject_cast<QNumericBox*>(parentWidget());
 			QPoint mouse = QCursor::pos();
-			if (numbox && mouse != m_mouseDownLocation)
+			if (pNumbox && mouse != m_mouseDownLocation)
 			{
-				m_mouseMoved = true;
-				double add = 0.0;
-				if (numbox->hasMinMax())
+				//Record text the first time the mouse moves,
+				//This starts here instead of mouse press because we need to handle drag restart after escaping a change without releasing left mouse
+				if (m_editState.editState == EditState::None)
 				{
-					add = (numbox->maximum() - numbox->minimum()) * double((mouse.x() - m_mouseDownLocation.x())) / double(numbox->width());
+					m_editState.editState = EditState::Slider;
+					m_editState.previousValue = text();
+				}
+
+				double add = 0.0;
+				if (pNumbox->hasMinMax())
+				{
+					add = (pNumbox->maximum() - pNumbox->minimum()) * double((mouse.x() - m_mouseDownLocation.x())) / double(pNumbox->width());
 				}
 				else
 				{
-					add = numbox->singleStep() * double((mouse.x() - m_mouseDownLocation.x()));
+					add = pNumbox->singleStep() * double((mouse.x() - m_mouseDownLocation.x()));
 				}
 
 				if (Qt::ControlModifier == QApplication::keyboardModifiers())
@@ -136,55 +148,63 @@ public:
 					add *= 100.0;
 				}
 
-				numbox->setValue(numbox->value() + add);
+				pNumbox->setValue(pNumbox->value() + add);
 				QCursor::setPos(m_mouseDownLocation);
 			}
 		}
 		else
 		{
-			QLineEdit::mouseMoveEvent(e);
+			QLineEdit::mouseMoveEvent(pEvent);
 		}
 	}
 
-	virtual void mouseReleaseEvent(QMouseEvent* e) override
+	virtual void mouseReleaseEvent(QMouseEvent* pEvent) override
 	{
 		releaseMouse();
-		if (!getEditMode() && e->button() == Qt::LeftButton)
+		//If we are releasing left mouse it might be the end of a sliding op or a selection on the line edit
+		if (pEvent->button() == Qt::LeftButton)
 		{
 			setCursor(Qt::ArrowCursor);
 
-			if (!m_mouseMoved)
+			//slide op is finished, edit state can become none
+			if (m_editState.editState == EditState::Slider)
 			{
-				setEditMode(true);
-				selectAllFromMouse();
-				QMouseEvent pe(QEvent::MouseButtonPress, e->pos(), e->button(), e->buttons(), e->modifiers());
-				QMouseEvent re(QEvent::MouseButtonRelease, e->pos(), e->button(), e->buttons(), e->modifiers());
-				QApplication::sendEvent(this, &pe);
-				QApplication::sendEvent(this, &re);
+				if (m_editState.previousValue != text())
+				{
+					QLineEdit::editingFinished();
+				}
+
+				m_editState.editState = EditState::None;
+			}
+			else
+			{
+				//just a line edit selection
+				selectAll();
 			}
 		}
 		else
 		{
-			QLineEdit::mouseReleaseEvent(e);
+			QLineEdit::mouseReleaseEvent(pEvent);
 		}
+
 	}
 
-	virtual bool eventFilter(QObject* object, QEvent* e) override
+	virtual bool eventFilter(QObject* pObject, QEvent* pEvent) override
 	{
-		if (object != this && e->type() == QEvent::MouseButtonPress)
+		if (pObject != this && pEvent->type() == QEvent::MouseButtonPress)
 		{
-			QWidget* widget = qobject_cast<QWidget*>(object);
-			if (widget && widget->parentWidget() != this)
+			QWidget* pWidget = qobject_cast<QWidget*>(pObject);
+			if (pWidget && pWidget->parentWidget() != this)
 			{
-				QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(e);
-				QNumericBox* numbox = qobject_cast<QNumericBox*>(parentWidget());
-				if (numbox && mouseEvent->buttons() == Qt::LeftButton)
+				QMouseEvent* pMouseEvent = static_cast<QMouseEvent*>(pEvent);
+				QNumericBox* pNumbox = qobject_cast<QNumericBox*>(parentWidget());
+				if (pNumbox && pMouseEvent->buttons() == Qt::LeftButton)
 				{
-					QPoint numboxPoint = numbox->mapFromGlobal(widget->mapToGlobal(mouseEvent->pos()));
-					QRect numboxRect = numbox->rect();
+					QPoint numboxPoint = pNumbox->mapFromGlobal(pWidget->mapToGlobal(pMouseEvent->pos()));
+					QRect numboxRect = pNumbox->rect();
 					if (!numboxRect.contains(numboxPoint))
 					{
-						setEditMode(false);
+						setTextEditMode(false);
 					}
 				}
 			}
@@ -193,7 +213,8 @@ public:
 		return false;
 	}
 
-	void setEditMode(bool edit)
+	//If we start/end a text edit op
+	void setTextEditMode(bool edit)
 	{
 		m_editMode = edit;
 		m_editStyle->setCursorWidth(edit ? 1 : 0);
@@ -202,19 +223,23 @@ public:
 		QApplication::instance()->removeEventFilter(this);
 		if (edit)
 		{
+			//Starting a text edit, set the edit state to text
+			m_editState.editState = EditState::Text;
+			m_editState.previousValue = text();
+
 			QApplication::instance()->installEventFilter(this);
 		}
 		else
 		{
+			//Text edit is ending, edit state can be nulled
+			m_editState.editState = EditState::None;
 			deselect();
 		}
 
 		update();
 	}
 
-	bool getEditMode()        { return m_editMode; }
-
-	void selectAllFromMouse() { m_selectAllFromMouse = true; }
+	bool getTextEditMode() { return m_editMode; }
 
 	void step(double multiplier)
 	{
@@ -279,43 +304,119 @@ public:
 		}
 	}
 
-	virtual void keyPressEvent(QKeyEvent* e) override
+	virtual void keyPressEvent(QKeyEvent* pEvent) override
 	{
-		if (e->key() == Qt::Key_Escape ||
-		    e->key() == Qt::Key_Enter ||
-		    e->key() == Qt::Key_Return)
+		//We want to cancel a current edit operation
+		if (pEvent->key() == Qt::Key_Escape)
 		{
-			QLineEdit::editingFinished();
-			if (hasFocus())
+			//If state is none we have no op in progress, this means that we just need a deselect of current line edit
+			if (m_editState.editState != EditState::None)
 			{
-				selectAll();
+				//We are reverting, set text to previous value
+				setText(m_editState.previousValue);
+				EditState prevType = m_editState.editState;
+
+				//We can stop editing
+				m_editState.editState = EditState::None;
+
+				//Select all items in the line edit (ex: after end of slide or text edit)
+				if (hasFocus())
+				{
+					selectAll();
+				}
+
+				//Exiting slide edit, select text and start editing that
+				if (prevType == EditState::Slider)
+				{
+					setTextEditMode(true);
+				}
+				else
+				{
+					deselect();
+				}
+
+			}
+			else
+			{
+				deselect();
 			}
 
 			//Lets the keypress go to parents, i.e. the parent dialog may close on Enter/ESC
 			//Note that this behavior can be observed on QLineEdit
-			e->ignore();
+			pEvent->ignore();
+
 			return;
 		}
 
-		if (e->key() == Qt::Key_Up ||
-		    e->key() == Qt::Key_Down)
+		//We are confirming a slide/text op or just selecting
+		if (pEvent->key() == Qt::Key_Enter || pEvent->key() == Qt::Key_Return)
 		{
-			step(e->key() == Qt::Key_Up ? 1.0f : -1.0f);
+			//if state is none this enter is just to select the field and start text edit
+			if (m_editState.editState == EditState::None)
+			{
+				selectAll();
+				setTextEditMode(true);
+			}
+			else
+			{
+				//Commit edited value
+				if (m_editState.previousValue != text())
+				{
+					QLineEdit::editingFinished();
+				}
+
+				if (hasFocus())
+				{
+					selectAll();
+				}
+
+				//Enter confirms and clears edit state, all changes have been applied
+				m_editState.editState = EditState::None;
+			}
+
+			//Lets the keypress go to parents, i.e. the parent dialog may close on Enter/ESC
+			//Note that this behavior can be observed on QLineEdit
+			pEvent->ignore();
+			return;
+		}
+
+		if (pEvent->key() == Qt::Key_Up || pEvent->key() == Qt::Key_Down)
+		{
+			step(pEvent->key() == Qt::Key_Up ? 1.0f : -1.0f);
 			QNumericBox* numbox = qobject_cast<QNumericBox*>(parentWidget());
 			if (numbox)
 			{
 				numbox->valueChanged(numbox->value());
 			}
 		}
-		else if (getEditMode())
+
+		//We are pressing a number on the keyboard, this needs to enter into edit mode immediately
+		if (m_editState.editState == EditState::None)
 		{
-			QLineEdit::keyPressEvent(e);
+			selectAll();
+			setTextEditMode(true);
 		}
+		else
+		{
+			//If we are sliding move to text edit
+			if (m_editState.editState == EditState::Slider)
+			{
+				m_editState.editState = EditState::None;
+				if (hasFocus())
+				{
+					selectAll();
+				}
+				setTextEditMode(true);
+			}
+		}
+
+		//forward event to the line edit
+		QLineEdit::keyPressEvent(pEvent);
 	}
 
 	int stepCursor()
 	{
-		if (hasSelectedText() || !hasFocus() || !getEditMode())
+		if (hasSelectedText() || !hasFocus() || !getTextEditMode())
 		{
 			return -1;
 		}
@@ -335,7 +436,7 @@ public:
 	QRect stepCursorRect(int cursor)
 	{
 		int currentCursor = cursorPosition();
-		if (m_lastText != text() || m_lastCursor != currentCursor)
+		if (m_previousStepText != text() || m_lastCursor != currentCursor)
 		{
 			int start = selectionStart();
 			int length = selectedText().length();
@@ -343,27 +444,30 @@ public:
 			m_stepRect = cursorRect();
 			setCursorPosition(currentCursor);
 			setSelection(start, length);
-			m_lastText = text();
+			m_previousStepText = text();
 			m_lastCursor = currentCursor;
 		}
 		return m_stepRect;
 	}
 
 private:
+
 	inline bool isValidDigit(char c) { return isdigit(c) || '.' == c; }
 
+	QString                 m_previousStepText;
 	QRect                   m_stepRect;
-	QString                 m_lastText;
 	int                     m_lastCursor;
-	int                     m_editMode;
+	bool                    m_editMode;
 	QNumericEditProxyStyle* m_editStyle;
-	bool                    m_selectAllFromMouse;
-	bool                    m_mouseMoved;
+	QString                 m_previousText;
 	QPoint                  m_mouseDownLocation;
+
+	// Edit operation currently applied to this widget
+	EditData m_editState;
 };
 
-QNumericButton::QNumericButton(QWidget* parent)
-	: QWidget(parent)
+QNumericButton::QNumericButton(QWidget* pParent)
+	: QWidget(pParent)
 	, m_spinClickTimerId(-1)
 	, m_spinClickTimerInterval(100)
 	, m_spinClickThresholdTimerId(-1)
@@ -378,27 +482,27 @@ QNumericButton::QNumericButton(QWidget* parent)
 	setAttribute(Qt::WA_NoSystemBackground);
 }
 
-void QNumericButton::paintEvent(QPaintEvent* e)
+void QNumericButton::paintEvent(QPaintEvent* pEvent)
 {
 	QPainter painter(this);
 	m_icon.paint(&painter, rect());
 }
 
-void QNumericButton::mousePressEvent(QMouseEvent* e)
+void QNumericButton::mousePressEvent(QMouseEvent* pEvent)
 {
 	reset();
-	if (Qt::LeftButton == e->button())
+	if (Qt::LeftButton == pEvent->button())
 	{
 		singleStep();
 		clicked();
 		m_spinClickThresholdTimerId = startTimer(m_spinClickThresholdTimerInterval);
 	}
-	e->accept();
+	pEvent->accept();
 }
 
-void QNumericButton::changeEvent(QEvent* e)
+void QNumericButton::changeEvent(QEvent* pEvent)
 {
-	switch (e->type())
+	switch (pEvent->type())
 	{
 	case QEvent::StyleChange:
 		m_spinClickTimerInterval = style()->styleHint(QStyle::SH_SpinBox_ClickAutoRepeatRate, 0, this);
@@ -424,29 +528,29 @@ void QNumericButton::changeEvent(QEvent* e)
 		break;
 	}
 
-	QWidget::changeEvent(e);
+	QWidget::changeEvent(pEvent);
 }
 
-void QNumericButton::mouseReleaseEvent(QMouseEvent* e)
+void QNumericButton::mouseReleaseEvent(QMouseEvent* pEvent)
 {
 	reset();
-	e->accept();
+	pEvent->accept();
 
-	if (Qt::LeftButton == e->button())
+	if (Qt::LeftButton == pEvent->button())
 	{
 		clicked();
 	}
 }
 
-void QNumericButton::focusOutEvent(QFocusEvent* e)
+void QNumericButton::focusOutEvent(QFocusEvent* pEvent)
 {
 	reset();
-	QWidget::focusOutEvent(e);
+	QWidget::focusOutEvent(pEvent);
 }
 
-void QNumericButton::timerEvent(QTimerEvent* e)
+void QNumericButton::timerEvent(QTimerEvent* pEvent)
 {
-	if (e->timerId() == m_spinClickThresholdTimerId)
+	if (pEvent->timerId() == m_spinClickThresholdTimerId)
 	{
 		killTimer(m_spinClickThresholdTimerId);
 		m_spinClickThresholdTimerId = -1;
@@ -454,7 +558,7 @@ void QNumericButton::timerEvent(QTimerEvent* e)
 		m_spinClickTimerId = startTimer(m_effectiveSpinRepeatRate);
 		singleStep();
 	}
-	else if (e->timerId() == m_spinClickTimerId)
+	else if (pEvent->timerId() == m_spinClickTimerId)
 	{
 		if (m_accelerated)
 		{
@@ -468,7 +572,7 @@ void QNumericButton::timerEvent(QTimerEvent* e)
 		singleStep();
 	}
 
-	QWidget::timerEvent(e);
+	QWidget::timerEvent(pEvent);
 }
 
 void QNumericButton::reset()
@@ -485,8 +589,8 @@ void QNumericButton::reset()
 	m_acceleration = 0;
 }
 
-QNumericBox::QNumericBox(QWidget* parent)
-	: QWidget(parent)
+QNumericBox::QNumericBox(QWidget* pParent)
+	: QWidget(pParent)
 	, m_min(-DBL_MAX)
 	, m_max(DBL_MAX)
 	, m_step(0.1)
@@ -516,7 +620,7 @@ QNumericBox::QNumericBox(QWidget* parent)
 	m_pDownButton->setMaximumSize(QSize(20, 10));
 	m_pDownButton->setMinimumSize(QSize(20, 10));
 	m_pDownButton->setIcon(CryIcon("icons:General/Pointer_Down_Numeric.ico"));
-	connect(m_pDownButton, &QNumericButton::clicked, [=]() { step(-1.0); });
+	connect(m_pDownButton, &QNumericButton::singleStep, [=]() { step(-1.0); });
 	connect(m_pDownButton, &QNumericButton::clicked, [=]() { valueSubmitted(value()); });
 
 	pVLayout->addWidget(m_pUpButton);
@@ -574,7 +678,7 @@ double QNumericBox::getSliderPosition() const
 		return 0.0;
 	}
 
-	if (m_pEdit->getEditMode())
+	if (m_pEdit->getTextEditMode())
 	{
 		return 0.0;
 	}
@@ -590,7 +694,7 @@ void QNumericBox::setValue(double value)
 	int revCursor = m_pEdit->text().length() - m_pEdit->cursorPosition();
 	int decPoint = outText.lastIndexOf('.');
 
-	if (-1 != decPoint)
+	if (decPoint != -1)
 	{
 		for (int i = outText.length() - 1; i > decPoint; --i)
 		{
@@ -655,7 +759,7 @@ bool QNumericBox::hasMinMax() const
 // QStyleOptionFrameV2 is deprecated, but if replace it with QStyleOption, widget's background will not be dark or sliderOverlayRect will be hidden
 #pragma warning(disable : 4996)
 
-void QNumericBox::paintEvent(QPaintEvent* e)
+void QNumericBox::paintEvent(QPaintEvent* pEvent)
 {
 	QPainter painter(this);
 	QStyleOptionFrameV2 option;
@@ -725,28 +829,28 @@ void QNumericBox::grabFocus()
 	m_pEdit->setFocus();
 }
 
-void QNumericBox::wheelEvent(QWheelEvent* e)
+void QNumericBox::wheelEvent(QWheelEvent* pEvent)
 {
-	step(sgn(e->delta()));
+	step(sgn(pEvent->delta()));
 }
 
-void QNumericBox::showEvent(QShowEvent* e)
+void QNumericBox::showEvent(QShowEvent* pEvent)
 {
-	QWidget::showEvent(e);
+	QWidget::showEvent(pEvent);
 	shown();
 }
 
-void QNumericBox::resizeEvent(QResizeEvent* event)
+void QNumericBox::resizeEvent(QResizeEvent* pEvent)
 {
-	QWidget::resizeEvent(event);
+	QWidget::resizeEvent(pEvent);
 
 	//Hide the buttons if the width is less than 8 characters
-	const bool buttonsVisible = event->size().width() > m_pEdit->fontMetrics().averageCharWidth() * 10;
+	const bool buttonsVisible = pEvent->size().width() > m_pEdit->fontMetrics().averageCharWidth() * 10;
 	m_pUpButton->setVisible(buttonsVisible);
 	m_pDownButton->setVisible(buttonsVisible);
 }
 
-void QNumericBox::focusInEvent(QFocusEvent* e)
+void QNumericBox::focusInEvent(QFocusEvent* pEvent)
 {
-	m_pEdit->setFocus(e->reason());
+	m_pEdit->setFocus(pEvent->reason());
 }

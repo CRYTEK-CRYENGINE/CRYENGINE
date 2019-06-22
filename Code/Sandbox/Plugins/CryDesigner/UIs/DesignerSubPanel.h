@@ -4,7 +4,7 @@
 
 #include "DesignerEditor.h"
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class QWidget;
 
 namespace Designer
@@ -33,6 +33,6 @@ private:
 	void     UpdateEngineFlagsTab();
 	QWidget* OrganizeSettingLayout(QWidget* pParent);
 
-	QPropertyTree* m_pSettingProperties;
+	QPropertyTreeLegacy* m_pSettingProperties;
 };
 }

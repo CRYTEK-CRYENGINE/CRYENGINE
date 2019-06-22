@@ -11,6 +11,7 @@
 #include  <CrySchematyc/Runtime/IRuntimeClass.h>
 #include  <CrySchematyc/IObject.h>
 #include  <CrySchematyc/Services/ITimerSystem.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace
 {

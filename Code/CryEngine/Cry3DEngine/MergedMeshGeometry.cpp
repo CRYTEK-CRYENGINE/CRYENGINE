@@ -12,7 +12,7 @@
 
 #if MMRM_ENABLE_PROFILER
 	#define MMRM_PROFILE_FUNCTION()  FUNCTION_PROFILER_3DENGINE(PROFILE_3DENGINE)
-	#define MMRM_FRAME_PROFILER(x) CRY_PROFILE_REGION(PROFILE_3DENGINE, x)
+	#define MMRM_FRAME_PROFILER(x) CRY_PROFILE_SECTION(PROFILE_3DENGINE, x)
 #else
 	#define MMRM_PROFILE_FUNCTION(x)  (void)0
 	#define MMRM_FRAME_PROFILER(x) (void)0
@@ -3535,7 +3535,6 @@ static void MergeInstanceList(SMMRMInstanceContext& context)
 											{
 												Vec3 centre = (its[0] + its[1]) * 0.5f;
 												Vec3 normal = (centre - sph.center);
-												;
 												normal *= (float)isqrt_tpl(max(normal.len2(), sqr(FLT_EPSILON)));
 												float dist = -((sph.center + normal * sph.r) * normal);
 
@@ -4076,7 +4075,6 @@ static inline void MergeInstanceListDeform(SMMRMInstanceContext& context)
 						}
 						break;
 					}
-					;
 				}
 				for (i = 0; i < (int)deform->nvertices; ++i)
 				{

@@ -11,7 +11,7 @@
 	#include <signal.h>
 #endif
 #include <errno.h>
-#include <string.h>
+#include <cstring>
 
 #ifndef TRUE
 	#define TRUE 1

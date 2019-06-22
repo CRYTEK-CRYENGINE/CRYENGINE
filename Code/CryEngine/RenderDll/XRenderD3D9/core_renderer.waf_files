@@ -355,7 +355,6 @@
         "DeviceManager": [
             "DevBuffer.cpp", 
             "../Common/DevBuffer.h", 
-            "DeviceManager/TempDynBuffer.h", 
             "DeviceManager/DeviceObjects.h", 
             "DeviceManager/DeviceObjects.inl", 
             "DeviceManager/DeviceObjects.cpp", 

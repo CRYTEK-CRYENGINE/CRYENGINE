@@ -168,7 +168,10 @@ void CDeviceObjectFactory::AssignDevice(D3DDevice* pDevice)
 		poolMemModel,
 		true);
 
-	m_textureStagingRing.Init(m_pDMA1, 128 * 1024 * 1024);
+	if (CRendererCVars::CV_r_TexturesStagingRingEnabled)
+	{
+		m_textureStagingRing.Init(m_pDMA1, CRendererCVars::CV_r_TexturesStagingRingSize * 1024 * 1024);
+	}
 #endif
 
 	m_pDX11Device = NCryDX11::CDevice::Create(pDevice, D3D_FEATURE_LEVEL_11_0);
@@ -528,7 +531,7 @@ void CDeviceObjectFactory::ReleaseNullResources()
 D3DResource* CDeviceObjectFactory::AllocateStagingResource(D3DResource* pForTex, bool bUpload, void*& pMappedAddress)
 {
 	D3DResource* pStaging = nullptr;
-	HRESULT result = GetDX11Device()->CreateOrReuseStagingResource(pForTex, &pStaging, bUpload);
+	GetDX11Device()->CreateOrReuseStagingResource(pForTex, &pStaging, bUpload);
 	return pStaging;
 }
 
@@ -640,8 +643,6 @@ HRESULT CDeviceObjectFactory::CreateCubeTexture(uint32 nSize, uint32 nMips, uint
 
 HRESULT CDeviceObjectFactory::CreateVolumeTexture(uint32 nWidth, uint32 nHeight, uint32 nDepth, uint32 nMips, uint32 nUsage, const ColorF& cClearValue, D3DFormat Format, LPDEVICETEXTURE* ppDevTexture, const STexturePayload* pTI)
 {
-	HRESULT hr = S_OK;
-
 	// The format(0x2d, D24_UNORM_S8_UINT) cannot be bound as a ShaderResource or cast to a format that could be bound as a ShaderResource.
 	// Therefore this format cannot support D3D11_BIND_SHADER_RESOURCE.Specifiying the format R24G8_TYPELESS instead would solve this issue.
 	if ((nUsage & (BIND_DEPTH_STENCIL | BIND_SHADER_RESOURCE)) == (BIND_DEPTH_STENCIL | BIND_SHADER_RESOURCE))
@@ -786,7 +787,7 @@ HRESULT CDeviceObjectFactory::CreateBuffer(
 	, const void* pData)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_RENDERER);
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CreateBuffer");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CreateBuffer");
 	HRESULT hr = S_OK;
 
 #ifndef _RELEASE
@@ -924,7 +925,7 @@ uint8* CDeviceObjectFactory::Map(D3DBuffer* buffer, uint32 subresource, buffer_s
 {
 	D3D11_MAPPED_SUBRESOURCE mapped_resource = { 0 };
 #if CRY_RENDERER_OPENGL && !DXGL_FULL_EMULATION
-	HRESULT hr = DXGLMapBufferRange(
+	DXGLMapBufferRange(
 		gcpRendD3D->GetDeviceContext().GetRealDeviceContext()
 		, buffer
 		, offset
@@ -935,7 +936,7 @@ uint8* CDeviceObjectFactory::Map(D3DBuffer* buffer, uint32 subresource, buffer_s
 	mapped_resource.pData = reinterpret_cast<uint8*>(mapped_resource.pData) - offset;
 #else
 	SIZE_T BeginEndR[2] = { offset, offset + size };
-	HRESULT hr = gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(
+	gcpRendD3D->GetDeviceContext_ForMapAndUnmap().Map(
 		buffer
 		, subresource
 		, BeginEndR

@@ -1,14 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   TextureManager.h : Common texture manager declarations.
-
-   Revision history:
-* Created by Kenzo ter Elst
-   =============================================================================*/
-
-#ifndef _TEXTUREMANAGER_H
-#define _TEXTUREMANAGER_H
+#pragma once
 
 #include <CryString/CryName.h>
 
@@ -32,5 +24,3 @@ private:
 	typedef std::map<CCryNameTSCRC, CTexture*> TTextureMap;
 	TTextureMap m_DefaultTextures;
 };
-
-#endif

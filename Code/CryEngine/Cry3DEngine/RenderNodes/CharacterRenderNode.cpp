@@ -36,17 +36,16 @@ CCharacterRenderNode::CCharacterRenderNode()
 //////////////////////////////////////////////////////////////////////////
 CCharacterRenderNode::~CCharacterRenderNode()
 {
+	if (m_pCharacterInstance)
+	{
+		m_pCharacterInstance->SetParentRenderNode(nullptr);
+	}
+
 	Dephysicalize();
 	Get3DEngine()->FreeRenderNodeState(this);
 
 	m_pCharacterInstance = nullptr;
 	m_pPhysicsEntity = nullptr;
-
-	if (m_pCameraSpacePos)
-	{
-		delete m_pCameraSpacePos;
-		m_pCameraSpacePos = nullptr;
-	}
 
 	Cry3DEngineBase::GetInstCount(GetRenderNodeType())--;
 }
@@ -66,7 +65,7 @@ void CCharacterRenderNode::Render(const SRendParams& inputRendParams, const SRen
 
 	DBG_LOCK_TO_THREAD(this);
 
-	if (!m_pCharacterInstance || m_dwRndFlags & ERF_HIDDEN)
+	if (!m_pCharacterInstance)
 		return;
 
 	// some parameters will be modified
@@ -270,27 +269,38 @@ void CCharacterRenderNode::OnRenderNodeVisible( bool bBecomeVisible )
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CCharacterRenderNode::SetCameraSpacePos(Vec3* pCameraSpacePos)
+void CCharacterRenderNode::SetCameraSpaceParams(stl::optional<SCameraSpaceParams> cameraSpaceParams)
 {
-	if (pCameraSpacePos)
-	{
-		if (!m_pCameraSpacePos)
-			m_pCameraSpacePos = new Vec3;
-		*m_pCameraSpacePos = *pCameraSpacePos;
-	}
-	else
-	{
-		delete m_pCameraSpacePos;
-		m_pCameraSpacePos = nullptr;
-	}
+	m_cameraSpaceParams = cameraSpaceParams;
 }
+
+//////////////////////////////////////////////////////////////////////////
+stl::optional<SCameraSpaceParams> CCharacterRenderNode::GetCameraSpaceParams() const
+{
+	return m_cameraSpaceParams;
+}
+
 //////////////////////////////////////////////////////////////////////////
 void CCharacterRenderNode::SetCharacter(ICharacterInstance* pCharacter)
 {
 	if (m_pCharacterInstance != pCharacter)
 	{
+		if (m_pCharacterInstance)
+		{
+			m_pCharacterInstance->SetParentRenderNode(nullptr);
+		}
+
 		m_pCharacterInstance = pCharacter;
-		m_pCharacterInstance->SetParentRenderNode(this);
+
+		if (m_pCharacterInstance)
+		{
+			if (const auto pPreviousOwner = static_cast<CCharacterRenderNode*>(m_pCharacterInstance->GetParentRenderNode()))
+			{
+				pPreviousOwner->m_pCharacterInstance = nullptr;
+			}
+
+			m_pCharacterInstance->SetParentRenderNode(this);
+		}
 
 		InvalidatePermanentRenderObject();
 	}
@@ -308,11 +318,11 @@ void CCharacterRenderNode::OffsetPosition(const Vec3& delta)
 void CCharacterRenderNode::CalcNearestTransform(Matrix34& transformMatrix, const SRenderingPassInfo& passInfo)
 {
 	// Camera space
-	if (m_pCameraSpacePos)
+	if (m_cameraSpaceParams)
 	{
 		// Use camera space relative position
 		const Matrix33 cameraRotation = Matrix33(passInfo.GetCamera().GetViewMatrix());
-		transformMatrix.SetTranslation(*m_pCameraSpacePos * cameraRotation);
+		transformMatrix.SetTranslation((m_cameraSpaceParams->cameraSpacePosition * cameraRotation) + m_cameraSpaceParams->worldSpaceOffset);
 	}
 	else
 	{
@@ -546,7 +556,7 @@ void CCharacterRenderNode::UpdateStreamingPriority(const SUpdateStreamingPriorit
 		bDrawNear = true;
 	}
 
-	CRY_PROFILE_REGION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_PrecacheCharacter");
+	CRY_PROFILE_SECTION(PROFILE_3DENGINE, "UpdateObjectsStreamingPriority_PrecacheCharacter");
 
 	const SRenderingPassInfo& passInfo = *streamingContext.pPassInfo;
 	// If the object is in camera space, don't use the prediction position.

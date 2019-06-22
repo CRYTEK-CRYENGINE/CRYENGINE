@@ -63,7 +63,7 @@ CModelViewport::CModelViewport(const char* settingsPath)
 
 	m_camRadius = 10;
 
-	m_moveSpeed = 0.1;
+	m_moveSpeed = 0.1f;
 	m_LightRotationRadian = 0.0f;
 
 	m_weaponIK = false;
@@ -182,7 +182,7 @@ CModelViewport::CModelViewport(const char* settingsPath)
 		gEnv->pInput->AddEventListener(this);
 	}
 
-	m_pIAudioListener = gEnv->pAudioSystem->CreateListener(m_viewTM);
+	m_pIAudioListener = gEnv->pAudioSystem->CreateListener(m_viewTM, "ModelViewport");
 	m_AABB.Reset();
 }
 
@@ -557,7 +557,7 @@ void CModelViewport::OnRender(SDisplayContext& context)
 
 		Vec3 clearColor = mv_backgroundColor;
 
-		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_Camera, SRenderingPassInfo::DEFAULT_FLAGS, true, displayContextKey);
+		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_graphicsPipelineKey, m_Camera, SRenderingPassInfo::DEFAULT_FLAGS, true, displayContextKey);
 		passInfo.GetIRenderView()->SetTargetClearColor(ColorF(clearColor, 1.0f), true);
 
 		{
@@ -942,7 +942,6 @@ void CModelViewport::DrawModel(const SRenderingPassInfo& passInfo)
 
 	IRenderAuxGeom* pAuxGeom = m_renderer->GetIRenderAuxGeom();
 
-	passInfo.GetIRenderView()->SetShaderRenderingFlags(SHDF_ALLOWHDR | SHDF_SECONDARY_VIEWPORT);
 	m_renderer->EF_StartEf(passInfo);
 
 	// Draw lights
@@ -1048,7 +1047,7 @@ void CModelViewport::DrawModel(const SRenderingPassInfo& passInfo)
 	if (GetCharacterBase())
 		DrawCharacter(GetCharacterBase(), rp, passInfo);
 
-	m_renderer->EF_EndEf3D(-1, -1, passInfo);
+	m_renderer->EF_EndEf3D(-1, -1, passInfo, m_graphicsPipelineDesc.shaderFlags);
 }
 
 void CModelViewport::DrawLights(const SRenderingPassInfo& passInfo)

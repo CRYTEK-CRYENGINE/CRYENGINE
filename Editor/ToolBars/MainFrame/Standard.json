@@ -1,33 +1,41 @@
 {
-    "toolBar": {
-        "Commands": [
-            {
-                "command": "general.save",
-                "custom": false,
-                "uiName": "&Save"
-            },
-            {
-                "command": "general.open",
-                "custom": false,
-                "uiName": "&Open..."
-            },
-            {
-                "command": "exporter.export_to_engine",
-                "custom": false,
-                "uiName": "Export to Engine"
-            },
-            "separator",
-            {
-                "command": "general.undo",
-                "custom": false,
-                "uiName": "Undo"
-            },
-            {
-                "command": "general.redo",
-                "custom": false,
-                "uiName": "Redo"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "general.save",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "&Save",
+            "type": 0
+        },
+        {
+            "command": "general.open",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "&Open...",
+            "type": 0
+        },
+        {
+            "command": "exporter.export_to_engine",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Export to Engine",
+            "type": 0
+        },
+        "separator",
+        {
+            "command": "general.undo",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Undo",
+            "type": 0
+        },
+        {
+            "command": "general.redo",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "Redo",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

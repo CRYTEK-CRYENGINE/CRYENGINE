@@ -51,10 +51,10 @@ CCullThread::CCullThread()
 
 bool CCullThread::LoadLevel(const char* pFolderName)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Occluder Mesh");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Occluder Mesh");
 	m_OCMBuffer.resize(0);
-	//FILE* pFile	=	gEnv->pCryPak->FOpen("Canyon25.ocm","rbx");
-	FILE* pFile = gEnv->pCryPak->FOpen((string(pFolderName) + "/occluder.ocm").c_str(), "rbx");
+	//FILE* pFile	=	gEnv->pCryPak->FOpen("Canyon25.ocm","rb");
+	FILE* pFile = gEnv->pCryPak->FOpen((string(pFolderName) + "/occluder.ocm").c_str(), "rb");
 	if (!pFile)
 	{
 		//__debugbreak();
@@ -127,7 +127,7 @@ bool CCullThread::LoadLevel(const char* pFolderName)
 			Swap(pWorldMat[0xA]);
 			Swap(pWorldMat[0xB]);
 
-			if (Offsets.find(MeshOffset) != Offsets.end())//already endian swapped?
+			if (Offsets.find(MeshOffset) != Offsets.end()) //already endian swapped?
 				continue;
 			Offsets[MeshOffset] = static_cast<uint32>(pOut - &OCMBufferOut[0]);//zero based offset
 
@@ -254,7 +254,7 @@ CCullThread::~CCullThread()
 	m_checkOcclusion.Wait();
 }
 
-void CCullThread::PrepareCullbufferAsync(const CCamera& rCamera)
+void CCullThread::PrepareCullbufferAsync(const CCamera& rCamera, const SGraphicsPipelineKey& cullGraphicsContextKey)
 {
 	Matrix44 MatProj;
 	Matrix44 MatView;
@@ -303,7 +303,7 @@ void CCullThread::PrepareCullbufferAsync(const CCamera& rCamera)
 	m_Enabled = false;
 	m_bCheckOcclusionRequested = 0;
 
-	RASTERIZER.Prepare();
+	RASTERIZER.Prepare(cullGraphicsContextKey);
 
 	m_PrepareBufferSync.SetRunning();
 
@@ -362,7 +362,7 @@ void CCullThread::SetActive(bool bActive)
 	else
 	{
 		m_checkOcclusion.SetStopped();
-	}	
+	}
 }
 
 void CCullThread::OutputMeshList()
@@ -543,7 +543,7 @@ void CCullThread::PrepareOcclusion()
 
 		if ((bHWZBuffer & 3) > 0)
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "Transfer Previous Frame Z-Buffer");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "Transfer Previous Frame Z-Buffer");
 			m_Enabled = RASTERIZER.DownLoadHWDepthBuffer(m_NearPlane, m_FarPlane, m_NearestMax, GetCVars()->e_CoverageBufferBias);
 		}
 		else
@@ -649,7 +649,7 @@ void CCullThread::PrepareOcclusion_RasterizeZBuffer()
 
 		if (bHWZBuffer & 4)
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "Rasterize Z-Buffer");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "Rasterize Z-Buffer");
 			m_Enabled = true;
 			RasterizeZBuffer((uint32)PolyLimit);
 		}
@@ -712,7 +712,7 @@ void CCullThread::CheckOcclusion_JobEntry(SCheckOcclusionJobData checkOcclusionD
 	{
 		const float TerrainBias = GetCVars()->e_CoverageBufferTerrainExpand;
 		AABB rAABB(Vec3(checkOcclusionData.terrainData.vAABBMin[0], checkOcclusionData.terrainData.vAABBMin[1], checkOcclusionData.terrainData.vAABBMin[2]),
-			Vec3(checkOcclusionData.terrainData.vAABBMax[0], checkOcclusionData.terrainData.vAABBMax[1], checkOcclusionData.terrainData.vAABBMax[2]));
+		           Vec3(checkOcclusionData.terrainData.vAABBMax[0], checkOcclusionData.terrainData.vAABBMax[1], checkOcclusionData.terrainData.vAABBMax[2]));
 
 		float fDistance = checkOcclusionData.terrainData.fDistance;
 

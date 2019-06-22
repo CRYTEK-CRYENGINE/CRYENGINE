@@ -198,7 +198,7 @@ void CRenderMeshMerger::MakeListOfAllCRenderChunks(SMergeInfo& info)
 
 		// get vertices's
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CRenderMeshMerger::MakeListOfAllCRenderChunks_GetPosPtr");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CRenderMeshMerger::MakeListOfAllCRenderChunks_GetPosPtr");
 
 			pPos = reinterpret_cast<Vec3*>(pRM->GetPosPtr(nPosStride, FSL_READ));
 			pTex = reinterpret_cast<Vec2*>(pRM->GetUVPtr(nTexStride, FSL_READ));
@@ -795,7 +795,7 @@ void CRenderMeshMerger::TryMergingChunks(SMergeInfo& info)
 	lstChunksMerged.clear();
 	lstChunksMerged.reserve(m_lstChunks.size());
 
-	InputLayoutHandle nCurrVertFormat = InputLayoutHandle::Unspecified;;
+	InputLayoutHandle nCurrVertFormat = InputLayoutHandle::Unspecified;
 	for (int nChunkId = 0; nChunkId < m_lstChunks.Count(); nChunkId++)
 	{
 		SMergedChunk& mergChunk = m_lstChunks[nChunkId];

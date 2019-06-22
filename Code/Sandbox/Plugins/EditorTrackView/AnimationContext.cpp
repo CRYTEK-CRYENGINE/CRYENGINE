@@ -17,6 +17,7 @@
 
 #include <CryMovie/IMovieSystem.h>
 #include <CrySystem/ITimer.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 class CMovieCallback : public IMovieCallback, public ICameraDelegate
 {

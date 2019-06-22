@@ -35,19 +35,19 @@ public:
 
 	void OnAlloc(const GMemoryHeap* heap, UPInt size, UPInt align, unsigned sid, const void* ptr)
 	{
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 		MEMREPLAY_SCOPE_ALLOC(ptr, size, align);
 	}
 
 	void OnRealloc(const GMemoryHeap* heap, const void* oldPtr, UPInt newSize, const void* newPtr)
 	{
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 		MEMREPLAY_SCOPE_REALLOC(oldPtr, newPtr, newSize, 0);
 	}
 
 	void OnFree(const GMemoryHeap* heap, const void* ptr)
 	{
-		MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+		MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 		MEMREPLAY_SCOPE_FREE(ptr);
 	}
 };
@@ -171,7 +171,7 @@ CSharedFlashPlayerResources::CSharedFlashPlayerResources()
 	, m_pImeHelper(0)
 	#endif
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	gEnv->pLog->Log("Using Scaleform GFx " GFC_FX_VERSION_STRING);
 	m_pGSystemInit = new GSystemInitWrapper();
@@ -209,7 +209,7 @@ CSharedFlashPlayerResources::~CSharedFlashPlayerResources()
 
 void CSharedFlashPlayerResources::Init()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	assert(!ms_pSharedFlashPlayerResources);
 	static char s_sharedFlashPlayerResourcesStorage[sizeof(CSharedFlashPlayerResources)] = { 0 };
 	if (!ms_pSharedFlashPlayerResources)

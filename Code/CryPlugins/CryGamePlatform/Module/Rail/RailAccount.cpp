@@ -156,7 +156,9 @@ namespace Cry
 
 					const unsigned char* rawData = reinterpret_cast<const unsigned char*>(data.c_str());
 
-					m_avatarTextureId = gEnv->pRenderer->UploadToVideoMemory(const_cast<unsigned char*>(rawData), descriptor.image_width, descriptor.image_height, format, format, 1);
+					const TextureId textureId = gEnv->pRenderer->UploadToVideoMemory(const_cast<unsigned char*>(rawData), descriptor.image_width, descriptor.image_height, format, format, 1);
+
+					m_pAvatar.reset(gEnv->pRenderer->EF_GetTextureByID(textureId));
 				}
 				else
 				{
@@ -164,8 +166,13 @@ namespace Cry
 				}
 			}
 
-			ITexture* CAccount::GetAvatar(EAvatarSize size) const
+			TextureId CAccount::GetAvatar(EAvatarSize size) const
 			{
+				if (m_pAvatar == nullptr)
+				{
+					return NullTextureID;
+				}
+
 				int desiredWidth = 184;
 				int desiredHeight = 184;
 
@@ -185,19 +192,14 @@ namespace Cry
 					break;
 				}
 
-				if (ITexture* pTexture = gEnv->pRenderer->EF_GetTextureByID(m_avatarTextureId))
+				if (m_pAvatar->GetWidth() != desiredWidth || m_pAvatar->GetHeight() != desiredHeight)
 				{
-					if (pTexture->GetWidth() != desiredWidth || pTexture->GetHeight() != desiredHeight)
-					{
-						CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "[Rail][Account] GetAvatar() returned image of size %dx%d instead of requested %dx%d",
-							pTexture->GetWidth(), pTexture->GetHeight(),
-							desiredWidth, desiredHeight);
-					}
-
-					return pTexture;
+					CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "[Rail][Account] GetAvatar() returned image of size %dx%d instead of requested %dx%d",
+						m_pAvatar->GetWidth(), m_pAvatar->GetHeight(),
+						desiredWidth, desiredHeight);
 				}
 
-				return nullptr;
+				return m_pAvatar->GetTextureID();
 			}
 		}
 	}

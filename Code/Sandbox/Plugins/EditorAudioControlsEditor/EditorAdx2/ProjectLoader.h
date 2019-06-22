@@ -43,13 +43,13 @@ private:
 		string const& filePath = "");
 
 	void LoadGlobalSettings(string const& folderPath, CItem& parent);
-	void ParseGlobalSettingsFile(XmlNodeRef const pNode, CItem& parent, EItemType const type);
-	void ParseBusSettings(XmlNodeRef const pNode, CItem& parent);
-	void ParseBusesAndSnapshots(XmlNodeRef const pNode);
+	void ParseGlobalSettingsFile(XmlNodeRef const& node, CItem& parent, EItemType const type);
+	void ParseBusSettings(XmlNodeRef const& node, CItem& parent);
+	void ParseBusesAndSnapshots(XmlNodeRef const& node);
 
 	void LoadWorkUnits(string const& folderPath, CItem& parent);
 	void LoadWorkUnitFile(string const& folderPath, CItem& parent);
-	void ParseWorkUnitFile(XmlNodeRef const pRoot, CItem& parent);
+	void ParseWorkUnitFile(XmlNodeRef const& node, CItem& parent);
 
 	void LoadBinaries(string const& folderPath, bool const isLocalized, CItem& parent);
 	void RemoveEmptyFolder(CItem* const pEditorFolder);

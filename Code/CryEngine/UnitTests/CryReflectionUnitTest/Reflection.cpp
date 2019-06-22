@@ -9,6 +9,8 @@
 #include <CryReflection/Function/Delegate.h>
 #include <CryReflection/Variable/MemberVariablePointer.h>
 
+#include <gtest/gtest-spi.h>
+
 #include "Module.h"
 #include "ReflectionBase.h"
 #include "../CrySystem/Serialization/ArchiveHost.h"
@@ -25,11 +27,6 @@ class CReflectionUnitTest : public ::testing::Test
 protected:
 	virtual void SetUp() override
 	{
-		// Prepare gEnv.
-#if defined(USE_CRY_ASSERT)
-		gEnv->ignoreAllAsserts = true;
-		gEnv->noAssertDialog = true;
-#endif
 		m_pArchiveHost = Serialization::CreateArchiveHost();
 
 		m_pModule = new Cry::Reflection::CModule();
@@ -294,37 +291,7 @@ TEST_F(CReflectionUnitTest, CTypeDescMoveConstructor)
 		REQUIRE(targetBank.m_type == eBankType_Retail);
 	}
 }
-
-TEST_F(CReflectionUnitTest, CTypeDescDestructor)
-{
-	// uint64
-	Cry::Type::CTypeDesc typeDesc = Cry::Type::DescOf<uint64>();
-	uint64 source = 0xc0ffee;
-
-	Cry::Type::CDestructor destructor = typeDesc.GetDestructor();
-	REQUIRE(destructor);
-	if (destructor)
-	{
-		destructor(&source);
-		REQUIRE(source == 0xc0ffee); // Default for uint64 is no change
-	}
-
-	// CBank
-	typeDesc = Cry::Type::DescOf<CBank>();
-	CBank bank;
-	bank.SetAccount(source);
-	bank.m_type = eBankType_Retail;
-
-	destructor = typeDesc.GetDestructor();
-	REQUIRE(destructor);
-	if (destructor)
-	{
-		destructor(&bank);
-		REQUIRE(bank.GetAccount() == -1);
-		REQUIRE(bank.m_type == eBankType_Investment);
-	}
-}
-
+ 
 TEST_F(CReflectionUnitTest, CTypeDescDefaultNewOperator)
 {
 	// uint64
@@ -1373,21 +1340,6 @@ TEST_F(CReflectionUnitTest, CAnyArrayClear)
 	}
 }
 
-TEST_F(CReflectionUnitTest, CAnyArrayDestruct)
-{
-	if (m_pTypeDescCBank)
-	{
-		CBank* pBank = new CBank();
-		pBank->m_type = eBankType_Buisness;
-
-		Cry::Reflection::CAnyArray anyArray(*m_pTypeDescCBank, true);
-		anyArray.AddPointer(pBank);
-		anyArray.DestructAll();
-
-		REQUIRE(pBank->m_type == eBankType_Investment);
-	}
-}
-
 TEST_F(CReflectionUnitTest, CAnyArrayAlignment)
 {
 	if (m_pTypeDescUint64)
@@ -1468,7 +1420,7 @@ TEST_F(CReflectionUnitTest, CAnyArrayAddValue)
 		Cry::Reflection::CAnyArray anyArray(*m_pTypeDescUint64, false);
 
 		// This should not work
-		anyArray.AddPointer(&source);
+		EXPECT_ASSERT_FAILURE(anyArray.AddPointer(&source), "Can't add pointer 'pPointer' to value array.");
 		REQUIRE(anyArray.GetSize() == exptectedSize);
 
 		// template<typename VALUE_TYPE> void AddValue(const VALUE_TYPE& source);
@@ -1514,7 +1466,7 @@ TEST_F(CReflectionUnitTest, CAnyArrayAddPointer)
 		Cry::Reflection::CAnyArray anyArray(*m_pTypeDescUint64, true);
 
 		// This should not work
-		anyArray.AddValue(source);
+		EXPECT_ASSERT_FAILURE(anyArray.AddValue(source), "Can't add value type 'source' to pointer array.");
 		REQUIRE(anyArray.GetSize() == exptectedSize);
 
 		// template<typename VALUE_TYPE> void AddPointer(VALUE_TYPE* pPointer);
@@ -1559,10 +1511,6 @@ TEST_F(CReflectionUnitTest, CAnyArrayInsertValueAt)
 		const uint64 source = 0xeeffc0;
 		const uint64 marker = 0xefbe;
 		Cry::Reflection::CAnyArray anyArray(*m_pTypeDescUint64);
-
-		// This shouldn't work
-		anyArray.InsertValueAt(0, source);
-		REQUIRE(anyArray.GetSize() == 0);
 
 		anyArray.AddValue(marker);
 
@@ -1640,7 +1588,7 @@ TEST_F(CReflectionUnitTest, CAnyArrayInsertPointerAt)
 		Cry::Reflection::CAnyArray anyArray(*m_pTypeDescUint64, true);
 
 		// This shouldn't work
-		anyArray.InsertPointerAt(0, source);
+		EXPECT_ASSERT_FAILURE(anyArray.InsertPointerAt(0, source), "Trying to add value type 'source' to pointer array.");
 		REQUIRE(anyArray.GetSize() == 0);
 
 		anyArray.AddPointer(&marker);
@@ -1938,14 +1886,14 @@ TEST_F(CReflectionUnitTest, CAnyArrayGetPointer)
 		anyArray.SetConst(true);
 
 		uint32 index = 0;
-		REQUIRE(anyArray.GetPointer(index) == nullptr);
-		REQUIRE(anyArray.GetPointer<uint64>(index) == nullptr);
-		REQUIRE(anyArray.GetConstPointer(index) == nullptr);
-		REQUIRE(anyArray.GetConstPointer<uint64>(index) == nullptr);
+		EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetPointer(index) == nullptr), "Const element can't be accessed as non-const pointer.");
+		EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetPointer<uint64>(index) == nullptr), "Const element can't be accessed as non-const pointer.");
+		EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetConstPointer(index) == nullptr), "'index' (0) is out of bounds (0).");
+		EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetConstPointer<uint64>(index) == nullptr), "'index' (0) is out of bounds (0).");
 
 		anyArray.Resize(1);
-		REQUIRE(anyArray.GetPointer(index) == nullptr);
-		REQUIRE(anyArray.GetPointer<uint64>(index) == nullptr);
+		EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetPointer(index) == nullptr), "Const element can't be accessed as non-const pointer.");
+		EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetPointer<uint64>(index) == nullptr), "Const element can't be accessed as non-const pointer.");
 		REQUIRE(anyArray.GetConstPointer(index));
 		REQUIRE(anyArray.GetConstPointer<uint64>(index));
 
@@ -1957,7 +1905,7 @@ TEST_F(CReflectionUnitTest, CAnyArrayGetPointer)
 			*pPointer = 0xeeffc0;
 
 			anyArray.SetConst(true);
-			REQUIRE(anyArray.GetPointer<uint64>(index) == nullptr);
+			EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetPointer<uint64>(index) == nullptr), "Const element can't be accessed as non-const pointer.");
 
 			const void* pConstVoidPointer = anyArray.GetConstPointer(index);
 			const uint64* pConstPointer = anyArray.GetConstPointer<uint64>(index);
@@ -2032,8 +1980,7 @@ TEST_F(CReflectionUnitTest, CAnyArrayRemove)
 
 		anyArray.Remove(0);
 		REQUIRE(anyArray.GetSize() == 0);
-		pTarget = anyArray.GetPointer<CBank>(0);
-		REQUIRE(pTarget == nullptr);
+		EXPECT_ASSERT_FAILURE(REQUIRE(anyArray.GetPointer<CBank>(0) == nullptr), "'index' (0) is out of bounds (0).");
 	}
 }
 

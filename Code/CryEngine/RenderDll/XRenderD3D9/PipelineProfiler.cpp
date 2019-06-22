@@ -10,7 +10,7 @@ CRenderPipelineProfiler::CRenderPipelineProfiler()
 
 	m_frameDataIndex = 0;
 	m_frameDataRT = m_frameData + m_frameDataIndex + 0;
-	m_frameDataLRU = m_frameData + m_frameDataIndex + 1;
+	m_frameDataLRU = nullptr;
 
 	m_avgFrameTime = 0;
 	m_enabled = false;
@@ -99,7 +99,6 @@ void CRenderPipelineProfiler::Finish()
 	{
 		// All the current frame's information has to be stored and associated with the current index
 		// Otherwise global statistics and detailed statistics can be from entirely different frames (and utilization >100%)
-		const uint32 processThreadID = (uint32)gRenDev->GetRenderThreadID();
 		SFrameData& frameData = *m_frameDataRT;
 
 		frameData.m_frameTimings = SRenderStatistics::Write().m_Summary;
@@ -130,12 +129,18 @@ void CRenderPipelineProfiler::Finish()
 		m_frameDataLRU = m_frameData + prevFrameIndex;
 	}
 
-	// Put back corrected/adjusted/overwritten CPU and GPU counters
-	SRenderStatistics::Write().m_Summary = m_frameDataLRU->m_frameTimings;
+	if (m_frameDataLRU)
+	{
+		// Put back corrected/adjusted/overwritten CPU and GPU counters
+		SRenderStatistics::Write().m_Summary = m_frameDataLRU->m_frameTimings;
+	}
 }
 
 void CRenderPipelineProfiler::Display()
 {
+	// no full frame recorded yet
+	if (!m_frameDataLRU)
+		return;
 	FUNCTION_PROFILER_RENDERER();
 
 	// Get newest timestamps completed on gpu
@@ -410,7 +415,8 @@ void CRenderPipelineProfiler::UpdateThreadTimings(uint32 frameDataIndex)
 
 	smthThreadTimings.waitForMain    = (currThreadTimings.waitForMain    * smoothWeightDataNew + smthThreadTimings.waitForMain   * smoothWeightDataOld);
 	smthThreadTimings.waitForRender  = (currThreadTimings.waitForRender  * smoothWeightDataNew + smthThreadTimings.waitForRender * smoothWeightDataOld);
-	smthThreadTimings.waitForGPU     = (currThreadTimings.waitForGPU     * smoothWeightDataNew + smthThreadTimings.waitForGPU    * smoothWeightDataOld);
+	smthThreadTimings.waitForGPU_MT  = (currThreadTimings.waitForGPU_MT  * smoothWeightDataNew + smthThreadTimings.waitForGPU_MT * smoothWeightDataOld);
+	smthThreadTimings.waitForGPU_RT  = (currThreadTimings.waitForGPU_RT  * smoothWeightDataNew + smthThreadTimings.waitForGPU_RT * smoothWeightDataOld);
 	smthThreadTimings.gpuIdlePerc    = (currThreadTimings.gpuIdlePerc    * smoothWeightDataNew + smthThreadTimings.gpuIdlePerc   * smoothWeightDataOld);
 	smthThreadTimings.gpuFrameTime   = (currThreadTimings.gpuFrameTime   * smoothWeightDataNew + smthThreadTimings.gpuFrameTime  * smoothWeightDataOld);
 	smthThreadTimings.frameTime      = (currThreadTimings.frameTime      * smoothWeightDataNew + smthThreadTimings.frameTime     * smoothWeightDataOld);
@@ -782,7 +788,10 @@ void CRenderPipelineProfiler::UpdateStats(uint32 frameDataIndex)
 
 	frameData.m_frameTimings.gpuFrameTime = frameData.m_sections[0].gpuTime / 1000.0f;
 
-	ComputeAverageStats(frameData, *m_frameDataLRU);
+	if (m_frameDataLRU)
+	{
+		ComputeAverageStats(frameData, *m_frameDataLRU);
+	}
 }
 
 void CRenderPipelineProfiler::DisplayDetailedPassStats(uint32 frameDataIndex) const
@@ -976,14 +985,14 @@ void CRenderPipelineProfiler::DisplayOverviewStats(uint32 frameDataIndex) const
 		DebugUI::DrawTable(0.05f, 0.1f, 0.45f, 4, "Overview");
 
 		float frameTime = smthThreadTimings.frameTime;
-		float mainThreadTime = max(smthThreadTimings.frameTime - smthThreadTimings.waitForRender, 0.0f);
-		float renderThreadTime = max(smthThreadTimings.renderTime - smthThreadTimings.waitForGPU, 0.0f);
+		float mainThreadTime = max(smthThreadTimings.frameTime - smthThreadTimings.waitForRender - smthThreadTimings.waitForGPU_MT, 0.0f);
+		float renderThreadTime = max(smthThreadTimings.renderTime - smthThreadTimings.waitForGPU_RT, 0.0f);
 	#ifdef CRY_PLATFORM_ORBIS
 		float gpuTime = max((100.0f - smthThreadTimings.gpuIdlePerc) * frameTime * 0.01f, 0.0f);
 	#else
 		float gpuTime = max(smthThreadTimings.gpuFrameTime, 0.0f);
 	#endif
-		float waitForGPU = max(smthThreadTimings.waitForGPU, 0.0f);
+		float waitForGPU = max(smthThreadTimings.waitForGPU_MT + smthThreadTimings.waitForGPU_RT, 0.0f);
 
 		DebugUI::DrawTableBar(0.335f, 0.1f, 0, mainThreadTime / frameTime, Col_Yellow);
 		DebugUI::DrawTableBar(0.335f, 0.1f, 1, renderThreadTime / frameTime, Col_Green);

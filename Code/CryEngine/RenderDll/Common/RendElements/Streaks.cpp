@@ -75,8 +75,9 @@ void Streaks::Load(IXmlNode* pNode)
 		{
 			if (gradientTexName && gradientTexName[0])
 			{
-				ITexture* pTexture = std::move(gEnv->pRenderer->EF_LoadTexture(gradientTexName));
-				SetSpectrumTex((CTexture*)pTexture);
+				ITexture* pTexture = gEnv->pRenderer->EF_LoadTexture(gradientTexName);
+				m_pSpectrumTex.reset();
+				m_pSpectrumTex.Assign_NoAddRef(static_cast<CTexture*>(pTexture));
 			}
 		}
 
@@ -112,7 +113,7 @@ CTexture* Streaks::GetTexture()
 	{
 		if (m_pSpectrumTex == nullptr)
 		{
-			m_pSpectrumTex = std::move(CTexture::ForName("%ENGINE%/EngineAssets/Textures/flares/spectrum_full.tif", FT_DONT_STREAM, eTF_Unknown));
+			m_pSpectrumTex = CTexture::ForName("%ENGINE%/EngineAssets/Textures/flares/spectrum_full.tif", FT_DONT_STREAM, eTF_Unknown);
 		}
 
 		return m_pSpectrumTex;

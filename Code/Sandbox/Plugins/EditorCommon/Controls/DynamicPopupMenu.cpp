@@ -4,12 +4,12 @@
 #include "DynamicPopupMenu.h"
 
 #include "Commands/ICommandManager.h"
+#include "Commands/QCommandAction.h"
 #include "EditorCommonInit.h"
 
 #include <IEditor.h>
 #include <CryIcon.h>
 
-#include <QAction>
 #include <QCursor>
 #include <QMenu>
 

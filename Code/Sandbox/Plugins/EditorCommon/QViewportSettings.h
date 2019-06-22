@@ -163,35 +163,35 @@ struct SViewportGridSettings
 
 struct SViewportLightingSettings
 {
-	f32    m_brightness;
-	ColorB m_ambientColor;
+	f32    m_cubemapMultiplier;
+	ColorB m_cubemapColor;
+	string m_cubemapName;
 
 	bool   m_useLightRotation;
 	f32    m_lightMultiplier;
-	f32    m_lightSpecMultiplier;
 
 	ColorB m_directionalLightColor;
 
 	SViewportLightingSettings()
 	{
-		m_brightness = 1.0f;
-		m_ambientColor = ColorB(128, 128, 128, 255);
+		m_cubemapMultiplier = 3.0f;
+		m_cubemapColor = ColorB(255, 255, 255, 255);
+		m_cubemapName = "%ENGINE%/EngineAssets/Textures/default_probe_cm.dds";
 
 		m_useLightRotation = 0;
-		m_lightMultiplier = 3.0;
-		m_lightSpecMultiplier = 2.0f;
+		m_lightMultiplier = 3.0f;
 
 		m_directionalLightColor = ColorB(255, 255, 255, 255);
 	}
 
 	void Serialize(Serialization::IArchive& ar)
 	{
-		ar(Serialization::Range(m_brightness, 0.0f, 200.0f), "brightness", "Brightness");
-		ar(m_ambientColor, "ambientColor", "Ambient Color");
+		ar(Serialization::TextureFilename(m_cubemapName), "cubemapName", "Cubemap:");
+		ar(Serialization::Range(m_cubemapMultiplier, 0.0f, 10.0f), "cubemapMultiplier", "Cubemap Multiplier");
+		ar(m_cubemapColor, "cubemapColor", "Cubemap Color");
 
 		ar(m_useLightRotation, "rotatelight", "Rotate Light");
-		ar(m_lightMultiplier, "lightMultiplier", "Light Multiplier");
-		ar(m_lightSpecMultiplier, "lightSpecMultiplier", "Light Spec Multiplier");
+		ar(Serialization::Range(m_lightMultiplier, 0.0f, 10.0f), "lightMultiplier", "Light Multiplier");
 
 		ar(m_directionalLightColor, "directionalLightColor", "Directional Light Color");
 	}

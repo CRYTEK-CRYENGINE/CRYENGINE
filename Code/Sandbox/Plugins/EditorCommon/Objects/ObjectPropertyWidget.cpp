@@ -5,7 +5,7 @@
 
 #include "Objects/BaseObject.h"
 #include "IObjectManager.h"
-#include "QAdvancedPropertyTree.h"
+#include "QAdvancedPropertyTreeLegacy.h"
 
 // EditorQt
 #include <Objects/SelectionGroup.h>
@@ -81,15 +81,15 @@ void CObjectPropertyWidget::CreatePropertyTrees()
 	auto selectionCount = pSelectionGroup->GetCount();
 	m_objectSerializers.reserve(selectionCount);
 
-	m_propertyTree.reset(new QAdvancedPropertyTree("ObjectPropertyWidget"));
+	m_propertyTree.reset(new QAdvancedPropertyTreeLegacy("ObjectPropertyWidget"));
 	m_propertyTree->setExpandLevels(2);
 	m_propertyTree->setValueColumnWidth(0.6f);
 	m_propertyTree->setAggregateMouseEvents(false);
 	m_propertyTree->setFullRowContainers(true);
 	m_propertyTree->setSizeToContent(true);
 
-	connect(m_propertyTree.get(), &QPropertyTree::signalBeginUndo, this, &CObjectPropertyWidget::OnBeginUndo);
-	connect(m_propertyTree.get(), &QPropertyTree::signalEndUndo, this, &CObjectPropertyWidget::OnUndoEnd);
+	connect(m_propertyTree.get(), &QPropertyTreeLegacy::signalBeginUndo, this, &CObjectPropertyWidget::OnBeginUndo);
+	connect(m_propertyTree.get(), &QPropertyTreeLegacy::signalEndUndo, this, &CObjectPropertyWidget::OnUndoEnd);
 
 	bool bMultiEdit = false;
 

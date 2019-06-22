@@ -1089,25 +1089,6 @@ void adaptFilenameToLinux(string& rAdjustedFilename)
 	}
 }
 
-void replaceDoublePathFilename(char* szFileName)
-{
-	//replace "\.\" by "\"
-	string s(szFileName);
-	string::size_type loc = 0;
-	//remove /./
-	while ((loc = s.find("/./", loc)) != string::npos)
-	{
-		s.replace(loc, 3, "/");
-	}
-	loc = 0;
-	//remove "\.\"
-	while ((loc = s.find("\\.\\", loc)) != string::npos)
-	{
-		s.replace(loc, 3, "\\");
-	}
-	strcpy((char*)szFileName, s.c_str());
-}
-
 const int comparePathNames(const char* cpFirst, const char* cpSecond, unsigned int len)
 {
 	//create two strings and replace the \\ by / and /./ by /

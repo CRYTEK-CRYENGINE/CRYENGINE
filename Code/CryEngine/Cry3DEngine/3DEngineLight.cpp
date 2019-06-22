@@ -83,7 +83,7 @@ void CLightEntity::SetLightProperties(const SRenderLight& light)
 
 	m_light.m_fLightFrustumAngle = CLAMP(m_light.m_fLightFrustumAngle, 0.f, (LIGHT_PROJECTOR_MAX_FOV / 2.f));
 
-	if (!(m_light.m_Flags & (DLF_PROJECT | DLF_AREA_LIGHT)))
+	if (!(m_light.m_Flags & DLF_PROJECT))
 		m_light.m_fLightFrustumAngle = 90.f / 2.f;
 
 	m_light.m_pOwner = this;
@@ -137,7 +137,7 @@ void C3DEngine::FindPotentialLightSources(const SRenderingPassInfo& passInfo)
 		if (pLight->m_Flags & DLF_DEFERRED_LIGHT)
 			break; // process deferred lights in CLightEntity::Render(), deferred lights are stored in the end of this array
 
-		int nRenderNodeMinSpec = (pLightEntity->m_dwRndFlags & ERF_SPEC_BITS_MASK) >> ERF_SPEC_BITS_SHIFT;
+		int nRenderNodeMinSpec = (pLightEntity->GetRndFlags() & ERF_SPEC_BITS_MASK) >> ERF_SPEC_BITS_SHIFT;
 		if (!CheckMinSpec(nRenderNodeMinSpec))
 			continue;
 
@@ -155,15 +155,6 @@ void C3DEngine::FindPotentialLightSources(const SRenderingPassInfo& passInfo)
 		if (pLight->m_Flags & DLF_DEFERRED_CUBEMAPS)
 		{
 			OBB obb(OBB::CreateOBBfromAABB(Matrix33(pLight->m_ObjMatrix), AABB(-pLight->m_ProbeExtents, pLight->m_ProbeExtents)));
-			bIsVisible = passInfo.GetCamera().IsOBBVisible_F(pLight->m_Origin, obb);
-		}
-		else if (pLight->m_Flags & DLF_AREA_LIGHT)
-		{
-			// OBB test for area lights.
-			Vec3 vBoxMax(pLight->m_fRadius, pLight->m_fRadius + pLight->m_fAreaWidth, pLight->m_fRadius + pLight->m_fAreaHeight);
-			Vec3 vBoxMin(-0.1f, -(pLight->m_fRadius + pLight->m_fAreaWidth), -(pLight->m_fRadius + pLight->m_fAreaHeight));
-
-			OBB obb(OBB::CreateOBBfromAABB(Matrix33(pLight->m_ObjMatrix), AABB(vBoxMin, vBoxMax)));
 			bIsVisible = passInfo.GetCamera().IsOBBVisible_F(pLight->m_Origin, obb);
 		}
 		else
@@ -360,15 +351,6 @@ void C3DEngine::PrepareLightSourcesForRendering_0(const SRenderingPassInfo& pass
 				if (m_lstDynLights[i]->m_Flags & DLF_DEFERRED_CUBEMAPS)
 				{
 					OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_lstDynLights[i]->m_ObjMatrix), AABB(-m_lstDynLights[i]->m_ProbeExtents, m_lstDynLights[i]->m_ProbeExtents)));
-					bIsVisible = passInfo.GetCamera().IsOBBVisible_F(m_lstDynLights[i]->m_Origin, obb);
-				}
-				else if (m_lstDynLights[i]->m_Flags & DLF_AREA_LIGHT)
-				{
-					// OBB test for area lights.
-					Vec3 vBoxMax(m_lstDynLights[i]->m_fRadius, m_lstDynLights[i]->m_fRadius + m_lstDynLights[i]->m_fAreaWidth, m_lstDynLights[i]->m_fRadius + m_lstDynLights[i]->m_fAreaHeight);
-					Vec3 vBoxMin(-0.1f, -(m_lstDynLights[i]->m_fRadius + m_lstDynLights[i]->m_fAreaWidth), -(m_lstDynLights[i]->m_fRadius + m_lstDynLights[i]->m_fAreaHeight));
-
-					OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_lstDynLights[i]->m_ObjMatrix), AABB(vBoxMin, vBoxMax)));
 					bIsVisible = passInfo.GetCamera().IsOBBVisible_F(m_lstDynLights[i]->m_Origin, obb);
 				}
 				else
@@ -681,11 +663,7 @@ void C3DEngine::AddPerObjectShadow(IShadowCaster* pCaster, float fConstBias, flo
 	if (bRequiresObjTreeUpdate)
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
-
-		if (static_cast<IRenderNode*>(pCaster)->m_pOcNode)
-		{
-			static_cast<COctreeNode*>(static_cast<IRenderNode*>(pCaster)->m_pOcNode)->SetCompiled(IRenderNode::GetRenderNodeListId(pCaster->GetRenderNodeType()), false);
-		}
+		static_cast<IRenderNode*>(pCaster)->MarkAsUncompiled();
 	}
 }
 
@@ -695,14 +673,10 @@ void C3DEngine::RemovePerObjectShadow(IShadowCaster* pCaster)
 	if (pOS)
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_3DENGINE);
+		static_cast<IRenderNode*>(pCaster)->MarkAsUncompiled();
 
 		size_t nIndex = (size_t)(pOS - m_lstPerObjectShadows.begin());
 		m_lstPerObjectShadows.Delete(nIndex);
-
-		if (static_cast<IRenderNode*>(pCaster)->m_pOcNode)
-		{
-			static_cast<COctreeNode*>(static_cast<IRenderNode*>(pCaster)->m_pOcNode)->SetCompiled(IRenderNode::GetRenderNodeListId(pCaster->GetRenderNodeType()), false);
-		}
 	}
 }
 
@@ -817,9 +791,7 @@ void C3DEngine::SetupLightScissors(SRenderLight* pLight, const SRenderingPassInf
 
 	// Use max of width/height for area lights.
 	float fMaxRadius = pLight->m_fRadius;
-	if (pLight->m_Flags & DLF_AREA_LIGHT) // Use max for area lights.
-		fMaxRadius += max(pLight->m_fAreaWidth, pLight->m_fAreaHeight);
-	else if (pLight->m_Flags & DLF_DEFERRED_CUBEMAPS)
+	if (pLight->m_Flags & DLF_DEFERRED_CUBEMAPS)
 		fMaxRadius = pLight->m_ProbeExtents.len();  // This is not optimal for a box
 
 	ITexture* pLightTexture = pLight->m_pLightImage ? pLight->m_pLightImage : pLight->m_pLightDynTexSource ? pLight->m_pLightDynTexSource->GetTexture() : NULL;

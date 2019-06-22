@@ -70,9 +70,6 @@ vert2fragMotionBlur Common_MotionBlurPassVS(app2vertMotionBlur IN)
 	OUT.HPosition = HPosition;
 #endif
 
-  float fAlpha = AmbientOp.w;
-	OUT.vVelocity.z = fAlpha;
-
   return OUT;            
 }
 
@@ -88,7 +85,7 @@ pixout Common_MotionBlurPassPS(vert2fragMotionBlur IN)
 	clip(fDifAlpha - 0.5);
 #endif
 
-	half fAlpha = IN.vVelocity.z;
+	half fAlpha = 0.0f;
 #if %_RT_ALPHABLEND	
 	fAlpha *= fDifAlpha;		// In case alpha blended scale values
 #endif

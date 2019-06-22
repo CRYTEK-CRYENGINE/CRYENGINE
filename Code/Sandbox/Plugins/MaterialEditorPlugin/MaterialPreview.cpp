@@ -11,7 +11,7 @@
 #include "DragDrop.h"
 #include "PathUtils.h"
 
-#include <QEvent.h>
+#include <QDragEnterEvent>
 #include <QFileInfo>
 #include <QToolBar>
 #include <QVBoxLayout>

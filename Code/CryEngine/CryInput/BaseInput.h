@@ -56,7 +56,7 @@ public:
 	// stub implementation
 	virtual bool                Init();
 	virtual void                PostInit();
-	virtual void                Update(bool bFocus);
+	virtual void                Update(bool bHasFocus);
 	virtual void                ShutDown();
 	virtual void                SetExclusiveMode(EInputDeviceType deviceType, bool exclusive, void* pUser);
 	virtual bool                InputState(const TKeyName& keyName, EInputState state);

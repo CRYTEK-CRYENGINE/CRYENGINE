@@ -1,0 +1,32 @@
+{
+    "toolBar": [
+        {
+            "command": "general.save",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "save",
+            "type": 0
+        },
+        {
+            "command": "particle.get_from_selection",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "get_from_selection",
+            "type": 0
+        },
+        {
+            "command": "particle.assign_to_selection",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "assign_to_selection",
+            "type": 0
+        },
+        {
+            "command": "general.import",
+            "m_IsCustom": false,
+            "name": "import",
+            "type": 0
+        }
+    ],
+    "version": 2
+}

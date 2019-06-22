@@ -52,6 +52,7 @@ public:
 		SPreparePrimitivesContext(CPrimitiveRenderPass& targetPass, std::vector<CPrimitiveRenderPass*>& prePasses)
 			: pass(targetPass)
 			, prePasses(prePasses)
+			, pGraphicsPipeline(nullptr)
 			, pViewInfo(nullptr)
 			, viewInfoCount(0)
 			, lightWorldPos(ZERO)
@@ -63,7 +64,8 @@ public:
 		CPrimitiveRenderPass&                       pass;
 		std::vector<CPrimitiveRenderPass*>&         prePasses;
 
-		const SRenderViewInfo* pViewInfo;
+		CGraphicsPipeline*                          pGraphicsPipeline;
+		const SRenderViewInfo*                      pViewInfo;
 		int                                         viewInfoCount;
 
 		Vec3                                        lightWorldPos;

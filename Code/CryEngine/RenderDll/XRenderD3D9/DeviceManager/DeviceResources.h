@@ -115,7 +115,10 @@ public:
 	inline void SetDebugName(const char* name) const
 	{
 		using namespace DeviceResources_Internal;
-		::SetDebugName(m_pNativeResource, name);
+		string escapedStr = name;
+		EscapeStringForCStyleFormatting(escapedStr);
+		::SetDebugName(m_pNativeResource, escapedStr.c_str());
+
 	}
 	
 	inline D3DResource* GetNativeResource() const
@@ -393,12 +396,11 @@ class CDeviceTexture : public CDeviceResource
 	SGPUMemHdl                m_gpuHdl;
 #endif
 #if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && CRY_PLATFORM_DURANGO
-	uint32                    m_nBaseAddressInvalidated;
 	const SDeviceTextureDesc* m_pLayout;
 #endif
 
-#if defined(DEVICE_TEXTURE_STORE_OWNER)
-	CTexture*                 m_pDebugOwner;
+#if DEVICE_TEXTURE_STORE_OWNER
+	CTexture*                 m_pOwner;
 #endif
 
 	RenderTargetData*         m_pRenderTargetData;
@@ -460,10 +462,12 @@ public:
 		return m_bCube;
 	}
 
-#if defined(DEVICE_TEXTURE_STORE_OWNER)
-	void SetOwner(CTexture* pOwner) { m_pDebugOwner = pOwner; }
+#if DEVICE_TEXTURE_STORE_OWNER
+	void SetOwner(CTexture* pOwner) { m_pOwner = pOwner; }
+	CTexture* GetOwner() { return m_pOwner; }
 #else
 	void SetOwner(CTexture* pOwner) {}
+	CTexture* GetOwner() { return nullptr; }
 #endif
 
 #if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && defined(USE_NV_API)
@@ -553,7 +557,6 @@ public:
 	}
 
 	void ReplaceTexture(ID3D11Texture2D* pReplacement);
-	uint32 GetBaseAddressInvalidated() const { return m_nBaseAddressInvalidated; }
 #endif
 
 	void GetMemoryUsage(ICrySizer* pSizer) const
@@ -594,10 +597,9 @@ private:
 #endif
 #if (CRY_RENDERER_DIRECT3D >= 110) && (CRY_RENDERER_DIRECT3D < 120) && CRY_PLATFORM_DURANGO
 		, m_pLayout(NULL)
-		, m_nBaseAddressInvalidated(0)
 #endif
-#if defined(DEVICE_TEXTURE_STORE_OWNER)
-		, m_pDebugOwner(NULL)
+#if DEVICE_TEXTURE_STORE_OWNER
+		, m_pOwner(nullptr)
 #endif
 	{
 #ifdef DEVRES_USE_STAGING_POOL

@@ -8,7 +8,7 @@
 #include <CrySandbox/CrySignal.h>
 #include <CrySerialization/Forward.h>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 namespace CryGraphEditor {
 

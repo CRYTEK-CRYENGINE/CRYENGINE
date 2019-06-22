@@ -11,14 +11,6 @@
 #include "ChunkFileReaders.h"
 #include "ChunkFileWriters.h"
 
-#if !defined(FUNCTION_PROFILER_3DENGINE)
-	#define FUNCTION_PROFILER_3DENGINE
-#endif
-
-#if !defined(LOADING_TIME_PROFILE_SECTION)
-	#define LOADING_TIME_PROFILE_SECTION
-#endif
-
 namespace
 {
 inline bool ChunkLessOffset(const IChunkFile::ChunkDesc* const p0, const IChunkFile::ChunkDesc* const p1)
@@ -340,7 +332,7 @@ void CChunkFile::ReleaseMemoryBuffer()
 //////////////////////////////////////////////////////////////////////////
 bool CChunkFile::Read(const char* filename)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	ReleaseChunks();
 

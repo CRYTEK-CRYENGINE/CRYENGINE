@@ -21,13 +21,7 @@ struct ParticleAllocator
 	template<class T>
 	ILINE static TPool& TypeAllocator()
 	{
-		static TPool s_Pool(Heap(), sizeof(T), alignof(T));
-		static bool initialized = false;
-		if(!initialized)
-		{
-			s_pools.push_back(&s_Pool);
-			initialized = true;
-		}
+		static CParticlePool s_Pool(Heap(), sizeof(T), alignof(T));
 		return s_Pool;
 	}
 
@@ -58,13 +52,13 @@ struct ParticleAllocator
 	ILINE static void* Allocate(T*&p, size_t count)
 	{
 		return p = (T*)Heap().Allocate(Lock(), sizeof(T) * count, alignof(T));
-	};
+	}
 
 	template<class T>
 	ILINE static bool Deallocate(T* p, size_t count)
 	{
 		return !p || Heap().Deallocate(Lock(), p, sizeof(T) * count, alignof(T));
-	};
+	}
 
 	static bool FreeMemory()
 	{
@@ -104,4 +98,18 @@ struct ParticleAllocator
 
 private:
 	static TPoolsList s_pools;
+
+	class CParticlePool : public TPool
+	{
+	public:
+		CParticlePool(THeap& heap, size_t nSize, size_t nAlign = 0)
+			: TPool(heap, nSize, nAlign)
+		{
+			s_pools.push_back(this);
+		}
+		~CParticlePool()
+		{
+			CRY_VERIFY(s_pools.try_remove(this));
+		}
+	};
 };

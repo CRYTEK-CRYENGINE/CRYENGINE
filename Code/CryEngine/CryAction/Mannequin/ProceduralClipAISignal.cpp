@@ -6,8 +6,6 @@
 #include "StdAfx.h"
 
 #include "ICryMannequin.h"
-#include <CryAISystem/IAIObject.h>
-#include <CryAISystem/IAIActor.h>
 #include <CryAISystem/ISignal.h>
 #include <Mannequin/Serialization.h>
 
@@ -49,15 +47,15 @@ public:
 		CryFixedStringT<64> onEnterSignalName;
 		ExtractSignalNames(params.dataString.c_str(), &onEnterSignalName, &m_onExitSignalName);
 
-		IAIActor* aiActor = GetAIActor();
-		IF_UNLIKELY (aiActor == NULL)
+		const EntityId entityId = GetAIActorEntityId();
+		IF_UNLIKELY(entityId == INVALID_ENTITYID)
 		{
 			return;
 		}
 
 		if (!onEnterSignalName.empty())
 		{
-			aiActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, onEnterSignalName));
+			gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, onEnterSignalName, entityId));
 		}
 	}
 
@@ -68,30 +66,29 @@ public:
 			return;
 		}
 
-		IAIActor* aiActor = GetAIActor();
-		IF_UNLIKELY (aiActor == NULL)
+		const EntityId entityId = GetAIActorEntityId();
+		IF_UNLIKELY (entityId == INVALID_ENTITYID)
 		{
 			return;
 		}
-		aiActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, m_onExitSignalName));
+		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, m_onExitSignalName, entityId));
 	}
 
 	virtual void Update(float timePassed) {}
 
 private:
 
-	IAIActor* GetAIActor() const
+	EntityId GetAIActorEntityId() const
 	{
 		IF_UNLIKELY (m_entity == NULL)
 		{
-			return NULL;
+			return INVALID_ENTITYID;
 		}
-		IAIObject* aiObject = m_entity->GetAI();
-		IF_UNLIKELY (aiObject == NULL)
+		IF_UNLIKELY (!m_entity->HasAI())
 		{
-			return NULL;
+			return INVALID_ENTITYID;
 		}
-		return aiObject->CastToIAIActor();
+		return m_entity->GetId();
 	}
 
 	// TODO: Create proper separate signal names in the procedural clip.

@@ -10,8 +10,6 @@ namespace Impl
 namespace Adx2
 {
 CImpl* g_pImpl = nullptr;
-CGlobalObject* g_pObject = nullptr;
-CListener* g_pListener = nullptr;
 
 Objects g_constructedObjects;
 AcbHandles g_acbHandles;
@@ -20,10 +18,13 @@ CriAtomEx3dSourceConfig g_3dSourceConfig;
 
 uint32 g_numObjectsWithDoppler = 0;
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+CriAtomExAisacControlId g_absoluteVelocityAisacId = CRIATOMEX_INVALID_AISAC_CONTROL_ID;
+CriAtomExAisacControlId g_occlusionAisacId = CRIATOMEX_INVALID_AISAC_CONTROL_ID;
+
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 GameVariableValues g_gameVariableValues;
 CategoryValues g_categoryValues;
-#endif // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 }      // namespace Adx2
 }      // namespace Impl
 }      // namespace CryAudio

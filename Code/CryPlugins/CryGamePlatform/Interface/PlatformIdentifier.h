@@ -62,6 +62,13 @@ namespace Cry
 				return success;
 			}
 
+			void Serialize(Serialization::IArchive& ar)
+			{
+				ar(m_svcId, "service");
+
+				return Traits::Serialize(m_value, ar);
+			}
+
 			const char* ToDebugString() const
 			{
 				return Traits::ToDebugString(m_svcId, m_value);
@@ -69,7 +76,7 @@ namespace Cry
 
 		private:
 			ServiceType m_svcId = CryGUID::Null();
-			ValueType m_value{};
+			ValueType m_value = Traits::Null();
 		};
 	}
 }

@@ -112,13 +112,6 @@ public:
 
 };
 
-namespace {
-float tempFloat0 = 0;
-float tempFloat1 = 1;
-int tempInt0 = 0;
-int tempInt1 = 1;
-}
-
 class TimelineFloat : public Timeline<float>
 {
 public:

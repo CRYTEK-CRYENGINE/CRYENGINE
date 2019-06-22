@@ -16,13 +16,14 @@ namespace EditorSubstance
 		Q_OBJECT
 	public:
 		CProjectDefaultsPresetsEditor(QWidget* parent = nullptr);
-		bool OnSave() final;
-	protected:
 
+		bool OnSave();
+	protected:
+		void RegisterActions();
 		virtual const char* GetEditorName() const override { return "Substance Graph Default Mapping Editor"; }
 		bool TryClose();
 
-		virtual bool OnClose() override;
+		bool OnClose();
 
 		virtual void closeEvent(QCloseEvent *) override;
 

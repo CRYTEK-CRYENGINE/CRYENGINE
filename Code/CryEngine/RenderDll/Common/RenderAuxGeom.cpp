@@ -42,7 +42,7 @@ CAuxGeomCB::~CAuxGeomCB()
 
 void CAuxGeomCB::Merge(const CAuxGeomCB* pAuxGeomCB)
 {
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 	// Offset of the buffer in the merged buffer
 	auto mergedBufferVerticesOffset = m_rawData->m_auxVertexBuffer.size();
 	auto mergedBufferIndicesOffset = m_rawData->m_auxIndexBuffer.size();
@@ -548,7 +548,7 @@ void CAuxGeomCB::DrawBuffer(const SAuxVertex* inVertices, uint32 numVertices, bo
 SAuxVertex * CAuxGeomCB::BeginDrawBuffer(uint32 maxVertices, bool textured)
 {
 	CRY_ASSERT_MESSAGE(!IsDrawBufferActive(), "Nested BeginDrawBuffer-EndDrawBuffer is not allowed.");
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 
 	SAuxVertex* bufVertices;
 	bool usingScratchBuffer = false;
@@ -574,7 +574,7 @@ SAuxVertex * CAuxGeomCB::BeginDrawBuffer(uint32 maxVertices, bool textured)
 void CAuxGeomCB::EndDrawBuffer(uint32 numVertices)
 {
 	CRY_ASSERT(IsDrawBufferActive());
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 
 	if (numVertices == 0)
 	{
@@ -2168,7 +2168,7 @@ void CAuxGeomCB::RenderTextQueued(Vec3 pos, const SDrawTextInfo& ti, const char*
 
 int32 CAuxGeomCB::PushMatrix(const Matrix34& mat)
 {
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 	int curIndex = m_rawData->m_curWorldMatIdx;
 	m_rawData->m_curWorldMatIdx = m_rawData->m_auxWorldMatrices.size();
 	m_rawData->m_auxWorldMatrices.push_back(mat);
@@ -2209,7 +2209,7 @@ void CAuxGeomCB::SetOrthographicProjection(bool enable, float l /*= 0*/, float r
 
 void CAuxGeomCB::PushImage(const SRender2DImageDescription &image)
 {
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 	m_rawData->m_2dImages.push_back(image);
 }
 
@@ -2240,13 +2240,6 @@ void CAuxGeomCB::Submit(uint frames)
 void CAuxGeomCB::Draw2dImages(SAux2DImages& images, bool reset)
 {
 	IRenderAuxGeom* pAux = this;
-
-	const CCamera& camera = m_rawData->m_camera;
-
-	SRenderViewport viewport = SRenderViewport(0, 0, camera.GetViewSurfaceX(), camera.GetViewSurfaceZ());
-	const float vw = static_cast<float>(viewport.width);
-	const float vh = static_cast<float>(viewport.height);
-
 	SAuxGeomRenderFlags oldRenderFlags = pAux->GetRenderFlags();
 	SAuxGeomRenderFlags currRenderFlags = oldRenderFlags;
 	for (const SRender2DImageDescription &img : images)
@@ -2266,15 +2259,6 @@ void CAuxGeomCB::Draw2dImages(SAux2DImages& images, bool reset)
 		pAux->SetTexture(img.textureId);
 		UCol color;
 		color.dcolor = PackColor(img.color);
-
-		float parallax = 0;
-		/*TODO@ implement
-		if (img.stereoDepth > 0)
-		{
-			parallax = 800 * maxParallax * (1 - screenDist / img.stereoDepth);
-			//xpos = xpos + parallax * (stereoLeftEye ? -1 : 1)
-		}
-		*/
 
 		// yv.y is swapped (1-inputTexCoord.y) for compatibility of old pipeline
 		SAuxVertex verts[6] = {
@@ -2545,7 +2529,7 @@ void CAuxGeomCB::AddPrimitive(SAuxVertex*& pVertices, uint32 numVertices, const 
 {
 	CRY_ASSERT_MESSAGE(!IsDrawBufferActive(), "Adding primitive while BeginDrawBuffer will cause issue in aux drawing.");
 	CRY_ASSERT(numVertices > 0);
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 	
 	// add push buffer entry to allow later merging of batches committed via DP
 	AddPushBufferEntry(numVertices, 0, renderFlags);
@@ -2563,7 +2547,7 @@ void CAuxGeomCB::AddIndexedPrimitive(SAuxVertex*& pVertices, uint32 numVertices,
 	CRY_ASSERT_MESSAGE(!IsDrawBufferActive(), "Adding primitive while BeginDrawBuffer will cause issue in aux drawing.");
 	CRY_ASSERT(numVertices > 0);
 	CRY_ASSERT(numIndices > 0);
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 	
 	// add push buffer entry to allow later merging of batches committed via DIP
 	AddPushBufferEntry(numVertices, numIndices, renderFlags);
@@ -2585,7 +2569,7 @@ void CAuxGeomCB::AddIndexedPrimitive(SAuxVertex*& pVertices, uint32 numVertices,
 
 void CAuxGeomCB::AddObject(SAuxDrawObjParams*& pDrawParams, const SAuxGeomRenderFlags& renderFlags)
 {
-	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Debug);
+	MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Debug);
 	// create new push buffer entry
 	AuxPushBuffer& auxPushBuffer(AccessData()->m_auxPushBuffer);
 	AuxDrawObjParamBuffer& auxDrawObjParamBuffer(AccessData()->m_auxDrawObjParamBuffer);

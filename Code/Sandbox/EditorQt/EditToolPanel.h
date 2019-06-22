@@ -5,7 +5,7 @@
 
 #include "IEditorImpl.h"
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class CEditTool;
 
 struct SEditToolSerializer
@@ -35,6 +35,6 @@ protected:
 	virtual bool CanEditTool(CEditTool* pTool) = 0;
 
 protected:
-	QPropertyTree*      m_pPropertyTree;
+	QPropertyTreeLegacy*      m_pPropertyTree;
 	SEditToolSerializer m_toolSerializer;
 };

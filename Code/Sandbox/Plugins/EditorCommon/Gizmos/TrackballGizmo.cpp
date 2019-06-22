@@ -12,6 +12,8 @@
 CTrackballGizmo::CTrackballGizmo()
 	: m_color(1.0f, 1.0f, 0.0f)
 	, m_scale(1.0f)
+	, m_rotatedX(0.0f)
+	, m_rotatedY(0.0f)
 {
 }
 
@@ -57,23 +59,22 @@ bool CTrackballGizmo::MouseCallback(IDisplayViewport* view, EMouseEvent event, C
 		{
 		case eMouseMove:
 			{
-				Vec3 raySrc, rayDir;
-				Vec3 zDir = view->CameraToWorld(m_initPosition);
+				Vec3 zDir = view->CameraToWorld(m_position);
 				zDir.Normalize();
 				Vec3 yDir = view->UpViewDirection();
 				Vec3 xDir = yDir ^ zDir;
-				// redo the yDirection to align it to the plane
 				yDir = zDir ^ xDir;
 
-				// don't use the gizmo scale for interaction to keep the precision higher
-				float scale = view->GetScreenScaleFactor(m_initPosition) * gGizmoPreferences.axisGizmoSize;
+				// Don't use the gizmo scale for interaction to keep the precision higher
+				const float scale = view->GetScreenScaleFactor(m_position) * gGizmoPreferences.axisGizmoSize;
 
+				Vec3 raySrc, rayDir;
 				view->ViewToWorldRay(point, raySrc, rayDir);
 
-				Vec3 offset = raySrc + (((m_initPosition - scale * zDir) - raySrc) * zDir) / (zDir * rayDir) * rayDir - m_initPosition;
+				Vec3 offset = raySrc + (((m_position - scale * zDir) - raySrc) * zDir) / (zDir * rayDir) * rayDir - m_position;
 
-				float xradians = (offset * xDir - m_initOffset.x) / scale;
-				float yradians = (offset * yDir - m_initOffset.y) / scale;
+				float xradians = (offset * xDir - m_initOffset.x) / scale - m_rotatedX;
+				float yradians = (offset * yDir - m_initOffset.y) / scale - m_rotatedY;
 
 				if (gSnappingPreferences.angleSnappingEnabled())
 				{
@@ -85,6 +86,9 @@ bool CTrackballGizmo::MouseCallback(IDisplayViewport* view, EMouseEvent event, C
 					yangle = gSnappingPreferences.SnapAngle(yangle);
 					yradians = DEG2RAD(yangle);
 				}
+
+				m_rotatedX += xradians;
+				m_rotatedY += yradians;
 
 				Quat xrot = Quat::CreateRotationAA(-xradians, yDir);
 				Quat yrot = Quat::CreateRotationAA(yradians, xDir);
@@ -109,17 +113,15 @@ bool CTrackballGizmo::MouseCallback(IDisplayViewport* view, EMouseEvent event, C
 		if (event == eMouseLDown)
 		{
 			SetFlag(EGIZMO_INTERACTING);
-			// save initial values to display shadow
-			Vec3 raySrc, rayDir;
 			Vec3 zDir = view->CameraToWorld(m_position);
 			zDir.Normalize();
 			Vec3 yDir = view->UpViewDirection();
 			Vec3 xDir = yDir ^ zDir;
-			// redo the yDirection to align it to the plane
 			yDir = zDir ^ xDir;
 
-			float scale = view->GetScreenScaleFactor(m_position) * gGizmoPreferences.axisGizmoSize * m_scale;
+			const float scale = view->GetScreenScaleFactor(m_position) * gGizmoPreferences.axisGizmoSize * m_scale;
 
+			Vec3 raySrc, rayDir;
 			view->ViewToWorldRay(point, raySrc, rayDir);
 
 			Vec3 offset = raySrc + (((m_position - scale * zDir) - raySrc) * zDir) / (zDir * rayDir) * rayDir - m_position;
@@ -127,7 +129,8 @@ bool CTrackballGizmo::MouseCallback(IDisplayViewport* view, EMouseEvent event, C
 			m_initOffset.x = offset * xDir;
 			m_initOffset.y = offset * yDir;
 
-			m_initPosition = m_position;
+			m_rotatedX = 0.0f;
+			m_rotatedY = 0.0f;
 
 			signalBeginDrag(view, this, point, nFlags);
 			return true;

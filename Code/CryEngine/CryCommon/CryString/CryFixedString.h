@@ -5,7 +5,7 @@
 #include "CryStringUtils.h"  // cry_vsprintf(), CryStringUtils_Internal::compute_length_formatted_va
 #include "CryString.h"
 
-#include <string.h>
+#include <cstring>
 #include <wchar.h>
 #include <limits.h>
 #include <stdarg.h>

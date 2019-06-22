@@ -235,7 +235,6 @@ bool DeviceInfo::CreateDevice(int zbpp, OnCreateDeviceCallback pCreateDeviceCall
 #elif (CRY_RENDERER_VULKAN >= 10)
 
 	const int r_overrideDXGIAdapter = GetDXGIAdapterOverride();
-	const int r_multithreaded = GetMultithreaded();
 	unsigned int nAdapterOrdinal = r_overrideDXGIAdapter >= 0 ? r_overrideDXGIAdapter : 0;
 
 	if (!SUCCEEDED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&m_pFactory)) || !m_pFactory)

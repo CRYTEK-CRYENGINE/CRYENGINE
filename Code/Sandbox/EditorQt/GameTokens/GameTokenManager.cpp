@@ -130,7 +130,7 @@ const char* CGameTokenManager::GetDataFilename() const
 void CGameTokenManager::Save(bool bBackup)
 {
 	using namespace Private_GameTokenManager;
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	CTempFileHelper helper(GetIEditorImpl()->GetLevelDataFolder() + kGameTokensFile);
 
 	XmlNodeRef root = XmlHelpers::CreateXmlNode(kGameTokensRoot);

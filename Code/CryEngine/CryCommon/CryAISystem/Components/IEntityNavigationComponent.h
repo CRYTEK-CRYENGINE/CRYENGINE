@@ -48,7 +48,7 @@ struct IEntityNavigationComponent : public IEntityComponent
 			return radius == other.radius && height == other.height && type == other.type;
 		}
 
-		float radius = 0.3;
+		float radius = 0.3f;
 		float height = 2.0f;
 		EType type = EType::Active;
 	};

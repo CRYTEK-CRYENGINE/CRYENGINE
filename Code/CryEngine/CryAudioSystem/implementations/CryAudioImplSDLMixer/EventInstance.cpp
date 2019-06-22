@@ -4,9 +4,9 @@
 #include "EventInstance.h"
 #include "Event.h"
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	#include <CrySystem/ITimer.h>
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 #include <SDL_mixer.h>
 
@@ -32,13 +32,13 @@ void CEventInstance::Stop()
 		}
 		else
 		{
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 			if (!m_isFadingOut)
 			{
 				m_isFadingOut = true;
 				m_timeFadeOutStarted = gEnv->pTimer->GetAsyncTime().GetSeconds();
 			}
-#endif      // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif      // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 			Mix_FadeOutChannel(channel, fadeOutTime);
 		}

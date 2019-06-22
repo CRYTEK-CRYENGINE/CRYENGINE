@@ -19,6 +19,7 @@
 #include "GameCVars.h"
 #include "IGameObject.h"
 #include <CryNetwork/ISerialize.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include "GameRulesModules/IGameRulesStatsRecording.h"
 #include "GameRulesModules/IGameRulesPlayerStatsModule.h"
 #include "UI/HUD/HUDEventWrapper.h"

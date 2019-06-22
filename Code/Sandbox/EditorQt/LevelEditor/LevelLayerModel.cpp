@@ -51,6 +51,7 @@ CItemModelAttributeEnumT<ObjectType> s_objectTypeAttribute("Object Type", CItemM
 CItemModelAttribute s_LayerColorAttribute("Layer Color", &Attributes::s_stringAttributeType, CItemModelAttribute::Visible, false);
 CItemModelAttribute s_linkedToAttribute("Linked to", &Attributes::s_stringAttributeType, CItemModelAttribute::StartHidden);
 }
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Temporary hot-fix to get ObjectType enum in Sandbox, since the enum registration works
 // only in the module where the enum was registered
@@ -142,7 +143,7 @@ QVariant CLevelLayerModel::GetHeaderData(int section, Qt::Orientation orientatio
 		if (section == eObjectColumns_Visible)
 			return CryIcon("icons:General/Visibility_True.ico");
 		if (section == eObjectColumns_Frozen)
-			return CryIcon("icons:General/editable.ico");
+			return CryIcon("icons:general_lock_true.ico");
 		if (section == eObjectColumns_VCS)
 			return CryIcon("icons:VersionControl/icon.ico");
 	}
@@ -186,6 +187,12 @@ CLevelLayerModel::CLevelLayerModel(CObjectLayer* pLayer, QObject* parent)
 	: QAbstractItemModel(parent)
 	, m_pLayer(pLayer)
 	, m_pTopLevelNotificationObj(nullptr)
+	, m_iconVisibilityTrue("icons:General/Visibility_True.ico")
+	, m_iconVisibilityFalse("icons:General/Visibility_False.ico")
+	, m_iconGeneralLockFalse("icons:general_lock_false.ico")
+	, m_iconLink("icons:ObjectTypes/Link.ico")
+	, m_iconPlaceHolder("icons:General/Placeholder.ico")
+	, m_iconLevelExplorerLockTrue("icons:levelexplorer_lock_true.ico")
 {
 	Connect();
 	Rebuild();
@@ -323,17 +330,18 @@ QVariant CLevelLayerModel::data(const QModelIndex& index, int role) const
 			}
 		}
 		break;
+
 	case Qt::DecorationRole:
 		if (index.column() == eObjectColumns_Name)
 		{
 			CBaseObject* pObject = ObjectFromIndex(index);
 			CBaseObject* pLinkedObject = pObject->GetLinkedTo();
 			if (pLinkedObject)
-				return CryIcon("icons:ObjectTypes/Link.ico").pixmap(16, 16, QIcon::Active, pObject->IsSelected() ? QIcon::On : QIcon::Off);
+				return m_iconLink.pixmap(24, 24, QIcon::Active, pObject->IsSelected() ? QIcon::On : QIcon::Off);
 
 			CObjectClassDesc* const classDesc = pObject->GetClassDesc();
 			if (classDesc == nullptr)
-				return CryIcon("icons:General/Placeholder.ico").pixmap(16, 16, QIcon::Active, pObject->IsSelected() ? QIcon::On : QIcon::Off);
+				return m_iconPlaceHolder.pixmap(24, 24, QIcon::Active, pObject->IsSelected() ? QIcon::On : QIcon::Off);
 
 			QString category = classDesc->Category();
 
@@ -412,23 +420,16 @@ QVariant CLevelLayerModel::data(const QModelIndex& index, int role) const
 				return Qt::AlignCenter;
 		}
 		break;
+
 	case QAdvancedItemDelegate::s_IconOverrideRole:
 		{
 			CBaseObject* pObject = ObjectFromIndex(index);
 			switch (index.column())
 			{
 			case eObjectColumns_Visible:
-				if (pObject->IsVisible())
-				{
-					return CryIcon("icons:General/Visibility_True.ico");
-				}
-				else
-					return CryIcon("icons:General/Visibility_False.ico");
+				return pObject->IsVisible() ? m_iconVisibilityTrue : m_iconVisibilityFalse;
 			case eObjectColumns_Frozen:
-				if (pObject->IsFrozen())
-					return CryIcon("icons:General/editable_false.ico");
-				else
-					return CryIcon("icons:General/editable_true.ico");
+				return pObject->IsFrozen() ? m_iconLevelExplorerLockTrue : m_iconGeneralLockFalse;
 			default:
 				break;
 			}

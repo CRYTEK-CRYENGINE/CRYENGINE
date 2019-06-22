@@ -600,9 +600,11 @@ int CRigidEntity::GetStatus(pe_status *_status) const
 			} else
 				return 0;
 		for(i=0;i<NMASKBITS && getmask(i)<=m_constraintMask;i++) if (m_constraintMask & getmask(i) && m_pConstraintInfos[i].id==status->id) {
-			foundconstr:
-			status->pt[0] = m_pConstraints[i].pt[0];
-			status->pt[1] = m_pConstraints[i].pt[1];
+		foundconstr:
+			for(int iop=0;iop<2;iop++) {
+				status->pt[iop] = m_pConstraints[i].pt[iop];
+				status->partid[iop] = m_pConstraints[i].pent[iop]->m_parts[m_pConstraints[i].ipart[iop]].id;
+			}
 			status->n = m_pConstraints[i].n; 
 			status->flags = m_pConstraintInfos[i].flags;
 			status->pBuddyEntity = m_pConstraints[i].pent[1];
@@ -1411,12 +1413,11 @@ void CRigidEntity::ProcessContactEvents(geom_contact* pcontact, int i, int iCall
 	}
 }
 
-int CRigidEntity::CheckForNewContacts(geom_world_data *pgwd0,intersection_params *pip, int &itmax, Vec3 sweep, int iStartPart,int nParts, int *pFlagsAccum)
+int CRigidEntity::CheckForNewContacts(geom_world_data *pgwd0,intersection_params *pip, int &itmax, Vec3 sweep, int iStartPart,int nParts, int *pFlagsAccum, int iCaller)
 {
 	CPhysicalEntity **pentlist;
 	geom_world_data gwd1;
 	int ient,nents,i,j,icont,ncontacts,ipt,nTotContacts=0,bHasMatSubst=0,ient1,j1,j2,bSquashy,isAwake,flagsAccum=0;
-	int iCaller = get_iCaller_int();
 	RigidBody body(false),*pbody[2];
 	geom_contact *pcontacts;
 	IGeometry *pGeom;
@@ -2938,7 +2939,7 @@ int CRigidEntity::Step(float time_interval)
 							pcontacts[i].iPrim[1],pcontacts[i].iFeature[1], contact_new|hasArea, max(0.001f,(float)pcontacts[i].t-
 							axis*(pcontacts[i].ptborder[j]-pcontacts[i].pt)+r), iCaller, ntilt);
 				}
-				bSeverePenetration |= isneg(ip.maxUnproj*0.5f-pcontacts[i].t);
+				bSeverePenetration |= isneg(ip.maxUnproj*0.5f-pcontacts[i].t) & iszero((int)(m_parts[g_CurCollParts[i][0]].flags|g_CurColliders[i]->m_parts[g_CurCollParts[i][1]].flags) & geom_no_coll_response);
 			} else 
 				ProcessCanopyContact(pcontacts,i, time_interval, iCaller);
 		}

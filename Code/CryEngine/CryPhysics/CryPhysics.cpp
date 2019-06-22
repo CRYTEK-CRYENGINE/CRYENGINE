@@ -1,7 +1,7 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-//#include <float.h>
+#undef AddObject
 #include <CryPhysics/IPhysics.h>
 #include "geoman.h"
 #include "bvtree.h"
@@ -114,6 +114,7 @@ public:
 		g_szAction[pe_action_move_parts::type_id] = sizeof(pe_action_move_parts);
 		g_szAction[pe_action_batch_parts_update::type_id] = sizeof(pe_action_batch_parts_update);
 		g_szAction[pe_action_slice::type_id] = sizeof(pe_action_slice);
+		g_szAction[pe_action_resolve_constraints::type_id] = sizeof(pe_action_resolve_constraints);
 
 		g_szGeomParams[pe_geomparams::type_id] = sizeof(pe_geomparams);
 		g_szGeomParams[pe_articgeomparams::type_id] = sizeof(pe_articgeomparams);
@@ -186,7 +187,7 @@ InitPhysicsGlobals Now;
 thread_local int tls_isMainThread = 0;
 CRYPHYSICS_API IPhysicalWorld *CreatePhysicalWorld(ISystem *pSystem)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Physics, 0, "Create Physical World");
+	MEMSTAT_CONTEXT(EMemStatContextType::Physics, "Create Physical World");
 	g_bHasSSE = pSystem && (pSystem->GetCPUFlags() & CPUF_SSE)!=0;
 
 	if (pSystem) {

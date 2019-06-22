@@ -62,9 +62,9 @@ void CListener::Update(float const deltaTime)
 //////////////////////////////////////////////////////////////////////////
 void CListener::SetName(char const* const szName)
 {
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	m_name = szName;
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -76,7 +76,7 @@ void CListener::SetTransformation(CTransformation const& transformation)
 	AkListenerPosition listenerPos;
 	FillAKListenerPosition(transformation, listenerPos);
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	// Always update velocity in non-release builds for debug draw.
 	m_isMovingOrDecaying = true;
 #else
@@ -88,7 +88,7 @@ void CListener::SetTransformation(CTransformation const& transformation)
 	{
 		m_previousPosition = m_position;
 	}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 	AK::SoundEngine::SetPosition(m_id, listenerPos);
 }

@@ -617,9 +617,17 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 {
 	float3 viewVec = normalize(-attribs.worldPos);
 	float NdotL = saturate(dot(attribs.normal, light.lightVec));
-
-	diffuseAcc.x = DiffuseBRDF(attribs.normal, viewVec, light.lightVec, attribs.smoothness, NdotL);
-	specularAcc = SpecularBRDF(attribs.normal, viewVec, light.lightVec, attribs.smoothness, attribs.reflectance) * NdotL;
+    
+    if (light.type == LIGHT_TYPE_REGULAR_AREA)
+    {
+        AreaLightLTC_GGX(attribs.normal, -normalize(attribs.areaAttribs.position), attribs.smoothness, attribs.reflectance, attribs.areaAttribs.position,
+		                 attribs.areaAttribs.lightPos, attribs.areaAttribs.lightArrayIdx, attribs.areaAttribs.transform, Fwd_SpotTexArray, diffuseAcc, specularAcc);
+    }
+    else
+    {
+        diffuseAcc.x = DiffuseBRDF(attribs.normal, viewVec, light.lightVec, attribs.smoothness, NdotL);
+        specularAcc = SpecularBRDF(attribs.normal, viewVec, light.lightVec, attribs.smoothness, attribs.reflectance) * NdotL;
+    }
 	
 	diffuseAcc = diffuseAcc.x * light.illuminance;
 	specularAcc = specularAcc * light.illuminance;

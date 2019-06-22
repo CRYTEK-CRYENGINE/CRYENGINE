@@ -287,7 +287,7 @@ void CAnimSceneNode::Animate(SAnimContext& animContext)
 		if (overrideCamId != gEnv->pMovieSystem->GetCameraParams().cameraEntityId)
 		{
 			SCameraKey key;
-			cry_strcpy(key.m_selection, overrideCamName);
+			cry_strcpy(key.m_cameraDesc, overrideCamName);
 			ApplyCameraKey(key, animContext);
 		}
 	}
@@ -476,13 +476,13 @@ void CAnimSceneNode::OnReset()
 
 		if (m_cvar_t_FixedStep)
 		{
-			m_cvar_t_FixedStep->Set(0);
+			m_cvar_t_FixedStep->Set(0.0f);
 		}
 	}
 
 	if (GetTrackForParameter(eAnimParamType_FixedTimeStep) && m_cvar_t_FixedStep)
 	{
-		m_cvar_t_FixedStep->Set(0);
+		m_cvar_t_FixedStep->Set(0.0f);
 	}
 }
 
@@ -515,11 +515,10 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 	}
 
 	// First, check the child nodes of this director, then global nodes.
-	IAnimNode* pFirstCameraNode = m_pSequence->FindNodeByName(key.m_selection, this);
-
+	IAnimNode* pFirstCameraNode = m_pSequence->FindNodeByName(key.m_cameraDesc, this);
 	if (pFirstCameraNode == NULL)
 	{
-		pFirstCameraNode = m_pSequence->FindNodeByName(key.m_selection, NULL);
+		pFirstCameraNode = m_pSequence->FindNodeByName(key.m_cameraDesc, NULL);
 	}
 
 	SCameraParams cameraParams;
@@ -535,7 +534,7 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 		cameraParams.fGameCameraInfluence = clamp_tpl(fGameCameraInfluence, 0.0f, 1.0f);
 	}
 
-	IEntity* pFirstCameraEntity = gEnv->pEntitySystem->FindEntityByName(key.m_selection);
+	IEntity* pFirstCameraEntity = gEnv->pEntitySystem->FindEntityByName(key.m_cameraDesc);
 
 	if (pFirstCameraEntity)
 	{
@@ -565,7 +564,7 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 		cameraParams.fFOV = DEG2RAD(fFirstCameraFOV);
 	}
 
-	IEntity* pSecondCameraEntity = gEnv->pEntitySystem->FindEntityByName(nextKey.m_selection);
+	IEntity* pSecondCameraEntity = gEnv->pEntitySystem->FindEntityByName(nextKey.m_cameraDesc);
 
 	if (bInterpolateCamera && pFirstCameraEntity && pSecondCameraEntity)
 	{
@@ -603,11 +602,11 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 			}
 		}
 
-		IAnimNode* pSecondCameraNode = m_pSequence->FindNodeByName(nextKey.m_selection, this);
+		IAnimNode* pSecondCameraNode = m_pSequence->FindNodeByName(nextKey.m_cameraDesc, this);
 
 		if (pSecondCameraNode == NULL)
 		{
-			pSecondCameraNode = m_pSequence->FindNodeByName(nextKey.m_selection, NULL);
+			pSecondCameraNode = m_pSequence->FindNodeByName(nextKey.m_cameraDesc, NULL);
 		}
 
 		if (pSecondCameraNode && pSecondCameraNode->GetType() == eAnimNodeType_Camera)
@@ -1018,7 +1017,7 @@ void CAnimSceneNode::PrecacheDynamic(SAnimTime time)
 				if (time < key.m_time && (time + SAnimTime(fPrecacheCameraTime)) > key.m_time && key.m_time > m_lastPrecachePoint)
 				{
 					lastPrecachePoint = max(key.m_time, lastPrecachePoint);
-					IEntity* pCameraEntity = gEnv->pEntitySystem->FindEntityByName(key.m_selection);
+					IEntity* pCameraEntity = gEnv->pEntitySystem->FindEntityByName(key.m_cameraDesc);
 
 					if (pCameraEntity != NULL)
 					{
@@ -1031,7 +1030,7 @@ void CAnimSceneNode::PrecacheDynamic(SAnimTime time)
 						}
 						else
 						{
-							CryWarning(VALIDATOR_MODULE_MOVIE, VALIDATOR_WARNING, "Could not find animation node for camera %s in sequence %s", key.m_selection, m_pSequence->GetName());
+							CryWarning(VALIDATOR_MODULE_MOVIE, VALIDATOR_WARNING, "Could not find animation node for camera %s in sequence %s", key.m_cameraDesc, m_pSequence->GetName());
 						}
 					}
 				}

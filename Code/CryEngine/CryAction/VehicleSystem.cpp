@@ -16,8 +16,6 @@
 #include <CryScriptSystem/IScriptSystem.h>
 #include <CrySystem/File/ICryPak.h>
 #include "IGameObjectSystem.h"
-#include <CryAISystem/IAIActorProxy.h>
-#include <CryAISystem/IAIObject.h>
 
 #include "CryAction.h"
 #include "VehicleSystem.h"

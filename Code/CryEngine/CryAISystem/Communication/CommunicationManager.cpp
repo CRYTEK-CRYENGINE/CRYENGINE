@@ -639,7 +639,7 @@ void CCommunicationManager::Update(float updateTime)
 
 	CullPlayingCommunications();
 
-	if (gAIEnv.CVars.DebugDrawCommunication > 1 && gAIEnv.CVars.DebugDraw > 0 && gAIEnv.CVars.DebugDrawCommunication != 6)
+	if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication > 1 && gAIEnv.CVars.DebugDraw > 0 && gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication != 6)
 		UpdateDebugHistory(updateTime);
 }
 
@@ -791,7 +791,7 @@ void CCommunicationManager::DebugDraw()
 	}
 
 	// Draw the history of comms for each entity as 2d labels
-	if (gAIEnv.CVars.DebugDrawCommunication > 1 && gAIEnv.CVars.DebugDrawCommunication != 6)
+	if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication > 1 && gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication != 6)
 	{
 		float offset = 0.0f;
 
@@ -815,7 +815,7 @@ void CCommunicationManager::DebugDraw()
 
 			int numberDisplayed = 0;
 			for (std::vector<CommDebugEntry>::reverse_iterator entryIt = entityEntries.rbegin();
-			     entryIt != entityEntries.rend() && numberDisplayed < gAIEnv.CVars.DebugDrawCommunicationHistoryDepth;
+			     entryIt != entityEntries.rend() && numberDisplayed < gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunicationHistoryDepth;
 			     ++entryIt, ++numberDisplayed)
 			{
 				CommDebugEntry& entry = *entryIt;
@@ -1030,7 +1030,7 @@ CommPlayID CCommunicationManager::PlayCommunication(SCommunicationRequest& reque
 		if (!m_playGenID)
 			++m_playGenID.id;
 
-		if (gAIEnv.CVars.RecordCommunicationStats > 0)
+		if (gAIEnv.CVars.legacyCommunicationSystem.RecordCommunicationStats > 0)
 		{
 			//Record the request here if statistics are being generated
 			CommDebugCount& commCount = m_debugStatisticsMap[CommKeys(request.configID, request.commID)];
@@ -1236,7 +1236,7 @@ void CCommunicationManager::StopCommunication(const CommPlayID& playID)
 		UpdateGlobalListeners(CommunicationCancelled, playing.actorID, m_player.GetCommunicationID(playID));
 
 #if !defined(EXCLUDE_NORMAL_LOG)
-		if (gAIEnv.CVars.DebugDrawCommunication == 5)
+		if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 5)
 		{
 			CommID commID = m_player.GetCommunicationID(playID);
 			CryLogAlways("CommunicationManager::StopCommunication: %s[%u] as playID[%u]", GetCommunicationName(commID), commID.id, playID.id);
@@ -1303,7 +1303,7 @@ void CCommunicationManager::OnCommunicationFinished(const CommPlayID& playID, ui
 		UpdateGlobalListeners(CommunicationFinished, playing.actorID, m_player.GetCommunicationID(playID));
 
 #if !defined(EXCLUDE_NORMAL_LOG)
-		if (gAIEnv.CVars.DebugDrawCommunication == 5)
+		if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 5)
 		{
 			CommID commID = m_player.GetCommunicationID(playID);
 			CryLogAlways("CommunicationManager::OnCommunicationFinished: %s[%u] as playID[%u]", GetCommunicationName(commID), commID.id, playID.id);
@@ -1318,7 +1318,7 @@ void CCommunicationManager::OnCommunicationFinished(const CommPlayID& playID, ui
 		m_playing.erase(it);
 
 	}
-	else if (gAIEnv.CVars.DebugDrawCommunication == 5)
+	else if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 5)
 	{
 		CommID commID = m_player.GetCommunicationID(playID);
 		CryWarning(VALIDATOR_MODULE_AI, VALIDATOR_WARNING, "CommunicationManager::OnCommunicationFinished - for unknown playID: %s[%u] as playID[%u]", GetCommunicationName(commID), commID.id, playID.id);
@@ -1365,7 +1365,7 @@ bool CCommunicationManager::Play(const CommPlayID& playID, SCommunicationRequest
 
 	if (canChooseVariation && m_player.Play(playID, request, comm, variation, this, (void*)(EXPAND_PTR)request.channelID.id))
 	{
-		if (gAIEnv.CVars.RecordCommunicationStats > 0)
+		if (gAIEnv.CVars.legacyCommunicationSystem.RecordCommunicationStats > 0)
 		{
 			//Record the request here if statistics are being generated
 			CommDebugCount& commCount = m_debugStatisticsMap[CommKeys(request.configID, request.commID)];
@@ -1409,7 +1409,7 @@ bool CCommunicationManager::Play(const CommPlayID& playID, SCommunicationRequest
 		playResult = true;
 	}
 
-	if (gAIEnv.CVars.DebugDrawCommunication == 5 || gAIEnv.CVars.DebugDrawCommunication == 6)
+	if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 5 || gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 6)
 	{
 		stack_string communicationPlayResult = canChooseVariation ? "PLAYED" : "NOT PLAYED";
 		stack_string variationIndex;
@@ -2004,7 +2004,7 @@ void CCommunicationManager::UpdateStateOfInternalVariables(const SCommunicationR
 
 void CCommunicationManager::UpdateStateOfTargetAboveBelowVariables(const Vec3& entityPos, const Vec3& targetPos)
 {
-	const float heightThreshold = gAIEnv.CVars.CommunicationManagerHeightThresholdForTargetPosition;
+	const float heightThreshold = gAIEnv.CVars.legacyCommunicationSystem.CommunicationManagerHeightThresholdForTargetPosition;
 	const float heightDifference = targetPos.z - entityPos.z;
 	if (heightDifference > heightThreshold)
 	{

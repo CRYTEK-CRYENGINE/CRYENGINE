@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 #include "Tile.h"
-#include <CryCore/TypeInfo_impl.h>
+#include "MNM_Type_info.h"
 #include "DebugDrawContext.h"
 
 STRUCT_INFO_BEGIN(MNM::Tile::STriangle)

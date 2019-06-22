@@ -20,6 +20,7 @@
 #include <ILevelSystem.h>
 #include "FlashUIEventSystem.h"
 #include "FlashUIFlowNodeFactory.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if !defined (_RELEASE) || defined(RELEASE_LOGGING)
 	#define UIACTION_LOGGING

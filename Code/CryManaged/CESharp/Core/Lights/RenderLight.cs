@@ -57,7 +57,7 @@ namespace CryEngine
 		/// <summary>
 		/// Flag that indicates that this light is an area light.
 		/// </summary>
-		AreaLight = eDynamicLightFlags.DLF_AREA_LIGHT,
+		AreaLight = eDynamicLightFlags.DLF_AREA,
 		/// <summary>
 		/// Flag that indicates that this light is used for SVOGI.
 		/// </summary>

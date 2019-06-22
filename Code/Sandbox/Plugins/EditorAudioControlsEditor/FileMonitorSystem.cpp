@@ -3,7 +3,9 @@
 #include "StdAfx.h"
 #include "FileMonitorSystem.h"
 
-#include "AudioControlsEditorPlugin.h"
+#include "AssetsManager.h"
+
+#include <IEditor.h>
 
 namespace ACE
 {

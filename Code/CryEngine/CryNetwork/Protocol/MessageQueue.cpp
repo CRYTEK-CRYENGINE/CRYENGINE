@@ -1335,7 +1335,7 @@ void CMessageQueue::WriteMessages(IMessageOutput* pOut, const SSchedulingParams&
 		uint32 sizeBefore = pStm->GetApproximateSize();
 		EWriteMessageResult writeResult = eWMR_Fail_Finish;
 		{
-			//CRY_PROFILE_REGION(PROFILE_NETWORK, "CMessageQueue::WriteMessages.EncodeMessage");
+			//CRY_PROFILE_SECTION(PROFILE_NETWORK, "CMessageQueue::WriteMessages.EncodeMessage");
 			writeResult = pOut->WriteMessage(pEntSend->msg, HandleFromPointer(pEntSend));
 			// need to recache pEntSend (it may have changed during the WriteMessage call)
 			pEntSend = &m_slots[idxEntSend];

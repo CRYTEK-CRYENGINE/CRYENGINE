@@ -1,8 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _FOGVOLUME_RENDERNODE_
-#define _FOGVOLUME_RENDERNODE_
-
 #pragma once
 
 class CREFogVolume;
@@ -195,5 +192,3 @@ private:
 	Vec2                  m_cachedSoftEdgesLerp;
 	ColorF                m_cachedFogColor;
 };
-
-#endif // #ifndef _FOGVOLUME_RENDERNODE_

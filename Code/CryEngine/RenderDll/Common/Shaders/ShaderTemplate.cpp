@@ -14,6 +14,8 @@
 #include <CryString/StringUtils.h>                // stristr()
 #include <CrySystem/Scaleform/IFlashUI.h>
 #include "../Common/Textures/TextureHelpers.h"
+#include "../XRenderD3D9/GraphicsPipeline/ShadowMap.h"
+#include "../XRenderD3D9/GraphicsPipeline/VolumetricClouds.h"
 
 #if CRY_PLATFORM_WINDOWS
 	#include <direct.h>
@@ -211,7 +213,7 @@ EEfResTextures CShaderMan::mfCheckTextureSlotName(const char* mapname)
 {
 	EEfResTextures slot = EFTT_UNKNOWN;
 
-	if (!stricmp(mapname, "$Diffuse"))            slot = EFTT_DIFFUSE;
+	if (!stricmp(mapname, "$Diffuse")) slot = EFTT_DIFFUSE;
 	else if (!strnicmp(mapname, "$Normals", 7))
 		slot = EFTT_NORMALS;
 	else if (!stricmp(mapname, "$Specular"))
@@ -270,9 +272,13 @@ CTexture* CShaderMan::mfCheckTemplateTexName(const char* mapname, ETEX_Type eTT)
 		if (slot != EFTT_MAX)
 			return &CRendererResources::s_ShaderTemplates[slot];
 	}
+	auto* pShadowMapStage = gcpRendD3D->GetActiveGraphicsPipeline()->GetStage<CShadowMapStage>();
+	auto* pVolumetricCloudStage = gcpRendD3D->GetActiveGraphicsPipeline()->GetStage<CVolumetricCloudsStage>();
+
+	const CGraphicsPipelineResources& pipelineResources = gcpRendD3D->GetActiveGraphicsPipeline()->GetPipelineResources();
 
 	if (!stricmp(mapname, "$ShadowPoolAtlas"))
-		TexPic = CRendererResources::s_ptexRT_ShadowPool;
+		TexPic = pShadowMapStage->m_pTexRT_ShadowPool;
 	else if (!strnicmp(mapname, "$ShadowID", 9))
 	{
 		int n = atoi(&mapname[9]);
@@ -309,49 +315,49 @@ CTexture* CShaderMan::mfCheckTemplateTexName(const char* mapname, ETEX_Type eTT)
 	else if (!stricmp(mapname, "$PrevFrameScaled"))
 		TexPic = CRendererResources::s_ptexDisplayTargetScaledPrev;
 	else if (!stricmp(mapname, "$DisplayTarget"))
-		TexPic = CRendererResources::s_ptexDisplayTargetSrc;
+		TexPic = pipelineResources.m_pTexDisplayTargetSrc;
 	else if (!stricmp(mapname, "$ModelHUD"))
-		TexPic = CRendererResources::s_ptexModelHudBuffer;
+		TexPic = pipelineResources.m_pTexModelHudBuffer;
 	else if (!stricmp(mapname, "$DisplayTargetScaled_d2"))
-		TexPic = CRendererResources::s_ptexDisplayTargetScaled[0];
+		TexPic = pipelineResources.m_pTexDisplayTargetScaled[0];
 	else if (!stricmp(mapname, "$DisplayTargetScaled_d4"))
-		TexPic = CRendererResources::s_ptexDisplayTargetScaled[1];
+		TexPic = pipelineResources.m_pTexDisplayTargetScaled[1];
 	else if (!stricmp(mapname, "$DisplayTargetScaled_d8"))
-		TexPic = CRendererResources::s_ptexDisplayTargetScaled[2];
+		TexPic = pipelineResources.m_pTexDisplayTargetScaled[2];
 	else if (!stricmp(mapname, "$HDR_BackBuffer"))
-		TexPic = CRendererResources::s_ptexSceneTarget;
+		TexPic = pipelineResources.m_pTexSceneTarget;
 	else if (!stricmp(mapname, "$HDR_FinalBloom"))
-		TexPic = CRendererResources::s_ptexHDRFinalBloom;
+		TexPic = pipelineResources.m_pTexHDRFinalBloom;
 	else if (!stricmp(mapname, "$HDR_TargetPrev"))
-		TexPic = CRendererResources::s_ptexHDRTargetPrev;
+		TexPic = pipelineResources.m_pTexHDRTargetPrev;
 	else if (!stricmp(mapname, "$HDR_AverageLuminance"))
 		TexPic = CRendererResources::s_ptexHDRMeasuredLuminanceDummy;
 	else if (!stricmp(mapname, "$ZTarget"))
-		TexPic = CRendererResources::s_ptexLinearDepth;
+		TexPic = pipelineResources.m_pTexLinearDepth;
 	else if (!stricmp(mapname, "$ZTargetScaled"))
-		TexPic = CRendererResources::s_ptexLinearDepthScaled[0];
+		TexPic = pipelineResources.m_pTexLinearDepthScaled[0];
 	else if (!stricmp(mapname, "$ZTargetScaled2"))
-		TexPic = CRendererResources::s_ptexLinearDepthScaled[1];
+		TexPic = pipelineResources.m_pTexLinearDepthScaled[1];
 	else if (!stricmp(mapname, "$SceneTarget"))
-		TexPic = CRendererResources::s_ptexSceneTarget;
+		TexPic = pipelineResources.m_pTexSceneTarget;
 	else if (!stricmp(mapname, "$CloudsLM"))
 		TexPic = CRendererResources::s_ptexCloudsLM;
 	else if (!stricmp(mapname, "$WaterVolumeDDN"))
 		TexPic = CRendererResources::s_ptexWaterVolumeDDN;
 	else if (!stricmp(mapname, "$WaterVolumeReflPrev"))
-		TexPic = CRendererResources::s_ptexWaterVolumeRefl[1];
+		TexPic = pipelineResources.m_pTexWaterVolumeRefl[1];
 	else if (!stricmp(mapname, "$WaterVolumeRefl"))
-		TexPic = CRendererResources::s_ptexWaterVolumeRefl[0];
+		TexPic = pipelineResources.m_pTexWaterVolumeRefl[0];
 	else if (!stricmp(mapname, "$SceneNormalsMap"))
-		TexPic = CRendererResources::s_ptexSceneNormalsMap;
+		TexPic = pipelineResources.m_pTexSceneNormalsMap;
 	else if (!stricmp(mapname, "$SceneDiffuse"))
-		TexPic = CRendererResources::s_ptexSceneDiffuse;
+		TexPic = pipelineResources.m_pTexSceneDiffuse;
 	else if (!stricmp(mapname, "$SceneSpecular"))
-		TexPic = CRendererResources::s_ptexSceneSpecular;
+		TexPic = pipelineResources.m_pTexSceneSpecular;
 	else if (!stricmp(mapname, "$SceneNormalsBent"))
-		TexPic = CRendererResources::s_ptexSceneNormalsBent;
+		TexPic = pipelineResources.m_pTexSceneNormalsBent;
 	else if (!stricmp(mapname, "$VolCloudShadows"))
-		TexPic = CRendererResources::s_ptexVolCloudShadow;
+		TexPic = pVolumetricCloudStage->m_pTexVolCloudShadow;
 
 	return TexPic;
 }
@@ -516,7 +522,6 @@ STexAnim* CShaderMan::mfReadTexSequence(const char* na, int Flags, bool bFindOnl
 			ta->m_Time = fSpeed;
 		}
 
-		ITexture* pTex = (ITexture*)tp;
 		ta->m_TexPics.AddElem(tp);
 		n++;
 	}
@@ -556,7 +561,7 @@ void CShaderMan::mfSetResourceTexState(SEfResTexture* Tex)
 	if (Tex)
 	{
 		SSamplerState ST;
-		
+
 		ST.SetFilterMode(Tex->m_Filter);
 		ST.SetClampMode(Tex->m_bUTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp, Tex->m_bVTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp, Tex->m_bUTile ? eSamplerAddressMode_Wrap : eSamplerAddressMode_Clamp);
 
@@ -568,7 +573,7 @@ CTexture* CShaderMan::mfTryToLoadTexture(const char* nameTex, STexSamplerRT* smp
 {
 	if (nameTex && strchr(nameTex, '#')) // test for " #" to skip max material names
 	{
-		int n = mfReadTexSequence(smp, nameTex, Flags, bFindOnly);
+		mfReadTexSequence(smp, nameTex, Flags, bFindOnly);
 	}
 
 	CTexture* tx = smp->m_pTex;

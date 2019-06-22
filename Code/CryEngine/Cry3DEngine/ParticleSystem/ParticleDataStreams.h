@@ -33,6 +33,8 @@ public:
 	Tv& operator[](TParticleGroupId pgId)       { return *(Tv*)(m_pStream + pgId); }
 #endif
 
+	T* Data()                                   { return m_pStream; }
+
 protected:
 	T* __restrict m_pStream;
 };
@@ -47,11 +49,14 @@ public:
 	bool IsValid() const                       { return m_safeMask != 0; }
 	T SafeLoad(TParticleId pId) const          { return m_pStream[pId & m_safeMask]; }
 	T operator[](TParticleId pId) const        { return SafeLoad(pId); }
+
 #ifdef CRY_PFX2_USE_SSE
 	Tv SafeLoad(TParticleGroupId pgId) const   { return *(const Tv*)(m_pStream + (pgId & m_safeMask)); }
 	Tv operator[](TParticleGroupId pgId) const { return SafeLoad(pgId); }
 	Tv SafeLoad(TParticleIdv pIdv) const;
 #endif
+
+	const T* Data() const                      { return m_pStream; }
 
 private:
 	using TIOStream<T>::Store;

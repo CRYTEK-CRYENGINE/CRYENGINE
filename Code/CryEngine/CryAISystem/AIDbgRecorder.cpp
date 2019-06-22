@@ -37,8 +37,8 @@ bool CAIDbgRecorder::IsRecording(const IAIObject* pTarget, IAIRecordable::e_AIDb
 	if (!pTarget)
 		return false;
 
-	return !strcmp(gAIEnv.CVars.StatsTarget, "all")
-	       || !strcmp(gAIEnv.CVars.StatsTarget, pTarget->GetName());
+	return !strcmp(gAIEnv.CVars.legacyDebugDraw.StatsTarget, "all")
+	       || !strcmp(gAIEnv.CVars.legacyDebugDraw.StatsTarget, pTarget->GetName());
 }
 
 //
@@ -69,7 +69,7 @@ void CAIDbgRecorder::Record(const IAIObject* pTarget, IAIRecordable::e_AIDbgEven
 
 	// Filter to only log the targets we are interested in
 	// I.e. if not "all" and if not our current target, return
-	const char* sStatsTarget = gAIEnv.CVars.StatsTarget;
+	const char* sStatsTarget = gAIEnv.CVars.legacyDebugDraw.StatsTarget;
 	if ((strcmp(sStatsTarget, "all") != 0) && (strcmp(sStatsTarget, pTarget->GetName()) != 0))
 		return;
 
@@ -189,7 +189,7 @@ void CAIDbgRecorder::InitFileSecondary() const
 //----------------------------------------------------------------------------------------------
 void CAIDbgRecorder::LogString(const char* pString) const
 {
-	bool mergeWithLog(gAIEnv.CVars.RecordLog != 0);
+	bool mergeWithLog(gAIEnv.CVars.LegacyRecordLog != 0);
 	if (!mergeWithLog)
 	{
 		if (m_sFile.empty())

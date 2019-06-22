@@ -18,9 +18,15 @@ class CProjectsModel : public QAbstractItemModel
 public:
 	enum Column
 	{
+		eColumn_RunOnStartup,
 		eColumn_Name,
 		eColumn_LastAccessTime,
 		eColumn_Path,
+	};
+
+	enum UserRoles : int
+	{
+		SortRole = Qt::UserRole + 1
 	};
 
 	CProjectsModel(QObject* pParent, CProjectManager& mgr);

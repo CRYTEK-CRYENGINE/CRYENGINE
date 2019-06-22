@@ -206,7 +206,7 @@ void ConvexHull2DGraham(std::vector<Vec3>& ptsOut, const std::vector<Vec3>& ptsI
 
 	std::swap(ptsSorted[0], ptsSorted[iBotRight]);
 	{
-		CRY_PROFILE_REGION(PROFILE_AI, "SORT Graham");
+		CRY_PROFILE_SECTION(PROFILE_AI, "SORT Graham");
 		std::sort(ptsSorted.begin() + 1, ptsSorted.end(), SPointSorter(ptsSorted[0]));
 	}
 	ptsSorted.erase(std::unique(ptsSorted.begin(), ptsSorted.end(), ptEqual), ptsSorted.end());
@@ -298,7 +298,7 @@ void ConvexHull2DAndrew(std::vector<Vec3>& ptsOut, const std::vector<Vec3>& ptsI
 	P = ptsIn;
 
 	{
-		CRY_PROFILE_REGION(PROFILE_AI, "SORT Andrew");
+		CRY_PROFILE_SECTION(PROFILE_AI, "SORT Andrew");
 		std::sort(P.begin(), P.end(), PointSorterAndrew);
 	}
 

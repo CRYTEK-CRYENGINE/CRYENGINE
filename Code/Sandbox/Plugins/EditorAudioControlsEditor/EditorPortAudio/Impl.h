@@ -28,7 +28,7 @@ public:
 	virtual ~CImpl() override;
 
 	// IImpl
-	virtual void           Initialize(SImplInfo& implInfo, Platforms const& platforms) override;
+	virtual void           Initialize(SImplInfo& implInfo, ExtensionFilterVector& extensionFilters, QStringList& supportedFileTypes) override;
 	virtual QWidget*       CreateDataPanel() override;
 	virtual void           DestroyDataPanel() override;
 	virtual void           Reload(SImplInfo& implInfo) override;
@@ -39,9 +39,11 @@ public:
 	virtual bool           IsTypeCompatible(EAssetType const assetType, IItem const* const pIItem) const override;
 	virtual EAssetType     ImplTypeToAssetType(IItem const* const pIItem) const override;
 	virtual IConnection*   CreateConnectionToControl(EAssetType const assetType, IItem const* const pIItem) override;
-	virtual IConnection*   CreateConnectionFromXMLNode(XmlNodeRef pNode, EAssetType const assetType) override;
-	virtual XmlNodeRef     CreateXMLNodeFromConnection(IConnection const* const pIConnection, EAssetType const assetType) override;
-	virtual XmlNodeRef     SetDataNode(char const* const szTag) override;
+	virtual IConnection*   CreateConnectionFromXMLNode(XmlNodeRef const& node, EAssetType const assetType) override;
+	virtual XmlNodeRef     CreateXMLNodeFromConnection(IConnection const* const pIConnection, EAssetType const assetType, CryAudio::ContextId const contextId) override;
+	virtual XmlNodeRef     SetDataNode(char const* const szTag, CryAudio::ContextId const contextId) override;
+	virtual void           OnBeforeWriteLibrary() override;
+	virtual void           OnAfterWriteLibrary() override;
 	virtual void           EnableConnection(IConnection const* const pIConnection, bool const isLoading) override;
 	virtual void           DisableConnection(IConnection const* const pIConnection, bool const isLoading) override;
 	virtual void           DestructConnection(IConnection const* const pIConnection) override;
@@ -50,6 +52,9 @@ public:
 	virtual void           OnSelectConnectedItem(ControlId const id) const override;
 	virtual void           OnFileImporterOpened() override;
 	virtual void           OnFileImporterClosed() override;
+	virtual bool           CanDropExternalData(QMimeData const* const pData) const override;
+	virtual bool           DropExternalData(QMimeData const* const pData, FileImportInfos& fileImportInfos) const override;
+	virtual ControlId      GenerateItemId(QString const& name, QString const& path, bool const isLocalized) override;
 	// ~IImpl
 
 	CItem const& GetRootItem() const { return m_rootItem; }

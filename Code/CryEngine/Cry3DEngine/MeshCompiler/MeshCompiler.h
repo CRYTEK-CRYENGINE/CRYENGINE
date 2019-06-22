@@ -1,18 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   MeshCompiler.h
-//  Version:     v1.00
-//  Created:     5/11/2004 by Timur.
-//  Compilers:   Visual Studio.NET 2003
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __MeshCompiler_h__
-#define __MeshCompiler_h__
 #pragma once
 
 #include <Cry3DEngine/IIndexedMesh.h>
@@ -209,5 +196,3 @@ private:
 };
 
 } // namespace mesh_compiler
-
-#endif // __MeshCompiler_h__

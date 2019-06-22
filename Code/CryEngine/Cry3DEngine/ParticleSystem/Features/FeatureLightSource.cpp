@@ -29,7 +29,7 @@ public:
 	{
 		pComponent->RenderDeferred.add(this);
 		pComponent->AddParticleData(EPVF_Position);
-		if (GetPSystem()->GetFlareMaterial() && !m_flare.empty())
+		if (!m_flare.empty() && GetFlareMaterial())
 			m_hasFlareOptics = gEnv->pOpticsManager->Load(m_flare.c_str(), m_lensOpticsId);
 	}
 
@@ -70,14 +70,12 @@ public:
 			light.m_sName = "Wavicle";
 			IOpticsElementBase* pOptics = gEnv->pOpticsManager->GetOptics(m_lensOpticsId);
 			light.SetLensOpticsElement(pOptics);
-			light.m_Shader = GetPSystem()->GetFlareMaterial()->GetShaderItem();
+			light.m_Shader = GetFlareMaterial()->GetShaderItem();
 		}
 
-		UCol defaultColor;
-		defaultColor.dcolor = ~0;
 		const CParticleContainer& container = runtime.GetContainer();
 		const IVec3Stream positions = container.GetIVec3Stream(EPVF_Position);
-		const IColorStream colors = container.GetIColorStream(EPDT_Color, defaultColor);
+		const IColorStream colors = container.GetIColorStream(EPDT_Color, UCol{{~0u}});
 		const IFStream alphas = container.GetIFStream(EPDT_Alpha, 1.0f);
 		const IFStream sizes = container.GetIFStream(EPDT_Size);
 
@@ -87,7 +85,7 @@ public:
 		const float distRatio = GetFloatCVar(e_ParticlesLightsViewDistRatio);
 		AABB bounds { AABB::RESET };
 
-		for (auto particleId : container.GetFullRange())
+		for (auto particleId : container.FullRange())
 		{
 			const Vec3 position = positions.Load(particleId);
 			light.SetPosition(position);
@@ -118,6 +116,12 @@ private:
 
 	bool             m_hasFlareOptics      = false;
 	int              m_lensOpticsId;
+
+	static IMaterial* GetFlareMaterial()
+	{
+		static cstr flareMaterialName = "%ENGINE%/EngineAssets/Materials/lens_optics";
+		return gEnv->p3DEngine->GetMaterialManager()->FindMaterial(flareMaterialName);
+	}
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureLightSource, "Light", "Light", colorLight);

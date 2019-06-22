@@ -6,8 +6,9 @@
 #include <climits>
 
 #include "Common/RenderDisplayContext.h"
-
 #include "Common/ReverseDepth.h"
+
+#include <CrySystem/ConsoleRegistration.h>
 
 #if defined(ENABLE_RENDER_AUX_GEOM)
 
@@ -904,7 +905,6 @@ void CRenderAuxGeomD3D::Prepare(const SAuxGeomRenderFlags& renderFlags, Matrix44
 
 	m_curPointSize = (CAuxGeomCB::e_PtList == CAuxGeomCB::GetPrimType(renderFlags)) ? CAuxGeomCB::GetPointSize(renderFlags) : 1;
 
-	EAuxGeomPublicRenderflags_DrawInFrontMode newDrawInFrontMode(renderFlags.GetDrawInFrontMode());
 	CAuxGeomCB::EPrimType newPrimType(CAuxGeomCB::GetPrimType(renderFlags));
 
 	m_curDrawInFrontMode = (e_DrawInFrontOn == renderFlags.GetDrawInFrontMode() && e_Mode3D == eMode) ? e_DrawInFrontOn : e_DrawInFrontOff;
@@ -988,10 +988,6 @@ void CRenderAuxGeomD3D::RT_Flush(const SAuxGeomCBRawDataPackagedConst& data)
 	SRenderViewport vp;
 	if (PrepareRendering(data.m_pData, &vp))
 	{
-		CD3DStereoRenderer& stereoRenderer = gcpRendD3D->GetS3DRend();
-		const bool bStereoEnabled = stereoRenderer.IsStereoEnabled();
-		const bool bStereoSequentialMode = stereoRenderer.RequiresSequentialSubmission();
-
 		// process push buffer
 		for (CAuxGeomCB::AuxSortedPushBuffer::const_iterator it(m_auxSortedPushBuffer.begin()), itEnd(m_auxSortedPushBuffer.end()); it != itEnd; )
 		{
@@ -1145,11 +1141,6 @@ void CRenderAuxGeomD3D::SMatrices::UpdateMatrices(const CCamera& camera)
 	const Vec2i resolution = { camera.GetViewSurfaceX(), camera.GetViewSurfaceZ() };
 	const bool depthreversed = true;
 
-	//float depth = depthreversed ? 1.0f : -1.0f;
-	//float depth = depthreversed ? 1.0f : -1.0f;
-	float depth = -1e10f;
-	//mathMatrixOrthoOffCenter(&m_matProj, 0.0f, (float)resolution.x, (float)resolution.y,0.0f, depth, -depth);
-
 	/*
 	float xScale = 1.0f / (float)resolution.x;
 	float yScale = 1.0f / (float)resolution.y;
@@ -1295,9 +1286,18 @@ CDeviceResourceSetPtr CRenderAuxGeomD3D::CAuxDeviceResourceSetCacheForTexture::G
 	if (it != m_cache.end())
 		return (it->second).first;
 
+	// Fall-back (without creating a cache-entry pointing to the requested missing texture)
 	CTexture *pTexture = CTexture::GetByID(textureId);
 	if (!pTexture || !CTexture::IsTextureExist(pTexture))
+	{
 		pTexture = CRendererResources::s_ptexWhite;
+		textureId = pTexture->GetID();
+
+		CDeviceResourceSetPtr pResourceSet = GetOrCreateResourceSet(textureId);
+		if (!m_pDefaultWhite)
+			m_pDefaultWhite = pResourceSet;
+		return pResourceSet;
+	}
 
 	CDeviceResourceSetDesc auxResourcesSetDesc;
 	auxResourcesSetDesc.SetTexture(0, pTexture, EDefaultResourceViews::Default, EShaderStage_Pixel);
@@ -1308,10 +1308,6 @@ CDeviceResourceSetPtr CRenderAuxGeomD3D::CAuxDeviceResourceSetCacheForTexture::G
 	{
 		m_cache[textureId] = std::make_pair(pResourceSet, _smart_ptr<CTexture>(pTexture));
 		pTexture->AddInvalidateCallback(this, SResourceBindPoint(), OnTextureInvalidated);
-		
-		if (!m_pDefaultWhite && pTexture == CRendererResources::s_ptexWhite)
-			m_pDefaultWhite = pResourceSet;
-
 	}
 	
 	return pResourceSet;
@@ -1338,6 +1334,7 @@ void CAuxGeomCBCollector::GetMemoryUsage(ICrySizer* pSizer) const
 CAuxGeomCBCollector::AUXJobs CAuxGeomCBCollector::SubmitAuxGeomsAndPrepareForRendering()
 {
 	FUNCTION_PROFILER_RENDERER();
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CAuxGeomCBCollector::SubmitAuxGeomsAndPrepareForRendering");
 
 	CAuxGeomCBCollector::AUXJobs auxJobs;
 	std::vector<SThread*>    tmpThreads;	

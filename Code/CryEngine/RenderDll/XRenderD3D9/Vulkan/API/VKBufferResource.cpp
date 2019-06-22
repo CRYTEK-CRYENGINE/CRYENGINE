@@ -14,12 +14,12 @@ CBufferResource::~CBufferResource()
 
 VkResult CBufferResource::Init(VkBuffer buffer, const VkBufferCreateInfo& createInfo)
 {
-	VK_ASSERT(!m_hVkBufferResource && "Buffer already initialized");
+	VK_ASSERT(!m_hVkBufferResource, "Buffer already initialized");
 	m_hVkBufferResource = buffer;
 	m_VkCreateInfo = createInfo;
 
-	VK_ASSERT(createInfo.sharingMode == VK_SHARING_MODE_EXCLUSIVE && "Sharing not implemented");
-	VK_ASSERT(~createInfo.flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT && "Sparse storage not implemented");
+	VK_ASSERT(createInfo.sharingMode == VK_SHARING_MODE_EXCLUSIVE, "Sharing not implemented");
+	VK_ASSERT(~createInfo.flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT, "Sparse storage not implemented");
 
 	{
 		// Analyze flags
@@ -84,7 +84,7 @@ VkResult CBufferResource::InitAsNull()
 
 CAutoHandle<VkBufferView> CBufferResource::CreateView(VkFormat format, VkDeviceSize offset, VkDeviceSize bytes)
 {
-	VK_ASSERT(m_hVkBufferResource && (m_flags & kBufferFlagTexels) && "Cannot create buffer view on a non-texel buffer");
+	VK_ASSERT(m_hVkBufferResource && (m_flags & kBufferFlagTexels), "Cannot create buffer view on a non-texel buffer");
 
 	VkBufferViewCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;

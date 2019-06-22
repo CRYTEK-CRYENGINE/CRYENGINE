@@ -11,6 +11,7 @@
 
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryAnimation/ICryAnimation.h>
+#include <CryCore/ScopeGuard.h>
 
 IMPLEMENT_DYNAMIC(CFacialPreviewDialog, CToolbarDialog)
 
@@ -248,8 +249,13 @@ static const char* eyeBones[2] = { "eye_left_bone", "eye_right_bone" };
 void CModelViewportFE::Update()
 {
 	if (m_bPaused)
+	{
 		return;
+	}
 
+	CCamera cameraStoreRestore = gEnv->pSystem->GetViewCamera();
+	ScopeGuard cameraRestore{ [&cameraStoreRestore]() {gEnv->pSystem->SetViewCamera(cameraStoreRestore); } };
+	
 	if (m_bAnimateCamera)
 	{
 		IFacialAnimSequence* pSequence = (m_pContext ? m_pContext->GetSequence() : 0);

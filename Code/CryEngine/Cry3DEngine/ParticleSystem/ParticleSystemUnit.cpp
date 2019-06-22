@@ -1,12 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  Created:     06/04/2014 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 #include <CrySystem/Testing/CryTest.h>
 #include "ParticleSystem.h"
@@ -32,7 +25,7 @@ CRY_TEST_SUITE(CryParticleSystemTest)
 		virtual void Init() override
 		{
 			m_pEffect = std::unique_ptr<pfx2::CParticleEffect>(new pfx2::CParticleEffect());
-		};
+		}
 
 		virtual void Done() override
 		{

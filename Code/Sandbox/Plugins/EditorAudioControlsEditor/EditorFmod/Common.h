@@ -12,8 +12,10 @@ namespace Impl
 {
 namespace Fmod
 {
-extern CryAudio::Impl::Fmod::SPoolSizes g_connections;
-extern Platforms g_platforms;
+using ConnectionsByContext = std::map<CryAudio::ContextId, CryAudio::Impl::Fmod::SPoolSizes>;
+extern ConnectionsByContext g_connections;
+
+extern string g_language;
 
 static CryIcon s_errorIcon;
 static CryIcon s_bankIcon;
@@ -61,38 +63,49 @@ inline CryIcon const& GetTypeIcon(EItemType const type)
 	switch (type)
 	{
 	case EItemType::Bank:
-		return s_bankIcon;
-		break;
+		{
+			return s_bankIcon;
+		}
 	case EItemType::EditorFolder:
-		return s_editorFolderIcon;
-		break;
+		{
+			return s_editorFolderIcon;
+		}
 	case EItemType::Event:
-		return s_eventIcon;
-		break;
+		{
+			return s_eventIcon;
+		}
 	case EItemType::Folder:
-		return s_folderIcon;
-		break;
+		{
+			return s_folderIcon;
+		}
 	case EItemType::MixerGroup:
-		return s_mixerGroupIcon;
-		break;
+		{
+			return s_mixerGroupIcon;
+		}
 	case EItemType::Parameter:
-		return s_ParameterIcon;
-		break;
+		{
+			return s_ParameterIcon;
+		}
 	case EItemType::Return:
-		return s_returnIcon;
-		break;
+		{
+			return s_returnIcon;
+		}
 	case EItemType::Key:
-		return s_keyIcon;
-		break;
+		{
+			return s_keyIcon;
+		}
 	case EItemType::Snapshot:
-		return s_snapshotIcon;
-		break;
+		{
+			return s_snapshotIcon;
+		}
 	case EItemType::VCA:
-		return s_vcaIcon;
-		break;
+		{
+			return s_vcaIcon;
+		}
 	default:
-		return s_errorIcon;
-		break;
+		{
+			return s_errorIcon;
+		}
 	}
 }
 
@@ -102,38 +115,49 @@ inline QString const& TypeToString(EItemType const type)
 	switch (type)
 	{
 	case EItemType::Bank:
-		return s_bankTypeName;
-		break;
+		{
+			return s_bankTypeName;
+		}
 	case EItemType::EditorFolder:
-		return s_editorFolderTypeName;
-		break;
+		{
+			return s_editorFolderTypeName;
+		}
 	case EItemType::Event:
-		return s_eventTypeName;
-		break;
+		{
+			return s_eventTypeName;
+		}
 	case EItemType::Folder:
-		return s_folderTypeName;
-		break;
+		{
+			return s_folderTypeName;
+		}
 	case EItemType::MixerGroup:
-		return s_mixerGroupTypeName;
-		break;
+		{
+			return s_mixerGroupTypeName;
+		}
 	case EItemType::Parameter:
-		return s_parameterTypeName;
-		break;
+		{
+			return s_parameterTypeName;
+		}
 	case EItemType::Return:
-		return s_returnTypeName;
-		break;
+		{
+			return s_returnTypeName;
+		}
 	case EItemType::Key:
-		return s_keyTypeName;
-		break;
+		{
+			return s_keyTypeName;
+		}
 	case EItemType::Snapshot:
-		return s_snapshotTypeName;
-		break;
+		{
+			return s_snapshotTypeName;
+		}
 	case EItemType::VCA:
-		return s_vcaTypeName;
-		break;
+		{
+			return s_vcaTypeName;
+		}
 	default:
-		return s_emptyTypeName;
-		break;
+		{
+			return s_emptyTypeName;
+		}
 	}
 }
 } // namespace Fmod

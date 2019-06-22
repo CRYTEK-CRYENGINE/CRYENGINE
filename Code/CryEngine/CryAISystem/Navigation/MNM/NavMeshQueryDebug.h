@@ -28,7 +28,7 @@ namespace MNM
 
 		virtual  bool AddBatchToHistory(const INavMeshQueryDebug::SBatchData& queryBatch) override
 		{
-			if (!gAIEnv.CVars.StoreNavigationQueriesHistory && !gAIEnv.CVars.DebugDrawNavigationQueriesUDR)
+			if (!gAIEnv.CVars.navigation.StoreNavigationQueriesHistory && !gAIEnv.CVars.navigation.DebugDrawNavigationQueriesUDR)
 			{
 				return false;
 			}
@@ -45,7 +45,7 @@ namespace MNM
 
 		virtual  bool AddInvalidationToHistory(const INavMeshQueryDebug::SInvalidationData& queryInvalidation) override
 		{
-			if (!gAIEnv.CVars.StoreNavigationQueriesHistory && !gAIEnv.CVars.DebugDrawNavigationQueriesUDR)
+			if (!gAIEnv.CVars.navigation.StoreNavigationQueriesHistory && !gAIEnv.CVars.navigation.DebugDrawNavigationQueriesUDR)
 			{
 				return false;
 			}

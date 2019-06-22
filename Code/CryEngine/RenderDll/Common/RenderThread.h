@@ -1,15 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   RenderThread.h : Render thread commands processing.
-
-   Revision history:
-* Created by Honitch Andrey
-
-   =============================================================================*/
-
-#ifndef __RENDERTHREAD_H__
-#define __RENDERTHREAD_H__
+#pragma once
 
 #include <CryCore/AlignmentTools.h>
 
@@ -24,17 +15,18 @@
 
 //====================================================================
 
+class CDeviceResourceSet;
+class CRenderMesh;
+
+struct IColorGradingControllerInt;
+struct IDynTextureSourceImpl;
 struct IFlashPlayer;
 struct IFlashPlayer_RenderProxy;
 struct IRenderAuxGeomImpl;
 struct SAuxGeomCBRawDataPackagedConst;
-struct IColorGradingControllerInt;
 struct SColorChartLayer;
-class CRenderMesh;
-struct IDynTextureSourceImpl;
 struct SDynTexture;
 struct STexStreamInState;
-class CDeviceResourceSet;
 
 #if CRY_PLATFORM_ORBIS || CRY_PLATFORM_DURANGO || CRY_PLATFORM_MOBILE || CRY_PLATFORM_WINDOWS
 	#define USE_LOCKS_FOR_FLUSH_SYNC
@@ -63,7 +55,7 @@ enum ERenderCommand
 
 enum class ERenderCommandFlags : uint32
 {
-	None = 0,                                  // RenderThread and RenderLoadingThread: execute command directly
+	None                             = 0,      // RenderThread and RenderLoadingThread: execute command directly
 	                                           // LevelLoadingThread and Main thread: push command to renderthread
 	FlushAndWait                     = BIT(1),
 	SkipDuringLoading                = BIT(2),
@@ -110,6 +102,7 @@ struct CRY_ALIGN(128) SRenderThread
 	bool m_bQuitLoading;
 	bool m_bSuccessful;
 	SDisplayContextKey m_displayContextKey;
+	SGraphicsPipelineKey m_graphicsPipelineKey;
 	bool m_bBeginFrameCalled;
 	bool m_bEndFrameCalled;
 #ifndef STRIP_RENDER_THREAD
@@ -155,7 +148,7 @@ struct CRY_ALIGN(128) SRenderThread
 
 	struct PoolSyncCriticalSection
 	{
-		void Lock() { m_cs.Lock(); }
+		void Lock()   { m_cs.Lock(); }
 		void Unlock() { m_cs.Unlock(); }
 		CryCriticalSectionNonRecursive m_cs;
 	};
@@ -204,7 +197,7 @@ struct CRY_ALIGN(128) SRenderThread
 	void WaitFlushCond();
 
 #if CRY_PLATFORM_WINDOWS
-	HWND GetRenderWindowHandle();
+	CRY_HWND GetRenderWindowHandle();
 #endif
 
 	void WaitFlushFinishedCond();
@@ -234,8 +227,7 @@ struct CRY_ALIGN(128) SRenderThread
 	//! If Render thread doesn't exist it will be executed on the Main thread
 	//! @see ERenderCommandFlags
 	template<typename RenderThreadCallback>
-	void ExecuteRenderThreadCommand(RenderThreadCallback&& callback, ERenderCommandFlags flags);
-
+	void ExecuteRenderThreadCommand(RenderThreadCallback && callback, ERenderCommandFlags flags);
 
 	inline byte* AddCommandTo(ERenderCommand eRC, size_t nParamBytes, TArray<byte>& queue)
 	{
@@ -342,13 +334,13 @@ struct CRY_ALIGN(128) SRenderThread
 	void ProcessCommands();
 	void Process();         // Render thread
 	void ProcessLoading();  // Loading thread
-	int GetThreadList() const;
+	int  GetThreadList() const;
 	bool IsRenderThread(bool bAlwaysCheck = false) const;
 	bool IsRenderLoadingThread(bool bAlwaysCheck = false);
-	bool IsLevelLoadingThread(bool bAlwaysCheck=false) const;
+	bool IsLevelLoadingThread(bool bAlwaysCheck = false) const;
 	bool IsMainThread(bool bAlwaysCheck = false) const;
 	bool IsMultithreaded();
-	int CurThreadFill() const;
+	int  CurThreadFill() const;
 
 	bool RC_CreateDevice();
 	void RC_ResetDevice();
@@ -357,13 +349,13 @@ struct CRY_ALIGN(128) SRenderThread
 	void RC_ResumeDevice();
 #endif
 
-	void RC_PrecacheResource(ITexture * pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId, int nCounter = 1);
+	void RC_PrecacheResource(ITexture* pTP, float fMipFactor, float fTimeToReady, int Flags, int nUpdateId);
 
-	void RC_FlashRender(std::shared_ptr<IFlashPlayer_RenderProxy> &&pPlayer);
-	void RC_FlashRenderPlayer(std::shared_ptr<IFlashPlayer> &&pPlayer);
-	void RC_FlashRenderPlaybackLockless(std::shared_ptr<IFlashPlayer_RenderProxy> &&pPlayer, int cbIdx, bool finalPlayback);
+	void RC_FlashRender(std::shared_ptr<IFlashPlayer_RenderProxy> && pPlayer);
+	void RC_FlashRenderPlayer(std::shared_ptr<IFlashPlayer> && pPlayer);
+	void RC_FlashRenderPlaybackLockless(std::shared_ptr<IFlashPlayer_RenderProxy> && pPlayer, int cbIdx, bool finalPlayback);
 
-	void RC_BeginFrame(const SDisplayContextKey& displayContextKey);
+	void RC_BeginFrame(const SDisplayContextKey &displayContextKey, const SGraphicsPipelineKey &graphicsPipelineKey);
 	void RC_EndFrame(bool bWait);
 	void RC_TryFlush();
 	void RC_StartVideoThread();
@@ -483,7 +475,7 @@ inline void SRenderThread::ExecuteRenderThreadCommand(RenderThreadCallback&& cal
 	{
 		AUTO_LOCK_T(CryCriticalSectionNonRecursive, m_CommandsLoadingLock);
 		byte* p = AddCommandTo(eRC_LambdaCall, sizeof(void*), m_CommandsLoading);
-		void* pCallbackPtr = ::new(m_lambdaCallbacksPool.Allocate())SRenderThreadLambdaCallback{callback,flags};
+		void* pCallbackPtr = ::new(m_lambdaCallbacksPool.Allocate())SRenderThreadLambdaCallback{ callback, flags };
 		AddPointer(p, pCallbackPtr);
 		EndCommandTo(p, m_CommandsLoading);
 
@@ -494,7 +486,7 @@ inline void SRenderThread::ExecuteRenderThreadCommand(RenderThreadCallback&& cal
 		CRY_ASSERT(IsMainThread());
 //		AUTO_LOCK_T(CryCriticalSectionNonRecursive, m_CommandsLock);
 		byte* p = AddCommandTo(eRC_LambdaCall, sizeof(void*), m_Commands[m_nCurThreadFill]);
-		void* pCallbackPtr = ::new(m_lambdaCallbacksPool.Allocate())SRenderThreadLambdaCallback{callback,flags};
+		void* pCallbackPtr = ::new(m_lambdaCallbacksPool.Allocate())SRenderThreadLambdaCallback{ callback, flags };
 		AddPointer(p, pCallbackPtr);
 		EndCommandTo(p, m_Commands[m_nCurThreadFill]);
 	}
@@ -505,6 +497,3 @@ inline void SRenderThread::ExecuteRenderThreadCommand(RenderThreadCallback&& cal
 	}
 #endif
 }
-
-
-#endif  // __RENDERTHREAD_H__

@@ -58,6 +58,7 @@ void SPendingStimulusRayInfo::operator=(const SPendingStimulusRayInfo& source)
 // ===========================================================================
 SPendingListenerForStimulus::SPendingListenerForStimulus()
 	: listenerEntityId(INVALID_ENTITYID)
+	, stimulusParamsIndex(-1)
 {
 }
 
@@ -129,7 +130,7 @@ PendingStimulusParamsIndex CAuditionMapRayCastManager::PreparePendingStimulusPar
 
 	SPendingStimulusParams& pendingStimulusParams = m_pendingStimuliParams[index];
 	pendingStimulusParams.soundParams = params;
-	
+
 	/*const bool bHasValidSoundTags = (params.pSoundTags != nullptr);
 	if (bHasValidSoundTags)
 	{
@@ -174,7 +175,7 @@ void CAuditionMapRayCastManager::QueueRaysBetweenStimulusAndListener(
 	for (int earIndex = 0; earIndex < earsCount; ++earIndex)
 	{
 		m_pendingStimuliParams[stimulusParamsIndex].AddRef();
-		
+
 		rayCastRequestInfo.rayEndPos = listenerParams.ears[earIndex].worldPos;
 
 		const QueuedRayID queuedRayId = QueueRay(rayCastRequestInfo);
@@ -215,12 +216,12 @@ QueuedRayID CAuditionMapRayCastManager::QueueRay(const SRayCastRequestInfo& requ
 	const QueuedRayID queuedRayId = GetAISystem()->GetGlobalRaycaster()->Queue(
 	  rayPriority,
 	  RayCastRequest(
-	    requestInfo.rayStartPos,
-	    requestInfo.rayEndPos - requestInfo.rayStartPos,
-	    physicsCheckObjectTypesMask,
-	    physicsRayCastConfigMask,
-	    &skipList.at(0), skipList.size(),
-	    (int)RayCastResult::MaxHitCount),
+		requestInfo.rayStartPos,
+		requestInfo.rayEndPos - requestInfo.rayStartPos,
+		physicsCheckObjectTypesMask,
+		physicsRayCastConfigMask,
+		&skipList.at(0), skipList.size(),
+		(int)RayCastResult::MaxHitCount),
 	  functor(*this, &CAuditionMapRayCastManager::OnRayCastComplete),
 	  nullptr,
 	  AIRayCast::SRequesterDebugInfo("CAuditionMapRayCastManager::QueueRay"));
@@ -409,9 +410,9 @@ bool CAuditionMapRayCastManager::HasRayCastReachedEar(
 }
 
 bool CAuditionMapRayCastManager::DetermineSoundObstruction(
-	ISurfaceTypeManager* pSurfaceTypeManager, 
-	const SRayCastRequestInfo& rayCastRequestInfo, 
-	const ray_hit& rayHitInfo, 
+	ISurfaceTypeManager* pSurfaceTypeManager,
+	const SRayCastRequestInfo& rayCastRequestInfo,
+	const ray_hit& rayHitInfo,
 	float& resultSoundObstruction) const
 {
 	if (m_owner.GetSoundObstructionOnHitCallback())
@@ -494,7 +495,7 @@ bool CAuditionMapRayCastManager::InterpretPendingStimulusRayCastResult(const Pen
 		eventsParams.m_soundParams = stimulusParams.soundParams;
 		eventsParams.m_bReachedAtLeastOneEar = stimulusParams.bReachedOneOrMoreEars;
 		eventsParams.m_bLastRay = stimulusParams.GetRefCount() == 1;
-		
+
 		pendingStimulus.queuedRayInfos.erase(findIt);
 		m_pendingStimuliParams.DecRef(stimulusParamsIndex);
 	}

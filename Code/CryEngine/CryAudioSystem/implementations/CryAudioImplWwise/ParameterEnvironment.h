@@ -23,7 +23,7 @@ public:
 	CParameterEnvironment& operator=(CParameterEnvironment const&) = delete;
 	CParameterEnvironment& operator=(CParameterEnvironment&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	explicit CParameterEnvironment(
 		AkRtpcID const rtpcId,
 		float const multiplier,
@@ -43,7 +43,7 @@ public:
 		, m_multiplier(multiplier)
 		, m_shift(shift)
 	{}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 	virtual ~CParameterEnvironment() override = default;
 
@@ -57,9 +57,9 @@ private:
 	float const    m_multiplier;
 	float const    m_shift;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 };
 } // namespace Wwise
 } // namespace Impl

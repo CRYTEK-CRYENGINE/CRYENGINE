@@ -91,7 +91,7 @@ protected:
 	virtual void SetZoom(float fZoomFactor, CPoint center);
 
 	// overrides from CViewport.
-	virtual void            MakeSnappingGridPlane(CLevelEditorSharedState::Axis axis) override;
+	virtual void MakeSnappingGridPlane(CLevelEditorSharedState::Axis axis) override;
 
 	//! Calculate view transformation matrix.
 	virtual void CalculateViewTM();
@@ -138,39 +138,41 @@ protected:
 	Vec3 m_origin2D;
 
 	// Scrolling / zooming related
-	CPoint             m_cMousePos;
-	CPoint             m_RMouseDownPos;
+	CPoint                                  m_cMousePos;
+	CPoint                                  m_RMouseDownPos;
 
-	float              m_prevZoomFactor;
-	CSize              m_prevScrollOffset;
+	float                                   m_prevZoomFactor;
+	CSize                                   m_prevScrollOffset;
 
-	CRect              m_rcSelect;
-	CRect              m_rcClient;
+	CRect                                   m_rcSelect;
+	CRect                                   m_rcClient;
 
-	AABB               m_displayBounds;
+	AABB                                    m_displayBounds;
 
-	bool               m_bShowTerrain;
-	bool               m_bShowViewMarker;
-	bool               m_bShowGrid;
-	bool               m_bShowObjectsInfo;
-	bool               m_bShowMinorGridLines;
-	bool               m_bShowMajorGridLines;
-	bool               m_bShowNumbers;
-	bool               m_bAutoAdjustGrids;
+	bool                                    m_bShowTerrain;
+	bool                                    m_bShowViewMarker;
+	bool                                    m_bShowGrid;
+	bool                                    m_bShowObjectsInfo;
+	bool                                    m_bShowMinorGridLines;
+	bool                                    m_bShowMajorGridLines;
+	bool                                    m_bShowNumbers;
+	bool                                    m_bAutoAdjustGrids;
 
-	Matrix34           m_screenTM;
-	Matrix34           m_screenTM_Inverted;
+	Matrix34                                m_screenTM;
+	Matrix34                                m_screenTM_Inverted;
 
-	float              m_gridAlpha;
-	COLORREF           m_colorGridText;
-	COLORREF           m_colorAxisText;
-	COLORREF           m_colorBackground;
-	bool               m_bContentValid;
-	CPoint             m_cMouseDownPos;
+	float                                   m_gridAlpha;
+	COLORREF                                m_colorGridText;
+	COLORREF                                m_colorAxisText;
+	COLORREF                                m_colorBackground;
+	bool                                    m_bContentValid;
+	CPoint                                  m_cMouseDownPos;
 
-	bool               m_bRenderContextCreated;
+	bool                                    m_bRenderContextCreated;
 
-	CCamera            m_camera;
+	CCamera                                 m_camera;
 
-	SDisplayContextKey m_displayContextKey;
+	SDisplayContextKey                      m_displayContextKey;
+	SGraphicsPipelineKey                    m_graphicsPipelineKey;
+	IRenderer::SGraphicsPipelineDescription m_graphicsPipelineDesc;
 };

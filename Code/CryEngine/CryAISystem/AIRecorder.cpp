@@ -1070,7 +1070,7 @@ void CAIRecorder::OnReset(IAISystem::EResetReason reason)
 	//if (!gEnv->IsEditor())
 	//	return;
 
-	if (gAIEnv.CVars.DebugRecordAuto == 0)
+	if (gAIEnv.CVars.LegacyDebugRecordAuto == 0)
 		return;
 
 	const bool bIsSerializingFile = 0 != gEnv->pSystem->IsSerializingFile();
@@ -1146,7 +1146,7 @@ void CAIRecorder::Start(EAIRecorderMode mode, const char* filename)
 			}
 
 			// File is closed, so we have the chance to adjust buffer size
-			int newBufferSize = gAIEnv.CVars.DebugRecordBuffer;
+			int newBufferSize = gAIEnv.CVars.LegacyDebugRecordBuffer;
 			newBufferSize = clamp_tpl(newBufferSize, 128, 1024000);
 			if (newBufferSize != m_lowLevelFileBufferSize)
 			{

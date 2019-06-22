@@ -6,6 +6,7 @@
 #include <CryGame/IGameFramework.h>
 #include <CryCore/Containers/CryListenerSet.h>
 #include <CryCore/Containers/VectorMap.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 struct SActivationInfo;
 class CFlowGraphModule;

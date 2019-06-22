@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BaseConnection.h"
+#include "../Common/IConnection.h"
 
 #include <PoolObject.h>
 
@@ -12,7 +12,7 @@ namespace Impl
 {
 namespace Adx2
 {
-class CCueConnection final : public CBaseConnection, public CryAudio::CPoolObject<CCueConnection, stl::PSyncNone>
+class CCueConnection final : public IConnection, public CryAudio::CPoolObject<CCueConnection, stl::PSyncNone>
 {
 public:
 
@@ -29,17 +29,24 @@ public:
 		Pause,
 		Resume, };
 
-	explicit CCueConnection(ControlId const id, string const& cueSheetName = "", EActionType const actionType = EActionType::Start)
-		: CBaseConnection(id)
+	explicit CCueConnection(ControlId const id, string const& cueSheetName, EActionType const actionType)
+		: m_id(id)
 		, m_cueSheetName(cueSheetName)
 		, m_actionType(actionType)
+	{}
+
+	explicit CCueConnection(ControlId const id)
+		: m_id(id)
+		, m_cueSheetName("")
+		, m_actionType(EActionType::Start)
 	{}
 
 	virtual ~CCueConnection() override = default;
 
 	// CBaseConnection
-	virtual bool HasProperties() const override { return true; }
-	virtual void Serialize(Serialization::IArchive& ar) override;
+	virtual ControlId GetID() const override final   { return m_id; }
+	virtual bool      HasProperties() const override { return true; }
+	virtual void      Serialize(Serialization::IArchive& ar) override;
 	// ~CBaseConnection
 
 	string const& GetCueSheetName() const { return m_cueSheetName; }
@@ -47,8 +54,9 @@ public:
 
 private:
 
-	string const m_cueSheetName;
-	EActionType  m_actionType;
+	ControlId const m_id;
+	string const    m_cueSheetName;
+	EActionType     m_actionType;
 };
 } // namespace Adx2
 } // namespace Impl

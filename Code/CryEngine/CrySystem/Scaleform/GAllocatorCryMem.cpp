@@ -9,6 +9,7 @@
 	#include "SharedResources.h"
 	#include "System.h"
 	#include <CryMemory/IMemory.h>
+	#include <CrySystem/ConsoleRegistration.h>
 
 	#define TRACK_ALLOCATIONS
 
@@ -50,7 +51,7 @@ void* GSysAllocCryMem::Alloc(UPInt size, UPInt align)
 	void* ptr = allocateInHeap ? m_pHeap->Map(size) : CryGetIMemoryManager()->AllocPages(size);
 
 	#ifndef GHEAP_TRACE_ALL
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	MEMREPLAY_SCOPE_ALLOC(ptr, size, granularity);
 	#endif
 
@@ -98,7 +99,7 @@ bool GSysAllocCryMem::Free(void* ptr, UPInt size, UPInt align)
 	#endif
 
 	#ifndef GHEAP_TRACE_ALL
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 	MEMREPLAY_SCOPE_FREE(ptr);
 	#endif
 

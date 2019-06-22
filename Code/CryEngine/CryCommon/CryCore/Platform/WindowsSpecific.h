@@ -47,10 +47,10 @@
 //////////////////////////////////////////////////////////////////////////
 #include <CryCore/BaseTypes.h>
 
-#define THREADID_NULL 0
 typedef long                          LONG;
 typedef unsigned char                 BYTE;
 typedef unsigned long                 threadID;
+constexpr threadID THREADID_NULL = 0;
 typedef unsigned long                 DWORD;
 typedef double                        real; //!< Biggest float-type on this machine.
 

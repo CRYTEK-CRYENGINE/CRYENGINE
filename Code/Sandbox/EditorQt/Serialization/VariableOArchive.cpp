@@ -90,7 +90,7 @@ CVariableOArchive::CVariableOArchive()
 {
 	m_resourceHandlers["CharacterAnimation"] = &CVariableOArchive::SerializeAnimationName;
 	m_resourceHandlers["AudioTrigger"] = &CVariableOArchive::SerializeAudioTriggerName;
-	m_resourceHandlers["AudioRTPC"] = &CVariableOArchive::SerializeAudioParameterName;
+	m_resourceHandlers["AudioParameter"] = &CVariableOArchive::SerializeAudioParameterName;
 	m_resourceHandlers["Joint"] = &CVariableOArchive::SerializeJointName;
 	m_resourceHandlers["ForceFeedbackId"] = &CVariableOArchive::SerializeForceFeedbackIdName;
 	m_resourceHandlers["Attachment"] = &CVariableOArchive::SerializeAttachmentName;
@@ -99,11 +99,11 @@ CVariableOArchive::CVariableOArchive()
 	m_resourceHandlers["Particle"] = &CVariableOArchive::SerializeParticleName;
 	m_resourceHandlers["ParticleLegacy"] = &CVariableOArchive::SerializeParticleName;
 
-	m_structHandlers[TypeID::get < Serialization::IResourceSelector > ().name()] = &CVariableOArchive::SerializeIResourceSelector;
-	m_structHandlers[TypeID::get < Serialization::RangeDecorator < float >> ().name()] = &CVariableOArchive::SerializeRangeFloat;
-	m_structHandlers[TypeID::get < Serialization::RangeDecorator < int >> ().name()] = &CVariableOArchive::SerializeRangeInt;
-	m_structHandlers[TypeID::get < Serialization::RangeDecorator < unsigned int >> ().name()] = &CVariableOArchive::SerializeRangeUInt;
-	m_structHandlers[TypeID::get < StringListStaticValue > ().name()] = &CVariableOArchive::SerializeStringListStaticValue;
+	m_structHandlers[TypeID::get<Serialization::IResourceSelector> ().name()] = &CVariableOArchive::SerializeIResourceSelector;
+	m_structHandlers[TypeID::get<Serialization::RangeDecorator<float>> ().name()] = &CVariableOArchive::SerializeRangeFloat;
+	m_structHandlers[TypeID::get<Serialization::RangeDecorator<int>> ().name()] = &CVariableOArchive::SerializeRangeInt;
+	m_structHandlers[TypeID::get<Serialization::RangeDecorator<unsigned int>> ().name()] = &CVariableOArchive::SerializeRangeUInt;
+	m_structHandlers[TypeID::get<StringListStaticValue> ().name()] = &CVariableOArchive::SerializeStringListStaticValue;
 }
 
 CVariableOArchive::~CVariableOArchive()
@@ -527,7 +527,7 @@ bool Serialization::CVariableOArchive::SerializeAudioParameterName(const IResour
 {
 	const string valueString = pSelector->GetValue();
 	_smart_ptr<IVariable> pVariable = VarUtil::AddChildVariable<string>(m_pVariable, valueString, name, label);
-	pVariable->SetDataType(IVariable::DT_AUDIO_RTPC);
+	pVariable->SetDataType(IVariable::DT_AUDIO_PARAMETER);
 
 	return true;
 }

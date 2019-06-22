@@ -7,6 +7,13 @@
 #include "FunctionDesc.h"
 #include "VariableDesc.h"
 
+// TODO: This is a workaround for our CRY_IS_MONOLITHIC_BUILD which doesn't handle static variable very well.
+//       For now we disable double registration asserts for those builds, because they do not (should not) influence working ability.
+#if defined(CRY_IS_MONOLITHIC_BUILD)
+#define CRY_DISABLE_REFLECTION_REGISTRATION_ASSERTS 1
+#endif
+// ~TODO
+
 namespace Cry {
 namespace Reflection {
 
@@ -32,6 +39,7 @@ ITypeDesc* CCoreRegistry::RegisterType(const Type::CTypeDesc& typeDesc, CGuid gu
 	auto resultByGuid = m_typeIndicesByGuid.find(guid);
 	if (resultByGuid != m_typeIndicesByGuid.end())
 	{
+#if !defined (CRY_DISABLE_REFLECTION_REGISTRATION_ASSERTS)
 #if defined(USE_CRY_ASSERT)
 		const CTypeDesc& foundTypeDesc = m_typesByIndex[resultByGuid->second];
 		const SSourceFileInfo& srcPos = foundTypeDesc.m_sourcePos;
@@ -44,13 +52,14 @@ ITypeDesc* CCoreRegistry::RegisterType(const Type::CTypeDesc& typeDesc, CGuid gu
 		                   srcPos.GetFile(),
 		                   srcPos.GetLine(),
 		                   srcPos.GetFunction());
-
+#endif
 		return nullptr;
 	}
 
 	auto resultByTypeId = m_typeIndicesByTypeId.find(typeDesc.GetTypeId().GetValue());
 	if (resultByTypeId != m_typeIndicesByTypeId.end())
 	{
+#if !defined (CRY_DISABLE_REFLECTION_REGISTRATION_ASSERTS)
 #if defined(USE_CRY_ASSERT)
 		const CTypeDesc& foundTypeDesc = m_typesByIndex[resultByTypeId->second];
 		const SSourceFileInfo& srcPos = foundTypeDesc.m_sourcePos;
@@ -64,7 +73,7 @@ ITypeDesc* CCoreRegistry::RegisterType(const Type::CTypeDesc& typeDesc, CGuid gu
 		                   srcPos.GetFile(),
 		                   srcPos.GetLine(),
 		                   srcPos.GetFunction());
-
+#endif
 		return nullptr;
 	}
 
@@ -149,6 +158,7 @@ IFunctionDesc* CCoreRegistry::RegisterFunction(const Reflection::CFunction& func
 	const IFunctionDesc* pFunctionDesc = GetFunctionByGuid(guid);
 	if (pFunctionDesc)
 	{
+#if !defined (CRY_DISABLE_REFLECTION_REGISTRATION_ASSERTS)
 #if defined(USE_CRY_ASSERT)
 		const SSourceFileInfo& srcPos = pFunctionDesc->GetSourceInfo();
 #endif
@@ -160,7 +170,7 @@ IFunctionDesc* CCoreRegistry::RegisterFunction(const Reflection::CFunction& func
 			srcPos.GetFile(),
 			srcPos.GetLine(),
 			srcPos.GetFunction());
-
+#endif
 		return nullptr;
 	}
 
@@ -169,6 +179,7 @@ IFunctionDesc* CCoreRegistry::RegisterFunction(const Reflection::CFunction& func
 	// ~TODO
 	if (pFunctionDesc)
 	{
+#if !defined (CRY_DISABLE_REFLECTION_REGISTRATION_ASSERTS)
 #if defined(USE_CRY_ASSERT)
 		const SSourceFileInfo& srcPos = pFunctionDesc->GetSourceInfo();
 #endif
@@ -181,7 +192,7 @@ IFunctionDesc* CCoreRegistry::RegisterFunction(const Reflection::CFunction& func
 			srcPos.GetFile(),
 			srcPos.GetLine(),
 			srcPos.GetFunction());
-
+#endif
 		return nullptr;
 	}
 

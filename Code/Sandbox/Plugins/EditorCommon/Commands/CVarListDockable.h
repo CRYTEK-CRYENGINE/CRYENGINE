@@ -111,22 +111,27 @@ class CCVarListDockable : public CDockableEditor
 public:
 	CCVarListDockable(QWidget* const pParent = nullptr);
 
-	//////////////////////////////////////////////////////////
-	// CDockableWidget implementation
+	// IPane
 	virtual IViewPaneClass::EDockingDirection GetDockingDirection() const override { return IViewPaneClass::DOCK_FLOAT; }
 	virtual QRect                             GetPaneRect() override               { return QRect(0, 0, 900, 500); }
-	//////////////////////////////////////////////////////////
+	// ~IPane
 
+	// CEditor
+	virtual void        Initialize() override;
 	virtual const char* GetEditorName() const override { return "Console Variables"; }
 	static QVariant     GetState();
 	static void         SetState(const QVariant& state);
+	// ~CEditor
+
+	void RegisterActions();
+	void CreateMenu();
 
 	static void         LoadCVarListFromFile(const char* szFilename);
 	static void         SaveCVarListToFile(const char* szFilename);
 
-protected:
-	virtual bool OnCopy() override;
+private:
+	bool OnCopy();
 
-protected:
+private:
 	CCVarBrowser* m_pCVarBrowser;
 };

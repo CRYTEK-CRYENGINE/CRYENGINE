@@ -44,6 +44,23 @@ CRenderObject* SRenderNodeTempData::GetRenderObject(int lod)
 	return userData.arrPermanentRenderObjects[lod];
 }
 
+//////////////////////////////////////////////////////////////////////////
+CRenderObject* SRenderNodeTempData::RefreshRenderObject(int lod)
+{
+	DBG_LOCK_TO_THREAD(userData.pOwnerNode);
+
+	CRY_ASSERT(!invalidRenderObjects);
+
+	if (userData.arrPermanentRenderObjects[lod] != nullptr)
+	{
+		gEnv->pRenderer->EF_FreeObject(userData.arrPermanentRenderObjects[lod]);
+	}
+
+	userData.arrPermanentRenderObjects[lod] = gEnv->pRenderer->EF_GetObject();
+
+	return userData.arrPermanentRenderObjects[lod];
+}
+
 void SRenderNodeTempData::FreeRenderObjects()
 {
 	if (!hasValidRenderObjects)
@@ -77,7 +94,7 @@ void SRenderNodeTempData::InvalidateRenderObjectsInstanceData()
 	{
 		if (userData.arrPermanentRenderObjects[lod])
 		{
-			userData.arrPermanentRenderObjects[lod]->SetInstanceDataDirty();
+			userData.arrPermanentRenderObjects[lod]->SetInstanceDataDirty(true);
 		}
 	}
 }
@@ -304,7 +321,7 @@ void CVisibleRenderNodesManager::OnRenderNodeDeleted(IRenderNode* pRenderNode)
 
 	if (pNodeTempData)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		CryAutoCriticalSectionNoRecursive lock(m_accessLock);
 

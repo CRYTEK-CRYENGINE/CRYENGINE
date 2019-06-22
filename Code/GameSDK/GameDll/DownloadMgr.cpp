@@ -27,6 +27,7 @@
 #include "Network/Lobby/GameLobby.h"
 #include <CrySystem/ZLib/IZLibCompressor.h>
 #include "PatchPakManager.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 enum								{ k_localizedResourceSlop=5 };								// add a bit of slop to allow localised resources to be added without contributing to fragmentation by causing the vector to realloc. arbitrary number, not critical this is accurate
 enum								{ k_httpHeaderSize=512 };											// should be large enough to hold the HTTP response and info on the payload length

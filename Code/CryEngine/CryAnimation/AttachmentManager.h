@@ -93,7 +93,7 @@ public:
 
 	//! Updates objects attached to sockets.
 	//! This part of attachment update is performed in the main thread and lets IAttachmentObject implementations consume results of UpdateAttachments().
-	void           UpdateAttachedObjects(Skeleton::CPoseData& pPoseData);
+	void           UpdateAttachedObjects();
 
 	void           DrawAttachments(SRendParams& rRendParams, const Matrix34& m, const SRenderingPassInfo& passInfo, const f32 fZoomFactor, const f32 fZoomDistanceSq);
 
@@ -187,12 +187,23 @@ private:
 	//! Performs rebuild of m_attachedCharactersCache, if necessary.
 	void RebuildAttachedCharactersCache();
 
-	struct
+	struct sAttachedCharactersCache
 	{
-		std::vector<CCharInstance*> characters; //!< List of character instances attached directly to this attachment manager.
-		std::vector<IAttachment*> attachments;  //!< List of attachments containing character instances stored in the characters vector above. These two vectors match by index.
-		uint32 frameId = 0xffffffff;            //!< Frame identifier of the last update, used to determine if a cache rebuild is needed.
-	} m_attachedCharactersCache;
+		void Push(CCharInstance* character, IAttachment* attachment);
+		void Clear();
+		void Erase(IAttachment* attachment);
+		uint32 FrameId() const { return m_frameId; }
+		void SetFrameId(uint32 frameId) { m_frameId = frameId; }
+		const std::vector<CCharInstance*>& Characters() const { return m_characters; }
+		const std::vector<IAttachment*>& Attachments() const { return m_attachments; }
+		IAttachment* Attachment(int idx) const { return m_attachments[idx]; }
+		CCharInstance* Characters(int idx) const { return m_characters[idx]; }
+	private:
+		std::vector<CCharInstance*> m_characters;                 //!< List of character instances attached directly to this attachment manager.
+		std::vector<IAttachment*> m_attachments;                  //!< List of attachments containing character instances stored in the characters vector above. These two vectors match by index.
+		uint32 m_frameId = 0xffffffff;                            //!< Frame identifier of the last update, used to determine if a cache rebuild is needed.
+	};
+	sAttachedCharactersCache m_attachedCharactersCache;
 
 	class CModificationCommand
 	{
@@ -207,9 +218,6 @@ private:
 	class CModificationCommandBuffer
 	{
 	public:
-		static const uint32 kMaxOffsets = 4096;
-		static const uint32 kMaxMemory = 4096;
-
 		CModificationCommandBuffer() { Clear(); }
 		~CModificationCommandBuffer();
 		void  Execute();

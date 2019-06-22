@@ -9,15 +9,16 @@
 #include <vector>
 #include <CryCore/CryVariant.h>
 
-class QEvent;
-class QVBoxLayout;
-class QLabel;
-class QToolButton;
-class QWidget;
-class PopulateInspectorEvent;
 class CBroadcastManager;
 class CEditor;
+class PopulateInspectorEvent;
+class QEvent;
+class QLabel;
+class QPropertyTree;
 class QScrollableBox;
+class QToolButton;
+class QVBoxLayout;
+class QWidget;
 
 //////////////////////////////////////////////////////////////////////////
 //! Inspector class
@@ -76,8 +77,8 @@ public:
 	virtual QRect       GetPaneRect() override        { return QRect(0, 0, 200, 200); }
 	virtual QSize       sizeHint() const override     { return QSize(240, 600); }
 	void                closeEvent(QCloseEvent* event);
-	//!Add a widget to this inspector, only one widget can be added at a time
-	void                AddWidget(QWidget* pWidget);
+	//!Add a property tree to this inspector, only one property tree can be added at a time
+	void                AddPropertyTree(QPropertyTree* pPropertyTree);
 
 private:
 	//!If the inspector is not locked populate it with a widget allocated by the PopulateInspectorEvent
@@ -96,8 +97,8 @@ private:
 	bool                        m_isLocked;
 	//!The layout we actually add a widget to
 	QVBoxLayout*                m_pWidgetLayout;
-	//!The widget owned by this inspector, (added via AddWidget)
-	QWidget*                    m_pOwnedWidget;
+	//!The property tree owned by this inspector, (added via AddPropertyTree)
+	QPropertyTree*             m_pOwnedPropertyTree;
 };
 
 //! This header widget only exists for styling purposes

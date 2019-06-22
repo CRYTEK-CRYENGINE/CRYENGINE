@@ -28,6 +28,11 @@ struct SAddableTrack
 {
 	CAnimParamType m_type;
 	string         m_name;
+
+	bool operator < (const SAddableTrack& track) const 
+	{ 
+		return m_name < track.m_name;
+	}
 };
 
 struct SSelectedKey
@@ -41,6 +46,10 @@ struct SSelectedKey
 class CTrackViewSequenceTabWidget : public QWidget, public IEditorNotifyListener, public CTrackViewCoreComponent
 {
 	Q_OBJECT
+
+	//TODO: avoid friend class
+	friend class CTrackViewWindow;
+	//~TODO
 
 public:
 	typedef std::vector<SSelectedKey> SelectedKeys;
@@ -56,8 +65,6 @@ public:
 	void                ApplyChangedProperties(bool bUpdateProperties = true);
 	void                TimelineLayoutChanged(bool bUpdateProperties = true);
 
-	void                SetToolbar(QToolBar* pToolbar);
-
 	const SelectedKeys& GetCurrentSelectedKeys() const { return m_currentKeySelection; }
 	CTrackViewNode*     GetNodeFromActiveSequence(const STimelineTrack* pDopeSheetTrack);
 
@@ -68,12 +75,14 @@ public:
 	void                EnableTimelineLink(bool enable);
 	void                ShowKeyText(bool show);
 	void                SyncSelection(bool sync);
+	void                InvertScrubberSnappingBehavior(bool invert);
 
-	bool                IsDopeSheetVisible() const     { return m_showDopeSheet; }
-	bool                IsCurveEditorVisible() const   { return m_showCurveEditor; }
-	bool                IsTimelineLinkEnabled() const  { return m_timelineLink; }
-	bool                IsShowingKeyText() const       { return m_showKeyText; }
-	bool                IsSyncSelectionEnabled() const { return m_syncSelection; }
+	bool                IsDopeSheetVisible()                 const { return m_showDopeSheet; }
+	bool                IsCurveEditorVisible()               const { return m_showCurveEditor; }
+	bool                IsTimelineLinkEnabled()              const { return m_timelineLink; }
+	bool                IsShowingKeyText()                   const { return m_showKeyText; }
+	bool                IsSyncSelectionEnabled()             const { return m_syncSelection; }
+	bool                IsScrubberSnappingBehaviorInverted() const { return m_invertScrubberSnappingBehavior; }
 
 	void                CloseCurrentTab();
 
@@ -157,6 +166,7 @@ private:
 	void OnAddTrack(CAnimParamType type);
 	void OnAddNode(const SAddableNode& node);
 	void SelectEntity(CEntityObject* pEntity);
+	void OnAddTrackToSelectedNode(CAnimParamType type);
 
 	struct SSequenceData
 	{
@@ -185,7 +195,6 @@ private:
 
 	void            UpdateTabNames();
 	void            UpdateSequenceTabs();
-	void            UpdateToolbar();
 	void            UpdatePlaybackRangeMarkers();
 	void            SetSelection(CTrackViewNode* pNode);
 	CTrackViewNode* GetSelectedNode() const;
@@ -220,8 +229,10 @@ private:
 	void                        UpdateCurveEditor(CTimeline* pDopeSheet, CCurveEditor* pCurveEditor);
 
 	void                        UpdateActiveSequence();
+	void                        UpdateCurveEditorSelection();
 	void                        FillAddNodeMenu(QMenu& addNodeMenu);
 	void                        CreateAddTrackMenu(QMenu& parentMenu, const CTrackViewAnimNode& animNode);
+	void                        CreateAddTrackMenu(QMenu& parentMenu, const std::vector<CTrackViewAnimNode*>& animNodes);
 	void                        RemoveDeletedTracks(STimelineTrack* pTrack);
 	CTrackViewAnimNode*         CheckValidReparenting(CTimeline* pDopeSheet, const std::vector<STimelineTrack*>& selectedTracks, STimelineTrack* pTarget);
 	CTrackViewSequence*         GetSequenceFromDopeSheet(const CTimeline* pDopeSheet);
@@ -249,6 +260,7 @@ private:
 	bool                    m_showCurveEditor;
 	bool                    m_showKeyText;
 	bool                    m_syncSelection;
+	bool                    m_invertScrubberSnappingBehavior;
 
 	SAnimTime::EDisplayMode m_timeUnit;
 
@@ -259,8 +271,8 @@ private:
 	CTrackViewNode* m_pCurrentSelectedNode;
 	CTimeline*      m_pCurrentSelectionDopeSheet;
 	CCurveEditor*   m_pCurrentSelectionCurveEditor;
-	QToolBar*       m_pToolbar;
 	SelectedKeys    m_currentKeySelection;
+	size_t          m_currentKeySelectionCount;
 
 	QTimer*         m_refreshTimer;
 	SAnimTime       m_time;

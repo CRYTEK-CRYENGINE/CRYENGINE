@@ -10,7 +10,7 @@
 ACE::Impl::Wwise::CImpl* g_pWwiseInterface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API ACE::Impl::IImpl * GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::Impl::IImpl* GetAudioInterface(ISystem * const pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorWwise");
 
@@ -29,15 +29,25 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-		g_hInstance = hinstDLL;
-		break;
-	case DLL_PROCESS_DETACH:
-		if (g_pWwiseInterface != nullptr)
 		{
-			delete g_pWwiseInterface;
-			g_pWwiseInterface = nullptr;
+			g_hInstance = hinstDLL;
+			break;
 		}
-		break;
+	case DLL_PROCESS_DETACH:
+		{
+			if (g_pWwiseInterface != nullptr)
+			{
+				delete g_pWwiseInterface;
+				g_pWwiseInterface = nullptr;
+			}
+
+			break;
+		}
+	default:
+		{
+			break;
+		}
 	}
+
 	return TRUE;
 }

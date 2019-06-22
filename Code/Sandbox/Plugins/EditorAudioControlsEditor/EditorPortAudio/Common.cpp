@@ -9,7 +9,7 @@ namespace Impl
 {
 namespace PortAudio
 {
-uint32 g_triggerConnections;
+ConnectionsByContext g_connections;
 } // namespace PortAudio
 } // namespace Impl
 } // namespace ACE

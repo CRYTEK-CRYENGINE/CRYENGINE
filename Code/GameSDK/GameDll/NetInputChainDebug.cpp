@@ -16,6 +16,7 @@
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CrySystem/ITextModeConsole.h>
 #include <CryRenderer/IRenderAuxGeom.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if ENABLE_NETINPUTCHAINDEBUG
 	#include <CryCore/BoostHelpers.h>

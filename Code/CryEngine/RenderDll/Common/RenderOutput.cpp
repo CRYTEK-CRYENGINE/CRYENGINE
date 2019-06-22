@@ -4,7 +4,7 @@
 #include "RenderOutput.h"
 #include "RenderDisplayContext.h"
 
-std::string GenerateUniqueTextureName(const std::string prefix, uint32 id, const std::string name);
+std::string GenerateUniqueTextureName(const std::string& prefix, uint32 id, const std::string& name);
 
 //////////////////////////////////////////////////////////////////////////
 CRenderOutput::CRenderOutput(CRenderDisplayContext* pDisplayContext)
@@ -45,8 +45,8 @@ CRenderOutput::CRenderOutput(CTexture* pColorTexture, CTexture* pDepthTexture, u
 	int outputHeight = pColorTexture->GetHeight();
 
 	CRY_ASSERT(pDepthTexture &&
-		outputWidth  == pDepthTexture->GetWidth() &&
-		outputHeight == pDepthTexture->GetHeight());
+	           outputWidth == pDepthTexture->GetWidth() &&
+	           outputHeight == pDepthTexture->GetHeight());
 
 	ChangeOutputResolution(outputWidth, outputHeight);
 	SetViewport(SRenderViewport(0, 0, outputWidth, outputHeight));
@@ -96,7 +96,7 @@ void CRenderOutput::ReinspectDisplayContext()
 
 void CRenderOutput::BeginRendering(CRenderView* pRenderView, stl::optional<uint32> overrideClearFlags)
 {
-	m_bHDRRendering = pRenderView && pRenderView->AllowsHDRRendering();
+	m_bHDRRendering = pRenderView && pRenderView->GetGraphicsPipeline() && pRenderView->GetGraphicsPipeline()->AllowsHDRRendering();
 
 	CRY_ASSERT(gcpRendD3D->m_pRT->IsRenderThread());
 
@@ -149,10 +149,10 @@ void CRenderOutput::BeginRendering(CRenderView* pRenderView, stl::optional<uint3
 	{
 		if (clearTargetFlag & (FRT_CLEAR_DEPTH | FRT_CLEAR_STENCIL))
 			CClearSurfacePass::Execute(m_pDepthTarget,
-				(clearTargetFlag & FRT_CLEAR_DEPTH   ? CLEAR_ZBUFFER : 0) |
-				(clearTargetFlag & FRT_CLEAR_STENCIL ? CLEAR_STENCIL : 0),
-				Clr_FarPlane_Rev.r,
-				Val_Stencil);
+			                           (clearTargetFlag & FRT_CLEAR_DEPTH ? CLEAR_ZBUFFER : 0) |
+			                           (clearTargetFlag & FRT_CLEAR_STENCIL ? CLEAR_STENCIL : 0),
+			                           Clr_FarPlane_Rev.r,
+			                           Val_Stencil);
 
 		if (clearTargetFlag & FRT_CLEAR_COLOR)
 			CClearSurfacePass::Execute(m_pColorTarget, clearColor);
@@ -312,8 +312,8 @@ ETEX_Format CRenderOutput::GetColorFormat() const
 	}
 
 	return m_bHDRRendering
-		? CRendererResources::GetHDRFormat(false, false)
-		: CRendererResources::GetLDRFormat(true);
+	       ? CRendererResources::GetHDRFormat(false, false)
+	       : CRendererResources::GetLDRFormat(true);
 }
 
 void CRenderOutput::AllocateColorTarget()
@@ -322,7 +322,7 @@ void CRenderOutput::AllocateColorTarget()
 	const ColorF clearValue = Clr_Empty;
 
 	// NOTE: Actual device texture allocation happens just before rendering.
-	const uint32 renderTargetFlags = FT_NOMIPS | /* FT_DONT_RELEASE | */FT_DONT_STREAM | FT_USAGE_RENDERTARGET;
+	const uint32 renderTargetFlags = FT_NOMIPS | /* FT_DONT_RELEASE | */ FT_DONT_STREAM | FT_USAGE_RENDERTARGET;
 	const std::string uniqueTexName = GenerateUniqueTextureName(CImageExtensionHelper::IsDynamicRange(eCFormat) ? "$HDR-Output" : "$LDR-Output", m_uniqueId, m_name);
 
 	m_pColorTarget = nullptr;
@@ -353,7 +353,7 @@ void CRenderOutput::AllocateDepthTarget()
 	const ColorF clearValues  = ColorF(clearDepth, FLOAT(clearStencil), 0.f, 0.f);
 
 	// Create the native resolution depth stencil buffer for overlay rendering if needed
-	const uint32 renderTargetFlags = FT_NOMIPS | /* FT_DONT_RELEASE | */FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL;
+	const uint32 renderTargetFlags = FT_NOMIPS | /* FT_DONT_RELEASE | */ FT_DONT_STREAM | FT_USAGE_DEPTHSTENCIL;
 	const std::string uniqueTexName = GenerateUniqueTextureName("$Z-Output", m_uniqueId, m_name);
 
 	m_pDepthTarget = nullptr;

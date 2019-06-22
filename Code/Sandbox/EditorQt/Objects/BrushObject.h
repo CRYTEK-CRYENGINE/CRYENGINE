@@ -102,6 +102,7 @@ protected:
 	void OnGeometryChange(IVariable* var);
 	void OnRenderVarChange(IVariable* var);
 	void OnAIRadiusVarChange(IVariable* var);
+	void OnExludeFromNavigationVarChange(IVariable* var);
 	//////////////////////////////////////////////////////////////////////////
 
 	virtual string GetMouseOverStatisticsText() const;

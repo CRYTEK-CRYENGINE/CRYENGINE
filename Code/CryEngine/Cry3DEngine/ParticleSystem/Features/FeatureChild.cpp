@@ -23,9 +23,9 @@ public:
 	{
 		if (!pComponent->GetParentComponent())
 			return;
-		pComponent->AddSubInstances.add(this);
+		pComponent->UpdateSpawners.add(this);
 		if (IsDelayed())
-			pParams->m_maxTotalLIfe += pComponent->GetParentComponent()->GetComponentParams().m_maxParticleLife;
+			pParams->m_maxTotalLife += pComponent->GetParentComponent()->GetComponentParams().m_maxParticleLife;
 	}
 
 	virtual bool IsDelayed() const { return false; }
@@ -40,20 +40,22 @@ public:
 
 	static uint DefaultForType() { return EFT_Child; }
 
-	void AddSubInstances(CParticleComponentRuntime& runtime) override
+	void UpdateSpawners(CParticleComponentRuntime& runtime) override
 	{
 		CParticleContainer& parentContainer = runtime.GetParentContainer();
 		IFStream normAges = parentContainer.GetIFStream(EPDT_NormalAge);
 		IFStream lifeTimes = parentContainer.GetIFStream(EPDT_LifeTime);
 
-		THeapArray<SInstance> instances(runtime.MemHeap());
-		instances.reserve(parentContainer.GetNumSpawnedParticles());
-		for (auto particleId : parentContainer.GetSpawnedRange())
+		THeapArray<SSpawnerDesc> spawners(runtime.MemHeap());
+		spawners.reserve(parentContainer.NumSpawned());
+		const float deltaTime = runtime.DeltaTime();
+
+		for (auto particleId : parentContainer.SpawnedRange())
 		{
-			const float delay = runtime.DeltaTime() - normAges.Load(particleId) * lifeTimes.Load(particleId);
-			instances.emplace_back(particleId, delay);
+			const float delay = deltaTime - normAges.Load(particleId) * lifeTimes.Load(particleId);
+			spawners.emplace_back(particleId, delay);
 		}
-		runtime.AddInstances(instances);
+		runtime.AddSpawners(spawners);
 	}
 };
 
@@ -68,26 +70,28 @@ public:
 
 	bool IsDelayed() const override { return true; }
 
-	void AddSubInstances(CParticleComponentRuntime& runtime) override
+	void UpdateSpawners(CParticleComponentRuntime& runtime) override
 	{
 		CParticleContainer& parentContainer = runtime.GetParentContainer();
 		
 		IFStream normAges = parentContainer.GetIFStream(EPDT_NormalAge);
 		IFStream lifeTimes = parentContainer.GetIFStream(EPDT_LifeTime);
 
-		THeapArray<SInstance> instances(runtime.MemHeap());
-		instances.reserve(parentContainer.GetNumParticles());
-		for (auto particleId : parentContainer.GetFullRange())
+		THeapArray<SSpawnerDesc> spawners(runtime.MemHeap());
+		spawners.reserve(parentContainer.GetNumParticles());
+		const float deltaTime = runtime.DeltaTime();
+
+		for (auto particleId : parentContainer.FullRange())
 		{
 			const float normAge = normAges.Load(particleId);
 			if (IsExpired(normAge))
 			{
 				const float overAge = (normAge - 1.0f) * lifeTimes.Load(particleId);
-				const float delay = runtime.DeltaTime() - overAge;
-				instances.emplace_back(particleId, delay);
+				const float delay = deltaTime - overAge;
+				spawners.emplace_back(particleId, delay);
 			}
 		}
-		runtime.AddInstances(instances);
+		runtime.AddSpawners(spawners);
 	}
 };
 
@@ -123,15 +127,15 @@ public:
 
 	bool IsDelayed() const override { return true; }
 
-	void AddSubInstances(CParticleComponentRuntime& runtime) override
+	void UpdateSpawners(CParticleComponentRuntime& runtime) override
 	{
 		CParticleContainer& parentContainer = runtime.GetParentContainer();
-		THeapArray<SInstance> instances(runtime.MemHeap());
-		instances.reserve(parentContainer.GetNumParticles());
+		THeapArray<SSpawnerDesc> spawners(runtime.MemHeap());
+		spawners.reserve(parentContainer.GetNumParticles());
 		
 		const auto contactPoints = parentContainer.IStream(EPDT_ContactPoint);
 
-		for (auto particleId : parentContainer.GetFullRange())
+		for (auto particleId : parentContainer.FullRange())
 		{
 			const SContactPoint& contact = contactPoints[particleId];
 			if (contact.m_collided)
@@ -146,10 +150,10 @@ public:
 					if (stl::find(m_surfaces, contact.m_pSurfaceType->GetId()))
 						continue;
 				}
-				instances.emplace_back(particleId, contact.m_time);
+				spawners.emplace_back(particleId, contact.m_time);
 			}
 		}
-		runtime.AddInstances(instances);
+		runtime.AddSpawners(spawners);
 	}
 
 private:

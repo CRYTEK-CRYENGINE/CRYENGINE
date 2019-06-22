@@ -405,7 +405,6 @@ bool CCryDX12DeviceContext::PrepareComputeState()
 
 void CCryDX12DeviceContext::BindResources(bool bGfx)
 {
-	ID3D12Device* pDevice12 = GetD3D12Device();
 	const SCryDX11PipelineState& rState = bGfx ? m_GraphicsState : m_ComputeState;
 	NCryDX12::CCommandList* pCmdList = bGfx ? m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS) : m_Scheduler.GetCommandList(CMDQUEUE_COMPUTE);
 	const NCryDX12::SResourceMappings& mappings = m_pCurrentRootSignature->GetResourceMappings();
@@ -430,6 +429,7 @@ void CCryDX12DeviceContext::BindResources(bool bGfx)
 				auto bindRange = rState.Stages[i].ConstBufferBindRange.Get(resInput.ShaderSlot);
 				DX12_ASSERT(buffer, "ConstantBuffer is required by the PSO but has not been set!");
 				DX12_ASSERT_DEBUG(uResourceDTOffset == resInput.DescriptorOffset, "ConstantBuffer offset has shifted: resource mapping invalid!");
+
 				if (!buffer) continue;
 				pCmdList->BindResourceView(buffer->GetDX12View(), uResourceDTOffset++, bindRange);
 			}
@@ -438,6 +438,7 @@ void CCryDX12DeviceContext::BindResources(bool bGfx)
 				CCryDX12ShaderResourceView* resource = rState.Stages[i].ShaderResourceViews.Get(resInput.ShaderSlot);
 				DX12_ASSERT(resource, "ShaderResourceView is required by the PSO but has not been set!");
 				DX12_ASSERT_DEBUG(uResourceDTOffset == resInput.DescriptorOffset, "ShaderResourceView offset has shifted: resource mapping invalid!");
+
 				if (!resource) continue;
 				pCmdList->BindResourceView(resource->GetDX12View(), uResourceDTOffset++, TRange<UINT>());
 			}
@@ -446,6 +447,7 @@ void CCryDX12DeviceContext::BindResources(bool bGfx)
 				CCryDX12UnorderedAccessView* resource = rState.Stages[i].UnorderedAccessViews.Get(resInput.ShaderSlot);
 				DX12_ASSERT(resource, "UnorderedAccessView is required by the PSO but has not been set!");
 				DX12_ASSERT_DEBUG(uResourceDTOffset == resInput.DescriptorOffset, "UnorderedAccessView offset has shifted: resource mapping invalid!");
+
 				if (!resource) continue;
 				pCmdList->BindResourceView(resource->GetDX12View(), uResourceDTOffset++, TRange<UINT>());
 			}
@@ -465,6 +467,7 @@ void CCryDX12DeviceContext::BindResources(bool bGfx)
 				CCryDX12SamplerState* sampler = rState.Stages[i].SamplerState.Get(smpInput.ShaderSlot);
 				DX12_ASSERT(sampler, "Sampler is required by the PSO but has not been set!");
 				DX12_ASSERT_DEBUG(uSamplerDTOffset == smpInput.DescriptorOffset, "Sampler offset has shifted: resource mapping invalid!");
+
 				if (!sampler) continue;
 				pCmdList->BindSamplerState(sampler->GetDX12SamplerState(), uSamplerDTOffset++);
 			}
@@ -503,7 +506,6 @@ void CCryDX12DeviceContext::BindResources(bool bGfx)
 void CCryDX12DeviceContext::BindOutputViews()
 {
 	const SCryDX11PipelineState& rState = m_GraphicsState;
-	const NCryDX12::CCommandList* pCmdList = m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS);
 
 	const NCryDX12::CView* dsv = NULL;
 	const NCryDX12::CView* rtv[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
@@ -538,14 +540,12 @@ const char* StateToString(D3D12_RESOURCE_STATES state);
 
 void CCryDX12DeviceContext::DebugPrintResources(bool bGfx)
 {
-	ID3D12Device* pDevice12 = GetD3D12Device();
+	CRY_DISABLE_WARN_UNUSED_VARIABLES();
 	const SCryDX11PipelineState& rState = bGfx ? m_GraphicsState : m_ComputeState;
-	const NCryDX12::CCommandList* pCmdList = bGfx ? m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS) : m_Scheduler.GetCommandList(CMDQUEUE_COMPUTE);
 	const NCryDX12::SResourceMappings& mappings = m_pCurrentRootSignature->GetResourceMappings();
 
 	DX12_LOG(g_nPrintDX12, "Resource Heap Descriptor Tables:");
 
-	UINT stateFlags = rState.m_StateFlags;
 	UINT uResourceDTOffset = 0;
 	UINT uSamplerDTOffset = 0;
 
@@ -635,6 +635,7 @@ void CCryDX12DeviceContext::DebugPrintResources(bool bGfx)
 			         uSamplerDTOffset++);
 		}
 	}
+	CRY_RESTORE_WARN_UNUSED_VARIABLES();
 }
 
 void CCryDX12DeviceContext::CeaseCommandQueueCallback(int nPoolId)
@@ -889,7 +890,7 @@ HRESULT STDMETHODCALLTYPE CCryDX12DeviceContext::Map(
 			// ConstantBuffer/ShaderResource/UnorderedAccess marker
 			if (MapType & DX12_MAP_DISCARD_MARKER)
 			{
-				DX12_ASSERT(false, "MAP_DISCARD does not work under DX12 when there is a view on the discardable buffer! Please rewrite the algorithm to use NO_OVERWRITE");
+				DX12_ERROR("MAP_DISCARD does not work under DX12 when there is a view on the discardable buffer! Please rewrite the algorithm to use NO_OVERWRITE");
 				abort();
 			}
 		}
@@ -907,7 +908,7 @@ HRESULT STDMETHODCALLTYPE CCryDX12DeviceContext::Map(
 
 	if (S_OK != hr)
 	{
-		DX12_ASSERT(0, "Could not map resource!");
+		DX12_ERROR("Could not map resource!");
 		return hr;
 	}
 
@@ -931,9 +932,8 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::Unmap(
 	DX12_LOG(g_nPrintDX12, "Unmapping resource: %p (%d)", pResource, Subresource);
 
 	ICryDX12Resource* dx12Resource = DX12_EXTRACT_ICRYDX12RESOURCE(pResource);
-	NCryDX12::CResource& resource = dx12Resource->GetDX12Resource();
 
-	DX12_ASSERT(!D3D12IsLayoutOpaque(resource.GetDesc().Layout), "Opaque layouts are unmappable until 12.2!");
+	DX12_ASSERT(!D3D12IsLayoutOpaque(dx12Resource->GetDX12Resource().GetDesc().Layout), "Opaque layouts are unmappable until 12.2!");
 	dx12Resource->GetD3D12Resource()->Unmap(Subresource, reinterpret_cast<D3D12_RANGE*>(BeginEnd));
 }
 
@@ -1638,8 +1638,7 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearRenderTargetView(
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pRenderTargetView);
-	CCryDX12RenderTargetView* rtv = reinterpret_cast<CCryDX12RenderTargetView*>(pRenderTargetView);
-	DX12_LOG(g_nPrintDX12, "Clearing render target view: %p %s", pRenderTargetView, rtv->GetResourceName().c_str());
+	DX12_LOG(g_nPrintDX12, "Clearing render target view: %p %s", pRenderTargetView, reinterpret_cast<CCryDX12RenderTargetView*>(pRenderTargetView)->GetResourceName().c_str());
 
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearRenderTargetView(*view, ColorRGBA);
 }
@@ -1651,8 +1650,9 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearUnorderedAccessViewUint(
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pUnorderedAccessView);
-	CCryDX12UnorderedAccessView* uav = reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView);
-	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [int]: %p %s", pUnorderedAccessView, uav->GetResourceName().c_str());
+
+	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [int]: %p %s", pUnorderedAccessView,
+		reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView)->GetResourceName().c_str());
 
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearUnorderedAccessView(*view, Values);
 }
@@ -1664,8 +1664,8 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearUnorderedAccessViewFloat(
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pUnorderedAccessView);
-	CCryDX12UnorderedAccessView* uav = reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView);
-	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [float]: %p %s", pUnorderedAccessView, uav->GetResourceName().c_str());
+
+	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [float]: %p %s", pUnorderedAccessView, reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView)->GetResourceName().c_str());
 
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearUnorderedAccessView(*view, Values);
 }
@@ -1679,8 +1679,8 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearDepthStencilView(
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pDepthStencilView);
-	CCryDX12DepthStencilView* dsv = reinterpret_cast<CCryDX12DepthStencilView*>(pDepthStencilView);
-	DX12_LOG(g_nPrintDX12, "Clearing depth stencil view: %p %s", pDepthStencilView, dsv->GetResourceName().c_str());
+
+	DX12_LOG(g_nPrintDX12, "Clearing depth stencil view: %p %s", pDepthStencilView, reinterpret_cast<CCryDX12DepthStencilView*>(pDepthStencilView)->GetResourceName().c_str());
 
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearDepthStencilView(*view, D3D12_CLEAR_FLAGS(ClearFlags), Depth, Stencil);
 }
@@ -2861,7 +2861,6 @@ void CCryDX12DeviceContext::UpdateSubresources(
 	// TODO: copy command on the swap chain are special (can't execute on any other queue), make an API for that
 	/*const*/ bool bGfx = (resource.IsBackBuffer());
 
-	NCryDX12::CCommandListPool& rCmdListPool = bGfx ? m_Scheduler.GetCommandListPool(CMDQUEUE_GRAPHICS) : m_Scheduler.GetCommandListPool(CMDQUEUE_COPY);
 	NCryDX12::CCommandList* pCmdList = bGfx ? m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS) : m_Scheduler.GetCommandList(CMDQUEUE_COPY);
 
 	// Ensure the command-list using the resource is executed
@@ -3041,8 +3040,8 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearRectsRenderTargetView(
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pRenderTargetView);
-	CCryDX12RenderTargetView* rtv = reinterpret_cast<CCryDX12RenderTargetView*>(pRenderTargetView);
-	DX12_LOG(g_nPrintDX12, "Clearing render target view: %p %s", pRenderTargetView, rtv->GetResourceName().c_str());
+
+	DX12_LOG(g_nPrintDX12, "Clearing render target view: %p %s", pRenderTargetView, reinterpret_cast<CCryDX12RenderTargetView*>(pRenderTargetView)->GetResourceName().c_str());
 
 	// TODO: see if they are also doable with the copy queue
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearRenderTargetView(*view, ColorRGBA, NumRects, pRects);
@@ -3057,8 +3056,8 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearRectsUnorderedAccessViewUint(
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pUnorderedAccessView);
-	CCryDX12UnorderedAccessView* uav = reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView);
-	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [int]: %p %s", pUnorderedAccessView, uav->GetResourceName().c_str());
+
+	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [int]: %p %s", pUnorderedAccessView, reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView)->GetResourceName().c_str());
 
 	// TODO: see if they are also doable with the copy queue
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearUnorderedAccessView(*view, Values, NumRects, pRects);
@@ -3073,8 +3072,8 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearRectsUnorderedAccessViewFloat
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pUnorderedAccessView);
-	CCryDX12UnorderedAccessView* uav = reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView);
-	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [float]: %p %s", pUnorderedAccessView, uav->GetResourceName().c_str());
+	
+	DX12_LOG(g_nPrintDX12, "Clearing unordered access view [float]: %p %s", pUnorderedAccessView, reinterpret_cast<CCryDX12UnorderedAccessView*>(pUnorderedAccessView)->GetResourceName().c_str());
 
 	// TODO: see if they are also doable with the copy queue
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearUnorderedAccessView(*view, Values, NumRects, pRects);
@@ -3091,8 +3090,8 @@ void STDMETHODCALLTYPE CCryDX12DeviceContext::ClearRectsDepthStencilView(
 	DX12_FUNC_LOG
 
 	NCryDX12::CView* view = DX12_EXTRACT_DX12VIEW(pDepthStencilView);
-	CCryDX12DepthStencilView* dsv = reinterpret_cast<CCryDX12DepthStencilView*>(pDepthStencilView);
-	DX12_LOG(g_nPrintDX12, "Clearing depth stencil view: %p %s", pDepthStencilView, dsv->GetResourceName().c_str());
+	
+	DX12_LOG(g_nPrintDX12, "Clearing depth stencil view: %p %s", pDepthStencilView, reinterpret_cast<CCryDX12DepthStencilView*>(pDepthStencilView)->GetResourceName().c_str());
 
 	// TODO: see if they are also doable with the copy queue
 	m_Scheduler.GetCommandList(CMDQUEUE_GRAPHICS)->ClearDepthStencilView(*view, D3D12_CLEAR_FLAGS(ClearFlags), Depth, Stencil, NumRects, pRects);

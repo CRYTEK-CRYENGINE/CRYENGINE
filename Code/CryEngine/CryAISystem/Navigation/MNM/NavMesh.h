@@ -5,12 +5,12 @@
 
 #pragma once
 
-#include "MNM.h"
 #include "Tile.h"
 #include "MNMProfiler.h"
 #include "Islands.h"
 #include "DangerousAreas.h"
 #include "NavMeshQuery.h"
+#include "AgentSettings.h"
 
 #include <CryMath/SimpleHashLookUp.h>
 #include <CryCore/Containers/VectorMap.h>
@@ -61,8 +61,6 @@ public:
 		Vec3   voxelSize;
 		uint32 tileCount;
 	};
-
-	enum { SideCount = 14, };
 
 	enum EPredictionType
 	{

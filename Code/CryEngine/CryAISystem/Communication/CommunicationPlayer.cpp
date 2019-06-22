@@ -38,7 +38,7 @@ void CommunicationPlayer::PlayState::OnCommunicationEvent(
 		break;
 	}
 
-	if (gAIEnv.CVars.DebugDrawCommunication == 5 && prevFlags != finishedFlags)
+	if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 5 && prevFlags != finishedFlags)
 	{
 		if (finishedFlags != FinishedAll)
 		{
@@ -231,7 +231,7 @@ void CommunicationPlayer::Update(float updateTime)
 
 			PlayingCommunications::iterator erased = it++;
 
-			if (gAIEnv.CVars.DebugDrawCommunication == 5)
+			if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 5)
 				CryLogAlways("CommunicationPlayer removed finished: %s[%u] as playID[%u] with listener[%p]", gAIEnv.pCommunicationManager->GetCommunicationName(erased->second.commID), erased->second.commID.id, erased->first.id, erased->second.listener);
 
 			m_playing.erase(erased);
@@ -367,7 +367,7 @@ void CommunicationPlayer::Stop(const CommPlayID& playID)
 
 		CleanUpPlayState(playID, playState);
 
-		if (gAIEnv.CVars.DebugDrawCommunication == 5)
+		if (gAIEnv.CVars.legacyCommunicationSystem.DebugDrawCommunication == 5)
 		{
 			CryLogAlways("CommunicationPlayer finished playing: %s[%u] as playID[%u]", gAIEnv.pCommunicationManager->GetCommunicationName(playState.commID), playState.commID.id, it->first.id);
 		}

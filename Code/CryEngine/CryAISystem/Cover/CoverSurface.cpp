@@ -617,7 +617,7 @@ bool CoverSurface::CalculatePathCoverage(const Vec3& eye, const CoverPath& cover
 
 	FindCoverPlanes(eyeLoc, leftPlane, rightPlane);
 
-	if (gAIEnv.CVars.DebugDrawCoverPlanes != 0)
+	if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCoverPlanes != 0)
 	{
 		CDebugDrawContext dc;
 
@@ -950,7 +950,7 @@ void CoverSurface::DebugDraw() const
 	}
 
 	// Locations
-	if (gAIEnv.CVars.DebugDrawCoverLocations)
+	if (gAIEnv.CVars.legacyCoverSystem.DebugDrawCoverLocations)
 	{
 		uint32 locationCount = m_locations.size();
 		for (uint32 i = 0; i < locationCount; ++i)

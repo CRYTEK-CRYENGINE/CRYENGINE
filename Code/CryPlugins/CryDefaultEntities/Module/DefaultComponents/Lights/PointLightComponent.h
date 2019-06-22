@@ -67,6 +67,7 @@ namespace Cry
 				desc.AddMember(&CPointLightComponent::m_shadows, 'shad', "Shadows", "Shadows", "Shadow casting settings", CPointLightComponent::SShadows());
 				desc.AddMember(&CPointLightComponent::m_options, 'opt', "Options", "Options", "Specific Light Options", CPointLightComponent::SOptions());
 				desc.AddMember(&CPointLightComponent::m_animations, 'anim', "Animations", "Animations", "Light style / animation properties", CPointLightComponent::SAnimations());
+				desc.AddMember(&CPointLightComponent::m_shape, 'shap', "Shape", "Shape", "Area light shape properties", CPointLightComponent::SShape());
 			}
 
 		protected:

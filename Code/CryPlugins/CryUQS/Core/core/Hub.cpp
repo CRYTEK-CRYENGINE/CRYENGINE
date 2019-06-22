@@ -5,6 +5,7 @@
 #include <CryUQS/DataSource_XML/DataSource_XML_Includes.h>
 #include <CryUQS/Client/ClientIncludes.h>
 #include <CryUQS/StdLib/StdLibRegistration.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
@@ -37,7 +38,6 @@ namespace UQS
 			: m_bConsistencyChecksDoneAlready(false)
 			, m_bAutomaticUpdateInProgress(false)
 			, m_queryHistoryInGameGUI(m_queryHistoryManager)
-			, m_queryManager(m_queryHistoryManager)
 			, m_pEditorLibraryProvider(nullptr)
 		{
 			CRY_ASSERT(!g_pHub);
@@ -367,18 +367,17 @@ namespace UQS
 		{
 			if (g_pHub)
 			{
-				char adjustedFilePath[ICryPak::g_nMaxPath];
-
+				CryPathString adjustedFilePath;
 				if (HelpBuildHistoryDumpFilePath(pArgs, "QueryHistory_", adjustedFilePath))
 				{
 					Shared::CUqsString error;
 					if (g_pHub->m_queryHistoryManager.SerializeLiveQueryHistory(adjustedFilePath, error))
 					{
-						CryLogAlways("Successfully dumped query history to '%s'", adjustedFilePath);
+						CryLogAlways("Successfully dumped query history to '%s'", adjustedFilePath.c_str());
 					}
 					else
 					{
-						CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "%s: Serializing the live query to '%s' failed: %s", pArgs->GetArg(0), adjustedFilePath, error.c_str());
+						CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "%s: Serializing the live query to '%s' failed: %s", pArgs->GetArg(0), adjustedFilePath.c_str(), error.c_str());
 					}
 				}
 			}
@@ -388,8 +387,7 @@ namespace UQS
 		{
 			if (g_pHub)
 			{
-				char adjustedFilePath[ICryPak::g_nMaxPath];
-
+				CryPathString adjustedFilePath; 
 				if (HelpBuildHistoryDumpFilePath(pArgs, "QueryHistory_Async_", adjustedFilePath))
 				{
 					g_pHub->m_queryHistoryManager.SerializeLiveQueryHistoryAsync(adjustedFilePath);
@@ -451,15 +449,13 @@ namespace UQS
 			}
 		}
 
-		bool CHub::HelpBuildHistoryDumpFilePath(IConsoleCmdArgs* pArgs, const char* szFileNamePrefix, char(&outFilePath)[ICryPak::g_nMaxPath])
+		bool CHub::HelpBuildHistoryDumpFilePath(IConsoleCmdArgs* pArgs, const char* szFileNamePrefix, CryPathString& outFilePath)
 		{
-			outFilePath[0] = '\0';
-
 			//
 			// create an XML filename with a unique counter as part of it
 			//
 
-			stack_string unadjustedFilePath;
+			CryPathString unadjustedFilePath;
 
 			for (int uniqueCounter = 0; uniqueCounter < 9999; ++uniqueCounter)
 			{
@@ -468,7 +464,8 @@ namespace UQS
 					break;
 			}
 
-			if (gEnv->pCryPak->AdjustFileName(unadjustedFilePath.c_str(), outFilePath, ICryPak::FLAGS_FOR_WRITING))
+			gEnv->pCryPak->AdjustFileName(unadjustedFilePath.c_str(), outFilePath, ICryPak::FLAGS_FOR_WRITING);
+			if (!outFilePath.empty())
 			{
 				return true;
 			}

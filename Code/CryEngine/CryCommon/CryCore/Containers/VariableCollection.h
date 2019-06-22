@@ -227,7 +227,7 @@ struct Description
 	string name;
 };
 
-typedef std::map<VariableID, Description> VariableDescriptions;
+typedef std::unordered_map<VariableID, Description> VariableDescriptions;
 typedef std::vector<Description>          DescriptionVector;
 
 static VariableID GetVariableID(const char* name)
@@ -833,8 +833,6 @@ public:
 	//! \param newEventName Name of the new Game Event to declare
 	virtual void DeclareGameEvent(const char* newEventName)
 	{
-		CRY_ASSERT_MESSAGE(!IsDeclared(newEventName, false), "Declaring already existing Game Event '%s'. Game Event will be duplicated.", newEventName);
-
 		const Event tempEvent = Event(newEventName);
 		m_eventsGame.insert(
 			std::upper_bound(
@@ -975,13 +973,13 @@ public:
 
 		SerializeEventsList(archive, "gameEvents", "+Game Events", m_eventsGame);
 
-		LookForEventGamesDuplicates(archive, m_eventsCryEngine);
-		LookForEventGamesDuplicates(archive, m_eventsGameSDK);
-		LookForEventGamesDuplicates(archive, m_eventsDeprecated);
+		LookForEventGamesDuplicates(archive, m_eventsCryEngine, "CryEngine");
+		LookForEventGamesDuplicates(archive, m_eventsGameSDK, "GameSDK");
+		LookForEventGamesDuplicates(archive, m_eventsDeprecated, "Deprecated");
 
 	}
 
-	void LookForEventGamesDuplicates(Serialization::IArchive& archive, const Events& events)
+	void LookForEventGamesDuplicates(Serialization::IArchive& archive, const Events& events, const char* eventsCategory)
 	{
 		Events::const_iterator itEvents = events.begin();
 		Events::const_iterator itEventsGame = m_eventsGame.begin();
@@ -1008,7 +1006,9 @@ public:
 				}
 				else
 				{
-					archive.error(itEventsGame->name, SerializationUtils::Messages::ErrorInvalidValueWithReason("Name", itEventsGame->name, "Event with this name already exist as a built-in event. You can enable built-in events under the View menu"));
+					stack_string errorMessage;
+					errorMessage.Format("Event with name '%s' already exists as a %s event. Consider renaming the event or removing it and using the built-in event with the same name by enabling %s events under the section Built-in events in the View menu.", itEventsGame->name, eventsCategory, eventsCategory);
+					archive.error(itEventsGame->name, SerializationUtils::Messages::ErrorInvalidValueWithReason("Name", itEventsGame->name, errorMessage));
 
 					++itEvents;
 					++itEventsGame;

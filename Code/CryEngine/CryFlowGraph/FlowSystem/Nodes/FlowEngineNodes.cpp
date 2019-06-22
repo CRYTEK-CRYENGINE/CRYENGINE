@@ -270,57 +270,6 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////////////////
-//  Sky box asynchronous loading /////////////////////////////////////////////////////
-//! [GDC09]: Async change SkyBox material[deprecated]	//////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-class CFlowNode_SkyboxSwitch : public CFlowBaseNode<eNCT_Instanced>
-{
-public:
-	CFlowNode_SkyboxSwitch(SActivationInfo* pActInfo) {}
-	virtual void         GetMemoryUsage(ICrySizer* s) const;
-	virtual IFlowNodePtr Clone(SActivationInfo* pActInfo) { return new CFlowNode_SkyboxSwitch(pActInfo); }
-	void                 GetConfiguration(SFlowNodeConfig& config);
-	void                 ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo);
-};
-
-void CFlowNode_SkyboxSwitch::GetMemoryUsage(ICrySizer* s) const
-{
-	s->Add(*this);
-}
-
-void CFlowNode_SkyboxSwitch::GetConfiguration(SFlowNodeConfig& config)
-{
-	static const SInputPortConfig in_config[] = {
-		InputPortConfig<string>("Texture",   "",    _HELP("Skybox texture name")),
-		InputPortConfig<bool>("Start",       false, _HELP("Trigger to start the loading")),
-		InputPortConfig<float>("Angle",      1.f,   _HELP("Sky box rotation")),
-		InputPortConfig<float>("Stretching", 1.f,   _HELP("Sky box stretching")),
-		{ 0 }
-	};
-
-	config.pInputPorts = in_config;
-	config.sDescription = _HELP("Node for sky box switching");
-	config.SetCategory(EFLN_ADVANCED);
-}
-
-void CFlowNode_SkyboxSwitch::ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo)
-{
-	switch (event)
-	{
-	case eFE_Activate:
-		// start loading signal
-		if (IsPortActive(pActInfo, 1))
-		{
-			// set up sky box size and angle
-			gEnv->p3DEngine->SetGlobalParameter(E3DPARAM_SKY_SKYBOX_ANGLE, GetPortFloat(pActInfo, 2));
-			gEnv->p3DEngine->SetGlobalParameter(E3DPARAM_SKY_SKYBOX_STRETCHING, GetPortFloat(pActInfo, 3));
-			gEnv->p3DEngine->SetSkyDomeTextureName(GetPortString(pActInfo, 0));
-		}
-		break;
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////
 // Node for layer switching rendering management ///////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -816,7 +765,6 @@ public:
 REGISTER_FLOW_NODE("Engine:PortalSwitch", CFlowNode_PortalSwitch);
 REGISTER_FLOW_NODE("Engine:OcclusionAreaSwitch", CFlowNode_OcclusionAreaSwitch);
 REGISTER_FLOW_NODE("Environment:OceanSwitch", CFlowNode_OceanSwitch);
-REGISTER_FLOW_NODE("Environment:SkyboxSwitch", CFlowNode_SkyboxSwitch);
 REGISTER_FLOW_NODE("Engine:LayerSwitch", CFlowNode_LayerSwitch);
 REGISTER_FLOW_NODE("Material:SetObjectMaterial", CFlowNode_SetObjectMaterial);
 REGISTER_FLOW_NODE("Engine:PrecacheArea", CFlowNode_PrecacheArea);

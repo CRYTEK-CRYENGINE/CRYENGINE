@@ -373,7 +373,7 @@ void CDemoPlaybackListener::DoUpdate()
 		}
 		InputHandler handler;
 		{
-			CRY_PROFILE_REGION(PROFILE_NETWORK, "DoUpdate:Select");
+			CRY_PROFILE_SECTION(PROFILE_NETWORK, "DoUpdate:Select");
 			TInputHandlerMap::const_iterator iter = m_pState->find(CONST_TEMP_STRING(m_buffer.key));
 			if (iter == m_pState->end())
 				handler = &CDemoPlaybackListener::SkipLineWithWarning;
@@ -381,7 +381,7 @@ void CDemoPlaybackListener::DoUpdate()
 				handler = iter->second;
 		}
 		{
-			CRY_PROFILE_REGION(PROFILE_NETWORK, "DoUpdate:Dispatch");
+			CRY_PROFILE_SECTION(PROFILE_NETWORK, "DoUpdate:Dispatch");
 
 			switch ((this->*handler)())
 			{

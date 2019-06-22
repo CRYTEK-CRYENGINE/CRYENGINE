@@ -260,6 +260,7 @@ public:
 
 	bool m_bInstanceVisible : 1;
 	bool m_bFullSkeletonUpdate : 1;
+	bool m_bVisibleLastFrame : 1;
 	uint32 m_bAllNodesValid : 1; //True if this animation was already played once.
 	bool m_bSetDefaultPoseExecute : 1;
 

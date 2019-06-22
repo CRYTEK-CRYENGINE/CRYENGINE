@@ -9,6 +9,22 @@
 class CSceneDepthStage : public CGraphicsPipelineStage
 {
 public:
+	static const EGraphicsPipelineStage StageID = eStage_SceneDepth;
+
+	CSceneDepthStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+		, m_LinearizePass(&graphicsPipeline)
+	{
+		for (auto& pass : m_downsamplePass)
+			pass.SetGraphicsPipeline(&graphicsPipeline);
+		for (auto& pass : m_readback)
+			pass.pass.SetGraphicsPipeline(&graphicsPipeline);
+		for (auto& pass : m_DownSamplePasses)
+			pass.m_pass.SetGraphicsPipeline(&graphicsPipeline);
+		for (auto& pass : m_CopyDepthPasses)
+			pass.m_pass.SetGraphicsPipeline(&graphicsPipeline);
+	}
+
 	~CSceneDepthStage() override
 	{
 		ReleaseResources();
@@ -98,30 +114,33 @@ private:
 	void      ExecutePasses(float sourceWidth, float sourceHeight, float sampledWidth, float sampledHeight);
 	void      ReadbackLatestData();
 
-	static const uint32 kMaxDownsamplePasses = CRY_ARRAY_COUNT(CRendererResources::s_ptexLinearDepthDownSample);
-	static const uint32 kMaxReadbackPasses = CRY_ARRAY_COUNT(CRendererResources::s_ptexLinearDepthReadBack);
-	static const uint32 kMaxResults = 2;
+	static const uint32       kMaxDownsamplePasses = 4;
+	static const uint32       kMaxReadbackPasses = 4;
+	static const uint32       kMaxResults = 2;
 
-	const ICVar*        m_pCheckOcclusion = nullptr;       // e_CheckOcclusion
-	const ICVar*        m_pStatObjRenderTasks = nullptr;   // e_StatObjBufferRenderTasks
-	const ICVar*        m_pCoverageBufferReproj = nullptr; // e_CoverageBufferReproj
+	CTexture*                 m_pTexLinearDepthReadBack[kMaxReadbackPasses];
+	CTexture*                 m_pTexLinearDepthDownSample[kMaxDownsamplePasses];
 
-	uint32              m_resourceWidth = 0;
-	uint32              m_resourceHeight = 0;
-	int32               m_sourceTexId = 0;
-	EConfigurationFlags m_resourceFlags;
+	const ICVar*              m_pCheckOcclusion = nullptr;       // e_CheckOcclusion
+	const ICVar*              m_pStatObjRenderTasks = nullptr;   // e_StatObjBufferRenderTasks
+	const ICVar*              m_pCoverageBufferReproj = nullptr; // e_CoverageBufferReproj
 
-	uint32              m_downsamplePassCount = 0;
-	uint32              m_readbackIndex = 0;
+	uint32                    m_resourceWidth = 0;
+	uint32                    m_resourceHeight = 0;
+	int32                     m_sourceTexId = 0;
+	EConfigurationFlags       m_resourceFlags;
 
-	CFullscreenPass     m_downsamplePass[kMaxDownsamplePasses];
-	SReadback           m_readback[kMaxReadbackPasses];
+	uint32                    m_downsamplePassCount = 0;
+	uint32                    m_readbackIndex = 0;
 
-	TLock               m_lock;
-	uint32              m_lastResult = kMaxResults;
-	uint32              m_lastPinned = kMaxResults;
-	uint32              m_numPinned = 0;
-	SResult             m_result[kMaxResults];
+	CFullscreenPass           m_downsamplePass[kMaxDownsamplePasses];
+	SReadback                 m_readback[kMaxReadbackPasses];
+
+	TLock                     m_lock;
+	uint32                    m_lastResult = kMaxResults;
+	uint32                    m_lastPinned = kMaxResults;
+	uint32                    m_numPinned = 0;
+	SResult                   m_result[kMaxResults];
 
 	CDepthDownsamplePass      m_DownSamplePasses[3];
 	CDepthDelinearizationPass m_CopyDepthPasses[3];

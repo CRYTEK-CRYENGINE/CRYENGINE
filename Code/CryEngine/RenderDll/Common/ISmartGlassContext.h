@@ -1,19 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File:SmartGlassContext.h - API Independent
-//
-//	History:
-//	-Jan 10,2013:Originally Created by Steve Barnett
-//
-//////////////////////////////////////////////////////////////////////
-
-#ifndef _SMARTGLASS_CONTEXT_H
-#define _SMARTGLASS_CONTEXT_H
-
-#if _MSC_VER > 1000
-	#pragma once
-#endif
+#pragma once
 
 #if defined(SUPPORT_SMARTGLASS)
 
@@ -79,5 +66,3 @@ private:
 };
 
 #endif
-
-#endif // _SMARTGLASS_CONTEXT_H

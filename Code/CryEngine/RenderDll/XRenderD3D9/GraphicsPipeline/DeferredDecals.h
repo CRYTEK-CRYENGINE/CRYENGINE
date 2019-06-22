@@ -10,10 +10,13 @@ class CDeferredDecalsStage : public CGraphicsPipelineStage
 {
 public:
 	enum { MaxPersistentDecals = 1024 };
-	
+	static const EGraphicsPipelineStage StageID = eStage_DeferredDecals;
+
 public:
-	CDeferredDecalsStage();
-	virtual ~CDeferredDecalsStage();
+	CDeferredDecalsStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline) {}
+
+	virtual ~CDeferredDecalsStage() {};
 
 	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
@@ -28,7 +31,7 @@ private:
 	void SetupDecalPrimitive(const SDeferredDecal& decal, CRenderPrimitive& primitive, _smart_ptr<IRenderShaderResources>& pShaderResources);
 
 private:
-	std::vector<_smart_ptr<IRenderShaderResources> > m_decalShaderResources;
-	std::vector<CRenderPrimitive>                    m_decalPrimitives;
-	CPrimitiveRenderPass                             m_decalPass;
+	std::vector<_smart_ptr<IRenderShaderResources>> m_decalShaderResources;
+	std::vector<CRenderPrimitive>                   m_decalPrimitives;
+	CPrimitiveRenderPass                            m_decalPass;
 };

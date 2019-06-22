@@ -1,15 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   GLContext.cpp
-//  Version:     v1.00
-//  Created:     25/04/2013 by Valerio Guagliumi.
-//  Description: Implementation of the type CContext.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include <StdAfx.h>
 #include "GLContext.hpp"
 #include "GLDevice.hpp"
@@ -968,7 +958,6 @@ bool CContext::GetImageUnitCache(uint32 uUnit, SImageUnitCache& kCache)
 
 	kCache.m_kConfiguration.m_eFormat = (GLenum)iFormat;
 	kCache.m_kConfiguration.m_iLayer = bLayered ? iLayer : -1;
-	;
 	kCache.m_kTextureName = iTexture == 0 ? CResourceName() : m_pDevice->GetTextureNamePool().Create((GLuint)iTexture);
 
 	return true;

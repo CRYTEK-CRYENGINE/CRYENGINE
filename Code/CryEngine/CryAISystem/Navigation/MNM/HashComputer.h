@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "MNM.h"
-
 #if !defined(_MSC_VER) && !defined(_rotl)
 	#define _rotl(x, k) (((x) << (k)) | ((x) >> (32 - (k))))
 #endif

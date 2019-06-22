@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef STATIC_SHADOWS_H
-#define STATIC_SHADOWS_H
+#pragma once
 
 #include <CryCore/Platform/platform.h>
 #include "../RenderDll/Common/Shadow_Renderer.h"
@@ -36,4 +35,3 @@ private:
 	CLightEntity* m_pLightEntity;
 	ShadowMapFrustum::ShadowCacheData::eUpdateStrategy m_nUpdateStrategy;
 };
-#endif

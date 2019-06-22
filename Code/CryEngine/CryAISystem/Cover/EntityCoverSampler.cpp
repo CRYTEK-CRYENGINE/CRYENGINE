@@ -186,7 +186,7 @@ void EntityCoverSampler::Update(const CTimeValue frameStartTime, const float upd
 
 		ICoverSampler::ESamplerState state = m_sampler->Update(0.00025f);
 
-		if (gAIEnv.CVars.DebugDrawDynamicCoverSampler)
+		if (gAIEnv.CVars.legacyCoverSystem.DebugDrawDynamicCoverSampler)
 			m_sampler->DebugDraw();
 
 		if (state != ICoverSampler::InProgress)
@@ -265,7 +265,7 @@ void EntityCoverSampler::Update(const CTimeValue frameStartTime, const float upd
 		break;
 	}
 
-	if (gAIEnv.CVars.DebugDrawDynamicCoverSampler)
+	if (gAIEnv.CVars.legacyCoverSystem.DebugDrawDynamicCoverSampler)
 		DebugDraw();
 }
 

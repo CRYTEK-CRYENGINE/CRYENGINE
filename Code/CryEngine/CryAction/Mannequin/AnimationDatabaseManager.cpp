@@ -342,7 +342,7 @@ const IAnimationDatabase* CAnimationDatabaseManager::Load(const char* databaseNa
 		return nullptr;
 	}
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Mannequin, 0, "Load ADB: %s", databaseName);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Mannequin, "Load ADB: %s", databaseName);
 
 	const IAnimationDatabase* pDb = CAnimationDatabaseLibrary::LoadResource(databaseName, 0);
 	return pDb;
@@ -353,7 +353,7 @@ IAnimationDatabase* CAnimationDatabaseManager::Create(const char* filename, cons
 	char normalizedFilename[DEF_PATH_LENGTH];
 	NormalizeFilename(normalizedFilename, filename);
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Mannequin, 0, "Create ADB: %s", normalizedFilename);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Mannequin, "Create ADB: %s", normalizedFilename);
 
 	uint32 crc32 = CCrc32::ComputeLowercase(normalizedFilename);
 
@@ -405,7 +405,7 @@ CTagDefinition* CAnimationDatabaseManager::CreateTagDefinition(const char* filen
 	char normalizedFilename[DEF_PATH_LENGTH];
 	NormalizeFilename(normalizedFilename, filename);
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Mannequin, 0, "Create TagDefinition: %s", normalizedFilename);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Mannequin, "Create TagDefinition: %s", normalizedFilename);
 
 	uint32 crc32 = CCrc32::ComputeLowercase(normalizedFilename);
 
@@ -420,7 +420,7 @@ CTagDefinition* CAnimationDatabaseManager::CreateTagDefinition(const char* filen
 
 const SControllerDef* CAnimationDatabaseManager::LoadControllerDef(const char* filename)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Mannequin, 0, "Load ControllerDef: %s", filename);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Mannequin, "Load ControllerDef: %s", filename);
 
 	const SControllerDef* const pDef = CAnimationControllerDefLibrary::LoadResource(filename, 0);
 	return pDef;
@@ -446,7 +446,7 @@ const CTagDefinition* CAnimationDatabaseManager::LoadTagDefs(const char* filenam
 	char normalizedFilename[DEF_PATH_LENGTH];
 	NormalizeFilename(normalizedFilename, filename);
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Mannequin, 0, "Load TagDefs: %s", normalizedFilename);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Mannequin, "Load TagDefs: %s", normalizedFilename);
 
 	const CTagDefinition* pTagDef = CAnimationTagDefLibrary::LoadResource(filename, isTags ? eTDF_Tags : 0);
 	return pTagDef;
@@ -991,8 +991,7 @@ void CAnimationDatabaseLibrary::AnimEntryToXML(XmlNodeRef outXmlAnimEntry, const
 	{
 		outXmlAnimEntry->setAttr("weightList", animEntry.weightList);
 	}
-	char channelName[10];
-	cry_strcpy(channelName, "channel0");
+	char channelName[] = "channel0";
 	for (uint32 i = 0; i < MANN_NUMBER_BLEND_CHANNELS; i++)
 	{
 		if (animEntry.blendChannels[i] != 0.0f)
@@ -1014,8 +1013,7 @@ bool CAnimationDatabaseLibrary::XMLToAnimEntry(SAnimationEntry& animEntry, XmlNo
 	root->getAttr("weight", animEntry.playbackWeight);
 	root->getAttr("weightList", animEntry.weightList);
 
-	char channelName[10];
-	cry_strcpy(channelName, "channel0");
+	char channelName[] = "channel0";
 	for (uint32 i = 0; i < MANN_NUMBER_BLEND_CHANNELS; i++)
 	{
 		channelName[7] = '0' + i;

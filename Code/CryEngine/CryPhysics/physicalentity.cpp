@@ -1345,7 +1345,7 @@ int CPhysicalEntity::Action(pe_action *_action, int bThreadSafe)
 		pe_action_move_parts *action = (pe_action_move_parts*)_action;
 		CPhysicalEntity *pTarget = (CPhysicalEntity*)action->pTarget;
 		int i,j,iop;
-		pe_geomparams gp;
+		pe_articgeomparams gp;
 		pe_params_structural_joint psj;
 		Matrix34 mtxPart; gp.pMtx3x4=&mtxPart;
 		if (pTarget) for(i=m_nParts-1;i>=0;i--) 
@@ -1358,6 +1358,7 @@ int CPhysicalEntity::Action(pe_action *_action, int bThreadSafe)
 				mtxPart = action->mtxRel*Matrix34(Vec3(m_parts[i].scale), m_parts[i].q, m_parts[i].pos);
 				gp.pLattice=m_parts[i].pLattice; gp.idmatBreakable=m_parts[i].idmatBreakable;
 				gp.pMatMapping=m_parts[i].pMatMapping; gp.nMats=m_parts[i].nMats;
+				gp.idbody = idnew;
 				pTarget->AddGeometry(m_parts[i].pPhysGeom, &gp, idnew, 1);
 
 				if (m_pStructure) for(j=0;j<m_pStructure->nJoints;j++) 
@@ -1435,8 +1436,7 @@ float CPhysicalEntity::GetExtent(EGeomForm eForm) const
 void CPhysicalEntity::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm eForm) const
 {
 	// choose sub-part, get random pos, transform to world
-	const CGeomExtent& ext = m_Extents[eForm];
-	for (auto subPoints : ext.RandomPartsAliasSum(points, seed)) {
+	for (auto subPoints : m_Extents[eForm].RandomPartsAliasSum(points, seed)) {
 		if (subPoints.iPart >= 0 && subPoints.iPart < m_nParts) {
 			geom const& part = m_parts[subPoints.iPart];
 			part.pPhysGeom->pGeom->GetRandomPoints(subPoints.aPoints, seed, eForm);
@@ -2002,41 +2002,6 @@ void CPhysicalEntity::GetMemoryStatistics(ICrySizer *pSizer) const
 	if (m_pUsedParts)
 		pSizer->AddObject(m_pUsedParts, MAX_TOT_THREADS*sizeof(m_pUsedParts[0]));
 }
-
-struct SMemSerializer : ISerialize {
-	SMemSerializer(int size0=256) { buf=new char[size=size0]; pos=0; reading=false; }
-	SMemSerializer(char *buf0, bool read=true) { buf=buf0; size=-1; pos=0; reading=read; }
-	virtual ~SMemSerializer() { if (size>0) delete[] buf; }
-	virtual void ReadStringValue(const char * name, SSerializeString &curValue, uint32 policy=0) {}
-	virtual void WriteStringValue(const char * name, SSerializeString& buffer, uint32 policy=0) {}
-	virtual void Update( ISerializeUpdateFunction * pUpdate ) {}
-	virtual void FlagPartialRead() {}
-	virtual void BeginGroup( const char * szName ) {}
-	virtual bool BeginOptionalGroup(const char* szName, bool condition) 
-	{
-		Value(szName, condition);
-		return condition; 
-	}
-	virtual void EndGroup() {}
-	virtual bool IsReading() const { return reading!=0; }
-	virtual bool ShouldCommitValues() const { return true; }
-	virtual ESerializationTarget GetSerializationTarget() const { return eST_SaveGame; }
-	virtual bool Ok() const { return true; }
-#define SERIALIZATION_TYPE(T) \
-	virtual void Value( const char * name, T& x, uint32 policy=0 ) { \
-		if (pos+sizeof(T)>(unsigned int)size) { ReallocateList(buf,size,size+256); size+=256; } \
-		T *op[2]; op[reading]=(T*)(buf+pos); op[reading^1]=&x; *op[0]=*op[1]; pos+=sizeof(T); \
-	}
-#include <CryNetwork/SerializationTypes.h>
-#undef SERIALIZATION_TYPE
-#define SERIALIZATION_TYPE(T) virtual void ValueWithDefault( const char * name, T& x, const T& defaultValue ) { Value(name,x); }
-#include <CryNetwork/SerializationTypes.h>
-#undef SERIALIZATION_TYPE
-	virtual void ValueWithDefault( const char * name, SSerializeString& x, const SSerializeString& defaultValue ) {}
-	int reading;
-	char* buf;
-	int pos,size;
-};
 
 int CPhysicalEntity::GetStateSnapshotTxt(char *txtbuf,int szbuf, float time_back) 
 {

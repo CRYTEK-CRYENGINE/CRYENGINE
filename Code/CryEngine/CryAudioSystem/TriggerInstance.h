@@ -18,9 +18,10 @@ public:
 	CTriggerInstance& operator=(CTriggerInstance const&) = delete;
 	CTriggerInstance& operator=(CTriggerInstance&&) = delete;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	explicit CTriggerInstance(
 		ControlId const triggerId,
+		EntityId const entityId,
 		uint16 const numPlayingConnectionInstances,
 		uint16 const numPendingConnectionInstances,
 		ERequestFlags const flags,
@@ -29,6 +30,7 @@ public:
 		void* const pUserDataOwner,
 		float const radius)
 		: m_triggerId(triggerId)
+		, m_entityId(entityId)
 		, m_numPlayingConnectionInstances(numPlayingConnectionInstances)
 		, m_numPendingConnectionInstances(numPendingConnectionInstances)
 		, m_flags(flags)
@@ -40,6 +42,7 @@ public:
 #else
 	explicit CTriggerInstance(
 		ControlId const triggerId,
+		EntityId const entityId,
 		uint16 const numPlayingConnectionInstances,
 		uint16 const numPendingConnectionInstances,
 		ERequestFlags const flags,
@@ -47,6 +50,7 @@ public:
 		void* const pUserData,
 		void* const pUserDataOwner)
 		: m_triggerId(triggerId)
+		, m_entityId(entityId)
 		, m_numPlayingConnectionInstances(numPlayingConnectionInstances)
 		, m_numPendingConnectionInstances(numPendingConnectionInstances)
 		, m_flags(flags)
@@ -54,7 +58,7 @@ public:
 		, m_pUserData(pUserData)
 		, m_pUserDataOwner(pUserDataOwner)
 	{}
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 	ControlId GetTriggerId() const                     { return m_triggerId; }
 
@@ -65,17 +69,18 @@ public:
 	bool      IsPendingInstanceFinished();
 
 	void      SetPendingToPlaying();
-	void      SendFinishedRequest(EntityId const entityId);
+	void      SendFinishedRequest();
 	void      Release();
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	float GetRadius() const             { return m_radius; }
 	void  SetRadius(float const radius) { m_radius = radius; }
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 private:
 
 	ControlId const     m_triggerId;
+	EntityId const      m_entityId;
 	uint16              m_numPlayingConnectionInstances;
 	uint16              m_numPendingConnectionInstances;
 	ERequestFlags const m_flags;
@@ -84,10 +89,8 @@ private:
 	void* const         m_pUserData;
 	void* const         m_pUserDataOwner;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	float m_radius;
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 };
-
-using TriggerInstances = std::map<TriggerInstanceId, CTriggerInstance*>;
 } // namespace CryAudio

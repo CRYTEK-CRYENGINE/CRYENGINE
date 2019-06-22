@@ -1,37 +1,40 @@
 {
-    "toolBar": {
-        "Commands": [
-			{
-                "command": "layout.load 'Editor/Layouts/Default Layout.json'",
-                "custom": true,
-                "uiName": "Default Layout",
-                "icon": "icons:Layouts/layout_default.ico"
-            },
-            {
-                "command": "layout.load 'Editor/Layouts/Animation.json'",
-                "custom": true,
-                "uiName": "Animation Layout",
-                "icon": "icons:Layouts/layout_animation.ico"
-            },
-            {
-                "command": "layout.load 'Editor/Layouts/Cinematic.json'",
-                "custom": true,
-                "uiName": "Cinematic Layout",
-                "icon": "icons:Layouts/layout_cinematic.ico"
-            },
-            {
-                "command": "layout.load 'Editor/Layouts/Level Design.json'",
-                "custom": true,
-                "uiName": "Level Design Layout",
-                "icon": "icons:Layouts/layout_leveldesign.ico"
-            },
-            {
-                "command": "layout.load 'Editor/Layouts/Flow Graph.json'",
-                "custom": true,
-                "uiName": "Flow Graph Layout",
-                "icon": "icons:Layouts/layout_flowgraph.ico"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "layout.load 'Editor/Layouts/Default Layout.json'",
+            "iconPath": "icons:Layouts/layout_default.ico",
+            "m_IsCustom": true,
+            "name": "Default Layout",
+            "type": 0
+        },
+        {
+            "command": "layout.load 'Editor/Layouts/Animation.json'",
+            "iconPath": "icons:Layouts/layout_animation.ico",
+            "m_IsCustom": true,
+            "name": "Animation Layout",
+            "type": 0
+        },
+        {
+            "command": "layout.load 'Editor/Layouts/Cinematic.json'",
+            "iconPath": "icons:Layouts/layout_cinematic.ico",
+            "m_IsCustom": true,
+            "name": "Cinematic Layout",
+            "type": 0
+        },
+        {
+            "command": "layout.load 'Editor/Layouts/Level Design.json'",
+            "iconPath": "icons:Layouts/layout_leveldesign.ico",
+            "m_IsCustom": true,
+            "name": "Level Design Layout",
+            "type": 0
+        },
+        {
+            "command": "layout.load 'Editor/Layouts/Flow Graph.json'",
+            "iconPath": "icons:Layouts/layout_flowgraph.ico",
+            "m_IsCustom": true,
+            "name": "Flow Graph Layout",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

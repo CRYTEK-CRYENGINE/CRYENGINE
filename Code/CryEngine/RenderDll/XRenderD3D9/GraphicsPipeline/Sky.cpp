@@ -3,12 +3,16 @@
 #include "StdAfx.h"
 #include "Sky.h"
 
-CSkyStage::CSkyStage()
-	: m_skyDomeTextureLastTimeStamp(-1)
+#include <CrySystem/File/CryBufferedFileReader.h>
+
+CSkyStage::CSkyStage(CGraphicsPipeline& graphicsPipeline)
+	: CGraphicsPipelineStage(graphicsPipeline)
+	, m_skyDomeTextureLastTimeStamp(-1)
 	, m_pSkyDomeTextureMie(NULL)
 	, m_pSkyDomeTextureRayleigh(NULL)
 	, m_numStars(0)
 	, m_pStarMesh(NULL)
+	, m_skyPass(&graphicsPipeline)
 {}
 
 void CSkyStage::Init()
@@ -33,8 +37,10 @@ void CSkyStage::CreateSkyDomeTextures(int32 width, int32 height)
 
 	const uint32 creationFlags = FT_STATE_CLAMP | FT_NOMIPS | FT_DONT_STREAM;
 
-	m_pSkyDomeTextureMie = CTexture::GetOrCreateTextureObject("$SkyDomeTextureMie", width, height, 1, eTT_2D, creationFlags, eTF_R16G16B16A16F);
-	m_pSkyDomeTextureRayleigh = CTexture::GetOrCreateTextureObject("$SkyDomeTextureRayleigh", width, height, 1, eTT_2D, creationFlags, eTF_R16G16B16A16F);
+	std::string mieTextureName = "$SkyDomeTextureMie" + m_graphicsPipeline.GetUniqueIdentifierName();
+	std::string rayleighTextureName = "$SkyDomeTextureRayleigh" + m_graphicsPipeline.GetUniqueIdentifierName();
+	m_pSkyDomeTextureMie = CTexture::GetOrCreateTextureObject(mieTextureName.c_str(), width, height, 1, eTT_2D, creationFlags, eTF_R16G16B16A16F);
+	m_pSkyDomeTextureRayleigh = CTexture::GetOrCreateTextureObject(rayleighTextureName.c_str(), width, height, 1, eTT_2D, creationFlags, eTF_R16G16B16A16F);
 
 	m_pSkyDomeTextureMie->Create2DTexture(width, height, 1, creationFlags, nullptr, eTF_R16G16B16A16F);
 	m_pSkyDomeTextureRayleigh->Create2DTexture(width, height, 1, creationFlags, nullptr, eTF_R16G16B16A16F);
@@ -45,117 +51,101 @@ bool CSkyStage::LoadStarsData()
 	const uint32 c_fileTag(0x52415453);       // "STAR"
 	const uint32 c_fileVersion(0x00010001);
 	const char c_fileName[] = "%ENGINE%/engineassets/sky/stars.dat";
-
-	ICryPak* pPak(gEnv->pCryPak);
-	if (pPak)
+	
+	CCryBufferedFileReader file;
+	if (file.Open(c_fileName, "rb"))
 	{
-		CInMemoryFileLoader file(pPak);
-		if (file.FOpen(c_fileName, "rb"))
+		// read and validate header
+		size_t itemsRead(0);
+		uint32 fileTag(0);
+		itemsRead = file.ReadType(&fileTag);
+		if (itemsRead != 1 || fileTag != c_fileTag)
 		{
-			// read and validate header
-			size_t itemsRead(0);
-			uint32 fileTag(0);
-			itemsRead = file.FRead(&fileTag, 1);
-			if (itemsRead != 1 || fileTag != c_fileTag)
-			{
-				file.FClose();
-				return false;
-			}
-
-			uint32 fileVersion(0);
-			itemsRead = file.FRead(&fileVersion, 1);
-			if (itemsRead != 1 || fileVersion != c_fileVersion)
-			{
-				file.FClose();
-				return false;
-			}
-
-			// read in stars
-			file.FRead(&m_numStars, 1);
-
-			SVF_P3S_C4B_T2S* pData(new SVF_P3S_C4B_T2S[6 * m_numStars]);
-
-			for (unsigned int i(0); i < m_numStars; ++i)
-			{
-				float ra(0);
-				file.FRead(&ra, 1);
-
-				float dec(0);
-				file.FRead(&dec, 1);
-
-				uint8 r(0);
-				file.FRead(&r, 1);
-
-				uint8 g(0);
-				file.FRead(&g, 1);
-
-				uint8 b(0);
-				file.FRead(&b, 1);
-
-				uint8 mag(0);
-				file.FRead(&mag, 1);
-
-				Vec3 v;
-				v.x = -cosf(DEG2RAD(dec)) * sinf(DEG2RAD(ra * 15.0f));
-				v.y = cosf(DEG2RAD(dec)) * cosf(DEG2RAD(ra * 15.0f));
-				v.z = sinf(DEG2RAD(dec));
-
-				for (int k = 0; k < 6; k++)
-				{
-					pData[6 * i + k].xyz = v;
-					pData[6 * i + k].color.dcolor = (mag << 24) + (b << 16) + (g << 8) + r;
-				}
-			}
-
-			m_pStarMesh = gRenDev->CreateRenderMeshInitialized(pData, 6 * m_numStars, EDefaultInputLayouts::P3S_C4B_T2S, 0, 0, prtTriangleList, "Stars", "Stars");
-
-			delete[] pData;
-
-			// check if we read entire file
-			long curPos(file.FTell());
-			file.FSeek(0, SEEK_END);
-			long endPos(file.FTell());
-			if (curPos != endPos)
-			{
-				file.FClose();
-				return false;
-			}
-
-			file.FClose();
-			return true;
+			return false;
 		}
+
+		uint32 fileVersion(0);
+		itemsRead = file.ReadType(&fileVersion);
+		if (itemsRead != 1 || fileVersion != c_fileVersion)
+		{
+			return false;
+		}
+
+		// read in stars
+		file.ReadType(&m_numStars);
+
+		SVF_P3S_C4B_T2S* pData(new SVF_P3S_C4B_T2S[6 * m_numStars]);
+
+		for (unsigned int i(0); i < m_numStars; ++i)
+		{
+			float ra(0);
+			file.ReadType(&ra);
+
+			float dec(0);
+			file.ReadType(&dec);
+
+			uint8 r(0);
+			file.ReadType(&r);
+
+			uint8 g(0);
+			file.ReadType(&g);
+
+			uint8 b(0);
+			file.ReadType(&b);
+
+			uint8 mag(0);
+			file.ReadType(&mag);
+
+			Vec3 v;
+			v.x = -cosf(DEG2RAD(dec)) * sinf(DEG2RAD(ra * 15.0f));
+			v.y = cosf(DEG2RAD(dec)) * cosf(DEG2RAD(ra * 15.0f));
+			v.z = sinf(DEG2RAD(dec));
+
+			for (int k = 0; k < 6; k++)
+			{
+				pData[6 * i + k].xyz = v;
+				pData[6 * i + k].color.dcolor = (mag << 24) + (b << 16) + (g << 8) + r;
+			}
+		}
+
+		m_pStarMesh = gRenDev->CreateRenderMeshInitialized(pData, 6 * m_numStars, EDefaultInputLayouts::P3S_C4B_T2S, 0, 0, prtTriangleList, "Stars", "Stars");
+
+		delete[] pData;
+
+		// check if we read entire file
+		const size_t curPos(file.GetPosition());
+		file.Seek(0, SEEK_END);
+		const size_t endPos(file.GetPosition());
+		
+		return (curPos == endPos);
 	}
 	return false;
 }
 
 void CSkyStage::SetSkyParameters()
 {
-	const eSkyType skyType = gEnv->p3DEngine->GetSkyType();
-	I3DEngine* const p3DEngine = gEnv->p3DEngine;
+	auto threadID = gRenDev->GetRenderThreadID();
+	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 
 	// SkyBox
 	{
 		static CCryNameR skyBoxParamName("SkyDome_SkyBoxParams");
-		const float skyBoxAngle = DEG2RAD(p3DEngine->GetGlobalParameter(E3DPARAM_SKY_SKYBOX_ANGLE));
-		const float skyBoxScaling = skyType == eSkyType_HDRSky
-		                            ? 2.f
-		                            : 1.0f / std::max(0.0001f, p3DEngine->GetGlobalParameter(E3DPARAM_SKY_SKYBOX_STRETCHING));
-		const float skyBoxMultiplier = p3DEngine->GetGlobalParameter(E3DPARAM_SKYBOX_MULTIPLIER);
+		const float skyBoxAngle = DEG2RAD(rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_fSkyBoxAngle);
+		const float skyBoxScaling = rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_fSkyBoxStretching;
+		const float skyBoxMultiplier = rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_fSkyBoxMultiplier; // Deprecated: E3DPARAM_SKYBOX_MULTIPLIER
 		const Vec4 skyBoxParams(skyBoxAngle, skyBoxScaling, skyBoxMultiplier, 0.f);
 		m_skyPass.SetConstant(skyBoxParamName, skyBoxParams, eHWSC_Pixel);
 
 		static CCryNameR skyBoxExposureName("SkyDome_SkyBoxExposure");
-		Vec3 skyBoxExposure;
-		p3DEngine->GetGlobalParameter(E3DPARAM_SKY_SKYBOX_EXPOSURE, skyBoxExposure);
-		m_skyPass.SetConstant(skyBoxExposureName, Vec4(skyBoxExposure, 1.f), eHWSC_Pixel);
+		const Vec3& skyBoxExposure = rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_vSkyBoxEmittance;
+		m_skyPass.SetConstant(skyBoxExposureName, Vec4(skyBoxExposure, 1.0f), eHWSC_Pixel);
 
 		static CCryNameR skyBoxOpacityName("SkyDome_SkyBoxOpacity");
-		Vec3 skyBoxOpacity;
-		p3DEngine->GetGlobalParameter(E3DPARAM_SKY_SKYBOX_OPACITY, skyBoxOpacity);
-		m_skyPass.SetConstant(skyBoxOpacityName, Vec4(skyBoxOpacity, 1.f), eHWSC_Pixel);
+		const Vec3& skyBoxOpacity = rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_vSkyBoxFilter;
+		m_skyPass.SetConstant(skyBoxOpacityName, Vec4(skyBoxOpacity, 1.0f), eHWSC_Pixel);
 	}
 
-	if (skyType == eSkyType_HDRSky)
+	if (rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_bApplySkyDome)
 	{
 		SetHDRSkyParameters();
 	}
@@ -269,24 +259,24 @@ static void FillSkyTextureData(CTexture* pTexture, const void* pData, const uint
 
 void CSkyStage::Execute(CTexture* pColorTex, CTexture* pDepthTex)
 {
-	I3DEngine* const p3DEngine = gEnv->p3DEngine;
-
-	if (!p3DEngine->IsSkyVisible())
-		return;
-
 	FUNCTION_PROFILER_RENDERER();
 	PROFILE_LABEL_SCOPE("SKY_PASS");
 
-	const eSkyType skyType = gEnv->p3DEngine->GetSkyType();
+	I3DEngine* const p3DEngine = gEnv->p3DEngine;
+	auto threadID = gRenDev->GetRenderThreadID();
+	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
+
+	const bool isProcedualSky = rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_bApplySkyDome;
+	const bool isOverlayedSky = rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_bApplySkyBox;
 
 	CRenderView* const pRenderView = RenderView();
-	const bool applyFog = pRenderView->IsGlobalFogEnabled() && !(GetGraphicsPipeline().IsPipelineFlag(CGraphicsPipeline::EPipelineFlags::NO_SHADER_FOG));
-	bool isProcedualSky = false;
+	const bool applyFog = pRenderView->IsGlobalFogEnabled() && !(m_graphicsPipeline.IsPipelineFlag(CGraphicsPipeline::EPipelineFlags::NO_SHADER_FOG));
 
 	CTexture* pSkyDomeTextureMie = CRendererResources::s_ptexBlack;
 	CTexture* pSkyDomeTextureRayleigh = CRendererResources::s_ptexBlack;
+	CTexture* pSkyDomeTex = CRendererResources::s_ptexBlack;
 
-	if (skyType == eSkyType_HDRSky)
+	if (isProcedualSky)
 	{
 		const SSkyLightRenderParams* const pRenderParams = p3DEngine->GetSkyLightRenderParams();
 
@@ -303,30 +293,28 @@ void CSkyStage::Execute(CTexture* pColorTex, CTexture* pDepthTex)
 
 		pSkyDomeTextureMie = m_pSkyDomeTextureMie;
 		pSkyDomeTextureRayleigh = m_pSkyDomeTextureRayleigh;
-
-		isProcedualSky = true;
 	}
 
-	const string skyDomeTextureName = p3DEngine->GetSkyDomeTextureName();
-	const bool hasSkyDomeTexture = !skyDomeTextureName.empty();
-	CTexture* pSkyDomeTex = hasSkyDomeTexture
-	                        ? CTexture::ForName(skyDomeTextureName, FT_DONT_STREAM, eTF_Unknown)
-	                        : CRendererResources::s_ptexBlack;
+	if (isOverlayedSky)
+	{
+		pSkyDomeTex = rd->m_p3DEngineCommon[threadID].m_SkyInfo.m_pSkyBoxTexture.get();
+	}
 
 	const string moonTextureName = p3DEngine->GetMoonTextureName();
 	const bool hasMoonTexture = !moonTextureName.empty();
 	CTexture* pSkyMoonTex = hasMoonTexture
-	                        ? CTexture::ForName(moonTextureName, FT_DONT_STREAM, eTF_Unknown)
-	                        : CRendererResources::s_ptexBlack;
+		? CTexture::ForName(moonTextureName, FT_DONT_STREAM, eTF_Unknown)
+		: CRendererResources::s_ptexBlack;
 
 	uint64 rtMask = 0;
 	rtMask |= isProcedualSky ? g_HWSR_MaskBit[HWSR_SAMPLE0] : 0;
-	rtMask |= hasSkyDomeTexture ? g_HWSR_MaskBit[HWSR_SAMPLE1] : 0;
+	rtMask |= isOverlayedSky ? g_HWSR_MaskBit[HWSR_SAMPLE1] : 0;
 	if (rtMask == 0) // in case no sky texture is provided, draw black sky
 		rtMask = g_HWSR_MaskBit[HWSR_SAMPLE1];
 	rtMask |= applyFog ? g_HWSR_MaskBit[HWSR_FOG] : 0;
 
-	if (m_skyPass.IsDirty(skyType, rtMask, m_skyDomeTextureLastTimeStamp,
+	// TODO: streaming invalidation
+	if (m_skyPass.IsDirty(rtMask, m_skyDomeTextureLastTimeStamp,
 	                      pSkyMoonTex->GetTextureID(), pSkyDomeTex->GetTextureID(), pDepthTex->GetTextureID()))
 	{
 		const SSamplerState samplerDescLinearWrapU(FILTER_LINEAR, eSamplerAddressMode_Wrap, eSamplerAddressMode_Clamp, eSamplerAddressMode_Clamp, 0);
@@ -353,11 +341,11 @@ void CSkyStage::Execute(CTexture* pColorTex, CTexture* pDepthTex)
 	m_skyPass.Execute();
 
 	// Stars
-	if (skyType == eSkyType_HDRSky)
+	if (isProcedualSky)
 	{
 		const float starIntensity = gEnv->p3DEngine->GetGlobalParameter(E3DPARAM_NIGHSKY_STAR_INTENSITY);
 
-		if (skyType == eSkyType_HDRSky && starIntensity > 1e-3f)
+		if (starIntensity > 1e-3f)
 		{
 			D3DViewPort viewport = RenderViewportToD3D11Viewport(RenderView()->GetViewport());
 			if (pRenderView->IsRecursive())
@@ -386,7 +374,7 @@ void CSkyStage::Execute(CTexture* pColorTex, CTexture* pDepthTex)
 
 			m_starsPrimitive.SetCustomVertexStream(hVertexStream, pStarMesh->_GetVertexFormat(), pStarMesh->GetStreamStride(VSF_GENERAL));
 			m_starsPrimitive.SetDrawInfo(eptTriangleList, 0, 0, 6 * m_numStars);
-			m_starsPrimitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, gcpRendD3D->GetGraphicsPipeline().GetMainViewConstantBuffer(), EShaderStage_Vertex);
+			m_starsPrimitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, m_graphicsPipeline.GetMainViewConstantBuffer(), EShaderStage_Vertex);
 			m_starsPrimitive.Compile(m_starsPass);
 
 			{
@@ -409,11 +397,55 @@ void CSkyStage::Execute(CTexture* pColorTex, CTexture* pDepthTex)
 				Vec4 paramStarIntensity(starIntensity* min(1.0f, size), 0, 0, 0);
 				m_starsPrimitive.GetConstantManager().SetNamedConstant(nameStarIntensity, paramStarIntensity, eHWSC_Pixel);
 
-				m_starsPrimitive.GetConstantManager().EndNamedConstantUpdate(&m_starsPass.GetViewport());
+				m_starsPrimitive.GetConstantManager().EndNamedConstantUpdate(&m_starsPass.GetViewport(), pRenderView);
 
 				m_starsPass.AddPrimitive(&m_starsPrimitive);
 				m_starsPass.Execute();
 			}
 		}
 	}
+}
+
+void CSkyStage::ExecuteMinimum(CTexture* pColorTex, CTexture* pDepthTex)
+{
+	FUNCTION_PROFILER_RENDERER();
+	PROFILE_LABEL_SCOPE("SKY_PASS_MINIMUM");
+
+	CRenderView* const pRenderView = RenderView();
+	const bool applyFog = pRenderView->IsGlobalFogEnabled() && !(m_graphicsPipeline.IsPipelineFlag(CGraphicsPipeline::EPipelineFlags::NO_SHADER_FOG));
+
+	CTexture* pSkyDomeTextureMie = CRendererResources::s_ptexBlack;
+	CTexture* pSkyDomeTextureRayleigh = CRendererResources::s_ptexBlack;
+
+	CTexture* pSkyDomeTex = CRendererResources::s_ptexBlack;
+	CTexture* pSkyMoonTex = CRendererResources::s_ptexBlack;
+
+	uint64 rtMask = 0;
+	rtMask = g_HWSR_MaskBit[HWSR_SAMPLE1];
+	rtMask |= applyFog ? g_HWSR_MaskBit[HWSR_FOG] : 0;
+
+	if (m_skyPass.IsDirty(rtMask, m_skyDomeTextureLastTimeStamp,
+		pSkyMoonTex->GetTextureID(), pSkyDomeTex->GetTextureID(), pDepthTex->GetTextureID()))
+	{
+		const SSamplerState samplerDescLinearWrapU(FILTER_LINEAR, eSamplerAddressMode_Wrap, eSamplerAddressMode_Clamp, eSamplerAddressMode_Clamp, 0);
+		const SamplerStateHandle samplerStateLinearWrapU = GetDeviceObjectFactory().GetOrCreateSamplerStateHandle(samplerDescLinearWrapU);
+
+		static CCryNameTSCRC techSkyPass("SkyPass");
+		m_skyPass.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
+		m_skyPass.SetTechnique(CShaderMan::s_ShaderStars, techSkyPass, rtMask);
+		m_skyPass.SetRequirePerViewConstantBuffer(true);
+		m_skyPass.SetRenderTarget(0, pColorTex);
+		m_skyPass.SetDepthTarget(pDepthTex);
+		m_skyPass.SetState(GS_DEPTHFUNC_EQUAL);
+		m_skyPass.SetTexture(0, pSkyDomeTex);
+		m_skyPass.SetSampler(0, EDefaultSamplerStates::LinearClamp);
+
+		m_skyPass.SetTexture(1, pSkyDomeTextureMie);
+		m_skyPass.SetTexture(2, pSkyDomeTextureRayleigh);
+		m_skyPass.SetTexture(3, pSkyMoonTex);
+		m_skyPass.SetSampler(1, samplerStateLinearWrapU);
+	}
+
+	m_skyPass.BeginConstantUpdate();
+	m_skyPass.Execute();
 }

@@ -9,6 +9,13 @@
 class CScreenSpaceSSSStage : public CGraphicsPipelineStage
 {
 public:
+	static const EGraphicsPipelineStage StageID = eStage_ScreenSpaceSSS;
+
+	CScreenSpaceSSSStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+		, m_passH(&graphicsPipeline)
+		, m_passV(&graphicsPipeline) {}
+
 	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
 		return CRendererCVars::CV_r_DeferredShadingSSS > 0;

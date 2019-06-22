@@ -74,7 +74,7 @@ void CPerceptionActor::CheckCloseContact(IAIObject* pTarget)
 		const float distSq = Distance::Point_PointSq(m_pAIActor->CastToIAIObject()->GetPos(), pTarget->GetPos());
 		if (distSq < sqr(m_meleeRange))
 		{
-			m_pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnCloseContact(), pTarget->GetAIObjectID()));
+			m_pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnCloseContact(), pTarget->GetEntityID()));
 			
 			m_closeContactTimeOut = kCloseContactTimeOutValue;
 		}

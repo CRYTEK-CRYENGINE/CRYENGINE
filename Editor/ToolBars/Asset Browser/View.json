@@ -1,0 +1,33 @@
+{
+    "toolBar": [
+        {
+            "command": "asset.view_split_vertically",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "view_split_vertically",
+            "type": 0
+        },
+        {
+            "command": "asset.view_split_horizontally",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "view_split_horizontally",
+            "type": 0
+        },
+        {
+            "command": "asset.view_details",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "view_details",
+            "type": 0
+        },
+        {
+            "command": "asset.view_thumbnails",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "view_thumbnails",
+            "type": 0
+        }
+    ],
+    "version": 2
+}

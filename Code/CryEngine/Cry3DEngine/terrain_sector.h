@@ -1,18 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   terrain_sector.h
-//  Version:     v1.00
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef SECINFO_H
-#define SECINFO_H
+#pragma once
 
 #define ARR_TEX_OFFSETS_SIZE 4
 
@@ -370,7 +358,7 @@ public:
 	virtual void                       Render(const SRendParams& RendParams, const SRenderingPassInfo& passInfo) override;
 	virtual const AABB                 GetBBox() const override { return AABB(m_boxHeigtmapLocal.min, m_boxHeigtmapLocal.max + Vec3(0, 0, m_fBBoxExtentionByObjectsIntegration)); }
 	virtual void                       FillBBox(AABB& aabb) const override { aabb = GetBBox(); }
-	virtual struct ICharacterInstance* GetEntityCharacter(Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) override { return NULL; };
+	virtual struct ICharacterInstance* GetEntityCharacter(Matrix34A* pMatrix = NULL, bool bReturnOnlyVisible = false) override { return NULL; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// IStreamCallback
@@ -548,7 +536,7 @@ public:
 	void QueueJob(CTerrainNode*, const SRenderingPassInfo& passInfo);
 	void SyncAllJobs(bool bForceAll, const SRenderingPassInfo& passInfo);
 	bool Contains(CTerrainNode* pNode)
-	{ return (m_queuedJobs.Find(pNode) != -1 || m_arrRunningJobs.Find(pNode) != -1); };
+	{ return (m_queuedJobs.Find(pNode) != -1 || m_arrRunningJobs.Find(pNode) != -1); }
 
 	void GetMemoryUsage(ICrySizer* pSizer) const;
 
@@ -584,5 +572,3 @@ struct STerrainNodeChunk
 #pragma pack(pop)
 
 #include "terrain.h"
-
-#endif

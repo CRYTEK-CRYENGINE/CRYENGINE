@@ -32,7 +32,7 @@
 
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 #include <CryAISystem/NavigationSystem/INavMeshQueryManager.h>
-
+#include <CrySystem/ConsoleRegistration.h>
 
 // Maximum time that an async query can execute before it is aborted as an error
 const float MAX_SYNC_TIME_MS = 20;
@@ -1418,9 +1418,9 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 	{
 	case eTPQ_GO_Cover:
 	case eTPQ_GO_Hidespots:
-		if (gAIEnv.CVars.CoverSystem)
+		if (gAIEnv.CVars.legacyCoverSystem.CoverSystem)
 		{
-			CRY_PROFILE_REGION(PROFILE_AI, "TPS Generate Cover Locations");
+			CRY_PROFILE_SECTION(PROFILE_AI, "TPS Generate Cover Locations");
 
 			m_cover.resize(0);
 			gAIEnv.pCoverSystem->GetCover(objPos, fSearchDist, m_cover);
@@ -1440,7 +1440,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 
 			if (eyes.size())
 			{
-				CRY_PROFILE_REGION(PROFILE_AI, "TPS Generate Cover Locations [GetOcclusion]");
+				CRY_PROFILE_SECTION(PROFILE_AI, "TPS Generate Cover Locations [GetOcclusion]");
 
 				m_avoidCircles.resize(0);
 				GatherAvoidCircles(objPos, fSearchDist, pipeUser, m_avoidCircles);
@@ -1455,7 +1455,7 @@ bool CTacticalPointSystem::GenerateInternal(TTacticalPointQuery query, const Que
 				if (context.pAIActor != nullptr)
 				{
 					float distanceToCover = std::max<float>(context.distanceToCover, fAgentRadius);
-					float occupyRadius = fAgentRadius + gAIEnv.CVars.CoverSpacing;
+					float occupyRadius = fAgentRadius + gAIEnv.CVars.legacyCoverSystem.CoverSpacing;
 
 					for (uint32 i = 0; i < coverCount; ++i)
 					{
@@ -3893,12 +3893,12 @@ void CTacticalPointSystem::DebugDraw() const
 
 	// Make sure the target AI is the current AI Stats Target, unless this is a 'special case'
 	EntityId id = 0;
-	if (gAIEnv.CVars.StatsTarget)
+	if (gAIEnv.CVars.legacyDebugDraw.StatsTarget)
 	{
-		const char* sTarget = gAIEnv.CVars.StatsTarget;
+		const char* sTarget = gAIEnv.CVars.legacyDebugDraw.StatsTarget;
 		if (CAIObject* pTargetObject = gAIEnv.pAIObjectManager->GetAIObjectByName(sTarget))
 			id = pTargetObject->GetEntityID();
-		else if (!strcmp(gAIEnv.CVars.StatsTarget, "all"))
+		else if (!strcmp(gAIEnv.CVars.legacyDebugDraw.StatsTarget, "all"))
 			id = -1;
 	}
 

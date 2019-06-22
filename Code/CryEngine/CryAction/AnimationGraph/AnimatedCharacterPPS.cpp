@@ -16,7 +16,6 @@
 #include "DebugHistory.h"
 
 #include <IViewSystem.h>
-#include <CryAISystem/IAIObject.h>
 
 #include "../Animation/PoseAligner/PoseAligner.h"
 
@@ -929,10 +928,9 @@ void CAnimatedCharacter::RequestPhysicalEntityMovement(const QuatT& wantedEntMov
 
 		// Send expected location to AI so pathfollowing which runs in parallel with physics becomes more accurate
 		{
-			IAIObject* pAIObject = GetEntity()->GetAI();
-			if (pAIObject)
+			if (IActor* pActor = CCryAction::GetCryAction()->GetIActorSystem()->GetActor(pEntity->GetId()))
 			{
-				pAIObject->SetExpectedPhysicsPos(m_entLocation.t + m_expectedEntMovement);
+				pActor->SetExpectedPhysicsPos(m_entLocation.t + m_expectedEntMovement);
 			}
 		}
 	}

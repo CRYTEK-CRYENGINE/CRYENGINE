@@ -19,15 +19,10 @@
 DECLARE_JOB("CreateSubsetRenderMesh", TCreateSubsetRenderMesh, SMeshSubSetIndicesJobEntry::CreateSubSetRenderMesh);
 //////////////////////////////////////////////////////////////////////////
 
-#define RENDERMESH_ASYNC_MEMCPY_THRESHOLD (1<<10)
 #define MESH_DATA_DEFAULT_ALIGN (128u)
 
-#define RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS BUFFER_ENABLE_DIRECT_ACCESS
-#ifdef MESH_TESSELLATION_RENDERER
-// Rebuilding the adjaency information needs access to system copies of the buffers. Needs fixing
-#undef RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS
-#define RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS 0
-#endif
+#define RENDERMESH_ASYNC_MEMCPY_THRESHOLD (1<<10)
+#define RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS 0 // BUFFER_ENABLE_DIRECT_ACCESS (TODO: disabled because the memory-type is WC and direct read leads to stutter)
 
 //////////////////////////////////////////////////////////////////////////////////////
 namespace 
@@ -77,16 +72,20 @@ namespace
 		IGeneralMemoryHeap *m_MeshInstancePool;
 		void* m_MeshDataMemory;
 		void* m_MeshInstanceMemory;
-		CryCriticalSection m_MeshPoolCS;
-		SMeshPoolStatistics m_MeshDataPoolStats; 
+#if !defined(_RELEASE)
+		CryCriticalSection m_MeshPoolStatsCS;
+#endif
+		SMeshPoolStatistics m_MeshPoolStats; 
 
 		SMeshPool()
 			: m_MeshDataPool()
 			, m_MeshInstancePool()
 			, m_MeshDataMemory()
 			, m_MeshInstanceMemory()
-			, m_MeshPoolCS()
-			, m_MeshDataPoolStats()
+#if !defined(_RELEASE)
+			, m_MeshPoolStatsCS()
+#endif
+			, m_MeshPoolStats()
 		{}
 	};
 	static SMeshPool s_MeshPool;
@@ -104,71 +103,104 @@ namespace
 
 	static void* AllocateMeshDataUnpooled(buffer_size_t nSize, buffer_size_t nAlign = MESH_DATA_DEFAULT_ALIGN)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "RenderMesh::AllocateMeshDataUnpooled");
-		return CryModuleMemalign(nSize, std::min(nAlign, CDeviceBufferManager::GetBufferAlignmentForStreaming()));
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "RenderMesh::AllocateMeshDataUnpooled");
+
+		nSize = AlignedMeshDataSize(nSize, nAlign);
+
+		if (void* ptr = CryModuleMemalign(nSize, std::min(nAlign, CDeviceBufferManager::GetBufferAlignmentForStreaming())))
+		{
+#if !defined(_RELEASE)
+			s_MeshPool.m_MeshPoolStatsCS.Lock();
+			s_MeshPool.m_MeshPoolStats.nUnpooledInUse += (nSize = CryModuleMemSize(ptr, 1));
+			s_MeshPool.m_MeshPoolStats.nUnpooledInUsePeak = std::max(s_MeshPool.m_MeshPoolStats.nUnpooledInUsePeak, s_MeshPool.m_MeshPoolStats.nUnpooledInUse);
+			s_MeshPool.m_MeshPoolStats.nUnpooledRequestPeak = std::max(s_MeshPool.m_MeshPoolStats.nUnpooledRequestPeak, size_t(nSize));
+			s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
+			return ptr;
+		}
+
+		return nullptr;
 	}
 
 	static void FreeMeshDataUnpooled(void* ptr)
 	{
-		if (ptr == NULL)
+		if (ptr == nullptr)
 			return;
+#if !defined(_RELEASE)
+		s_MeshPool.m_MeshPoolStatsCS.Lock();
+		s_MeshPool.m_MeshPoolStats.nUnpooledInUse -= CryModuleMemSize(ptr, 1);
+		s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
 		CryModuleMemalignFree(ptr);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	static void* AllocateMeshData(buffer_size_t nSize, buffer_size_t nAlign = MESH_DATA_DEFAULT_ALIGN, bool bFlush = false)
 	{
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "RenderMesh::AllocateMeshData");
+
 		nSize = AlignedMeshDataSize(nSize, nAlign);
 
-		if (s_MeshPool.m_MeshDataPool && s_MeshPool.m_MeshDataPoolStats.nPoolSize > nSize)
+		if (s_MeshPool.m_MeshDataPool && s_MeshPool.m_MeshPoolStats.nPoolSize > nSize)
 		{
 		try_again:
-			s_MeshPool.m_MeshPoolCS.Lock();
-			void* ptr = s_MeshPool.m_MeshDataPool->Memalign(nAlign, nSize, "RENDERMESH_POOL");
-			if (ptr)
+			if (void* ptr = s_MeshPool.m_MeshDataPool->Memalign(nAlign, nSize, "RENDERMESH_POOL"))
 			{
-				s_MeshPool.m_MeshDataPoolStats.nPoolInUse += s_MeshPool.m_MeshDataPool->UsableSize(ptr);
-				s_MeshPool.m_MeshDataPoolStats.nPoolInUsePeak =
-					std::max(
-						s_MeshPool.m_MeshDataPoolStats.nPoolInUsePeak,
-						s_MeshPool.m_MeshDataPoolStats.nPoolInUse);
-				s_MeshPool.m_MeshPoolCS.Unlock();
+#if !defined(_RELEASE)
+				s_MeshPool.m_MeshPoolStatsCS.Lock();
+				s_MeshPool.m_MeshPoolStats.nPoolInUse += (nSize = s_MeshPool.m_MeshDataPool->UsableSize(ptr));
+				s_MeshPool.m_MeshPoolStats.nPoolInUsePeak = std::max(s_MeshPool.m_MeshPoolStats.nPoolInUsePeak, s_MeshPool.m_MeshPoolStats.nPoolInUse);
+				s_MeshPool.m_MeshPoolStats.nPoolRequestPeak = std::max(s_MeshPool.m_MeshPoolStats.nPoolRequestPeak, size_t(nSize));
+				s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
 				return ptr;
 			}
-			else
+
+			// Clean up the stale mesh temporary data - and do it from the main thread.
+			if (gRenDev->m_pRT->IsMainThread() && CRenderMesh::ClearStaleMemory(true, gRenDev->GetMainThreadID()))
 			{
-				s_MeshPool.m_MeshPoolCS.Unlock();
-				// Clean up the stale mesh temporary data - and do it from the main thread.
-				if (gRenDev->m_pRT->IsMainThread() && CRenderMesh::ClearStaleMemory(true, gRenDev->GetMainThreadID()))
-				{
-					goto try_again;
-				}
-				else if (gRenDev->m_pRT->IsRenderThread() && CRenderMesh::ClearStaleMemory(true, gRenDev->GetRenderThreadID()))
-				{
-					goto try_again;
-				}
+				goto try_again;
 			}
-			s_MeshPool.m_MeshPoolCS.Lock();
-			s_MeshPool.m_MeshDataPoolStats.nFallbacks += nSize;
-			s_MeshPool.m_MeshPoolCS.Unlock();
+			else if (gRenDev->m_pRT->IsRenderThread() && CRenderMesh::ClearStaleMemory(true, gRenDev->GetRenderThreadID()))
+			{
+				goto try_again;
+			}
 		}
-		return CryModuleMemalign(nSize, nAlign);
+
+		if (void* ptr = CryModuleMemalign(nSize, nAlign))
+		{
+#if !defined(_RELEASE)
+			s_MeshPool.m_MeshPoolStatsCS.Lock();
+			s_MeshPool.m_MeshPoolStats.nFallbacks += CryModuleMemSize(ptr, 1);
+			s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
+			return ptr;
+		}
+
+		return nullptr;
 	}
 
 	static void FreeMeshData(void* ptr)
 	{
-		if (ptr == NULL)
+		if (ptr == nullptr)
 			return;
 		{
-			AUTO_LOCK(s_MeshPool.m_MeshPoolCS);
 			size_t nSize = 0u;
-			if (s_MeshPool.m_MeshDataPool && (nSize=s_MeshPool.m_MeshDataPool->Free(ptr)) > 0)
+			if (s_MeshPool.m_MeshDataPool && (nSize = s_MeshPool.m_MeshDataPool->Free(ptr)) > 0)
 			{
-				s_MeshPool.m_MeshDataPoolStats.nPoolInUse -=
-					(nSize < s_MeshPool.m_MeshDataPoolStats.nPoolInUse) ? nSize : s_MeshPool.m_MeshDataPoolStats.nPoolInUse;
+#if !defined(_RELEASE)
+				s_MeshPool.m_MeshPoolStatsCS.Lock();
+				s_MeshPool.m_MeshPoolStats.nPoolInUse -= std::min(s_MeshPool.m_MeshPoolStats.nPoolInUse, nSize);
+				s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
 				return;
 			}
 		}
+#if !defined(_RELEASE)
+		s_MeshPool.m_MeshPoolStatsCS.Lock();
+		s_MeshPool.m_MeshPoolStats.nFallbacks -= CryModuleMemSize(ptr, 1);
+		s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
 		CryModuleMemalignFree(ptr);
 	}
 
@@ -194,7 +226,7 @@ namespace
 
 	static bool InitializePool()
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "RenderMesh::InitializePool");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "RenderMesh::InitializePool");
 		if (gRenDev->CV_r_meshpoolsize > 0)
 		{
 			if (s_MeshPool.m_MeshDataPool || s_MeshPool.m_MeshDataMemory)
@@ -213,7 +245,7 @@ namespace
 			// Initialize the actual pool
 			s_MeshPool.m_MeshDataPool = gEnv->pSystem->GetIMemoryManager()->CreateGeneralMemoryHeap(
 				s_MeshPool.m_MeshDataMemory, poolSize,  "RENDERMESH_POOL");
-			s_MeshPool.m_MeshDataPoolStats.nPoolSize = poolSize;
+			s_MeshPool.m_MeshPoolStats.nPoolSize = poolSize;
 		}
 		if (gRenDev->CV_r_meshinstancepoolsize && !s_MeshPool.m_MeshInstancePool)
 		{
@@ -227,9 +259,9 @@ namespace
       
 			s_MeshPool.m_MeshInstancePool = gEnv->pSystem->GetIMemoryManager()->CreateGeneralMemoryHeap(
 				s_MeshPool.m_MeshInstanceMemory, poolSize, "RENDERMESH_INSTANCE_POOL");
-			s_MeshPool.m_MeshDataPoolStats.nInstancePoolInUse = 0;
-			s_MeshPool.m_MeshDataPoolStats.nInstancePoolInUsePeak = 0;
-			s_MeshPool.m_MeshDataPoolStats.nInstancePoolSize = gRenDev->CV_r_meshinstancepoolsize*1024;
+			s_MeshPool.m_MeshPoolStats.nInstancePoolInUse = 0;
+			s_MeshPool.m_MeshPoolStats.nInstancePoolInUsePeak = 0;
+			s_MeshPool.m_MeshPoolStats.nInstancePoolSize = gRenDev->CV_r_meshinstancepoolsize*1024;
 		}
 		return true;
 	}
@@ -244,54 +276,78 @@ namespace
 		if (s_MeshPool.m_MeshDataMemory)
 		{
 			CryModuleMemalignFree(s_MeshPool.m_MeshDataMemory);
-			s_MeshPool.m_MeshDataMemory=NULL;
+			s_MeshPool.m_MeshDataMemory = NULL;
 		}
 		if (s_MeshPool.m_MeshInstancePool)
 		{
 			s_MeshPool.m_MeshInstancePool->Cleanup();
 			s_MeshPool.m_MeshInstancePool->Release();
-			s_MeshPool.m_MeshInstancePool=NULL;
+			s_MeshPool.m_MeshInstancePool = NULL;
 		}
-    if (s_MeshPool.m_MeshInstanceMemory)
-    {
-      CryModuleMemalignFree(s_MeshPool.m_MeshInstanceMemory);
-      s_MeshPool.m_MeshInstanceMemory = NULL; 
-    }
+		if (s_MeshPool.m_MeshInstanceMemory)
+		{
+			CryModuleMemalignFree(s_MeshPool.m_MeshInstanceMemory);
+			s_MeshPool.m_MeshInstanceMemory = NULL;
+		}
 	}
 
-  static void* AllocateMeshInstanceData(size_t size, size_t align)
-  {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "RenderMesh::AllocateMeshInstanceData");
-    if (s_MeshPool.m_MeshInstancePool)
-    {
-      if (void* ptr = s_MeshPool.m_MeshInstancePool->Memalign(align, size, "rendermesh instance data"))
-      {
-#       if !defined(_RELEASE)
-		    AUTO_LOCK(s_MeshPool.m_MeshPoolCS);
-		    s_MeshPool.m_MeshDataPoolStats.nInstancePoolInUsePeak = std::max(
-			    s_MeshPool.m_MeshDataPoolStats.nInstancePoolInUsePeak,
-			    s_MeshPool.m_MeshDataPoolStats.nInstancePoolInUse += size);
-#       endif
-        return ptr;
-      }
-    }
-    return CryModuleMemalign(size, align);
-  }
+	static void* AllocateMeshInstanceData(size_t nSize, size_t nAlign)
+	{
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "RenderMesh::AllocateMeshInstanceData");
 
-  static void FreeMeshInstanceData(void* ptr)
-  {
-    size_t size = 0u;
-    if (s_MeshPool.m_MeshInstancePool && (size=s_MeshPool.m_MeshInstancePool->UsableSize(ptr)))
-    {
-#     if !defined(_RELEASE)
-		  AUTO_LOCK(s_MeshPool.m_MeshPoolCS);
-		  s_MeshPool.m_MeshDataPoolStats.nInstancePoolInUse -= size;
-#     endif
-      s_MeshPool.m_MeshInstancePool->Free(ptr);
-      return;
-    }
-    CryModuleMemalignFree(ptr);
-  }
+		nSize = AlignedMeshDataSize(nSize, nAlign);
+
+		if (s_MeshPool.m_MeshInstancePool && s_MeshPool.m_MeshPoolStats.nInstancePoolSize > nSize)
+		{
+			if (void* ptr = s_MeshPool.m_MeshInstancePool->Memalign(nAlign, nSize, "RENDERMESH_INSTANCE_POOL"))
+			{
+#if !defined(_RELEASE)
+				s_MeshPool.m_MeshPoolStatsCS.Lock();
+				s_MeshPool.m_MeshPoolStats.nInstancePoolInUse += (nSize = s_MeshPool.m_MeshInstancePool->UsableSize(ptr));
+				s_MeshPool.m_MeshPoolStats.nInstancePoolInUsePeak = std::max(s_MeshPool.m_MeshPoolStats.nInstancePoolInUsePeak, s_MeshPool.m_MeshPoolStats.nInstancePoolInUse);
+				s_MeshPool.m_MeshPoolStats.nInstancePoolRequestPeak = std::max(s_MeshPool.m_MeshPoolStats.nInstancePoolRequestPeak, size_t(nSize));
+				s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
+				return ptr;
+			}
+		}
+		
+		if (void* ptr = CryModuleMemalign(nSize, nAlign))
+		{
+#if !defined(_RELEASE)
+			s_MeshPool.m_MeshPoolStatsCS.Lock();
+			s_MeshPool.m_MeshPoolStats.nInstanceFallbacks += CryModuleMemSize(ptr, 1);
+			s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
+			return ptr;
+		}
+
+		return nullptr;
+	}
+
+	static void FreeMeshInstanceData(void* ptr)
+	{
+		if (ptr == nullptr)
+			return;
+		{
+			size_t nSize = 0u;
+			if (s_MeshPool.m_MeshInstancePool && (nSize = s_MeshPool.m_MeshInstancePool->Free(ptr)) > 0)
+			{
+#if !defined(_RELEASE)
+				s_MeshPool.m_MeshPoolStatsCS.Lock();
+				s_MeshPool.m_MeshPoolStats.nInstancePoolInUse -= std::min(s_MeshPool.m_MeshPoolStats.nInstancePoolInUse, nSize);
+				s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
+				return;
+			}
+		}
+#if !defined(_RELEASE)
+		s_MeshPool.m_MeshPoolStatsCS.Lock();
+		s_MeshPool.m_MeshPoolStats.nInstanceFallbacks -= CryModuleMemSize(ptr, 1);
+		s_MeshPool.m_MeshPoolStatsCS.Unlock();
+#endif
+		CryModuleMemalignFree(ptr);
+	}
 }
 
 #define alignup(alignment, value) 	((((uintptr_t)(value))+((alignment)-1))&(~((uintptr_t)(alignment)-1)))
@@ -432,7 +488,6 @@ CRenderMesh::CRenderMesh (const char *szType, const char *szSourceName, bool bLo
 
   m_nFlags = 0;
   m_fGeometricMeanFaceArea = 0.f;
-  m_nLod = 0;
 
 #if defined(USE_VBIB_PUSH_DOWN)
 	m_VBIBFramePushID = 0;
@@ -535,10 +590,8 @@ CRenderMesh::~CRenderMesh()
 	// make sure no subset rendermesh job is still running which uses this mesh
 	for(int j=0;j<RT_COMMAND_BUF_COUNT;++j)
 	{
-		size_t nNumSubSetRenderMeshJobs = m_meshSubSetRenderMeshJobs[j].size();
-		for( size_t i = 0 ; i < nNumSubSetRenderMeshJobs ; ++i )
+		for(SMeshSubSetIndicesJobEntry& rSubSetJob : m_meshSubSetRenderMeshJobs[j])
 		{
-			SMeshSubSetIndicesJobEntry &rSubSetJob = m_meshSubSetRenderMeshJobs[j][i];
 			if(rSubSetJob.m_pSrcRM == this )
 			{
 				gEnv->pJobManager->WaitForJob(rSubSetJob.jobState);
@@ -548,11 +601,11 @@ CRenderMesh::~CRenderMesh()
 	}
 
 	// remove ourself from deferred subset mesh garbage collection
-	for(size_t i = 0 ; i < m_deferredSubsetGarbageCollection[nThreadID].size() ; ++i )
+	for (CRenderMesh*& pMesh : m_deferredSubsetGarbageCollection[nThreadID])
 	{
-		if(m_deferredSubsetGarbageCollection[nThreadID][i] == this)
+		if (pMesh == this)
 		{
-			m_deferredSubsetGarbageCollection[nThreadID][i] = NULL;
+			pMesh = NULL;
 		}
 	}
 
@@ -602,8 +655,8 @@ void *CRenderMesh::LockVB(int nStream, uint32 nFlags, int nOffset, int nVerts, i
 	FUNCTION_PROFILER_RENDERER();
 
 	MEMORY_SCOPE_CHECK_HEAP();
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 # if !defined(_RELEASE)
 	CRY_ASSERT_MESSAGE(m_nThreadAccessCounter, "rendermesh must be locked via LockForThreadAccess() before LockIB/VB is called");
 #endif
@@ -617,7 +670,9 @@ void *CRenderMesh::LockVB(int nStream, uint32 nFlags, int nOffset, int nVerts, i
 	SREC_AUTO_LOCK(m_sResLock);//need lock as resource must not be updated concurrently
 	SMeshStream* MS = GetVertexStream(nStream, nFlags);
 
+#if defined(USE_VBIB_PUSH_DOWN) || RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS
 	int nFrame = GetCurrentFrameID();
+#endif
 
 #if defined(USE_VBIB_PUSH_DOWN)
 	m_VBIBFramePushID = nFrame;
@@ -643,6 +698,7 @@ lSysCreate:
 		{
 			uint32 nSize = GetStreamSize(nStream);
 			pD = reinterpret_cast<byte*>(AllocateMeshData(nSize));
+		//	CryLog("\"%s\"->AllocateMeshData(%d) 0%x08", m_sSource, nSize, pD);
 			if (!pD) return NULL;
 			MS->m_pUpdateData = pD;
 		}
@@ -656,6 +712,9 @@ lSysCreate:
 	{
 lSysUpdate:
 		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
+#if RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS == 0
+lSysRead:
+#endif
 		if (!MS->m_pUpdateData)
 		{
 			MESSAGE_VIDEO_BUFFER_ACC_ATTEMPT;
@@ -691,7 +750,7 @@ lSysUpdate:
 		if (gRenDev->m_pRT && gRenDev->m_pRT->IsMultithreaded())
 		{
 			// Always use system copy in MT mode
-			goto lSysUpdate;
+			goto lSysRead;
 		}
 		else
 #   endif 
@@ -714,6 +773,7 @@ lSysUpdate:
 			}
 		}
 	}
+
 	if (nFlags == (FSL_VIDEO_CREATE))
 	{
 		// Only consoles support direct uploading to vram, but as the data is not
@@ -744,6 +804,7 @@ lSysUpdate:
 		pD = (byte *)MS->m_pLockedData;
 		return &pD[nOffset];
 	}
+
 	if (nFlags == (FSL_VIDEO_UPDATE))
 	{
 		goto lSysUpdate;
@@ -786,6 +847,7 @@ lSysCreate:
 		{
 			uint32 nSize = m_nInds * sizeof(vtx_idx);
 			pD = reinterpret_cast<byte*>(AllocateMeshData(nSize));
+		//	CryLog("\"%s\"->AllocateMeshData(%d) 0%x08", m_sSource, nSize, pD);
 			if (!pD) return NULL;
 			m_IBStream.m_pUpdateData = (vtx_idx *)pD;
 		}
@@ -799,6 +861,9 @@ lSysCreate:
 	{
 lSysUpdate:
 		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
+#if RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS == 0
+lSysRead:
+#endif
 		if (!m_IBStream.m_pUpdateData)
 		{
 			MESSAGE_VIDEO_BUFFER_ACC_ATTEMPT;
@@ -829,12 +894,14 @@ lSysUpdate:
 		buffer_handle_t nIB = m_IBStream.m_nID;
 		if (nIB == ~0u)
 			return NULL;
+#if RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS == 0
 		if (gRenDev->m_pRT && gRenDev->m_pRT->IsMultithreaded())
 		{
 			// Always use system copy in MT mode
-			goto lSysUpdate;
+			goto lSysRead;
 		}
 		else
+#endif
 		{
 			// TODO: make smart caching mesh algorithm for consoles
 			if (!m_IBStream.m_pLockedData)
@@ -851,6 +918,7 @@ lSysUpdate:
 			}
 		}
 	}
+
 	if (nFlags == (FSL_VIDEO_CREATE))
 	{
 		// Only consoles support direct uploading to vram, but as the data is not
@@ -860,7 +928,7 @@ lSysUpdate:
 		buffer_handle_t nIB = -1;
 #if RENDERMESH_BUFFER_ENABLE_DIRECT_ACCESS
 		nIB = m_IBStream.m_nID;
-		if ((nIB != ~0u && (m_IBStream.m_nFrameCreate || m_IBStream.m_nElements != m_nInds)) || !CRenderer::CV_r_buffer_enable_lockless_updates)
+		if ((nIB != ~0u && (m_IBStream.m_nFrameCreate != nFrame || m_IBStream.m_nElements != m_nInds)) || !CRenderer::CV_r_buffer_enable_lockless_updates)
 #   endif
 			goto lSysCreate;
 		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
@@ -886,6 +954,7 @@ lSysUpdate:
 		pD = (byte*)m_IBStream.m_pLockedData;
 		return (vtx_idx*)&pD[nOffset];
 	}
+
 	if (nFlags == (FSL_VIDEO_UPDATE))
 	{
 		goto lSysUpdate;
@@ -898,51 +967,81 @@ lSysUpdate:
 
 ILINE void CRenderMesh::UnlockVB(int nStream)
 {
-  MEMORY_SCOPE_CHECK_HEAP();
+	MEMORY_SCOPE_CHECK_HEAP();
 	SREC_AUTO_LOCK(m_sResLock);
-  SMeshStream* pMS = GetVertexStream(nStream, 0); 
-  if (pMS && pMS->m_nLockFlags & FSL_LOCKED)
-  {
-    assert(pMS->m_nLockCount);
+
+	SMeshStream* pMS = GetVertexStream(nStream, 0);
+	if (pMS && pMS->m_nLockFlags & FSL_LOCKED)
+	{
+		assert(pMS->m_nLockCount);
 		if ((--pMS->m_nLockCount) == 0)
-    {
-      gRenDev->m_DevBufMan.EndReadWrite(pMS->m_nID);
-      pMS->m_nLockFlags &= ~FSL_LOCKED;
-		  pMS->m_pLockedData = NULL; 
-    }
-  }
-  if (pMS && (pMS->m_nLockFlags & FSL_WRITE) && (pMS->m_nLockFlags & (FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE)))
-  {
-    pMS->m_nLockFlags &= ~(FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE);
-    pMS->m_nFrameRequest = GetCurrentFrameID();
-  }
+		{
+			gRenDev->m_DevBufMan.EndReadWrite(pMS->m_nID);
+			pMS->m_nLockFlags &= ~FSL_LOCKED;
+			pMS->m_pLockedData = NULL;
+		}
+	}
+
+	if (pMS && (pMS->m_nLockFlags & FSL_WRITE) && (pMS->m_nLockFlags & (FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE)))
+	{
+		pMS->m_nLockFlags &= ~(FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE);
+		pMS->m_nFrameRequest = GetCurrentFrameID();
+
+		// NOTE: When called from a job thread we will use main thread ID
+		const int threadId = gRenDev->m_pRT->IsRenderThread() ? gRenDev->GetRenderThreadID() : gRenDev->GetMainThreadID();
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
+	}
+	else if (pMS && (pMS->m_nLockFlags & FSL_READ) && pMS->m_pUpdateData)
+	{
+		if (CRendererCVars::CV_r_MeshPoolForceFreeAfterUpdate)
+		{
+		//	CryLog("\"%s\"->FreeMeshData() 0%08x StreamCopy", m_sSource, pMS->m_pUpdateData);
+			CRenderMesh::s_FreeableMeshDataList.enqueue(pMS->m_pUpdateData);
+			pMS->m_pUpdateData = nullptr;
+		}
+	}
 }
 
 ILINE void CRenderMesh::UnlockIB()
 {
-  MEMORY_SCOPE_CHECK_HEAP();
-  SREC_AUTO_LOCK(m_sResLock);
+	MEMORY_SCOPE_CHECK_HEAP();
+	SREC_AUTO_LOCK(m_sResLock);
+
 	if (m_IBStream.m_nLockFlags & FSL_LOCKED)
-  {
-    assert(m_IBStream.m_nLockCount);
-    if ((--m_IBStream.m_nLockCount) == 0)
-    {
-      gRenDev->m_DevBufMan.EndReadWrite(m_IBStream.m_nID);
-      m_IBStream.m_nLockFlags &= ~FSL_LOCKED;
-      m_IBStream.m_pLockedData = NULL; 
-    }
-  }
-  if ((m_IBStream.m_nLockFlags & FSL_WRITE) && (m_IBStream.m_nLockFlags & (FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE)))
-  {
-    m_IBStream.m_nLockFlags &= ~(FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE);
-    m_IBStream.m_nFrameRequest = GetCurrentFrameID();
-  }
+	{
+		assert(m_IBStream.m_nLockCount);
+		if ((--m_IBStream.m_nLockCount) == 0)
+		{
+			gRenDev->m_DevBufMan.EndReadWrite(m_IBStream.m_nID);
+			m_IBStream.m_nLockFlags &= ~FSL_LOCKED;
+			m_IBStream.m_pLockedData = NULL;
+		}
+	}
+
+	if ((m_IBStream.m_nLockFlags & FSL_WRITE) && (m_IBStream.m_nLockFlags & (FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE)))
+	{
+		m_IBStream.m_nLockFlags &= ~(FSL_SYSTEM_CREATE | FSL_SYSTEM_UPDATE);
+		m_IBStream.m_nFrameRequest = GetCurrentFrameID();
+
+		// NOTE: When called from a job thread we will use main thread ID
+		const int threadId = gRenDev->m_pRT->IsRenderThread() ? gRenDev->GetRenderThreadID() : gRenDev->GetMainThreadID();
+		RelinkTail(m_Modified[threadId], s_MeshModifiedList[threadId]);
+	}
+	else if ((m_IBStream.m_nLockFlags & FSL_READ) && m_IBStream.m_pUpdateData)
+	{
+		if (CRendererCVars::CV_r_MeshPoolForceFreeAfterUpdate)
+		{
+		//	CryLog("\"%s\"->FreeMeshData() 0%08x StreamCopy", m_sSource, m_IBStream.m_pUpdateData);
+			CRenderMesh::s_FreeableMeshDataList.enqueue(m_IBStream.m_pUpdateData);
+			m_IBStream.m_pUpdateData = nullptr;
+		}
+	}
 }
 
 void CRenderMesh::UnlockStream(int nStream)
 {
-  MEMORY_SCOPE_CHECK_HEAP();
-  UnlockVB(nStream);
+	MEMORY_SCOPE_CHECK_HEAP();
+	UnlockVB(nStream);
 	SREC_AUTO_LOCK(m_sResLock);
 	
 	const auto vertexFormatDescriptor = CDeviceObjectFactory::GetInputLayoutDescriptor(GetVertexFormat());
@@ -1002,19 +1101,22 @@ void CRenderMesh::UnlockStream(int nStream)
 	IF (pMS, 1)
 		pMS->m_nLockFlags &= ~(FSL_WRITE | FSL_READ | FSL_SYSTEM | FSL_VIDEO);
 }
+
 void CRenderMesh::UnlockIndexStream()
 {
-  MEMORY_SCOPE_CHECK_HEAP();
-  UnlockIB();
-  m_IBStream.m_nLockFlags &= ~(FSL_WRITE | FSL_READ | FSL_SYSTEM | FSL_VIDEO);
+	MEMORY_SCOPE_CHECK_HEAP();
+	UnlockIB();
+	SREC_AUTO_LOCK(m_sResLock);
+
+	m_IBStream.m_nLockFlags &= ~(FSL_WRITE | FSL_READ | FSL_SYSTEM | FSL_VIDEO);
 }
 
 bool CRenderMesh::CopyStreamToSystemForUpdate(SMeshStream& MS, size_t nSize)
 {
-  MEMORY_SCOPE_CHECK_HEAP();
-  FUNCTION_PROFILER_RENDERER();  
-  SREC_AUTO_LOCK(m_sResLock);
-  if (!MS.m_pUpdateData)
+	MEMORY_SCOPE_CHECK_HEAP();
+	FUNCTION_PROFILER_RENDERER();
+	SREC_AUTO_LOCK(m_sResLock);
+	if (!MS.m_pUpdateData)
 	{
 		buffer_handle_t nVB = MS.m_nID;
 		if (nVB == ~0u)
@@ -1028,34 +1130,35 @@ bool CRenderMesh::CopyStreamToSystemForUpdate(SMeshStream& MS, size_t nSize)
 		assert(pSrc);
 		if (!pSrc)
 			return false;
-    ++MS.m_nLockCount;
-    byte *pD = reinterpret_cast<byte*>(AllocateMeshData(nSize, MESH_DATA_DEFAULT_ALIGN, false));
-    if (pD)
-    {
-      cryMemcpy(pD, pSrc, nSize);
-      if (MS.m_nLockFlags & FSL_LOCKED)
-      {
-        if ((--MS.m_nLockCount) == 0)
-        {
-          MS.m_nLockFlags &= ~FSL_LOCKED;
-          MS.m_pLockedData = NULL;
-          gRenDev->m_DevBufMan.EndReadWrite(nVB);
-        }
-      }
-      MS.m_pUpdateData = pD;
-      m_nFlags |= FRM_READYTOUPLOAD;
-      return true;
-    }
+		++MS.m_nLockCount;
+		byte *pD = reinterpret_cast<byte*>(AllocateMeshData(nSize, MESH_DATA_DEFAULT_ALIGN, false));
+	//	CryLog("\"%s\"->AllocateMeshData(%d) 0%x08 StreamCopy", m_sSource, nSize, pD);
+		if (pD)
+		{
+			cryMemcpy(pD, pSrc, nSize);
+			if (MS.m_nLockFlags & FSL_LOCKED)
+			{
+				if ((--MS.m_nLockCount) == 0)
+				{
+					MS.m_nLockFlags &= ~FSL_LOCKED;
+					MS.m_pLockedData = NULL;
+					gRenDev->m_DevBufMan.EndReadWrite(nVB);
+				}
+			}
+			MS.m_pUpdateData = pD;
+			m_nFlags |= FRM_READYTOUPLOAD;
+			return true;
+		}
 	}
-  return false;
+	return false;
 }
 
 size_t CRenderMesh::SetMesh_Int(CMesh &mesh, int nSecColorsSetOffset, uint32 flags, const Vec3 *pPosOffset)	
 {
-  LOADING_TIME_PROFILE_SECTION;
+  CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
   MEMORY_SCOPE_CHECK_HEAP();
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 
   char *pVBuff = NULL;	
   SPipTangents *pTBuff = NULL;
@@ -1066,8 +1169,8 @@ size_t CRenderMesh::SetMesh_Int(CMesh &mesh, int nSecColorsSetOffset, uint32 fla
   uint32 nInds = mesh.GetIndexCount();
   vtx_idx *pInds = NULL;
 
-	//AUTO_LOCK(m_sResLock);//need a resource lock as mesh could be reseted due to allocation failure
-  SScopedMeshDataLock _lock(this);
+  SRecursiveSpinLocker _lock0(&m_sResLock);
+  SScopedMeshDataLock _lock1(this);
 
   ReleaseRenderChunks(&m_ChunksSkinned);
 
@@ -1294,41 +1397,41 @@ size_t CRenderMesh::SetMesh_Int(CMesh &mesh, int nSecColorsSetOffset, uint32 fla
 		UnlockVB(VSF_VERTEX_VELOCITY);
 	}
 
-  //////////////////////////////////////////////////////////////////////////
-  // Copy skin-streams.
-  //////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
+	// Copy skin-streams.
+	//////////////////////////////////////////////////////////////////////////
 
 	m_nFlags &= ~FSM_USE_COMPUTE_SKINNING;
 
-  if (mesh.m_pBoneMapping) 
+	if (mesh.m_pBoneMapping)
 	{
 		if (flags & FSM_USE_COMPUTE_SKINNING)
 			m_nFlags |= FSM_USE_COMPUTE_SKINNING;
-    SetSkinningDataCharacter(mesh, flags, mesh.m_pBoneMapping, mesh.m_pExtraBoneMapping);
+		SetSkinningDataCharacter(mesh, flags, mesh.m_pBoneMapping, mesh.m_pExtraBoneMapping);
 	}
 
-  // Create device buffers immediately in non-multithreaded mode
-  if (!gRenDev->m_pRT->IsMultithreaded() && (flags & FSM_CREATE_DEVICE_MESH))
-  {
-		RT_CheckUpdate(_GetVertexContainer(),m_eVF, VSM_MASK);
-  }
+	// Create device buffers immediately in non-multithreaded mode
+	if (!gRenDev->m_pRT->IsMultithreaded() && (flags & FSM_CREATE_DEVICE_MESH))
+	{
+		RT_CheckUpdate(_GetVertexContainer(), m_eVF, VSM_MASK);
+	}
 
 	return Size(SIZE_ONLY_SYSTEM);
 
 error:
-  RT_AllocationFailure("Generic Streaming Error", 0 );
-  return ~0U;
+	RT_AllocationFailure("Generic Streaming Error", 0);
+	return ~0U;
 }
 
 size_t CRenderMesh::SetMesh(CMesh &mesh, int nSecColorsSetOffset, uint32 flags, const Vec3 *pPosOffset, bool requiresLock)
 {
-  LOADING_TIME_PROFILE_SECTION;
-  MEMORY_SCOPE_CHECK_HEAP();
-  size_t resultingSize = ~0U;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+	MEMORY_SCOPE_CHECK_HEAP();
+	size_t resultingSize = ~0U;
 # ifdef USE_VBIB_PUSH_DOWN
-  requiresLock = true;
+	requiresLock = true;
 # endif
-  if(requiresLock)
+	if (requiresLock)
 	{
 		SREC_AUTO_LOCK(m_sResLock);
 		resultingSize = SetMesh_Int(mesh, nSecColorsSetOffset, flags, pPosOffset);
@@ -1338,13 +1441,13 @@ size_t CRenderMesh::SetMesh(CMesh &mesh, int nSecColorsSetOffset, uint32 flags, 
 		resultingSize = SetMesh_Int(mesh, nSecColorsSetOffset, flags, pPosOffset);
 	}
 
-  return resultingSize;
+	return resultingSize;
 }
 
 void CRenderMesh::SetSkinningDataVegetation(struct SMeshBoneMapping_uint8 *pBoneMapping)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 	MEMORY_SCOPE_CHECK_HEAP();
 	SScopedMeshDataLock _lock(this);
 	SVF_W4B_I4S *pSkinBuff = (SVF_W4B_I4S *)LockVB(VSF_HWSKIN_INFO, FSL_VIDEO_CREATE);
@@ -1476,8 +1579,8 @@ void CRenderMesh::CreateExtraBoneMappingBuffers(struct SMeshBoneMapping_uint16 *
 void CRenderMesh::SetSkinningDataCharacter(CMesh& mesh, uint32 flags, struct SMeshBoneMapping_uint16 *pBoneMapping, struct SMeshBoneMapping_uint16 *pExtraBoneMapping)
 {
 	MEMORY_SCOPE_CHECK_HEAP();
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 	SVF_W4B_I4S *pSkinBuff = (SVF_W4B_I4S *)LockVB(VSF_HWSKIN_INFO, FSL_VIDEO_CREATE);
 
 	// stop initializing if allocation failed
@@ -1774,35 +1877,35 @@ IIndexedMesh *CRenderMesh::GetIndexedMesh(IIndexedMesh *pIdxMesh)
 
 void CRenderMesh::GenerateQTangents()
 {
-  MEMORY_SCOPE_CHECK_HEAP();
-  // FIXME: This needs to be cleaned up. Breakable foliage shouldn't need both streams, and this shouldn't be duplicated
-  // between here and CryAnimation.
-  SScopedMeshDataLock _lock(this);
-  int srcStride = 0;
-  void *pSrcD = LockVB(VSF_TANGENTS, FSL_READ, 0, 0, &srcStride);
-  if (pSrcD)
-  {
-    int dstStride = 0;
-    void *pDstD = LockVB(VSF_QTANGENTS, FSL_VIDEO_CREATE, 0, 0, &dstStride);
-    assert(pDstD);
-    if (pDstD)
-    {
-		SPipTangents *pTangents = (SPipTangents *)pSrcD;
-		SPipQTangents *pQTangents = (SPipQTangents *)pDstD;
-		MeshTangentsFrameToQTangents(
-			pTangents, srcStride, m_nVerts,
-			pQTangents, dstStride);
-    }
-    UnlockVB(VSF_QTANGENTS);
-  }
-  UnlockVB(VSF_TANGENTS);
+	MEMORY_SCOPE_CHECK_HEAP();
+	// FIXME: This needs to be cleaned up. Breakable foliage shouldn't need both streams, and this shouldn't be duplicated
+	// between here and CryAnimation.
+	SScopedMeshDataLock _lock(this);
+	int srcStride = 0;
+	void *pSrcD = LockVB(VSF_TANGENTS, FSL_READ, 0, 0, &srcStride);
+	if (pSrcD)
+	{
+		int dstStride = 0;
+		void *pDstD = LockVB(VSF_QTANGENTS, FSL_VIDEO_CREATE, 0, 0, &dstStride);
+		assert(pDstD);
+		if (pDstD)
+		{
+			SPipTangents *pTangents = (SPipTangents *)pSrcD;
+			SPipQTangents *pQTangents = (SPipQTangents *)pDstD;
+			MeshTangentsFrameToQTangents(
+				pTangents, srcStride, m_nVerts,
+				pQTangents, dstStride);
+		}
+		UnlockVB(VSF_QTANGENTS);
+	}
+	UnlockVB(VSF_TANGENTS);
 }
 
 void CRenderMesh::CreateChunksSkinned()
 {
   MEMORY_SCOPE_CHECK_HEAP();
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 
   ReleaseRenderChunks(&m_ChunksSkinned);
 
@@ -1836,7 +1939,6 @@ int CRenderMesh::GetRenderChunksCount(IMaterial * pMaterial, int & nRenderTrisCo
   int nCount = 0;
   nRenderTrisCount = 0;
 
-  CRenderer *rd = gRenDev;
   const uint32 ni = (uint32)m_Chunks.size();
   for (uint32 i=0; i<ni; i++)
   {
@@ -1963,8 +2065,8 @@ void CRenderMesh::SetCustomTexID( int nCustomTID )
 
 void CRenderMesh::SetChunk(int nIndex, CRenderChunk &inChunk)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 
   if (!inChunk.nNumIndices || !inChunk.nNumVerts)
     return;
@@ -2376,7 +2478,7 @@ void CRenderMesh::BuildAdjacency(const VertexFormat *pVerts, unsigned int nVerts
 	std::vector<int> arrSortedVertIDs;
 	// we allocate a bit more (by one) because we will need extra element for scan operation (lower)
 	arrSortedVertIDs.resize(nVerts + 1);
-	int *_iSortedVerts = &arrSortedVertIDs[0];
+
 	for (int iv = 0; iv < nVerts; ++iv)
 		arrSortedVertIDs[iv] = iv;
 
@@ -2413,7 +2515,7 @@ void CRenderMesh::BuildAdjacency(const VertexFormat *pVerts, unsigned int nVerts
 	std::vector<int> &arrConnectedTrianglesCount = arrSortedVertIDs;
 	for (int i = 0; i < arrConnectedTrianglesCount.size(); ++i)
 		arrConnectedTrianglesCount[i] = 0;
-	int *_nConnectedTriangles = &arrConnectedTrianglesCount[0];
+
 	for (int it = 0; it < nTrgs; ++it)
 	{
 		const vtx_idx *pTrg = &pIndexBuffer[it * 3];
@@ -2525,16 +2627,16 @@ void CRenderMesh::BuildAdjacency(const VertexFormat *pVerts, unsigned int nVerts
 
 bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF, uint32 nStreamMask, bool bTessellation)
 {
+	SRecursiveSpinLocker _lock0(&m_sResLock);
+	SRecursiveSpinLocker _lock1(&pVContainer->m_sResLock);
+
 	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
 
-	const int threadId = gRenDev->GetRenderThreadID();
 	int nFrame = gRenDev->GetRenderFrameID();
 	
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 	PrefetchLine(&m_IBStream, 0);
-
-	bool bSkinned = (m_nFlags & (FRM_SKINNED | FRM_SKINNEDNEXTDRAW)) != 0;
 
 	m_nFlags &= ~FRM_SKINNEDNEXTDRAW;
 
@@ -2545,9 +2647,6 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF
 		PrefetchVertexStreams();
 
 	{
-		SRecursiveSpinLocker _lock0(&m_sResLock);
-		SRecursiveSpinLocker _lock1(&pVContainer->m_sResLock);
-
 		for (const uint32& guidToDelete : pVContainer->m_DeletedBoneIndices)
 		{
 			for (auto it = pVContainer->m_RemappedBoneIndices.begin(); it != pVContainer->m_RemappedBoneIndices.end(); ++it)
@@ -2603,42 +2702,90 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF
 //			if (it->pExtraStream)
 //				FreeMeshDataUnpooled(it->pExtraStream);
 		}
+
 		pVContainer->m_CreatedBoneIndices.erase(createdBoneIndicesIt, pVContainer->m_CreatedBoneIndices.end());
 	}
 
-	const bool bIndUpdateNeeded = (m_IBStream.m_pUpdateData != NULL) && (m_IBStream.m_nFrameRequest > m_IBStream.m_nFrameUpdate);
-	const bool bBoneUpdateNeeded = (pVContainer->m_VBStream[VSF_HWSKIN_INFO]->m_pUpdateData != NULL) && (pVContainer->m_VBStream[VSF_HWSKIN_INFO]->m_nFrameRequest > pVContainer->m_VBStream[VSF_HWSKIN_INFO]->m_nFrameUpdate);
+#ifdef MESH_TESSELLATION_RENDERER
+	const bool bIndUpdateNeeded  =              _NeedsIBStream(nFrame);
+#endif
+	const bool bBoneUpdateNeeded = pVContainer->_NeedsVBStream(nFrame, VSF_HWSKIN_INFO);
 
 	PrefetchLine(pVContainer->m_VBStream, 0);
 	SMeshStream* pMS = pVContainer->GetVertexStream(VSF_GENERAL, 0);
 
+#ifdef MESH_TESSELLATION_RENDERER
+	// Build UV adjacency before updating VidVertices/VidIndices (because they might drop the UpdateData)
+	if ((bTessellation    && m_adjBuffer.GetElementCount() == 0) || // if needed and not built already
+		(bIndUpdateNeeded && m_adjBuffer.GetElementCount() >  0))   // if already built but needs update
+	{
+		if (!(m_IBStream.m_nLockFlags & FSL_WRITE) && pVContainer->_HasVBStream(VSF_NORMALS))
+		{
+			if (m_eVF == EDefaultInputLayouts::P3S_C4B_T2S)
+			{
+				UpdateUVCoordsAdjacency<SVF_P3S_C4B_T2S, Vec3f16, Vec2f16>(m_IBStream);
+			}
+			else if (m_eVF == EDefaultInputLayouts::P3F_C4B_T2F)
+			{
+				UpdateUVCoordsAdjacency<SVF_P3F_C4B_T2F, Vec3, Vec2>(m_IBStream);
+			}
+		}
+	}
+#endif
+
+	// It's possible to schedule frames ahead, if we didn't yet reach that frame, the streams stay valid for rendering.
+	// When we reached that frame we ensure all of the streams are swapped out at the same time, or the mix of streams becomes invalid for rendering.
+	size_t updateWanted = 0;
+	size_t updateConducted = 0;
+
 	if ((m_pVertexContainer || m_nVerts > 2) && pMS)
 	{
 		PrefetchLine(pVContainer->m_VBStream, 128);
-		if (pMS->m_pUpdateData && pMS->m_nFrameAccess != nFrame)
+
+		// Update only on or after the requested frame
+		if (pMS->m_nFrameRequest <= nFrame)
 		{
-			pMS->m_nFrameAccess = nFrame;
+			// Update only once per request (multiple requests can occur for one update)
 			if (pMS->m_nFrameRequest > pMS->m_nFrameUpdate)
 			{
+				updateWanted++;
+
+				// Try checking only once per frame
+				if (pMS->m_nFrameAccess != nFrame)
 				{
-					PROFILE_FRAME(Mesh_CheckUpdateUpdateGBuf);
-					if (!(pMS->m_nLockFlags & FSL_WRITE))
+					pMS->m_nFrameAccess = nFrame;
+
+					if (pMS->m_pUpdateData)
 					{
-						if (!pVContainer->UpdateVidVertices(VSF_GENERAL))
+						PROFILE_FRAME(Mesh_CheckUpdateUpdateGBuf);
+						if (!(pMS->m_nLockFlags & FSL_WRITE))
 						{
-							RT_AllocationFailure("Update General Stream", GetStreamSize(VSF_GENERAL, m_nVerts));
-							return false;
+							if (!pVContainer->UpdateVidVertices(VSF_GENERAL))
+							{
+								RT_AllocationFailure("Update General Stream", GetStreamSize(VSF_GENERAL, m_nVerts));
+								return false;
+							}
+
+							pMS->m_nFrameUpdate = GetCurrentFrameID();
+							updateConducted++;
+
+							if (CRendererCVars::CV_r_MeshPoolForceFreeAfterUpdate)
+							{
+							//	CryLog("\"%s\"->FreeMeshData() 0%08x", m_sSource, pMS->m_pUpdateData);
+								CRenderMesh::s_FreeableMeshDataList.enqueue(pMS->m_pUpdateData);
+								pMS->m_pUpdateData = nullptr;
+							}
 						}
-						pMS->m_nFrameUpdate = nFrame;
-					}
-					else
-					{
-						if (pMS->m_nID == ~0u)
-							return false;
+						else
+						{
+							if (pMS->m_nID == ~0u)
+								return false;
+						}
 					}
 				}
 			}
 		}
+
 		// Set both tangent flags
 		if (nStreamMask & VSM_TANGENTS)
 			nStreamMask |= VSM_TANGENTS;
@@ -2656,27 +2803,47 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF
 				pMS = pVContainer->GetVertexStream(i, 0);
 				if ((nStreamMask & iMask) && pMS)
 				{
-					if (pMS->m_pUpdateData && pMS->m_nFrameAccess != nFrame)
+					// Update only on or after the requested frame
+					if (pMS->m_nFrameRequest <= nFrame)
 					{
-						pMS->m_nFrameAccess = nFrame;
+						// Update only once per request (multiple requests can occur for one update)
 						if (pMS->m_nFrameRequest > pMS->m_nFrameUpdate)
 						{
-							// Update the device buffer
-							PROFILE_FRAME(Mesh_CheckUpdateUpdateGBuf);
-							if (!(pMS->m_nLockFlags & FSL_WRITE))
+							updateWanted++;
+
+							// Try checking only once per frame
+							if (pMS->m_nFrameAccess != nFrame)
 							{
-								if (!pVContainer->UpdateVidVertices(i))
+								pMS->m_nFrameAccess = nFrame;
+
+								if (pMS->m_pUpdateData)
 								{
-									RT_AllocationFailure("Update VB Stream", GetStreamSize(i, m_nVerts));
-									return false;
+									// Update the device buffer
+									PROFILE_FRAME(Mesh_CheckUpdateUpdateGBuf);
+									if (!(pMS->m_nLockFlags & FSL_WRITE))
+									{
+										if (!pVContainer->UpdateVidVertices(i))
+										{
+											RT_AllocationFailure("Update VB Stream", GetStreamSize(i, m_nVerts));
+											return false;
+										}
+
+										pMS->m_nFrameUpdate = GetCurrentFrameID();
+										updateConducted++;
+
+										if (CRendererCVars::CV_r_MeshPoolForceFreeAfterUpdate)
+										{
+										//	CryLog("\"%s\"->FreeMeshData() 0%08x", m_sSource, pMS->m_pUpdateData);
+											CRenderMesh::s_FreeableMeshDataList.enqueue(pMS->m_pUpdateData);
+											pMS->m_pUpdateData = nullptr;
+										}
+									}
+									else if (i != VSF_HWSKIN_INFO)
+									{
+										if (pMS->m_nID == ~0u)
+											return false;
+									}
 								}
-								pMS->m_nFrameUpdate = nFrame;
-							}
-							else if (i != VSF_HWSKIN_INFO)
-							{
-								int nnn = 0;
-								if (pMS->m_nID == ~0u)
-									return false;
 							}
 						}
 					}
@@ -2685,44 +2852,54 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF
 		}
 	}//if (m_pVertexContainer || m_nVerts > 2)
 
-	m_IBStream.m_nFrameAccess = nFrame;
-	if (bIndUpdateNeeded)
+	// Update only on or after the requested frame
+	if (m_IBStream.m_nFrameRequest <= nFrame)
 	{
-		PROFILE_FRAME(Mesh_CheckUpdate_UpdateInds);
-		if (!(m_IBStream.m_nLockFlags & FSL_WRITE))
+		// Update only once per request (multiple requests can occur for one update)
+		if (m_IBStream.m_nFrameRequest > m_IBStream.m_nFrameUpdate)
 		{
-			if (!UpdateVidIndices(m_IBStream))
-			{
-				RT_AllocationFailure("Update IB Stream", m_nInds * sizeof(vtx_idx));
-				return false;
-			}
-			m_IBStream.m_nFrameUpdate = nFrame;
-		}
-		else if (m_IBStream.m_nID == ~0u)
-			return false;
-	}
+			updateWanted++;
 
-#ifdef MESH_TESSELLATION_RENDERER
-	// Build UV adjacency
-	if ((bTessellation && m_adjBuffer.GetElementCount() == 0)       // if needed and not built already
-		|| (bIndUpdateNeeded && m_adjBuffer.GetElementCount() > 0)) // if already built but needs update
-	{
-		if (!(m_IBStream.m_nLockFlags & FSL_WRITE) && pVContainer->_HasVBStream(VSF_NORMALS))
-		{
-			if (m_eVF == EDefaultInputLayouts::P3S_C4B_T2S)
+			// Try checking only once per frame
+			if (m_IBStream.m_nFrameAccess != nFrame)
 			{
-				UpdateUVCoordsAdjacency<SVF_P3S_C4B_T2S, Vec3f16, Vec2f16>(m_IBStream);
-			}
-			else if (m_eVF == EDefaultInputLayouts::P3F_C4B_T2F)
-			{
-				UpdateUVCoordsAdjacency<SVF_P3F_C4B_T2F, Vec3, Vec2>(m_IBStream);
+				m_IBStream.m_nFrameAccess = nFrame;
+
+				if (m_IBStream.m_pUpdateData)
+				{
+					PROFILE_FRAME(Mesh_CheckUpdate_UpdateInds);
+					if (!(m_IBStream.m_nLockFlags & FSL_WRITE))
+					{
+						if (!UpdateVidIndices(m_IBStream))
+						{
+							RT_AllocationFailure("Update IB Stream", m_nInds * sizeof(vtx_idx));
+							return false;
+						}
+
+						m_IBStream.m_nFrameUpdate = GetCurrentFrameID();
+						updateConducted++;
+
+						if (CRendererCVars::CV_r_MeshPoolForceFreeAfterUpdate)
+						{
+						//	CryLog("\"%s\"->FreeMeshData() 0%08x", m_sSource, m_IBStream.m_pUpdateData);
+							CRenderMesh::s_FreeableMeshDataList.enqueue(m_IBStream.m_pUpdateData);
+							m_IBStream.m_pUpdateData = nullptr;
+						}
+					}
+					else
+					{
+						if (m_IBStream.m_nID == ~0u)
+							return false;
+					}
+				}
 			}
 		}
 	}
-#endif
 
 	if (bBoneUpdateNeeded)
 	{
+		updateWanted++;
+
 		if (pVContainer->_HasVBStream(VSF_HWSKIN_INFO) && !(pVContainer->m_VBStream[VSF_HWSKIN_INFO]->m_nLockFlags & FSL_WRITE))
 		{
 			std::vector<SVF_W4B_I4S>& pExtraBones = m_pExtraBoneMappingRemapped[gRenDev->GetRenderThreadID()];
@@ -2731,39 +2908,41 @@ bool CRenderMesh::RT_CheckUpdate(CRenderMesh *pVContainer, InputLayoutHandle eVF
 				m_extraBonesBuffer.Create(size, sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pExtraBones[0]);
 			else
 				m_extraBonesBuffer.Create(size, sizeof(SVF_W4B_I4S), DXGI_FORMAT_UNKNOWN, CDeviceObjectFactory::USAGE_STRUCTURED | CDeviceObjectFactory::BIND_SHADER_RESOURCE, nullptr);
+
+			updateConducted++;
 		}
 	}
 
-	return true;
+	return updateWanted == updateConducted;
 }
 
 void CRenderMesh::ReleaseVB(int nStream)
 {
-  UnlockVB(nStream);
-  if (SMeshStream* pMS = GetVertexStream(nStream, 0))
-  {
-	  if (pMS->m_nID != ~0u)
-    {
-      gRenDev->m_DevBufMan.Destroy(pMS->m_nID);
-      pMS->m_nID = ~0u;
-    }
-    pMS->m_nElements = 0;
-    pMS->m_nFrameUpdate = -1;
-	  pMS->m_nFrameCreate = -1;
-  }
+	if (SMeshStream* pMS = GetVertexStream(nStream, 0))
+	{
+		UnlockVB(nStream);
+		if (pMS->m_nID != ~0u)
+		{
+			gRenDev->m_DevBufMan.Destroy(pMS->m_nID);
+			pMS->m_nID = ~0u;
+		}
+		pMS->m_nElements = 0;
+		pMS->m_nFrameUpdate = -1;
+		pMS->m_nFrameCreate = -1;
+	}
 }
 
 void CRenderMesh::ReleaseIB()
 {
-  UnlockIB();
+	UnlockIB();
 	if (m_IBStream.m_nID != ~0u)
-  {
-    gRenDev->m_DevBufMan.Destroy(m_IBStream.m_nID);
-    m_IBStream.m_nID = ~0u;
-  }
-  m_IBStream.m_nElements = 0;
-  m_IBStream.m_nFrameUpdate = -1;
-  m_IBStream.m_nFrameCreate = -1;
+	{
+		gRenDev->m_DevBufMan.Destroy(m_IBStream.m_nID);
+		m_IBStream.m_nID = ~0u;
+	}
+	m_IBStream.m_nElements = 0;
+	m_IBStream.m_nFrameUpdate = -1;
+	m_IBStream.m_nFrameCreate = -1;
 }
 
 bool CRenderMesh::UpdateIndices_Int(
@@ -2772,8 +2951,8 @@ bool CRenderMesh::UpdateIndices_Int(
 	, int nOffsInd
 	, uint32 copyFlags)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 
 	//LockVB operates now on a per mesh lock, any thread may access
 	//ASSERT_IS_MAIN_THREAD(gRenDev->m_pRT)
@@ -2781,41 +2960,41 @@ bool CRenderMesh::UpdateIndices_Int(
   //SREC_AUTO_LOCK(m_sResLock);
 
   // Resize the index buffer
-  if (m_nInds != nInds)
-  {
-    FreeIB();
-    m_nInds = nInds;
-  }
-  if (!nInds)
-  {
-    assert(!m_IBStream.m_pUpdateData);
-    return true;
-  }
+	if (m_nInds != nInds)
+	{
+		FreeIB();
+		m_nInds = nInds;
+	}
+	if (!nInds)
+	{
+		assert(!m_IBStream.m_pUpdateData);
+		return true;
+	}
 
-  vtx_idx *pDst = LockIB(FSL_VIDEO_CREATE, 0, nInds);
-  if (pDst && pNewInds)
-  {
-		if (copyFlags&FSL_ASYNC_DEFER_COPY && nInds*sizeof(vtx_idx)<RENDERMESH_ASYNC_MEMCPY_THRESHOLD)
+	vtx_idx *pDst = LockIB(FSL_VIDEO_CREATE, 0, nInds);
+	if (pDst && pNewInds)
+	{
+		if (copyFlags&FSL_ASYNC_DEFER_COPY && nInds * sizeof(vtx_idx) < RENDERMESH_ASYNC_MEMCPY_THRESHOLD)
 			cryAsyncMemcpy(
 				&pDst[nOffsInd],
 				pNewInds,
-				nInds*sizeof(vtx_idx),
-				MC_CPU_TO_GPU|copyFlags,
+				nInds * sizeof(vtx_idx),
+				MC_CPU_TO_GPU | copyFlags,
 				SetAsyncUpdateState());
 		else
 		{
 			cryMemcpy(
 				&pDst[nOffsInd],
 				pNewInds,
-				nInds*sizeof(vtx_idx),
+				nInds * sizeof(vtx_idx),
 				MC_CPU_TO_GPU);
 			UnlockIndexStream();
 		}
-  }
-  else
-    return false;
+	}
+	else
+		return false;
 
-  return true;
+	return true;
 }
 
 bool CRenderMesh::UpdateVertices_Int(
@@ -2828,33 +3007,33 @@ bool CRenderMesh::UpdateVertices_Int(
 	//LockVB operates now on a per mesh lock, any thread may access
 //  ASSERT_IS_MAIN_THREAD(gRenDev->m_pRT)
 
-  int nStride;
+	int nStride;
 
-  //SREC_AUTO_LOCK(m_sResLock);
+	//SREC_AUTO_LOCK(m_sResLock);
 
-  // Resize the vertex buffer
-  if (m_nVerts != nVertCount)
-  {
-    for (int i=0; i<VSF_NUM; i++)
-    {
-      FreeVB(i);
-    }
-    m_nVerts = nVertCount;
-  }
-  if (!m_nVerts)
-    return true;
+	// Resize the vertex buffer
+	if (m_nVerts != nVertCount)
+	{
+		for (int i = 0; i < VSF_NUM; i++)
+		{
+			FreeVB(i);
+		}
+		m_nVerts = nVertCount;
+	}
+	if (!m_nVerts)
+		return true;
 
-  byte *pDstVB = (byte *)LockVB(nStream, FSL_VIDEO_CREATE, 0, nVertCount, &nStride);
-  assert((nVertCount == 0) || pDstVB);
-  if (pDstVB && pVertBuffer)
-  {
-		if (copyFlags&FSL_ASYNC_DEFER_COPY && nStride*nVertCount<RENDERMESH_ASYNC_MEMCPY_THRESHOLD)
+	byte *pDstVB = (byte *)LockVB(nStream, FSL_VIDEO_CREATE, 0, nVertCount, &nStride);
+	assert((nVertCount == 0) || pDstVB);
+	if (pDstVB && pVertBuffer)
+	{
+		if (copyFlags&FSL_ASYNC_DEFER_COPY && nStride*nVertCount < RENDERMESH_ASYNC_MEMCPY_THRESHOLD)
 		{
 			cryAsyncMemcpy(
 				&pDstVB[nOffset],
 				pVertBuffer,
 				nStride*nVertCount,
-				MC_CPU_TO_GPU|copyFlags,
+				MC_CPU_TO_GPU | copyFlags,
 				SetAsyncUpdateState());
 		}
 		else
@@ -2866,11 +3045,11 @@ bool CRenderMesh::UpdateVertices_Int(
 				MC_CPU_TO_GPU);
 			UnlockStream(nStream);
 		}
-  }
-  else
-    return false;
+	}
+	else
+		return false;
 
-  return true;
+	return true;
 }
 
 bool CRenderMesh::UpdateVertices(
@@ -2881,8 +3060,8 @@ bool CRenderMesh::UpdateVertices(
 	, uint32 copyFlags
 	, bool requiresLock)
 {
-  bool result = false;
-	if(requiresLock)
+	bool result = false;
+	if (requiresLock)
 	{
 		SREC_AUTO_LOCK(m_sResLock);
 		result = UpdateVertices_Int(pVertBuffer, nVertCount, nOffset, nStream, copyFlags);
@@ -2891,7 +3070,7 @@ bool CRenderMesh::UpdateVertices(
 	{
 		result = UpdateVertices_Int(pVertBuffer, nVertCount, nOffset, nStream, copyFlags);
 	}
-  return result;
+	return result;
 }
 
 bool CRenderMesh::UpdateIndices(
@@ -2901,8 +3080,8 @@ bool CRenderMesh::UpdateIndices(
 	, uint32 copyFlags
 	, bool requiresLock)
 {
-  bool result = false;
-	if(requiresLock)
+	bool result = false;
+	if (requiresLock)
 	{
 		SREC_AUTO_LOCK(m_sResLock);
 		result = UpdateIndices_Int(pNewInds, nInds, nOffsInd, copyFlags);
@@ -2911,13 +3090,13 @@ bool CRenderMesh::UpdateIndices(
 	{
 		result = UpdateIndices_Int(pNewInds, nInds, nOffsInd, copyFlags);
 	}
-  return result;
+	return result;
 }
 
-bool CRenderMesh::UpdateVidIndices(SMeshStream& IBStream, bool stall)
+bool CRenderMesh::UpdateVidIndices(SMeshStream& IBStream)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT( GetSourceName() );
 
 	assert(gRenDev->m_pRT->IsRenderThread());
@@ -2963,32 +3142,31 @@ bool CRenderMesh::UpdateVidIndices(SMeshStream& IBStream, bool stall)
 
 bool CRenderMesh::CreateVidVertices(int nVerts, InputLayoutHandle eVF, int nStream)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
-	SCOPED_RENDERER_ALLOCATION_NAME_HINT( GetSourceName() );
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
+	SCOPED_RENDERER_ALLOCATION_NAME_HINT(GetSourceName());
 
 	SREC_AUTO_LOCK(m_sResLock);
-	CRenderer* pRend = gRenDev;
 
-  if (!nVerts && eVF==InputLayoutHandle::Unspecified)
-  {
-    nVerts = m_nVerts;
-    eVF = m_eVF;
-  }
+	if (!nVerts && eVF == InputLayoutHandle::Unspecified)
+	{
+		nVerts = m_nVerts;
+		eVF = m_eVF;
+	}
 
-  assert (!_HasVBStream(nStream));
-  SMeshStream* pMS = GetVertexStream(nStream, FSL_WRITE);
-  int nSize = GetStreamSize(nStream, nVerts);
-  pMS->m_nID = gRenDev->m_DevBufMan.Create(BBT_VERTEX_BUFFER, (BUFFER_USAGE)m_eType, nSize);
-  pMS->m_nElements = nVerts;
+	assert(!_HasVBStream(nStream));
+	SMeshStream* pMS = GetVertexStream(nStream, FSL_WRITE);
+	int nSize = GetStreamSize(nStream, nVerts);
+	pMS->m_nID = gRenDev->m_DevBufMan.Create(BBT_VERTEX_BUFFER, (BUFFER_USAGE)m_eType, nSize);
+	pMS->m_nElements = nVerts;
 	pMS->m_nFrameCreate = GetCurrentFrameID();
-  return (pMS->m_nID != ~0u);
+	return (pMS->m_nID != ~0u);
 }
 
 bool CRenderMesh::UpdateVidVertices(int nStream)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 
 	assert(gRenDev->m_pRT->IsRenderThread());
 
@@ -3018,10 +3196,6 @@ bool CRenderMesh::UpdateVidVertices(int nStream)
 			}
 			return bRes;
 		}
-		else
-		{
-			assert(0);
-		}
 	}
 	return false;
 }
@@ -3029,84 +3203,86 @@ bool CRenderMesh::UpdateVidVertices(int nStream)
 #ifdef MESH_TESSELLATION_RENDERER
 template<class VertexFormat, class VecPos, class VecUV> bool CRenderMesh::UpdateUVCoordsAdjacency(SMeshStream& IBStream)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 	SCOPED_RENDERER_ALLOCATION_NAME_HINT( GetSourceName() );
 
 	assert(gRenDev->m_pRT->IsRenderThread());
 
 	SREC_AUTO_LOCK(m_sResLock);
+	m_nThreadAccessCounter++;
 
 	int nInds = m_nInds * 4;
 
-  if (!nInds)
+	if (!nInds)
 	{
 		// 0 size index buffer creation crashes on 360
 		assert( nInds );
 		return false;
 	}
 
-  SMeshStream* pMS = GetVertexStream(VSF_GENERAL);
+	void *pIndices  = LockIB(FSL_READ);
+	void *pVertices = LockVB(VSF_GENERAL, FSL_READ);
 
-	if (IBStream.m_nID != ~0u && pMS)
+	bool bRes = false;
+	if (pIndices && pVertices)
 	{
-		if (m_IBStream.m_pUpdateData)
+		std::vector<VecUV> pTxtAdjBuffer;
+
+		// create triangles with adjacency
+		VertexFormat *pVertexStream = (VertexFormat *)pVertices;
+		if ((m_eVF == EDefaultInputLayouts::P3S_C4B_T2S || m_eVF == EDefaultInputLayouts::P3F_C4B_T2F) && pVertexStream)
 		{
-			bool bRes = true;
-			std::vector<VecUV> pTxtAdjBuffer;
-
-			// create triangles with adjacency
-			VertexFormat *pVertexStream = (VertexFormat *)pMS->m_pUpdateData;
-			if ((m_eVF == EDefaultInputLayouts::P3S_C4B_T2S || m_eVF == EDefaultInputLayouts::P3F_C4B_T2F) && pVertexStream)
+			int nTrgs = m_nInds / 3;
+			pTxtAdjBuffer.resize(nTrgs * 12);
+			int nVerts = _GetNumVerts();
+			for (int n = 0; n < nTrgs; ++n)
 			{
-				int nTrgs = m_nInds / 3;
-				pTxtAdjBuffer.resize(nTrgs * 12);
-				int nVerts = _GetNumVerts();
-				for (int n = 0; n < nTrgs; ++n)
-				{
-					// fill in the dummy adjacency first
-					VecUV *pDst = &pTxtAdjBuffer[n * 12];
-					vtx_idx *pSrc = (vtx_idx *)m_IBStream.m_pUpdateData + n * 3;
-					// triangle itself
-					pDst[0] = pVertexStream[pSrc[0]].st;
-					pDst[1] = pVertexStream[pSrc[1]].st;
-					pDst[2] = pVertexStream[pSrc[2]].st;
-					// adjacency by edges
-					pDst[3] = pVertexStream[pSrc[0]].st;
-					pDst[4] = pVertexStream[pSrc[1]].st;
-					pDst[5] = pVertexStream[pSrc[1]].st;
-					pDst[6] = pVertexStream[pSrc[2]].st;
-					pDst[7] = pVertexStream[pSrc[2]].st;
-					pDst[8] = pVertexStream[pSrc[0]].st;
-					// adjacency by corners
-					pDst[9] = pVertexStream[pSrc[0]].st;
-					pDst[10] = pVertexStream[pSrc[1]].st;
-					pDst[11] = pVertexStream[pSrc[2]].st;
-				}
-
-				// now real adjacency is computed
-				BuildAdjacency<VertexFormat, VecPos, VecUV>(pVertexStream, nVerts, (vtx_idx *)m_IBStream.m_pUpdateData, nTrgs, pTxtAdjBuffer);
-
-				if (sizeof(VecUV) == sizeof(Vec2f16))
-				{
-					m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R16G16_FLOAT, CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pTxtAdjBuffer[0]);
-				}
-				else
-				{
-					m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R32G32_FLOAT, CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pTxtAdjBuffer[0]);
-				}				
-
-				for (int iChunk = 0; iChunk < m_Chunks.size(); ++iChunk)
-				{
-					((CREMeshImpl*) m_Chunks[iChunk].pRE)->m_nPatchIDOffset = m_Chunks[iChunk].nFirstIndexId / 3;
-				}
+				// fill in the dummy adjacency first
+				VecUV *pDst = &pTxtAdjBuffer[n * 12];
+				vtx_idx *pSrc = (vtx_idx *)pIndices + n * 3;
+				// triangle itself
+				pDst[0] = pVertexStream[pSrc[0]].st;
+				pDst[1] = pVertexStream[pSrc[1]].st;
+				pDst[2] = pVertexStream[pSrc[2]].st;
+				// adjacency by edges
+				pDst[3] = pVertexStream[pSrc[0]].st;
+				pDst[4] = pVertexStream[pSrc[1]].st;
+				pDst[5] = pVertexStream[pSrc[1]].st;
+				pDst[6] = pVertexStream[pSrc[2]].st;
+				pDst[7] = pVertexStream[pSrc[2]].st;
+				pDst[8] = pVertexStream[pSrc[0]].st;
+				// adjacency by corners
+				pDst[9] = pVertexStream[pSrc[0]].st;
+				pDst[10] = pVertexStream[pSrc[1]].st;
+				pDst[11] = pVertexStream[pSrc[2]].st;
 			}
 
-			return bRes;
+			// now real adjacency is computed
+			BuildAdjacency<VertexFormat, VecPos, VecUV>(pVertexStream, nVerts, (vtx_idx *)pIndices, nTrgs, pTxtAdjBuffer);
+
+			if (sizeof(VecUV) == sizeof(Vec2f16))
+			{
+				m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R16G16_FLOAT, CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pTxtAdjBuffer[0]);
+			}
+			else
+			{
+				m_adjBuffer.Create(pTxtAdjBuffer.size(), sizeof(VecUV), DXGI_FORMAT_R32G32_FLOAT, CDeviceObjectFactory::BIND_SHADER_RESOURCE, &pTxtAdjBuffer[0]);
+			}
+
+			for (int iChunk = 0; iChunk < m_Chunks.size(); ++iChunk)
+			{
+				((CREMeshImpl*) m_Chunks[iChunk].pRE)->m_nPatchIDOffset = m_Chunks[iChunk].nFirstIndexId / 3;
+			}
 		}
 	}
 
-	return false;
+	UnlockVB(VSF_GENERAL);
+	UnlockIB();
+
+	m_nThreadAccessCounter--;
+
+	return bRes;
 }
 #endif //#ifdef MESH_TESSELLATION_RENDERER
 
@@ -3135,7 +3311,7 @@ void CRenderMesh::AddRenderElements(IMaterial *pIMatInfo, CRenderObject *pObj, c
 		IShader* pShader = pIMatInfo->GetShaderItem().m_pShader;
 		bool bIsTerrainShader = pShader ? (pShader->GetShaderType() == eST_Terrain) : false;
 
-		if((nList == EFSLIST_TERRAINLAYER || bIsTerrainShader) && pObj->GetMatrix(passInfo).GetTranslation().GetLength()>1)
+		if((nList == EFSLIST_TERRAINLAYER || bIsTerrainShader) && pObj->GetMatrix().GetTranslation().GetLength()>1)
 		{
 			pIMatInfo = gRenDev->m_pTerrainDefaultMaterial;
 
@@ -3498,6 +3674,9 @@ void CRenderMesh::InitTriHash(IMaterial * pMaterial)
     }
   }
 
+  UnlockStream(VSF_GENERAL);
+  UnlockIndexStream();
+
   iLog->LogPlus(" ok (%" PRISIZE_T ")", m_pTrisMap->size());
 
 #endif
@@ -3539,7 +3718,6 @@ void CRenderMesh::UpdateBBoxFromMesh()
 
   int nVertCount = _GetVertexContainer()->GetVerticesCount();
   int nPosStride=0;
-  int nIndCount = GetIndicesCount();
   const byte * pPositions = GetPosPtr(nPosStride, FSL_READ);
   const vtx_idx * pIndices = GetIndexPtr(FSL_READ);
 
@@ -3571,6 +3749,9 @@ void CRenderMesh::UpdateBBoxFromMesh()
         assert(!"Index is out of range");
     }
   }
+
+  UnlockStream(VSF_GENERAL);
+  UnlockIndexStream();
 
   if (!aabb.IsReset())
   {
@@ -3847,58 +4028,57 @@ void CRenderMesh::Size( uint32 nFlags, ICrySizer* pSizer ) const
 	uint32 i;
 	if (!nFlags)  // System size
 	{
-		for (i=0; i<VSF_NUM; i++)
+		for (i = 0; i < VSF_NUM; i++)
 		{
-      if (SMeshStream* pMS = GetVertexStream(i))
-      {
-			  if (pMS->m_pUpdateData)
-				  pSizer->AddObject(pMS->m_pUpdateData,GetStreamSize(i) );
-      }
+			if (SMeshStream* pMS = GetVertexStream(i))
+			{
+				if (pMS->m_pUpdateData)
+					pSizer->AddObject(pMS->m_pUpdateData, GetStreamSize(i));
+			}
 		}
 		if (m_IBStream.m_pUpdateData)
-			pSizer->AddObject( m_IBStream.m_pUpdateData, m_nInds * sizeof(vtx_idx) );
+			pSizer->AddObject(m_IBStream.m_pUpdateData, m_nInds * sizeof(vtx_idx));
 
 		if (m_pCachePos)
-			pSizer->AddObject(m_pCachePos, m_nVerts * sizeof(Vec3) );
+			pSizer->AddObject(m_pCachePos, m_nVerts * sizeof(Vec3));
 	}
-
 }
 
 buffer_size_t CRenderMesh::Size(uint32 nFlags) const
 {
 	buffer_size_t nSize = 0;
-  uint32 i;
+	uint32 i;
 	if (nFlags == SIZE_ONLY_SYSTEM)  // System size
-  {
-    for (i=0; i<VSF_NUM; i++)
-    {
-      if (SMeshStream* pMS = GetVertexStream(i))
-      {
-        if (pMS->m_pUpdateData)
-          nSize += GetStreamSize(i);
-      }
-    }
-    if (m_IBStream.m_pUpdateData)
-      nSize += m_nInds * sizeof(vtx_idx);
+	{
+		for (i = 0; i < VSF_NUM; i++)
+		{
+			if (SMeshStream* pMS = GetVertexStream(i))
+			{
+				if (pMS->m_pUpdateData)
+					nSize += GetStreamSize(i);
+			}
+		}
+		if (m_IBStream.m_pUpdateData)
+			nSize += m_nInds * sizeof(vtx_idx);
 
-    if (m_pCachePos)
-      nSize += m_nVerts * sizeof(Vec3);
-  }
+		if (m_pCachePos)
+			nSize += m_nVerts * sizeof(Vec3);
+	}
 	if (nFlags & SIZE_VB) // VB size
-  {
-    for (i=0; i<VSF_NUM; i++)
-    {
-      if (_HasVBStream(i))
-        nSize += GetStreamSize(i);
-    }
-  }
+	{
+		for (i = 0; i < VSF_NUM; i++)
+		{
+			if (_HasVBStream(i))
+				nSize += GetStreamSize(i);
+		}
+	}
 	if (nFlags & SIZE_IB) // IB size
-  {
-    if (_HasIBStream())
-      nSize += m_nInds * sizeof(vtx_idx);
-  }
+	{
+		if (_HasIBStream())
+			nSize += m_nInds * sizeof(vtx_idx);
+	}
 
-  return nSize;
+	return nSize;
 }
 
 void CRenderMesh::FreeDeviceBuffers(bool bRestoreSys)
@@ -3935,40 +4115,42 @@ void CRenderMesh::FreeDeviceBuffers(bool bRestoreSys)
 
 void CRenderMesh::FreeVB(int nStream)
 {
-  if (SMeshStream* pMS = GetVertexStream(nStream))
-  {
-    if (pMS->m_pUpdateData)
-    {
-      FreeMeshData(pMS->m_pUpdateData);
-      pMS->m_pUpdateData = NULL;
-    }
-  }
+	if (SMeshStream* pMS = GetVertexStream(nStream))
+	{
+		if (pMS->m_pUpdateData)
+		{
+		//	CryLog("\"%s\"->FreeMeshData() 0%x08", m_sSource, pMS->m_pUpdateData);
+			FreeMeshData(pMS->m_pUpdateData);
+			pMS->m_pUpdateData = NULL;
+		}
+	}
 }
 
 void CRenderMesh::FreeIB()
 {
-  if (m_IBStream.m_pUpdateData)
-  {
-    FreeMeshData(m_IBStream.m_pUpdateData);
-    m_IBStream.m_pUpdateData = NULL;
-  }
+	if (m_IBStream.m_pUpdateData)
+	{
+	//	CryLog("\"%s\"->FreeMeshData() 0%x08", m_sSource, m_IBStream.m_pUpdateData);
+		FreeMeshData(m_IBStream.m_pUpdateData);
+		m_IBStream.m_pUpdateData = NULL;
+	}
 }
 
 void CRenderMesh::FreeSystemBuffers()
 {
-  uint32 i;
+	uint32 i;
 
-  for (i=0; i<VSF_NUM; i++)
-  {
-    FreeVB(i);
-  }
-  FreeIB();
+	for (i = 0; i < VSF_NUM; i++)
+	{
+		FreeVB(i);
+	}
+	FreeIB();
 
-  FreeMeshData(m_pCachePos);
-  m_pCachePos = NULL;
+	FreeMeshData(m_pCachePos);
+	m_pCachePos = NULL;
 
-  FreeMeshData(m_pCacheUVs);
-  m_pCacheUVs = nullptr;
+	FreeMeshData(m_pCacheUVs);
+	m_pCacheUVs = nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3977,8 +4159,6 @@ void CRenderMesh::DebugDraw( const struct SGeometryDebugDrawInfo &info,uint32 nV
   MEMORY_SCOPE_CHECK_HEAP();
 	IRenderAuxGeom *pRenderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 	SScopedMeshDataLock _lock(this);
-
-	const Matrix34 &mat = info.tm;
 
 	const bool bNoCull = info.bNoCull;
 	const bool bNoLines = info.bNoLines;
@@ -4032,7 +4212,9 @@ void CRenderMesh::DebugDraw( const struct SGeometryDebugDrawInfo &info,uint32 nV
 		int posStride = 1;
 		const byte *pPositions = GetPosPtr(posStride, FSL_READ);
 		const vtx_idx *pIndices = GetIndexPtr(FSL_READ);
+#if defined(USE_CRY_ASSERT)
 		const uint32 numVertices = GetVerticesCount();
+#endif
 		const uint32 indexStep = 3;
 		uint32 numIndices = pChunk->nNumIndices;
 
@@ -4112,6 +4294,9 @@ void CRenderMesh::DebugDraw( const struct SGeometryDebugDrawInfo &info,uint32 nV
 			}
 #endif
 		}
+
+		UnlockStream(VSF_GENERAL);
+		UnlockIndexStream();
 	}
 
 	pRenderAuxGeom->SetMatrixIndex(oldIndex);
@@ -4245,6 +4430,7 @@ void CRenderMesh::UpdateModifiedMeshes(bool bAcquireLock, int threadId)
 						// - mark the mesh to not update itself if depending on how the async update was scheduled
 						// - returns true if no streams need further processing
 						CRenderMesh* pVContainer = pMesh->_GetVertexContainer();
+
 						updateSuccess = pMesh->RT_CheckUpdate(pVContainer, pMesh->_GetVertexFormat(), VSM_MASK, false);
 					}
 				}
@@ -4283,12 +4469,11 @@ void CRenderMesh::UpdateModified()
 // Mesh garbage collector
 void CRenderMesh::Tick(uint numFrames)
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CRenderMesh::Tick");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CRenderMesh::Tick");
 
 	MEMORY_SCOPE_CHECK_HEAP();
 	ASSERT_IS_RENDER_THREAD(gRenDev->m_pRT)
-		
-	bool bKeepSystem = false;
+
 	const threadID threadId = gRenDev->m_pRT->IsMultithreaded() ? gRenDev->GetRenderThreadID() : threadID(1);
 	int nFrame = GetCurrentFrameID();
 
@@ -4376,8 +4561,8 @@ void CRenderMesh::UnKeepSysMesh()
 //////////////////////////////////////////////////////////////////////////
 void CRenderMesh::SetVertexContainer( IRenderMesh *pBuf )
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMeshType, 0, this->GetTypeName());
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_RenderMesh, 0, this->GetSourceName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMeshType, this->GetTypeName());
+	MEMSTAT_CONTEXT(EMemStatContextType::RenderMesh, this->GetSourceName());
 
 	if (m_pVertexContainer)
 		((CRenderMesh *)m_pVertexContainer)->m_lstVertexContainerUsers.Delete(this);
@@ -4495,7 +4680,7 @@ bool CRenderMesh::SyncAsyncUpdate(int threadID, bool block)
 	SREC_AUTO_LOCK(m_sResLock); 
 	if (m_asyncUpdateStateCounter[threadID]) 
 	{
-		CRY_PROFILE_REGION(PROFILE_RENDERER, "CRenderMesh::SyncAsyncUpdate() sync");
+		CRY_PROFILE_SECTION(PROFILE_RENDERER, "CRenderMesh::SyncAsyncUpdate() sync");
 		int iter = 0;
 		while (m_asyncUpdateState[threadID])
 		{
@@ -4578,10 +4763,10 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const uint pairGuid, const TRend
 				}
 			}
 		}
-	}
 
-	UnlockStream(VSF_HWSKIN_INFO);
-	UnlockIndexStream();
+		UnlockStream(VSF_HWSKIN_INFO);
+		UnlockIndexStream();
+	}
 
 	if (remappedIndices)
 		m_CreatedBoneIndices.emplace_back(gRenDev->GetMainFrameID(), pairGuid, remappedIndices, m_pExtraBoneMapping);
@@ -4592,7 +4777,7 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const uint pairGuid, const TRend
 void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType> &arrRemapTable, const uint pairGuid, const void* tag)
 {
 	ASSERT_IS_MAIN_THREAD(gRenDev->m_pRT);
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CRenderMesh::CreateRemappedBoneIndicesPair");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CRenderMesh::CreateRemappedBoneIndicesPair");
 
 	SREC_AUTO_LOCK(m_sResLock); 
 
@@ -4686,10 +4871,10 @@ void CRenderMesh::CreateRemappedBoneIndicesPair(const DynArray<JointIdType> &arr
 				CreateExtraBoneMappingBuffers(m_pExtraBoneMapping, doRemapping);
 			}
 		}
-	}
 
-	UnlockStream(VSF_HWSKIN_INFO);
-	UnlockIndexStream();
+		UnlockStream(VSF_HWSKIN_INFO);
+		UnlockIndexStream();
+	}
 
 	if (remappedIndices)
 		m_CreatedBoneIndices.emplace_back(gRenDev->GetMainFrameID(), pairGuid, remappedIndices, m_pExtraBoneMapping);
@@ -4707,7 +4892,7 @@ void CRenderMesh::ReleaseRemappedBoneIndicesPair(const uint pairGuid)
 	}
 
 	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CRenderMesh::ReleaseRemappedBoneIndicesPair");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CRenderMesh::ReleaseRemappedBoneIndicesPair");
 
 	SREC_AUTO_LOCK(m_sResLock); 
 	size_t deleted = ~0u; 
@@ -4776,7 +4961,11 @@ void CRenderMesh::UnLockForThreadAccess()
 }
 void CRenderMesh::GetPoolStats(SMeshPoolStatistics* stats)
 {
-	memcpy(stats, &s_MeshPool.m_MeshDataPoolStats, sizeof(SMeshPoolStatistics));
+#if !defined(_RELEASE)
+	memcpy(stats, &s_MeshPool.m_MeshPoolStats, sizeof(SMeshPoolStatistics));
+#else
+	memset(stats, 0, sizeof(SMeshPoolStatistics));
+#endif
 }
 
 void* CRenderMesh::operator new(size_t size )
@@ -4832,6 +5021,7 @@ bool CRenderMesh::GetRemappedSkinningData(uint32 guid, SStreamInfo& streamInfo)
 bool CRenderMesh::CheckStreams()
 {
 	CRenderMesh* pRenderMeshForVertices = _GetVertexContainer();
+	int32 frameID = gcpRendD3D->GetFrameID();
 
 	// Check on allocation/memory overflow
 	if (!pRenderMeshForVertices->CanUpdate())
@@ -4839,14 +5029,14 @@ bool CRenderMesh::CheckStreams()
 
 	// Check on index-buffers
 	if (!_HasIBStream() &&
-		_NeedsIBStream())
+		_NeedsIBStream(frameID))
 		return false;
 
 	// Check on vertex-buffers
 	for (int nStream = 0; nStream < VSF_NUM; ++nStream)
 	{
 		if (!pRenderMeshForVertices->_HasVBStream(nStream) &&
-			pRenderMeshForVertices->_NeedsVBStream(nStream))
+			pRenderMeshForVertices->_NeedsVBStream(frameID, nStream))
 			return false;
 	}
 
@@ -4856,6 +5046,7 @@ bool CRenderMesh::CheckStreams()
 bool CRenderMesh::FillGeometryInfo(CRenderElement::SGeometryInfo& geom)
 {
 	CRenderMesh* pRenderMeshForVertices = _GetVertexContainer();
+	int32 frameID = gcpRendD3D->GetFrameID();
 	bool streamsMissing = false;
 
 	// Check on allocation/memory overflow
@@ -4868,7 +5059,7 @@ bool CRenderMesh::FillGeometryInfo(CRenderElement::SGeometryInfo& geom)
 		geom.indexStream.hStream = _GetIBStream();
 		geom.indexStream.nStride = (sizeof(vtx_idx) == 2 ? Index16 : Index32);
 	}
-	else if (_NeedsIBStream())
+	else if (_NeedsIBStream(frameID))
 	{
 		streamsMissing = true;
 	}
@@ -4885,7 +5076,7 @@ bool CRenderMesh::FillGeometryInfo(CRenderElement::SGeometryInfo& geom)
 
 			geom.nNumVertexStreams++;
 		}
-		else if (pRenderMeshForVertices->_NeedsVBStream(nStream))
+		else if (pRenderMeshForVertices->_NeedsVBStream(frameID, nStream))
 		{
 			streamsMissing = true;
 		}
@@ -4907,8 +5098,8 @@ bool CRenderMesh::FillGeometryInfo(CRenderElement::SGeometryInfo& geom)
 	return !streamsMissing;
 }
 
-CThreadSafeRendererContainer<CRenderMesh*> CRenderMesh::m_deferredSubsetGarbageCollection[RT_COMMAND_BUF_COUNT];
-CThreadSafeRendererContainer<SMeshSubSetIndicesJobEntry> CRenderMesh::m_meshSubSetRenderMeshJobs[RT_COMMAND_BUF_COUNT];
+CryMT::CThreadSafePushContainer<CRenderMesh*> CRenderMesh::m_deferredSubsetGarbageCollection[RT_COMMAND_BUF_COUNT];
+CryMT::CThreadSafePushContainer<SMeshSubSetIndicesJobEntry> CRenderMesh::m_meshSubSetRenderMeshJobs[RT_COMMAND_BUF_COUNT];
 
 ///////////////////////////////////////////////////////////////////////////////
 void CRenderMesh::Render(CRenderObject* pObj, const SRenderingPassInfo& passInfo)
@@ -4927,8 +5118,7 @@ void CRenderMesh::Render(CRenderObject* pObj, const SRenderingPassInfo& passInfo
 	IF(!CanUpdate(), 0)
 	return;
 
-	CRenderer* RESTRICT_POINTER rd = gRenDev;
-	bool bSkinned                  = (GetChunksSkinned().size() && (pObj->m_ObjFlags & (FOB_SKINNED)));
+	bool bSkinned = (GetChunksSkinned().size() && (pObj->m_ObjFlags & (FOB_SKINNED)));
 
 	hidemaskLoc nMeshSubSetMask = 0;
 #if !defined(_RELEASE)
@@ -4989,7 +5179,7 @@ void CRenderMesh::Render(CRenderObject* pObj, const SRenderingPassInfo& passInfo
 	if (pObj->m_ObjFlags & FOB_RENDER_AFTER_POSTPROCESSING)
 	{
 		// Check for mesh conditions regarding post processing
-		if (CRenderer::CV_r_PostProcess && CRenderer::CV_r_PostProcessHUD3D)
+		if ((CRenderer::CV_r_PostProcess > 0) && (CRenderer::CV_r_PostProcessHUD3D > 0))
 			AddHUDRenderElement(pObj, pMaterial, passInfo);
 
 		return;
@@ -5167,7 +5357,7 @@ IRenderMesh* CRenderMesh::GetRenderMeshForSubsetMask(SRenderObjData* pOD, hidema
 	}
 
 	// subset mesh was not found, start job to create one
-	SMeshSubSetIndicesJobEntry* pSubSetJob = ::new(m_meshSubSetRenderMeshJobs[passInfo.ThreadID()].push_back_new())SMeshSubSetIndicesJobEntry();
+	SMeshSubSetIndicesJobEntry* pSubSetJob = m_meshSubSetRenderMeshJobs[passInfo.ThreadID()].push_back_new();
 	pSubSetJob->m_pSrcRM          = pSrcRM;
 	pSubSetJob->m_pIndexRM        = NULL;
 	pSubSetJob->m_nMeshSubSetMask = nMeshSubSetMask;
@@ -5188,20 +5378,17 @@ void CRenderMesh::RT_PerFrameTick()
 	const threadID nThreadID = gRenDev->GetRenderThreadID();
 
 	// perform all required garbage collections
-	m_deferredSubsetGarbageCollection[nThreadID].CoalesceMemory();
-	for (size_t i = 0; i < m_deferredSubsetGarbageCollection[nThreadID].size(); ++i)
+	for (CRenderMesh* pMesh : m_deferredSubsetGarbageCollection[nThreadID])
 	{
-		if (m_deferredSubsetGarbageCollection[nThreadID][i])
-			m_deferredSubsetGarbageCollection[nThreadID][i]->GarbageCollectSubsetRenderMeshes();
+		if (pMesh)
+			pMesh->GarbageCollectSubsetRenderMeshes();
 	}
-	m_deferredSubsetGarbageCollection[nThreadID].resize(0);
+	m_deferredSubsetGarbageCollection[nThreadID].clear();
 
 	// add all newly generated subset meshes
-	bool bJobsStillRunning          = false;
-	size_t nNumSubSetRenderMeshJobs = m_meshSubSetRenderMeshJobs[nThreadID].size();
-	for (size_t i = 0; i < nNumSubSetRenderMeshJobs; ++i)
+	bool bJobsStillRunning = false;
+	for (SMeshSubSetIndicesJobEntry& rSubSetJob : m_meshSubSetRenderMeshJobs[nThreadID])
 	{
-		SMeshSubSetIndicesJobEntry& rSubSetJob = m_meshSubSetRenderMeshJobs[nThreadID][i];
 		if (rSubSetJob.jobState.IsRunning())
 		{
 			bJobsStillRunning = true;
@@ -5222,7 +5409,7 @@ void CRenderMesh::RT_PerFrameTick()
 	}
 	if (!bJobsStillRunning)
 	{
-		m_meshSubSetRenderMeshJobs[nThreadID].resize(0);
+		m_meshSubSetRenderMeshJobs[nThreadID].clear();
 	}
 }
 
@@ -5231,20 +5418,20 @@ void CRenderMesh::ClearJobResources()
 {
 	for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 	{
-		for (size_t j = 0, size = m_deferredSubsetGarbageCollection[i].size();  j < size; ++j)
+		for (CRenderMesh* pMesh : m_deferredSubsetGarbageCollection[i])
 		{
-			if (m_deferredSubsetGarbageCollection[i][j])
+			if (pMesh)
 			{
-				m_deferredSubsetGarbageCollection[i][j]->GarbageCollectSubsetRenderMeshes();
+				pMesh->GarbageCollectSubsetRenderMeshes();
 			}
 		}
-		stl::free_container(m_deferredSubsetGarbageCollection[i]);
+		m_deferredSubsetGarbageCollection[i].reset_container();
 
-		for (size_t j = 0, size = m_meshSubSetRenderMeshJobs[i].size(); j < size; ++j)
+		for (SMeshSubSetIndicesJobEntry& rJobEntry : m_meshSubSetRenderMeshJobs[i])
 		{
-			gEnv->pJobManager->WaitForJob(m_meshSubSetRenderMeshJobs[i][j].jobState);
+			gEnv->pJobManager->WaitForJob(rJobEntry.jobState);
 		}
-		stl::free_container(m_meshSubSetRenderMeshJobs[i]);
+		m_meshSubSetRenderMeshJobs[i].reset_container();
 	}
 }
 
@@ -5270,7 +5457,6 @@ void SMeshSubSetIndicesJobEntry::CreateSubSetRenderMesh()
 	uint32 nChunkCount              = renderChunks.size();
 
 	SScopedMeshDataLock _lock(pSrcMesh);
-	int nIndCount = pSrcMesh->GetIndicesCount();
 	if (vtx_idx* pInds = pSrcMesh->GetIndexPtr(FSL_READ))
 	{
 		TRenderChunkArray newChunks;
@@ -5321,6 +5507,8 @@ void SMeshSubSetIndicesJobEntry::CreateSubSetRenderMesh()
 			pIndexMesh->SetBBox(pSrcMesh->m_vBoxMin, pSrcMesh->m_vBoxMax);
 		}
 		m_pIndexRM = pIndexMesh;
+
+		pSrcMesh->UnlockIndexStream();
 	}
 }
 
@@ -5371,10 +5559,10 @@ bool CRenderMesh::RayIntersectMesh(const Ray& ray, Vec3& hitpos, Vec3& p0, Vec3&
 				}
 			}
 		}
-	}
 
-	UnlockStream(VSF_GENERAL);
-	UnlockIndexStream();
+		UnlockStream(VSF_GENERAL);
+		UnlockIndexStream();
+	}
 
 	return hasHit;
 }

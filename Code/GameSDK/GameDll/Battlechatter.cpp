@@ -28,6 +28,8 @@ Plays sounds for nearby actors
 #include "GameRulesModules/GameRulesObjective_Predator.h"
 #include "GameRulesModules/IGameRulesRoundsModule.h"
 
+#include <CrySystem/ConsoleRegistration.h>
+
 #define DbgLog(...) CRY_DEBUG_LOG(BATTLECHATTER, __VA_ARGS__)
 #define DbgLogAlways(...) CRY_DEBUG_LOG_ALWAYS(BATTLECHATTER, __VA_ARGS__)
 

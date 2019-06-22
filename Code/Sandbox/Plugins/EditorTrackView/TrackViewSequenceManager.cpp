@@ -225,7 +225,7 @@ void CTrackViewSequenceManager::AddListener(ITrackViewSequenceManagerListener* p
 
 void CTrackViewSequenceManager::PostLoad()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	for (std::unique_ptr<CTrackViewSequence>& pSequence : m_sequences)
 	{
 		OnSequenceAdded(pSequence.get());
@@ -234,7 +234,7 @@ void CTrackViewSequenceManager::PostLoad()
 
 void CTrackViewSequenceManager::SortSequences()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	std::stable_sort(m_sequences.begin(), m_sequences.end(),
 	                 [](const std::unique_ptr<CTrackViewSequence>& a, const std::unique_ptr<CTrackViewSequence>& b) -> bool
 	{
@@ -349,7 +349,7 @@ void CTrackViewSequenceManager::OnObjectsChanged(const std::vector<CBaseObject*>
 
 void CTrackViewSequenceManager::HandleAttachmentChange(const CBaseObject* pObject, EAttachmentChangeType event)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	// If an object gets attached/detached from its parent we need to update all related anim nodes, otherwise
 	// they will end up very near the origin or very far away from the attached object when animated

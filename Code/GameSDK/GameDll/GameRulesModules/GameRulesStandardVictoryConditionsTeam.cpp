@@ -1220,41 +1220,41 @@ void CGameRulesStandardVictoryConditionsTeam::GetGameOverAnnouncement(const EGam
 		standardGame = !closeGame && scoreDiff < (scoreLimit * 0.6f);					// standard if not close and within 60% of score limit
 	}
 
-	CAnnouncer *pAnnouncer = CAnnouncer::GetInstance();
+	CRY_ASSERT(CAnnouncer::GetInstance() != nullptr);
 
 	if(gameOverType == EGOT_Win)
 	{
 		if(closeGame)
 		{
-			announcement = pAnnouncer->NameToID("WinClose");
+			announcement = CAnnouncer::NameToID("WinClose");
 		}
 		else if (standardGame)
 		{
-			announcement = pAnnouncer->NameToID("WinStandard");
+			announcement = CAnnouncer::NameToID("WinStandard");
 		}
 		else
 		{
-			announcement = pAnnouncer->NameToID("WinBig");
+			announcement = CAnnouncer::NameToID("WinBig");
 		}
 	}
 	else if(gameOverType == EGOT_Lose)
 	{
 		if(closeGame)
 		{
-			announcement = pAnnouncer->NameToID("LoseClose");
+			announcement = CAnnouncer::NameToID("LoseClose");
 		}
 		else if (standardGame)
 		{
-			announcement = pAnnouncer->NameToID("LoseStandard");
+			announcement = CAnnouncer::NameToID("LoseStandard");
 		}
 		else
 		{
-			announcement = pAnnouncer->NameToID("LoseBig");
+			announcement = CAnnouncer::NameToID("LoseBig");
 		}
 	}
 	else if(gameOverType == EGOT_Draw)
 	{
-		announcement = pAnnouncer->NameToID("Draw");
+		announcement = CAnnouncer::NameToID("Draw");
 	}
 }
 

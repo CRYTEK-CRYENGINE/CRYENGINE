@@ -32,7 +32,7 @@ REGISTER_CLASS_DESC(CDataBaseViewPaneClass)
 CDataBaseDialog::CDataBaseDialog(CWnd* pParent)
 	: CToolbarDialog(IDD, pParent)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	m_selectedCtrl = -1;
 
 	Create(IDD, pParent);

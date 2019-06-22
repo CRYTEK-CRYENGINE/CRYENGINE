@@ -452,16 +452,6 @@ std::vector<CAsset*> CAssetImporterFBX::ImportAssets(const std::vector<string>& 
 
 	std::vector<CAsset*> importedAssets;
 	importedAssets.reserve(assetPaths.size());
-	for (const string& assetPath : assetPaths)
-	{
-		MoveAsset(ctx, assetPath);
-
-		CAsset* const pAsset = ctx.LoadAsset(assetPath);
-		if (pAsset)
-		{
-			importedAssets.push_back(pAsset);
-		}
-	}
 
 	if (m_bCreateMaterial)
 	{
@@ -477,6 +467,17 @@ std::vector<CAsset*> CAssetImporterFBX::ImportAssets(const std::vector<string>& 
 			{
 				importedAssets.push_back(pMaterialAsset);
 			}
+		}
+	}
+
+	for (const string& assetPath : assetPaths)
+	{
+		MoveAsset(ctx, assetPath);
+
+		CAsset* const pAsset = ctx.LoadAsset(assetPath);
+		if (pAsset)
+		{
+			importedAssets.push_back(pAsset);
 		}
 	}
 
@@ -654,6 +655,10 @@ void CAssetImporterFBX::MoveAsset(CAssetImportContext& ctx, const string& assetP
 	const string fromAssetPath = PathUtil::Make(fromDir, assetPath.substr(PathUtil::AddSlash(toDir).size()));
 
 	std::unique_ptr<CAsset> pAsset(ctx.LoadAsset(fromAssetPath));
+	if (!pAsset)
+	{
+		return;
+	}
 
 	const std::vector<std::pair<string, string>> movedFilePaths = GetAbsOutputFilePaths(ctx, GetIndependentFiles(pAsset.get()));
 
@@ -702,10 +707,18 @@ string CAssetImporterFBX::ImportMaterial(CAssetImportContext& ctx, const std::ve
 	const int mtlFlags = materialCount > 1 ? MTL_FLAG_MULTI_SUBMTL : 0;
 
 	const string materialName = ctx.GetOutputFilePath("");
-	_smart_ptr<CMaterial> pMaterial = GetIEditor()->GetMaterialManager()->CreateMaterial(materialName, XmlNodeRef(), mtlFlags);
+
+	// Do not overwrite existing.
+	IDataBaseItem* pMaterialItem = GetIEditor()->GetMaterialManager()->FindItemByName(materialName);
+	if (pMaterialItem)
+	{
+		return {};
+	}
+
+	CMaterial* pMaterial = GetIEditor()->GetMaterialManager()->CreateMaterial(materialName, XmlNodeRef(), mtlFlags);
 	if (!pMaterial)
 	{
-		return string();
+		return {};
 	}
 	const string outDir = ctx.GetOutputDirectoryPath();
 	CreateMaterial(pMaterial, pFbxScene, [&relTexs, &outDir](CMaterial* pEditorMaterial, const FbxTool::SMaterial& fbxMaterial)

@@ -119,7 +119,7 @@ template<typename Func> auto PhysXGeom::CreateAndUse(QuatT& trans, const Diag33&
 			// non-uniform scaling is supported for axis-ligned Basis only (scale can be projected into the box's frame)
 			Vec3 sz = max(max(scale.x,scale.y),scale.z)-min(min(scale.x,scale.y),scale.z)>0.001f ? (m_geom.box.Basis*(scale*(m_geom.box.size*m_geom.box.Basis))).abs() : m_geom.box.size*scale.x;
 			trans = trans*QuatT(!Quat(m_geom.box.Basis), scale*m_geom.box.center);
-			return func(PxBoxGeometry(V(sz)));
+			return func(PxBoxGeometry(cpx::Helper::V(sz)));
 		}
 		case GEOM_SPHERE:
 			trans = trans*QuatT(Quat(IDENTITY), scale*m_geom.sph.center);

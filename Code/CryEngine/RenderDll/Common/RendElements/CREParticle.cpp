@@ -2,17 +2,10 @@
 
 #include "StdAfx.h"
 #include <CryRenderer/RenderElements/CREParticle.h>
-#include <CryCore/Containers/HeapContainer.h>
-#include "../ParticleBuffer.h"
-
-#include <iterator>
-#include <Cry3DEngine/I3DEngine.h>
 #include <CryParticleSystem/IParticles.h>
-#include <CryThreading/IJobManager_JobDelegator.h>
-#include "Common/RenderView.h"
 #include "CompiledRenderObject.h"
-#include "XRenderD3D9/DriverD3D.h"
 #include "GraphicsPipeline/SceneForward.h"
+#include "GraphicsPipeline/ShadowMap.h"
 #include "GraphicsPipeline/SceneCustom.h"
 #include "GraphicsPipeline/VolumetricFog.h"
 #include "GraphicsPipeline/TiledLightVolumes.h"
@@ -115,7 +108,6 @@ class CCompiledParticle
 public:
 	CCompiledParticle()
 	{
-		auto& graphicsPipeline = gcpRendD3D->GetGraphicsPipeline();
 		m_pPerDrawCB = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SParticleInstanceCB), true);
 		m_pShaderDataCB = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(SParticleShaderData));
 		m_pPerDrawExtraRS = GetDeviceObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
@@ -125,11 +117,12 @@ public:
 	}
 
 // private:
-	CDeviceGraphicsPSOPtr m_pGraphicsPSOs[uint(EParticlePSOMode::Count)];
-	CDeviceResourceSetPtr m_pPerDrawExtraRS;
-	CConstantBufferPtr    m_pPerDrawCB;
-	CConstantBufferPtr    m_pShaderDataCB;
-	Vec4                  m_glowParams = Vec4(ZERO);
+	DevicePipelineStatesArray m_StandardGraphicsPSOs[eStage_SCENE_NUM];
+	CDeviceGraphicsPSOPtr     m_pGraphicsPSOs[uint(EParticlePSOMode::Count)];
+	CDeviceResourceSetPtr     m_pPerDrawExtraRS;
+	CConstantBufferPtr        m_pPerDrawCB;
+	CConstantBufferPtr        m_pShaderDataCB;
+	Vec4                      m_glowParams = Vec4(ZERO);
 };
 
 namespace
@@ -205,7 +198,7 @@ CREParticle::CREParticle()
 	, m_pGpuRuntime(nullptr)
 	, m_nFirstVertex(0)
 	, m_nFirstIndex(0)
-	, m_addedToView(0)
+	, m_bCompiled(false)
 {
 	mfSetType(eDATA_Particle);
 	mfUpdateFlags(FCEF_KEEP_DISTANCE);
@@ -240,7 +233,7 @@ void CREParticle::SetRuntime(gpu_pfx2::CParticleComponentRuntime* pRuntime)
 
 SRenderVertices* CREParticle::AllocVertices(int nAllocVerts, int nAllocInds)
 {
-	auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+	auto& particleBuffer = gcpRendD3D.GetParticleBufferSet();
 
 	CParticleBufferSet::SAlloc vertAlloc = particleBuffer.AllocVertices(m_allocId, nAllocVerts);
 	SVF_Particle* pVertexBuffer = alias_cast<SVF_Particle*>(vertAlloc.m_pBase) + vertAlloc.m_firstElem;
@@ -259,7 +252,7 @@ SRenderVertices* CREParticle::AllocVertices(int nAllocVerts, int nAllocInds)
 
 SRenderVertices* CREParticle::AllocPullVertices(int nPulledVerts)
 {
-	auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+	auto& particleBuffer = gcpRendD3D.GetParticleBufferSet();
 
 	CParticleBufferSet::SAllocStreams streams = particleBuffer.AllocStreams(m_allocId, nPulledVerts);
 	m_RenderVerts.aPositions.set(ArrayT(streams.m_pPositions, int(streams.m_numElemns)));
@@ -284,17 +277,6 @@ void CREParticle::ComputeVertices(SCameraInfo camInfo, uint64 uRenderFlags)
 // CRenderer particle functions implementation.
 //
 
-void CRenderer::EF_AddParticle(CREParticle* pParticle, SShaderItem& shaderItem, CRenderObject* pRO, const SRenderingPassInfo& passInfo)
-{
-	if (pRO)
-	{
-		uint32 nBatchFlags;
-		ERenderListID nList;
-		EF_GetParticleListAndBatchFlags(nBatchFlags, nList, pRO, shaderItem, passInfo);
-		passInfo.GetRenderView()->AddRenderItem(pParticle, pRO, shaderItem, nList, nBatchFlags, passInfo, passInfo.GetRendItemSorter());
-	}
-}
-
 void CRenderer::EF_RemoveParticlesFromScene()
 {
 	m_FillRateManager.ComputeMaxPixels();
@@ -312,10 +294,7 @@ void CRenderer::EF_AddMultipleParticlesToScene(const SAddParticlesToSceneJob* jo
 	ASSERT_IS_MAIN_THREAD(m_pRT)
 
 	// update fill thread id for particle jobs
-	const CCamera& camera = passInfo.GetCamera();
-	int threadList = passInfo.ThreadID();
-
-	auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+	auto& particleBuffer = gcpRendD3D.GetParticleBufferSet();
 
 	// skip particle rendering in rare cases (like after a resolution change)
 	if (!particleBuffer.IsValid(passInfo.GetFrameID()))
@@ -333,7 +312,7 @@ void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
 
-	const auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+	const auto& particleBuffer = gcpRendD3D.GetParticleBufferSet();
 
 	// == create list of non empty container to submit to the renderer == //
 	threadID threadList = passInfo.ThreadID();
@@ -352,13 +331,10 @@ void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob
 	}
 
 	SCameraInfo camInfo(passInfo);
-	const bool bParticleTessellation = m_bDeviceSupportsTessellation && CV_r_ParticlesTessellation != 0;
 
-	for (auto& job : aJobs)
+	for (const auto& job : aJobs)
 	{
 		// Generate the RenderItem for this particle container
-		ERenderListID nList;
-		uint32 nBatchFlags;
 		SShaderItem shaderItem = *job.pShaderItem;
 		CRenderObject* pRenderObject = job.pRenderObject;
 
@@ -367,46 +343,33 @@ void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob
 		if (isRefractive && !refractionEnabled)
 			continue;
 
-		// When changing sys_spec from Flash GUI, clearing cached render objects delays one frame from the change of sys_spec.
-		// Because it's executed in UpdateEngineData() via CParticleManager::OnFrameStart(), and OnFrameStart() is called before CFlashUI::UpdateFG().
-		// If this branch doesn't exist, assertion is triggered due to invalid render object and CCompiledParticle.
-		const bool bAllowTessellation = (pRenderObject->m_ObjFlags & FOB_ALLOW_TESSELLATION) != 0;
-		const bool bReadyToRender = ((bParticleTessellation && bAllowTessellation) || (!bAllowTessellation));
-		if (!bReadyToRender)
-			continue;
-
-		size_t ij = &job - aJobs.data();
 		CREParticle* pRE = static_cast<CREParticle*>(pRenderObject->m_pRE);
 
 		// Clamp AABB
-		AABB aabb = job.aabb;
+		AABB aabb;
+		pRE->mfGetBBox(aabb);
 		if (aabb.IsReset())
 			aabb = AABB{ .0f };
 		if (pRenderObject->m_pCompiledObject)
 			pRenderObject->m_pCompiledObject->m_aabb = aabb;
 
+		if (job.pCamera)
+			camInfo.pCamera = job.pCamera;
+		camInfo.bShadowPass = job.pCamera != &passInfo.GetCamera();
+
 		// generate the RenderItem entries for this Particle Element
 		assert(pRenderObject->m_bPermanent);
-		EF_GetParticleListAndBatchFlags(
-			nBatchFlags, nList, pRenderObject,
-			shaderItem, passInfo);
-		if (!pRE->AddedToView())
+		CPermanentRenderObject* RESTRICT_POINTER pPermanentRendObj = static_cast<CPermanentRenderObject*>(pRenderObject);
+		auto renderPassType = camInfo.bShadowPass ? CPermanentRenderObject::eRenderPass_Shadows : CPermanentRenderObject::eRenderPass_General;
+		if (!pPermanentRendObj->m_permanentRenderItems[renderPassType].size())
 		{
-			// Update particle AABB
-			pRE->SetBBox(aabb);
-
-			passInfo.GetRenderView()->AddRenderItem(
-				pRE, pRenderObject, shaderItem, nList, nBatchFlags, 
-				passInfo, passInfo.GetRendItemSorter());
-
-			pRE->SetAddedToView();
+			uint32 nBatchFlags;
+			ERenderListID nList;
+			EF_GetParticleListAndBatchFlags(nBatchFlags, nList, pRenderObject, shaderItem);
+			pPermanentRendObj->AddRenderItem(pRE, shaderItem, aabb, pRenderObject->m_fDistance, nBatchFlags, nList, renderPassType);
 		}
 
-		if (job.nCustomTexId > 0)
-		{
-			pRE->m_CustomTexBind[0] = job.nCustomTexId;
-		}
-		else
+		if (!pRE->m_CustomTexBind[0])
 		{
 			if (passInfo.IsAuxWindow())
 				pRE->m_CustomTexBind[0] = CRendererResources::s_ptexDefaultProbeCM->GetID();
@@ -424,7 +387,7 @@ void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob
 				{
 					pRE->ComputeVertices(camInfo, pRenderObject->m_ObjFlags);
 				};
-				gEnv->pJobManager->AddLambdaJob("job:pfx2:UpdateEmitter", job, JobManager::eLowPriority, &m_ComputeVerticesJobState);
+				gEnv->pJobManager->AddLambdaJob("job:Particles:ComputeVertices", job, JobManager::eLowPriority, &m_ComputeVerticesJobState);
 			}
 			else
 			{
@@ -447,37 +410,18 @@ void CRenderer::PrepareParticleRenderObjects(Array<const SAddParticlesToSceneJob
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void CRenderer::EF_GetParticleListAndBatchFlags(uint32& nBatchFlags, ERenderListID& nList, CRenderObject* pRenderObject, const SShaderItem& shaderItem, const SRenderingPassInfo& passInfo)
+void CRenderer::EF_GetParticleListAndBatchFlags(uint32& nBatchFlags, ERenderListID& nList, const CRenderObject* pRenderObject, const SShaderItem& shaderItem)
 {
 	nBatchFlags = FB_GENERAL;
 	nBatchFlags |= (pRenderObject->m_ObjFlags & FOB_AFTER_WATER) ? 0 : FB_BELOW_WATER;
 
 	const uint8 uHalfResBlend = CV_r_ParticlesHalfResBlendMode ? OS_ADD_BLEND : OS_ALPHA_BLEND;
-	bool bHalfRes = (CV_r_ParticlesHalfRes + (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_HALF_RES)) >= 2   // cvar allows or forces half-res
+	bool bHalfRes = (CV_r_ParticlesHalfRes + (pRenderObject->m_ObjFlags & FOB_HALF_RES)) >= 2   // cvar allows or forces half-res
 	                && pRenderObject->m_RState & uHalfResBlend
 	                && pRenderObject->m_ObjFlags & FOB_AFTER_WATER;
 
-	const bool bVolumeFog = (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_VOLUME_FOG) != 0;
-	const bool bPulledVertices = (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_USE_VERTEX_PULL_MODEL) != 0;
-	const bool bUseTessShader = !bVolumeFog && (pRenderObject->m_ObjFlags & FOB_ALLOW_TESSELLATION) != 0;
-	const bool bNearest = (pRenderObject->m_ObjFlags & FOB_NEAREST) != 0;
-
-	// Adjust shader and flags.
-	if (bUseTessShader)
-		pRenderObject->m_ObjFlags &= ~FOB_OCTAGONAL;
-
-	SShaderTechnique* pTech = shaderItem.GetTechnique();
-	assert(!pTech || (bUseTessShader && pTech->m_Flags & FHF_USE_HULL_SHADER) || !bUseTessShader);
-
-	// Disable vertex instancing on unsupported hardware, or from cvar.
-	const bool useTessellation = (pRenderObject->m_ObjFlags & FOB_ALLOW_TESSELLATION) != 0;
-#if CRY_PLATFORM_ORBIS
-	const bool canUsePointSprites = useTessellation || bPulledVertices;
-#else
-	const bool canUsePointSprites = useTessellation || CV_r_ParticlesInstanceVertices;
-#endif
-	if (!canUsePointSprites)
-		pRenderObject->m_ObjFlags &= ~FOB_POINT_SPRITE;
+	const bool isVolumeFog = (pRenderObject->m_ObjFlags & FOB_VOLUME_FOG) != 0;
+	const bool isNearest = (pRenderObject->m_ObjFlags & FOB_NEAREST) != 0;
 
 	if (shaderItem.m_pShader && (((CShader*)shaderItem.m_pShader)->m_Flags & EF_REFRACTIVE))
 	{
@@ -488,36 +432,37 @@ void CRenderer::EF_GetParticleListAndBatchFlags(uint32& nBatchFlags, ERenderList
 		bHalfRes = false;
 	}
 
-	if (pTech)
+	if (SShaderTechnique* pTech = shaderItem.GetTechnique())
 	{
-		int nThreadID = passInfo.ThreadID();
-		SRenderObjData* pRenderObjectData = pRenderObject->GetObjData();
 		if (pTech->m_nTechnique[TTYPE_CUSTOMRENDERPASS] > 0)
 		{
-			if (m_nThermalVisionMode && pRenderObjectData->m_nVisionParams)
+			if (m_nThermalVisionMode && pRenderObject->GetObjData()->m_nVisionParams)
 			{
 				nBatchFlags |= FB_CUSTOM_RENDER;
 				bHalfRes = false;
 			}
 		}
-
-		pRenderObject->m_ObjFlags |= (pRenderObjectData && pRenderObjectData->m_LightVolumeId) ? FOB_LIGHTVOLUME : FOB_NONE;
 	}
 
 	if (bHalfRes)
 		nList = EFSLIST_HALFRES_PARTICLES;
-	else if (bVolumeFog)
+	else if (isVolumeFog)
 		nList = EFSLIST_FOG_VOLUME;
-	else if (pRenderObject->m_RState & OS_TRANSPARENT)
-		nList = bNearest ? EFSLIST_TRANSP_NEAREST : 
-			(!!(nBatchFlags & FB_BELOW_WATER) ? EFSLIST_TRANSP_BW : EFSLIST_TRANSP_AW);
+	else if (pRenderObject->m_ObjFlags & FOB_ZPREPASS)
+	{
+		nList = isNearest ? EFSLIST_FORWARD_OPAQUE_NEAREST : EFSLIST_FORWARD_OPAQUE;
+		nBatchFlags |= FB_TILED_FORWARD | FB_ZPREPASS;
+	}
 	else
-		nList = EFSLIST_GENERAL;
+	{
+		nList = isNearest ? EFSLIST_TRANSP_NEAREST :
+			nBatchFlags & FB_BELOW_WATER ? EFSLIST_TRANSP_BW : EFSLIST_TRANSP_AW;
+	}
 }
 
-bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERenderElementFlags elmFlags, const AABB &localAABB, CRenderView *pRenderView, bool updateInstanceDataOnly)
+bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERenderElementFlags elmFlags, const AABB& localAABB, CRenderView* pRenderView, bool updateInstanceDataOnly)
 {
-	if (updateInstanceDataOnly)
+	if (m_bCompiled && updateInstanceDataOnly)
 	{
 		// Fast path
 		PrepareDataToRender(pRenderView, pRenderObject);
@@ -525,54 +470,57 @@ bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERender
 		return true;
 	}
 
-	const bool isPulledVertices = (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_USE_VERTEX_PULL_MODEL) != 0;
+	const bool isPulledVertices = (pRenderObject->m_ObjFlags & FOB_VERTEX_PULL_MODEL) != 0;
 	const bool isPointSprites = (objFlags & FOB_POINT_SPRITE) != 0;
-	const bool bVolumeFog = (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_VOLUME_FOG) != 0;
-	const bool bUseTessShader = !bVolumeFog && (objFlags & FOB_ALLOW_TESSELLATION) != 0;
+	const bool isVolumeFog = (pRenderObject->m_ObjFlags & FOB_VOLUME_FOG) != 0;
+	const bool isTessellated = (pRenderObject->m_ObjFlags & FOB_ALLOW_TESSELLATION) != 0;
 	const bool isGpuParticles = m_pGpuRuntime != nullptr;
 
-	auto& graphicsPipeline = gcpRendD3D->GetGraphicsPipeline();
+	CGraphicsPipeline* pGraphicsPipeline = pRenderView->GetGraphicsPipeline().get();
 	auto& coreCommandList = GetDeviceObjectFactory().GetCoreCommandList();
 	auto& commandInterface = *coreCommandList.GetGraphicsInterface();
 	const SShaderItem& shaderItem = pRenderObject->m_pCurrMaterial->GetShaderItem();
-	CShader* pShader = static_cast<CShader*>(shaderItem.m_pShader);
 	CShaderResources* pShaderResources = static_cast<CShaderResources*>(shaderItem.m_pShaderResources);
 
-	const int TECHNIQUE_TESS = 0;
-	const int TECHNIQUE_NO_TESS = 1;
-	const int TECHNIQUE_PULLED = 2;
-	const int TECHNIQUE_GPU = 3;
-	const int TECHNIQUE_VOL_FOG = 4;
+	enum class ETechnique
+	{
+		None = -1,
+		Vertex,
+		VertexTess,
+		Pulled,
+		PulledTess,
+		GPU,
+		VolFog,
+		ZPass,
+		ZPassTess,
+	};
 
-	int techniqueId = -1;
-	if (isGpuParticles)
-		techniqueId = TECHNIQUE_GPU;
-	else if (bUseTessShader)
-		techniqueId = TECHNIQUE_TESS;
-	else if (isPulledVertices)
-		techniqueId = TECHNIQUE_PULLED;
-	else
-		techniqueId = TECHNIQUE_NO_TESS;
-	assert(techniqueId != -1);
+	ETechnique techniqueId = ETechnique::None;
 
 	SGraphicsPipelineStateDescription stateDesc;
 	stateDesc.shaderItem = shaderItem;
-	stateDesc.shaderItem.m_nTechnique = techniqueId;
 	stateDesc.technique = TTYPE_GENERAL;
 	stateDesc.objectFlags = objFlags;
 	stateDesc.renderState = pRenderObject->m_RState;
+
 	if (isGpuParticles)
 	{
+		techniqueId = ETechnique::GPU;
 		stateDesc.vertexFormat = EDefaultInputLayouts::Empty;
 		stateDesc.primitiveType = eptTriangleList;
 	}
 	else if (isPulledVertices)
 	{
+		techniqueId = ETechnique::Pulled;
 		stateDesc.vertexFormat = EDefaultInputLayouts::Empty;
 		if (isPointSprites)
 		{
 			stateDesc.primitiveType = eptTriangleList;
-			stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_SPRITE];
+		}
+		else if (isTessellated)
+		{
+			techniqueId = ETechnique::PulledTess;
+			stateDesc.primitiveType = ept4ControlPointPatchList;
 		}
 		else
 		{
@@ -582,25 +530,41 @@ bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERender
 	else
 	{
 		stateDesc.vertexFormat = EDefaultInputLayouts::P3F_C4B_T4B_N3F2;
-		if (isPointSprites && !bUseTessShader)
-			stateDesc.streamMask |= VSM_INSTANCED;
-		if (bUseTessShader && isPointSprites)
-			stateDesc.primitiveType = ept1ControlPointPatchList;
-		else if (bUseTessShader)
-			stateDesc.primitiveType = ept4ControlPointPatchList;
-		else if (isPointSprites)
-			stateDesc.primitiveType = eptTriangleStrip;
+		if (isTessellated)
+		{
+			techniqueId = ETechnique::VertexTess;
+			if (isPointSprites)
+				stateDesc.primitiveType = ept1ControlPointPatchList;
+			else
+				stateDesc.primitiveType = ept4ControlPointPatchList;
+		}
 		else
-			stateDesc.primitiveType = eptTriangleList;
-		if (isPointSprites)
-			stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_SPRITE];
+		{
+			techniqueId = ETechnique::Vertex;
+			if (isPointSprites)
+			{
+				stateDesc.primitiveType = eptTriangleStrip;
+				stateDesc.streamMask |= VSM_INSTANCED;
+			}
+			else
+				stateDesc.primitiveType = eptTriangleList;
+		}
 	}
-	if (!bUseTessShader)
+	assert(techniqueId != ETechnique::None);
+	stateDesc.shaderItem.m_nTechnique = (int)techniqueId;
+
+	if (isPointSprites)
+		stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_SPRITE];
+	if (!isTessellated)
 		stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_NO_TESSELLATION];
 	if (objFlags & FOB_INSHADOW)
 		stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_PARTICLE_SHADOW];
+	if (objFlags & FOB_NEAREST)
+		stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_NEAREST];
 	if (objFlags & FOB_SOFT_PARTICLE)
 		stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_SOFT_PARTICLE];
+	if (objFlags & FOB_ALPHATEST)
+		stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_ALPHATEST];
 	if (pRenderObject->m_RState & OS_ALPHA_BLEND)
 		stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_ALPHABLEND];
 	if (pRenderObject->m_RState & OS_ANIM_BLEND)
@@ -640,6 +604,9 @@ bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERender
 		case OS_MULTIPLY_BLEND:
 			psoDesc.m_RenderState |= GS_BLALPHA_MIN | GS_BLSRC_DSTCOL | GS_BLDST_SRCCOL;
 			break;
+		case 0:
+			psoDesc.m_RenderState |= GS_BLSRC_ONE | GS_BLDST_ZERO;
+			break;
 		}
 
 		if (desc.renderState & OS_NODEPTH_TEST)
@@ -652,49 +619,59 @@ bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERender
 	bool bCompiled = true;
 
 #if RENDERER_ENABLE_FULL_PIPELINE
-	bCompiled &= graphicsPipeline.GetSceneForwardStage()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_Forward, customForwardState);
+	bCompiled &= pGraphicsPipeline->GetStage<CSceneForwardStage>()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_Forward, customForwardState);
 	m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::NoLighting)] = pGraphicsPSO;
 
 	stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_LIGHTVOLUME0];
-	bCompiled &= graphicsPipeline.GetSceneForwardStage()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_Forward, customForwardState);
+	bCompiled &= pGraphicsPipeline->GetStage<CSceneForwardStage>()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_Forward, customForwardState);
 	m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::WithLighting)] = pGraphicsPSO;
 
 	stateDesc.objectRuntimeMask &= ~g_HWSR_MaskBit[HWSR_VOLUMETRIC_FOG]; // volumetric fog supports only general pass currently.
 	stateDesc.objectRuntimeMask &= ~g_HWSR_MaskBit[HWSR_LIGHTVOLUME0];
-	bCompiled &= graphicsPipeline.GetSceneForwardStage()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_ForwardRecursive, customForwardState);
+	bCompiled &= pGraphicsPipeline->GetStage<CSceneForwardStage>()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_ForwardRecursive, customForwardState);
 	m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::NoLightingRecursive)] = pGraphicsPSO;
 
 	stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_LIGHTVOLUME0];
-	bCompiled &= graphicsPipeline.GetSceneForwardStage()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_ForwardRecursive, customForwardState);
+	bCompiled &= pGraphicsPipeline->GetStage<CSceneForwardStage>()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_ForwardRecursive, customForwardState);
 	m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::WithLightingRecursive)] = pGraphicsPSO;
 
 	stateDesc.objectRuntimeMask &= ~g_HWSR_MaskBit[HWSR_LIGHTVOLUME0];
 	stateDesc.objectRuntimeMask |= g_HWSR_MaskBit[HWSR_DEBUG0];
-	bCompiled &= graphicsPipeline.GetSceneCustomStage()->CreatePipelineState(stateDesc, CSceneCustomStage::ePass_DebugViewSolid, pGraphicsPSO);
+	stateDesc.objectRuntimeMask &= ~g_HWSR_MaskBit[HWSR_PARTICLE_SHADOW];
+	bCompiled &= pGraphicsPipeline->GetStage<CSceneCustomStage>()->CreatePipelineState(stateDesc, CSceneCustomStage::ePass_DebugViewSolid, pGraphicsPSO);
 	m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::DebugSolid)] = pGraphicsPSO;
 
-	bCompiled &= graphicsPipeline.GetSceneCustomStage()->CreatePipelineState(stateDesc, CSceneCustomStage::ePass_DebugViewWireframe, pGraphicsPSO);
+	bCompiled &= pGraphicsPipeline->GetStage<CSceneCustomStage>()->CreatePipelineState(stateDesc, CSceneCustomStage::ePass_DebugViewWireframe, pGraphicsPSO);
 	m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::DebugWireframe)] = pGraphicsPSO;
+
+	if (pRenderObject->m_ObjFlags & FOB_ZPREPASS)
+	{
+		stateDesc.shaderItem.m_nTechnique = (int)(isTessellated ? ETechnique::ZPassTess : ETechnique::ZPass);
+		bCompiled &= pGraphicsPipeline->GetStage<CSceneGBufferStage>()->CreatePipelineState(stateDesc, CSceneGBufferStage::ePass_DepthBufferFill, pGraphicsPSO);
+		m_pCompiledParticle->m_StandardGraphicsPSOs[eStage_SceneGBuffer][CSceneGBufferStage::ePass_DepthBufferFill] = pGraphicsPSO;
+
+		CShaderResources* RESTRICT_POINTER pResources = static_cast<CShaderResources*>(shaderItem.m_pShaderResources);
+ 		bCompiled &= pGraphicsPipeline->GetStage<CShadowMapStage>()->CreatePipelineStates(m_pCompiledParticle->m_StandardGraphicsPSOs, stateDesc, pResources->m_pipelineStateCache.get());
+	}
 #endif
 
 #if RENDERER_ENABLE_MOBILE_PIPELINE
 	stateDesc.objectRuntimeMask &= ~(g_HWSR_MaskBit[HWSR_LIGHTVOLUME0] | g_HWSR_MaskBit[HWSR_VOLUMETRIC_FOG] | g_HWSR_MaskBit[HWSR_DEBUG0]);
-	bCompiled &= graphicsPipeline.GetSceneForwardStage()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_ForwardMobile, customForwardState);
+	bCompiled &= pGraphicsPipeline->GetStage<CSceneForwardStage>()->CreatePipelineState(stateDesc, pGraphicsPSO, CSceneForwardStage::ePass_ForwardMobile, customForwardState);
 	m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::Mobile)] = pGraphicsPSO;
 #endif
 
-	if (!bCompiled)
-		return false;
-
-	if (bVolumeFog)
+	if (isVolumeFog)
 	{
 		stateDesc.objectRuntimeMask &= ~(g_HWSR_MaskBit[HWSR_LIGHTVOLUME0] | g_HWSR_MaskBit[HWSR_DEBUG0]); // remove unneeded flags.
-
-		stateDesc.shaderItem.m_nTechnique = TECHNIQUE_VOL_FOG; // particles are always rendered with vol fog technique in vol fog pass.
-
-		bCompiled &= graphicsPipeline.GetVolumetricFogStage()->CreatePipelineState(stateDesc, pGraphicsPSO);
+		stateDesc.shaderItem.m_nTechnique = (int)ETechnique::VolFog; // particles are always rendered with vol fog technique in vol fog pass.
+		bCompiled &= pGraphicsPipeline->GetStage<CVolumetricFogStage>()->CreatePipelineState(stateDesc, pGraphicsPSO);
 		m_pCompiledParticle->m_pGraphicsPSOs[uint(EParticlePSOMode::VolumetricFog)] = pGraphicsPSO;
 	}
+
+	m_bCompiled = bCompiled;
+	if (!bCompiled)
+		return false;
 
 	const ColorF glowParam = pShaderResources->GetFinalEmittance();
 	const SRenderObjData& objectData = *pRenderObject->GetObjData();
@@ -702,7 +679,7 @@ bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERender
 
 	m_pCompiledParticle->m_pShaderDataCB->UpdateBuffer(objectData.m_pParticleShaderData, sizeof(*objectData.m_pParticleShaderData));
 
-	CDeviceResourceSetDesc perInstanceExtraResources(graphicsPipeline.GetDefaultDrawExtraResourceLayout(), nullptr, nullptr);
+	CDeviceResourceSetDesc perInstanceExtraResources(CSceneRenderPass::GetDefaultDrawExtraResourceLayout(), nullptr, nullptr);
 
 	perInstanceExtraResources.SetConstantBuffer(
 		eConstantBufferShaderSlot_PerGroup,
@@ -722,7 +699,6 @@ bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERender
 
 	PrepareDataToRender(pRenderView, pRenderObject);
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	const EShaderStage perDrawInlineShaderStages = (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain);
 
 	commandInterface.PrepareResourcesForUse(EResourceLayoutSlot_PerMaterialRS, pShaderResources->m_pCompiledResourceSet.get());
@@ -735,8 +711,22 @@ bool CREParticle::Compile(CRenderObject* pRenderObject, uint64 objFlags, ERender
 
 void CREParticle::DrawToCommandList(CRenderObject* pRenderObject, const struct SGraphicsPipelinePassContext& context, CDeviceCommandList* commandList)
 {
+	const SShaderItem& shaderItem = pRenderObject->m_pCurrMaterial->GetShaderItem();
+	const CShaderResources* pShaderResources = static_cast<CShaderResources*>(shaderItem.m_pShaderResources);
+
+	const bool bIncompleteResourceSets =
+		!pShaderResources->m_pCompiledResourceSet || !pShaderResources->m_pCompiledResourceSet->IsValid() ||
+		!m_pCompiledParticle->m_pPerDrawExtraRS || !m_pCompiledParticle->m_pPerDrawExtraRS->IsValid();
+
+#if defined(ENABLE_PROFILING_CODE)
+	if (!m_bCompiled || bIncompleteResourceSets)
+	{
+		CryInterlockedIncrement(&SRenderStatistics::Write().m_nIncompleteCompiledObjects);
+	}
+#endif
+
 	auto pGraphicsPSO = GetGraphicsPSO(pRenderObject, context);
-	if (!pGraphicsPSO || !pGraphicsPSO->IsValid())
+	if (!pGraphicsPSO || !pGraphicsPSO->IsValid() || bIncompleteResourceSets)
 		return;
 
 	gRenDev->m_FillRateManager.AddPixelCount(m_RenderVerts.fPixels);
@@ -744,7 +734,7 @@ void CREParticle::DrawToCommandList(CRenderObject* pRenderObject, const struct S
 	if (m_pGpuRuntime == nullptr && m_RenderVerts.aPositions.empty() && m_RenderVerts.aVertices.empty())
 		return;
 
-	const bool isLegacy = m_pGpuRuntime == nullptr && (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_USE_VERTEX_PULL_MODEL) == 0;
+	const bool isLegacy = m_pGpuRuntime == nullptr && (pRenderObject->m_ObjFlags & FOB_VERTEX_PULL_MODEL) == 0;
 
 	CDeviceGraphicsCommandInterface& commandInterface = *commandList->GetGraphicsInterface();
 	BindPipeline(pRenderObject, commandInterface, pGraphicsPSO);
@@ -756,61 +746,73 @@ void CREParticle::DrawToCommandList(CRenderObject* pRenderObject, const struct S
 
 CDeviceGraphicsPSOPtr CREParticle::GetGraphicsPSO(CRenderObject* pRenderObject, const struct SGraphicsPipelinePassContext& context) const
 {
-	assert(pRenderObject->GetObjData());
-	const CLightVolumeBuffer& lightVolumes = gcpRendD3D.GetGraphicsPipeline().GetLightVolumeBuffer();
-	const SRenderObjData& objectData = *pRenderObject->GetObjData();
-	const uint lightVolumeId = objectData.m_LightVolumeId - 1;
-	const bool isDebug = context.stageID == eStage_SceneCustom;
-	const bool isWireframe = isDebug && context.passID == CSceneCustomStage::ePass_DebugViewWireframe;
-	const bool isVolFog = context.stageID == eStage_VolumetricFog;
-	const bool isRecursive = context.stageID == eStage_SceneForward && context.passID == CSceneForwardStage::ePass_ForwardRecursive;
-	const bool isMobile = context.stageID == eStage_SceneForward && context.passID == CSceneForwardStage::ePass_ForwardMobile;
-
-	EParticlePSOMode mode = isRecursive ? EParticlePSOMode::NoLightingRecursive : EParticlePSOMode::NoLighting;
-	if (isWireframe)
+	EParticlePSOMode mode;
+	if (context.stageID == eStage_SceneGBuffer && context.passID == CSceneGBufferStage::ePass_DepthBufferFill)
 	{
-		mode = EParticlePSOMode::DebugWireframe;
+		return m_pCompiledParticle->m_StandardGraphicsPSOs[eStage_SceneGBuffer][CSceneForwardStage::ePass_ForwardPrepassed];
 	}
-	else if (isDebug)
+	else if (context.stageID == eStage_ShadowMap)
 	{
-		mode = EParticlePSOMode::DebugSolid;
+		return m_pCompiledParticle->m_StandardGraphicsPSOs[eStage_ShadowMap][context.passID];
 	}
-	else if (isVolFog)
+	else if (context.stageID == eStage_SceneForward)
+	{
+		if (context.passID == CSceneForwardStage::ePass_ForwardMobile)
+		{
+			mode = EParticlePSOMode::Mobile;
+		}
+		else
+		{
+			assert(pRenderObject->GetObjData());
+			const bool isRecursive = context.passID == CSceneForwardStage::ePass_ForwardRecursive;
+			CGraphicsPipeline* pGraphicsPipeline = context.pRenderView->GetGraphicsPipeline().get();
+			CTiledLightVolumesStage* pLightVolumeStage = pGraphicsPipeline->GetStage<CTiledLightVolumesStage>();
+			CRY_ASSERT(pLightVolumeStage);
+			
+			const CLightVolumeBuffer& lightVolumes = pLightVolumeStage->GetLightVolumeBuffer();
+			const int lightVolumeId = pRenderObject->GetObjData()->m_LightVolumeId - 1;
+			if ((pRenderObject->m_ObjFlags & FOB_LIGHTVOLUME) && lightVolumes.HasVolumes() && lightVolumeId >= 0 && lightVolumes.HasLights(lightVolumeId))
+			{
+#ifndef _RELEASE
+				CRY_ASSERT(lightVolumeId < lightVolumes.GetNumVolumes());
+#endif
+				mode = isRecursive ? EParticlePSOMode::WithLightingRecursive : EParticlePSOMode::WithLighting;
+			}
+			else
+			{
+				mode = isRecursive ? EParticlePSOMode::NoLightingRecursive : EParticlePSOMode::NoLighting;
+			}	
+		}
+	}
+	else if (context.stageID == eStage_VolumetricFog)
 	{
 		mode = EParticlePSOMode::VolumetricFog;
 	}
-	else if (isMobile)
+	else if (context.stageID == eStage_SceneCustom)
 	{
-		mode = EParticlePSOMode::Mobile;
+		if (context.passID == CSceneCustomStage::ePass_DebugViewWireframe)
+			mode = EParticlePSOMode::DebugWireframe;
+		else
+			mode = EParticlePSOMode::DebugSolid;
 	}
-	else if (lightVolumes.HasVolumes() && (pRenderObject->m_ObjFlags & FOB_LIGHTVOLUME) && lightVolumes.HasLights(lightVolumeId))
-	{
-#ifndef _RELEASE
-		const uint numVolumes = lightVolumes.GetNumVolumes();
-		if (lightVolumeId >= numVolumes)
-			CRY_ASSERT_MESSAGE(0, "Bad LightVolumeId");
-#endif
-		mode = isRecursive ? EParticlePSOMode::WithLightingRecursive : EParticlePSOMode::WithLighting;
-	}
-	auto pGraphicsPSO = m_pCompiledParticle->m_pGraphicsPSOs[uint(mode)];
+	else
+		return nullptr;
 
-	return pGraphicsPSO;
+	return m_pCompiledParticle->m_pGraphicsPSOs[uint(mode)];
 }
 
-void CREParticle::PrepareDataToRender(CRenderView *pRenderView, CRenderObject* pRenderObject)
+void CREParticle::PrepareDataToRender(CRenderView* pRenderView, CRenderObject* pRenderObject)
 {
-	const auto* tiledLights = gcpRendD3D.GetGraphicsPipeline().GetTiledLightVolumesStage();
+	const auto* tiledLights = pRenderView->GetGraphicsPipeline()->GetStage<CTiledLightVolumesStage>();
 
 	assert(pRenderObject->GetObjData());
 	const SRenderObjData& objectData = *pRenderObject->GetObjData();
 
 	SParticleInstanceCB instanceCB;
-	const uint lightVolumeId = objectData.m_LightVolumeId - 1;
-	const uint fogVolumeIdx = objectData.m_FogVolumeContribIdx;
-	if (fogVolumeIdx != (uint16)-1)
+	if (objectData.m_FogVolumeContribIdx)
 	{
 		ColorF contrib;
-		pRenderView->GetFogVolumeContribution(fogVolumeIdx, contrib);
+		pRenderView->GetFogVolumeContribution(objectData.m_FogVolumeContribIdx, contrib);
 		instanceCB.m_avgFogVolumeContrib.x = contrib.r * (1 - contrib.a);
 		instanceCB.m_avgFogVolumeContrib.y = contrib.g * (1 - contrib.a);
 		instanceCB.m_avgFogVolumeContrib.z = contrib.b * (1 - contrib.a);
@@ -818,7 +820,7 @@ void CREParticle::PrepareDataToRender(CRenderView *pRenderView, CRenderObject* p
 	}
 	instanceCB.m_vertexOffset = m_nFirstVertex;
 	instanceCB.m_envCubemapIndex = tiledLights->GetLightShadeIndexBySpecularTextureId(m_CustomTexBind[0]); // #PFX2_TODO these ids are going back and thorth, clean this up
-	instanceCB.m_lightVolumeId = lightVolumeId;
+	instanceCB.m_lightVolumeId = objectData.m_LightVolumeId - 1;
 	instanceCB.m_glowParams = m_pCompiledParticle->m_glowParams;
 
 	m_pCompiledParticle->m_pPerDrawCB->UpdateBuffer(&instanceCB, sizeof(instanceCB));
@@ -826,8 +828,6 @@ void CREParticle::PrepareDataToRender(CRenderView *pRenderView, CRenderObject* p
 
 void CREParticle::BindPipeline(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface, CDeviceGraphicsPSOPtr pGraphicsPSO)
 {
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-
 	const SShaderItem& shaderItem = pRenderObject->m_pCurrMaterial->GetShaderItem();
 	const CShaderResources* pShaderResources = static_cast<CShaderResources*>(shaderItem.m_pShaderResources);
 	const EShaderStage perDrawInlineShaderStages = (EShaderStage_Vertex | EShaderStage_Domain | EShaderStage_Pixel);
@@ -842,11 +842,12 @@ void CREParticle::BindPipeline(CRenderObject* pRenderObject, CDeviceGraphicsComm
 void CREParticle::DrawParticles(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface, int frameId)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
-	const auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+	const auto& particleBuffer = gcpRendD3D.GetParticleBufferSet();
 
 	const bool isPointSprites = (pRenderObject->m_ObjFlags & FOB_POINT_SPRITE) != 0;
+	const bool isTessellated = (pRenderObject->m_ObjFlags & FOB_ALLOW_TESSELLATION) != 0;
 	const bool isGpuParticles = m_pGpuRuntime != nullptr;
-	
+
 	if (isGpuParticles)
 	{
 		const uint numSprites = m_pGpuRuntime->GetNumParticles();
@@ -862,19 +863,29 @@ void CREParticle::DrawParticles(CRenderObject* pRenderObject, CDeviceGraphicsCom
 	else
 	{
 		const uint numVertices = m_RenderVerts.aPositions.size();
-		commandInterface.Draw(numVertices * 2, 1, 0, 0);
+		if (numVertices > 1)
+		{
+			if (isTessellated)
+				commandInterface.Draw((numVertices - 1) * 4, 1, 0, 0);
+			else
+				commandInterface.Draw(numVertices * 2, 1, 0, 0);
+		}
 	}
 }
 
 void CREParticle::DrawParticlesLegacy(CRenderObject* pRenderObject, CDeviceGraphicsCommandInterface& commandInterface, int frameId)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PARTICLE);
-	const auto& particleBuffer = gcpRendD3D.GetGraphicsPipeline().GetParticleBufferSet();
+	const auto& particleBuffer = gcpRendD3D.GetParticleBufferSet();
 
+	// Disable vertex instancing on unsupported hardware, or from cvar.
+#if CRY_PLATFORM_ORBIS
+	const bool canInstance = false;
+#else
+	const bool canInstance = (CRendererCVars::CV_r_ParticlesInstanceVertices != 0);
+#endif
 	const bool isPointSprites = (pRenderObject->m_ObjFlags & FOB_POINT_SPRITE) != 0;
-	const bool isOctagonal = (pRenderObject->m_ObjFlags & FOB_OCTAGONAL) != 0;
-	const bool isVolumeFog = (pRenderObject->m_ParticleObjFlags & CREParticle::ePOF_VOLUME_FOG) != 0;
-	const bool isTessellated = !isVolumeFog && (pRenderObject->m_ObjFlags & FOB_ALLOW_TESSELLATION) != 0;
+	const bool isTessellated = (pRenderObject->m_ObjFlags & FOB_ALLOW_TESSELLATION) != 0;
 
 	const auto vertexStream = particleBuffer.GetVertexStream(frameId);
 	const auto indexStream = particleBuffer.GetIndexStream(frameId);
@@ -890,8 +901,9 @@ void CREParticle::DrawParticlesLegacy(CRenderObject* pRenderObject, CDeviceGraph
 	{
 		commandInterface.Draw(numVertices, 1, m_nFirstVertex, 0);
 	}
-	else if (isPointSprites)
+	else if (isPointSprites && canInstance)
 	{
+		const bool isOctagonal = (pRenderObject->m_ObjFlags & FOB_OCTAGONAL) != 0;
 		const uint verticesPerInstance = isOctagonal ? 8 : 4;
 		commandInterface.Draw(verticesPerInstance, numVertices, 0, m_nFirstVertex);
 	}

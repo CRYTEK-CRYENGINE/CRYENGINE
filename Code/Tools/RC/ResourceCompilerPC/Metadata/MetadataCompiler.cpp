@@ -364,11 +364,22 @@ bool CMetadataCompiler::Process()
 		files = FindDdsAssetFiles(filename);
 
 		// try to resolve source file
-		const string tifFilename = PathUtil::ReplaceExtension(filename.c_str(), "tif");
+		string tifFilename = PathUtil::ReplaceExtension(filename.c_str(), "tif");
 		if (FileUtil::FileExists(tifFilename))
 		{
 			sourceFilename = tifFilename;
 		}
+		else
+		{
+			// try to resolve source file in output folder
+			tifFilename = PathUtil::Make(m_CC.GetOutputFolder(), 
+				PathUtil::ReplaceExtension(PathUtil::GetFile(filename), "tif"));
+			if (FileUtil::FileExists(tifFilename))
+			{
+				sourceFilename = tifFilename;
+			}
+		} 
+
 	}
 	else if (!stricmp(szExt, "cgf") || !stricmp(szExt, "cga") || !stricmp(szExt, "skin"))
 	{

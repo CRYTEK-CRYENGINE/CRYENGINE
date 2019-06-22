@@ -51,7 +51,7 @@ private:
 
 	static const float        kExtendedFlareRadiusRatio;
 
-	void RT_RenderPreview(const Vec3& vPos);
+	void RT_RenderPreview(const Vec3& vPos, const SLensFlareRenderParam* pParam);
 
 public:
 
@@ -97,7 +97,7 @@ public:
 	void                Load(IXmlNode* pNode) override;
 
 	void                RenderPreview(const SLensFlareRenderParam* pParam, const Vec3& vPos) override;
-	bool                ProcessAll(CPrimitiveRenderPass& targetPass, std::vector<CPrimitiveRenderPass*>& prePasses, const SFlareLight& light, const SRenderViewInfo* pViewInfo, int viewInfoCount, bool bForceRender = false, bool bUpdateOcclusion = true);
+	bool                ProcessAll(CGraphicsPipeline* pGraphicsPipeline, CPrimitiveRenderPass& targetPass, std::vector<CPrimitiveRenderPass*>& prePasses, const SFlareLight& light, const SRenderViewInfo* pViewInfo, int viewInfoCount, bool bForceRender = false, bool bUpdateOcclusion = true);
 
 	IOpticsElementBase* GetParent() const override                 { return NULL; }
 
@@ -155,7 +155,7 @@ public:
 	bool      IsAffectedByLightFOV() const     { return m_bAffectedByLightFOV; }
 	void      SetAffectedByLightFOV(bool b)    { m_bAffectedByLightFOV = b; }
 
-	bool      IsMultiplyColor() const          { return m_bMultiplyColor;  }
+	bool      IsMultiplyColor() const          { return m_bMultiplyColor; }
 	void      SetMultiplyColor(bool b)         { m_bMultiplyColor = b; }
 
 	bool      IsInvertFade() const             { return m_bEnableInvertFade; }

@@ -4,8 +4,24 @@
 #include "FullscreenPass.h"
 #include "../Common/PostProcess/PostProcessUtils.h"
 
+CFullscreenPass::CFullscreenPass(CGraphicsPipeline* pGraphicsPipeline, CRenderPrimitive::EPrimitiveFlags primitiveFlags)
+	: m_pGraphicsPipeline(pGraphicsPipeline)
+	, m_primitiveFlags(CRenderPrimitive::eFlags_None)
+{
+	m_bRequirePerViewCB = false;
+	m_bRequireWorldPos = false;
+	m_bPendingConstantUpdate = false;
+
+	m_vertexBuffer = ~0u;
+
+	m_clipZ = 0.0f;
+
+	SetLabel("FULLSCREEN_PASS");
+	SetPrimitiveFlags(primitiveFlags);
+}
+
 CFullscreenPass::CFullscreenPass(CRenderPrimitive::EPrimitiveFlags primitiveFlags)
-: m_primitiveFlags(CRenderPrimitive::eFlags_None)
+	: m_primitiveFlags(CRenderPrimitive::eFlags_None)
 {
 	m_bRequirePerViewCB = false;
 	m_bRequireWorldPos = false;
@@ -48,7 +64,6 @@ static void GetFullScreenTriWPOS(const SRenderViewInfo& viewInfo, SVF_P3F_T2F_T3
 	Vec3 vLT = viewInfo.m_frustumCorners[SRenderViewInfo::eFrustum_LT];
 	Vec3 vLB = viewInfo.m_frustumCorners[SRenderViewInfo::eFrustum_LB];
 	Vec3 vRT = viewInfo.m_frustumCorners[SRenderViewInfo::eFrustum_RT];
-	Vec3 vRB = viewInfo.m_frustumCorners[SRenderViewInfo::eFrustum_RB];
 
 	z = 1.0f - z;
 
@@ -148,20 +163,23 @@ void CFullscreenPass::UpdatePrimitive()
 			SetViewport(viewport);
 		}
 	}
-	
+
+	CRY_ASSERT(m_pGraphicsPipeline);
+	CGraphicsPipeline& graphicsPipeline = *m_pGraphicsPipeline;
+
 	if (m_bRequirePerViewCB)
 	{
-		const SRenderViewInfo& viewInfo = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left);
-		int viewInfoCount = gcpRendD3D.GetGraphicsPipeline().GetViewInfoCount();
+		const SRenderViewInfo& viewInfo = graphicsPipeline.GetCurrentViewInfo(CCamera::eEye_Left);
+		int viewInfoCount = graphicsPipeline.GetViewInfoCount();
 
 		if (!m_pPerViewConstantBuffer)
 		{
 			m_pPerViewConstantBuffer = gcpRendD3D->m_DevBufMan.CreateConstantBuffer(sizeof(HLSL_PerViewGlobalConstantBuffer));
 			if (m_pPerViewConstantBuffer) m_pPerViewConstantBuffer->SetDebugName("FullscreenPass Per-View CB");
 		}
-		
-		SRenderViewport customViewport(0,0,nRenderTargetWidth,nRenderTargetHeight);
-		gcpRendD3D.GetGraphicsPipeline().GeneratePerViewConstantBuffer(&viewInfo, viewInfoCount, m_pPerViewConstantBuffer,&customViewport);
+
+		SRenderViewport customViewport(0, 0, nRenderTargetWidth, nRenderTargetHeight);
+		graphicsPipeline.GeneratePerViewConstantBuffer(&viewInfo, viewInfoCount, m_pPerViewConstantBuffer, &customViewport);
 
 		m_primitive.SetInlineConstantBuffer(eConstantBufferShaderSlot_PerView, m_pPerViewConstantBuffer, EShaderStage_Vertex | EShaderStage_Pixel);
 	}
@@ -173,9 +191,9 @@ void CFullscreenPass::UpdatePrimitive()
 			m_vertexBuffer = gcpRendD3D->m_DevBufMan.Create(BBT_VERTEX_BUFFER, BU_DYNAMIC, 3 * sizeof(SVF_P3F_T2F_T3F));
 		}
 
-		bool bUseQuad = CVrProjectionManager::Instance()->GetProjectionType() == CVrProjectionManager::eVrProjection_LensMatched;
-		const SRenderViewInfo& viewInfo = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left);
-		
+		bool bUseQuad = graphicsPipeline.GetVrProjectionManager()->GetProjectionType() == CVrProjectionManager::eVrProjection_LensMatched;
+		const SRenderViewInfo& viewInfo = graphicsPipeline.GetCurrentViewInfo(CCamera::eEye_Left);
+
 		if (bUseQuad)
 		{
 			SVF_P3F_T2F_T3F fullscreenQuadWPOSVertices[4];
@@ -215,7 +233,8 @@ bool CFullscreenPass::Execute()
 		if (!m_primitive.IsDirty())
 		{
 			// Unmap constant buffers
-			m_primitive.GetConstantManager().EndNamedConstantUpdate(&GetViewport());
+			CRY_ASSERT(m_pGraphicsPipeline);
+			m_primitive.GetConstantManager().EndNamedConstantUpdate(&GetViewport(), m_pGraphicsPipeline->GetCurrentRenderView());
 		}
 
 		m_bPendingConstantUpdate = false;

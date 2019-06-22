@@ -2,14 +2,14 @@
     "toolBar": [
         {
             "command": "game.toggle_game_mode",
-            "iconPath": "icons:Game/Game_Play.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "toggle_game_mode",
             "type": 0
         },
         {
             "command": "game.toggle_simulate_physics_ai",
-            "iconPath": "icons:common/general_physics_play.ico",
+            "iconPath": "",
             "m_IsCustom": false,
             "name": "toggle_simulate_physics_ai",
             "type": 0

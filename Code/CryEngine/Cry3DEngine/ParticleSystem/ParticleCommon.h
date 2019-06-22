@@ -76,7 +76,28 @@ using TFloatArray                      = THeapArray<float>;
 
 template<typename T> using TDynArray   = FastDynArray<T, uint, NAlloc::ModuleAlloc>;
 template<typename T> using TSmallArray = SmallDynArray<T, uint, NAlloc::ModuleAlloc>;
-template<typename T> using TSmartArray = TDynArray<_smart_ptr<T>>;
+template<typename T> using TSmartArray = TSmallArray<_smart_ptr<T>>;
+
+template<typename T> struct TReuseArray : TSmallArray<T>
+{
+	void reset()
+	{
+		m_nUsed = 0;
+	}
+	uint used() const
+	{
+		return m_nUsed;
+	}
+	T& append()
+	{
+		if (m_nUsed == this->size())
+			this->emplace_back();
+		return (*this)[m_nUsed++];
+	}
+
+protected:
+	uint m_nUsed = 0;
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 #ifdef CRY_PFX2_USE_SSE
@@ -119,7 +140,7 @@ struct SRenderContext
 	SRenderContext(const SRendParams& rParams, const SRenderingPassInfo& passInfo)
 		: m_renderParams(rParams)
 		, m_passInfo(passInfo)
-		, m_distance(0.0f)
+		, m_distance(rParams.fDistance)
 		, m_lightVolumeId(0)
 		, m_fogVolumeId(0) {}
 	const SRendParams&        m_renderParams;

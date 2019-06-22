@@ -11,7 +11,7 @@ endif()
 start_sources()
 # -- cryhttp.waf_files --
 sources_platform(ALL)
-add_sources("CryHTTP_uber_0.cpp"
+add_sources("NoUberFile"
 	SOURCE_GROUP "Root"
 		"resource.h"
 		"StdAfx.cpp"
@@ -30,11 +30,6 @@ add_sources("CryHTTP_sce_uber_0.cpp"
 	SOURCE_GROUP "Implementation"
 		"HttpImplementation_SCE.cpp"
 		"HttpImplementation_SCE.h"
-)
-
-add_sources("NoUberFile"
-	SOURCE_GROUP "Root"
-		"StdAfx.cpp"
 )
 
 end_sources()

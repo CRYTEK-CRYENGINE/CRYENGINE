@@ -154,7 +154,7 @@ struct SAnimTime
 				m_ticks = ticks;
 			}
 		}
-		else if (m_ticks > 0)
+		else
 		{
 			keyNode->setAttr(pName, m_ticks);
 		}

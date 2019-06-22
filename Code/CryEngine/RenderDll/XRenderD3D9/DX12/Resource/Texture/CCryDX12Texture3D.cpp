@@ -217,7 +217,7 @@ CCryDX12Texture3D* CCryDX12Texture3D::Create(CCryDX12Device* pDevice, const FLOA
 
 	if ((hresult != S_OK) || !resource)
 	{
-		DX12_ASSERT(0, "Could not create texture 3D resource!");
+		DX12_ERROR("Could not create texture 3D resource!");
 		return NULL;
 	}
 

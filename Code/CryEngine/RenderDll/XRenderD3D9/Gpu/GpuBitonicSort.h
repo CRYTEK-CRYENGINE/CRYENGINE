@@ -28,15 +28,16 @@ public:
 		uint32 iWidth;
 		uint32 iHeight;
 	};
-	CBitonicSort();
-	void Sort(uint32 numElements, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	CBitonicSort(CGraphicsPipeline* pGraphicsPipeline);
+	void        Sort(uint32 numElements, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 	CGpuBuffer& GetBuffer() { return m_data.GetBuffer(); }
 private:
 	void        SyncParams(uint32 iLevel, uint32 iLevelMask, uint32 iWidth, uint32 iHeight);
-	CTypedConstantBuffer<CParams>                          m_params;
+
+	CTypedConstantBuffer<CParams>                               m_params;
 	CStructuredResource<SBitonicSortItem, BufferFlagsReadWrite> m_data;
 	CStructuredResource<SBitonicSortItem, BufferFlagsReadWrite> m_transposeData;
-	CComputeRenderPass m_computePassBitonicSort;
-	CComputeRenderPass m_computePassBitonicTranspose;
+	CComputeRenderPass                                          m_computePassBitonicSort;
+	CComputeRenderPass                                          m_computePassBitonicTranspose;
 };
 }

@@ -1,99 +1,14 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "MaterialProperties.h"
-#include "QAdvancedPropertyTree.h"
 #include <Cry3DEngine/ISurfaceType.h>
-#include <Serialization/QPropertyTree2/PropertyTree2.h>
+#include <Serialization/QPropertyTree/PropertyTree.h>
 #include <CrySerialization/Decorators/Range.h>
 #include <CrySerialization/Decorators/Resources.h>
 
 #include "IUndoManager.h"
 
-//////////////////////////////////////////////////////////////////////////
-
-//! Property tree displaying the serialized material properties
-class CMaterialSerializer::CMaterialLegacyPropertyTree : public QAdvancedPropertyTree, public IDataBaseManagerListener
-{
-public:
-	CMaterialLegacyPropertyTree(CMaterialSerializer* pMaterialSerializer);
-	~CMaterialLegacyPropertyTree();
-
-	void OnBeginUndo();
-	void OnEndUndo(bool acceptUndo);
-
-private:
-	virtual void OnDataBaseItemEvent(IDataBaseItem* pItem, EDataBaseItemEvent event) override;
-
-	_smart_ptr<CMaterialSerializer> m_serializer;
-};
-
-CMaterialSerializer::CMaterialLegacyPropertyTree::CMaterialLegacyPropertyTree(CMaterialSerializer* pMaterialSerializer)
-	: QAdvancedPropertyTree("MaterialProperties")
-	, m_serializer(pMaterialSerializer)
-{
-	setExpandLevels(2);
-	setValueColumnWidth(0.2f);
-	setAggregateMouseEvents(false);
-	setFullRowContainers(true);
-	setSizeToContent(true);
-	setUndoEnabled(false);
-
-	QObject::connect(this, &CMaterialLegacyPropertyTree::signalBeginUndo, this, &CMaterialLegacyPropertyTree::OnBeginUndo);
-	QObject::connect(this, &CMaterialLegacyPropertyTree::signalEndUndo, this, &CMaterialLegacyPropertyTree::OnEndUndo);
-
-	attach(Serialization::SStruct(*m_serializer.get()));
-
-	GetIEditor()->GetMaterialManager()->AddListener(this);
-
-	setEnabled(!m_serializer->m_bIsReadOnly);
-}
-
-CMaterialSerializer::CMaterialLegacyPropertyTree::~CMaterialLegacyPropertyTree()
-{
-	GetIEditor()->GetMaterialManager()->RemoveListener(this);
-}
-
-void CMaterialSerializer::CMaterialLegacyPropertyTree::OnBeginUndo()
-{
-	GetIEditor()->GetIUndoManager()->Begin();
-	m_serializer->m_pMaterial->RecordUndo("Material Edited", true);
-}
-
-void CMaterialSerializer::CMaterialLegacyPropertyTree::OnEndUndo(bool acceptUndo)
-{
-	if (acceptUndo)
-	{
-		GetIEditor()->GetIUndoManager()->Accept("Material Edited");
-	}
-	else
-	{
-		GetIEditor()->GetIUndoManager()->Cancel();
-	}
-}
-
-void CMaterialSerializer::CMaterialLegacyPropertyTree::OnDataBaseItemEvent(IDataBaseItem* pItem, EDataBaseItemEvent event)
-{
-	if (!pItem || event == EDB_ITEM_EVENT_SELECTED)
-		return;
-
-	if (pItem == (IDataBaseItem*)m_serializer->m_pMaterial.get())
-	{
-		switch (event)
-		{
-		case EDB_ITEM_EVENT_CHANGED:
-		case EDB_ITEM_EVENT_UPDATE_PROPERTIES:
-			if (!m_serializer->m_bIsBeingChanged) //TODO: there should be a better way to identify changes that come from this property tree
-				revert();
-			break;
-		default:
-			break;
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-class CMaterialSerializer::CMaterialPropertyTree : public QPropertyTree2, public IDataBaseManagerListener
+class CMaterialSerializer::CMaterialPropertyTree : public QPropertyTree, public IDataBaseManagerListener
 {
 public:
 	CMaterialPropertyTree(CMaterialSerializer* pMaterialSerializer);
@@ -378,8 +293,8 @@ void CMaterialSerializer::Serialize(Serialization::IArchive& ar)
 	{
 		ar.openBlock("opacitySettings", "Opacity Settings");
 
-		ar(Serialization::Decorators::Range<float>(shaderResources.m_LMaterial.m_Opacity, 0, 1, 0.01), "opacity", "Opacity");
-		ar(Serialization::Decorators::Range<float>(shaderResources.m_AlphaRef, 0, 1, 0.01), "alphaTest", "Alpha Test");
+		ar(Serialization::Decorators::Range<float>(shaderResources.m_LMaterial.m_Opacity, 0.0f, 1.0f, 0.01f), "opacity", "Opacity");
+		ar(Serialization::Decorators::Range<float>(shaderResources.m_AlphaRef, 0.0f, 1.0f, 0.01f), "alphaTest", "Alpha Test");
 
 		bool bAdditive = (mtlFlags & MTL_FLAG_ADDITIVE);
 		ar(bAdditive, "bAdditive", "Additive");
@@ -519,14 +434,17 @@ void CMaterialSerializer::Serialize(Serialization::IArchive& ar)
 			if (shaderResources.m_DeformInfo.m_WaveX.m_eWFType != eWF_None)
 			{
 				//TODO: those parameters probably need a range, especially phase
-				ar.openBlock("waveParams", "Wave Parameters");
+				//openBlock will fail in case of an input archive (UI -> Object) and it should be failing because we have no valid data to serialize in the object
+				//since the tree auto reverts we will populate this when the update OArchive (Object -> UI) containg "waveType" != eWF_None comes in
+				if (ar.openBlock("waveParams", "Wave Parameters"))
+				{
+					ar(shaderResources.m_DeformInfo.m_WaveX.m_Level, "level", "Level");
+					ar(shaderResources.m_DeformInfo.m_WaveX.m_Amp, "amplitude", "Amplitude");
+					ar(shaderResources.m_DeformInfo.m_WaveX.m_Phase, "phase", "Phase");
+					ar(shaderResources.m_DeformInfo.m_WaveX.m_Freq, "frequency", "Frequency");
 
-				ar(shaderResources.m_DeformInfo.m_WaveX.m_Level, "level", "Level");
-				ar(shaderResources.m_DeformInfo.m_WaveX.m_Amp, "amplitude", "Amplitude");
-				ar(shaderResources.m_DeformInfo.m_WaveX.m_Phase, "phase", "Phase");
-				ar(shaderResources.m_DeformInfo.m_WaveX.m_Freq, "frequency", "Frequency");
-
-				ar.closeBlock();
+					ar.closeBlock();
+				}
 			}
 		}
 
@@ -635,27 +553,32 @@ void CMaterialSerializer::SerializeTextureSlots(Serialization::IArchive& ar, boo
 
 	SInputShaderResources& shaderResources = m_pMaterial->GetShaderResources();
 
-	ar.openBlock("textureMaps", "Texture Maps");
-
-	for (EEfResTextures texId = EEfResTextures(0); texId < EFTT_MAX; texId = EEfResTextures(texId + 1))
+	if (ar.openBlock("textureMaps", "Texture Maps"))
 	{
-		if (!materialHelpers.IsAdjustableTexSlot(texId))
-			continue;
-
-		const SShaderTextureSlot* pSlot = pShaderSlots ? pShaderSlots->m_UsedSlots[texId] : nullptr;
-		if (pShaderSlots && !pSlot) //texture slot is not used for this shader
-			continue;
-
-		//Note: m_Textures is not cleaned up when changing shaders, this could potentially lead to having incorrect data in the material?
-		auto& shaderTexture = shaderResources.m_Textures[texId];
-
+		for (EEfResTextures texId = EEfResTextures(0); texId < EFTT_MAX; texId = EEfResTextures(texId + 1))
 		{
+			if (!materialHelpers.IsAdjustableTexSlot(texId))
+			{
+				continue;
+			}
+
+			const SShaderTextureSlot* pSlot = pShaderSlots ? pShaderSlots->m_UsedSlots[texId] : nullptr;
+			if (pShaderSlots && !pSlot) //texture slot is not used for this shader
+			{
+				continue;
+			}
+
+			//Note: m_Textures is not cleaned up when changing shaders, this could potentially lead to having incorrect data in the material?
+			SEfResTexture& shaderTexture = shaderResources.m_Textures[texId];
+
 			//Get name from the texture slot or default name, TODO: cache these
 			//Note: "Bumpmap" slot is actually "normal map" but because of backwards compatibility madness we are leaving it "bumpmap" in the ui...
 			//See MaterialHelpers.cpp (Cry3DEngine)
 			const string& textureName = pSlot && pSlot->m_Name.length() ? pSlot->m_Name : materialHelpers.LookupTexName(texId);
 			if (textureName == "Bumpmap")
+			{
 				m_textureSlotLabels[texId] = "-Normal";
+			}
 			else
 			{
 				m_textureSlotLabels[texId].Format("-%s", textureName.c_str());
@@ -665,234 +588,241 @@ void CMaterialSerializer::SerializeTextureSlots(Serialization::IArchive& ar, boo
 				m_textureSlotLabels[texId].replace("]", ")");
 			}
 
-			if (!ar.openBlock(m_textureSlotLabels[texId].c_str(), m_textureSlotLabels[texId].c_str()))
-				continue;
-
-			string textureFilePath = shaderTexture.m_Name.c_str();
-
-			//New material editor only deals with dds files, not tifs
-			if (!textureFilePath.IsEmpty() && stricmp(PathUtil::GetExt(textureFilePath), "dds") != 0)
-				textureFilePath = PathUtil::ReplaceExtension(textureFilePath, "dds").c_str();
-
-			ar(Serialization::TextureFilename(textureFilePath), "textureName", "^Texture Name");
-			if (pSlot)
-				ar.doc(pSlot->m_Description);
-
-			//Old material editor was destroying UI resource before changing texture,
-			//though this seems dangerous without any refcount as the resource may be used by something else
-			//Not to mention this is not the responsibility of the material editor but rather the UI system
-			//TODO: Confirm this can be left out
-			/*
-			   //Unload previous dynamic texture/UIElement instance
-			   if (IsFlashUIFile(sr.m_Textures[tex].m_Name))
-			   {
-			   DestroyTexOfFlashFile(sr.m_Textures[tex].m_Name);
-			   }
-			 */
-			shaderTexture.SetName(textureFilePath.c_str());
-		}
-
-		{
-			string textureType = materialHelpers.GetNameFromTextureType(shaderTexture.m_Sampler.m_eTexType);
-			Serialization::StringListValue textureTypeVal(m_textureTypeStringList, textureType);
-			const auto oldIndex = textureTypeVal.index();
-
-			ar(textureTypeVal, "texType", "Texture Type");
-
-			if (textureTypeVal.index() != oldIndex)
-				shaderTexture.m_Sampler.m_eTexType = materialHelpers.GetTextureTypeFromName(textureTypeVal.c_str());
-		}
-
-		{
-			EFilterPreset filter = (EFilterPreset)shaderTexture.m_Filter;
-			ar(filter, "filter", "Filter");
-			shaderTexture.m_Filter = (signed char)filter;
-		}
-
-		//In old editor AddModificator() was only called when modifying the texture. In practice this means we could call this all the time but
-		//imitating old behavior for now.
-		//TODO: understand what this does and if fields that necessitate pTexModifier can be hidden if not present
-		//Note that values used to be zeroed when modificator not present but the editor always made it present
-		SEfTexModificator* pTexModifier = nullptr;
-		/*if (ar.isOutput())
-		   pTexModifier = shaderTexture.GetModificator();
-		   else if (ar.isInput())*/
-		pTexModifier = shaderTexture.AddModificator();
-
-		if (pTexModifier)
-		{
-			ar(pTexModifier->m_bTexGenProjected, "bIsProjectedTexGen", "Is Projected Tex Gen");
-
-			ETexGenType texGenType = (ETexGenType)pTexModifier->m_eTGType;
-			ar(texGenType, "texGenType", "Texture Gen Type");
-			pTexModifier->m_eTGType = uint8(texGenType);
-		}
-
-		if (texId == EFTT_DECAL_OVERLAY)
-		{
-			const float fUint8RatioToFloat = 100.0f / 255.0f;
-
-			//TODO: In old editor this is obviously buggy as it is set both from shader resource and from mtl flag, however it only sets the material flag
-			//Confirm with rendering engineers how this should work
-			//bool bIsDetailDecal = (shaderResources.m_ResFlags & MTL_FLAG_DETAIL_DECAL);
-
-			bHasDetailDecalOut = true;
-
-			ar.openBlock("detailDecal", "Detail Decal");
-
-			//ar(bIsDetailDecal, "bIsDetailDecal", "^^Detail Decal");
-
-			//if (bIsDetailDecal)
+			if (ar.openBlock(m_textureSlotLabels[texId].c_str(), m_textureSlotLabels[texId].c_str()))
 			{
-				float opacity = (float)shaderResources.m_DetailDecalInfo.nBlending * fUint8RatioToFloat;
-				ar(opacity, "opacity", "Opacity");
-				shaderResources.m_DetailDecalInfo.nBlending = (uint8)int_round(opacity / fUint8RatioToFloat);
 
-				float ssao = (float)shaderResources.m_DetailDecalInfo.nSSAOAmount * fUint8RatioToFloat;
-				ar(ssao, "ssao", "SSAO Amount");
-				shaderResources.m_DetailDecalInfo.nSSAOAmount = (uint8)int_round(ssao / fUint8RatioToFloat);
+				string textureFilePath = shaderTexture.m_Name.c_str();
 
-				if (ar.openBlock("top", "-Top Layer"))
+				//New material editor only deals with dds files, not tifs
+				if (!textureFilePath.IsEmpty() && stricmp(PathUtil::GetExt(textureFilePath), "dds") != 0)
 				{
-					Vec2 tile(shaderResources.m_DetailDecalInfo.vTileOffs[0].x, shaderResources.m_DetailDecalInfo.vTileOffs[0].y);
-					ar(tile, "tile", "Tile");
-
-					Vec2 offset(shaderResources.m_DetailDecalInfo.vTileOffs[0].z, shaderResources.m_DetailDecalInfo.vTileOffs[0].w);
-					ar(offset, "offset", "Offset");
-
-					shaderResources.m_DetailDecalInfo.vTileOffs[0] = Vec4(tile.x, tile.y, offset.x, offset.y);
-
-					SerializeWordToDegree(ar, shaderResources.m_DetailDecalInfo.nRotation[0], "rotation", "Rotation");
-
-					float deformation = (float)shaderResources.m_DetailDecalInfo.nDeformation[0] * fUint8RatioToFloat;
-					ar(deformation, "deformation", "Deformation");
-					shaderResources.m_DetailDecalInfo.nDeformation[0] = (uint8)int_round(deformation / fUint8RatioToFloat);
-
-					float sortingOffset = (float)shaderResources.m_DetailDecalInfo.nThreshold[0] * fUint8RatioToFloat;
-					ar(sortingOffset, "sortingOffset", "Sorting Offset");
-					shaderResources.m_DetailDecalInfo.nThreshold[0] = (uint8)int_round(sortingOffset / fUint8RatioToFloat);
-
-					ar.closeBlock();
+					textureFilePath = PathUtil::ReplaceExtension(textureFilePath, "dds").c_str();
 				}
 
-				if (ar.openBlock("bottom", "-Bottom Layer"))
+				ar(Serialization::TextureFilename(textureFilePath), "textureName", "^Texture Name");
+
+				if (pSlot)
 				{
-					Vec2 tile(shaderResources.m_DetailDecalInfo.vTileOffs[1].x, shaderResources.m_DetailDecalInfo.vTileOffs[1].y);
-					ar(tile, "tile", "Tile");
+					ar.doc(pSlot->m_Description);
+				}
 
-					Vec2 offset(shaderResources.m_DetailDecalInfo.vTileOffs[1].z, shaderResources.m_DetailDecalInfo.vTileOffs[1].w);
-					ar(offset, "offset", "Offset");
+				//Old material editor was destroying UI resource before changing texture,
+				//though this seems dangerous without any refcount as the resource may be used by something else
+				//Not to mention this is not the responsibility of the material editor but rather the UI system
+				//TODO: Confirm this can be left out
+				/*
+					//Unload previous dynamic texture/UIElement instance
+					if (IsFlashUIFile(sr.m_Textures[tex].m_Name))
+					{
+					DestroyTexOfFlashFile(sr.m_Textures[tex].m_Name);
+					}
+					*/
+				shaderTexture.SetName(textureFilePath.c_str());
 
-					shaderResources.m_DetailDecalInfo.vTileOffs[1] = Vec4(tile.x, tile.y, offset.x, offset.y);
+				{
+					string textureType = materialHelpers.GetNameFromTextureType(shaderTexture.m_Sampler.m_eTexType);
+					Serialization::StringListValue textureTypeVal(m_textureTypeStringList, textureType);
+					const auto oldIndex = textureTypeVal.index();
 
-					SerializeWordToDegree(ar, shaderResources.m_DetailDecalInfo.nRotation[1], "rotation", "Rotation");
+					ar(textureTypeVal, "texType", "Texture Type");
 
-					float deformation = (float)shaderResources.m_DetailDecalInfo.nDeformation[1] * fUint8RatioToFloat;
-					ar(deformation, "deformation", "Deformation");
-					shaderResources.m_DetailDecalInfo.nDeformation[1] = (uint8)int_round(deformation / fUint8RatioToFloat);
+					if (textureTypeVal.index() != oldIndex)
+					{
+						shaderTexture.m_Sampler.m_eTexType = materialHelpers.GetTextureTypeFromName(textureTypeVal.c_str());
+					}
+				}
 
-					float sortingOffset = (float)shaderResources.m_DetailDecalInfo.nThreshold[1] * fUint8RatioToFloat;
-					ar(sortingOffset, "sortingOffset", "Sorting Offset");
-					shaderResources.m_DetailDecalInfo.nThreshold[1] = (uint8)int_round(sortingOffset / fUint8RatioToFloat);
+				{
+					EFilterPreset filter = (EFilterPreset)shaderTexture.m_Filter;
+					ar(filter, "filter", "Filter");
+					shaderTexture.m_Filter = (signed char)filter;
+				}
 
-					ar.closeBlock();
+				//In old editor AddModificator() was only called when modifying the texture. In practice this means we could call this all the time but
+				//imitating old behavior for now.
+				//TODO: understand what this does and if fields that necessitate pTexModifier can be hidden if not present
+				//Note that values used to be zeroed when modificator not present but the editor always made it present
+				SEfTexModificator* pTexModifier = nullptr;
+
+				pTexModifier = shaderTexture.AddModificator();
+
+				if (pTexModifier)
+				{
+					ar(pTexModifier->m_bTexGenProjected, "bIsProjectedTexGen", "Is Projected Tex Gen");
+
+					ETexGenType texGenType = (ETexGenType)pTexModifier->m_eTGType;
+					ar(texGenType, "texGenType", "Texture Gen Type");
+					pTexModifier->m_eTGType = uint8(texGenType);
+				}
+
+				if (texId == EFTT_DECAL_OVERLAY)
+				{
+					const float fUint8RatioToFloat = 100.0f / 255.0f;
+
+					//TODO: In old editor this is obviously buggy as it is set both from shader resource and from mtl flag, however it only sets the material flag
+					//Confirm with rendering engineers how this should work
+					//bool bIsDetailDecal = (shaderResources.m_ResFlags & MTL_FLAG_DETAIL_DECAL);
+
+					bHasDetailDecalOut = true;
+
+					if (ar.openBlock("detailDecal", "Detail Decal"))
+					{
+						float opacity = (float)shaderResources.m_DetailDecalInfo.nBlending * fUint8RatioToFloat;
+						ar(opacity, "opacity", "Opacity");
+						shaderResources.m_DetailDecalInfo.nBlending = (uint8)int_round(opacity / fUint8RatioToFloat);
+
+						float ssao = (float)shaderResources.m_DetailDecalInfo.nSSAOAmount * fUint8RatioToFloat;
+						ar(ssao, "ssao", "SSAO Amount");
+						shaderResources.m_DetailDecalInfo.nSSAOAmount = (uint8)int_round(ssao / fUint8RatioToFloat);
+
+						if (ar.openBlock("top", "-Top Layer"))
+						{
+							Vec2 tile(shaderResources.m_DetailDecalInfo.vTileOffs[0].x, shaderResources.m_DetailDecalInfo.vTileOffs[0].y);
+							ar(tile, "tile", "Tile");
+
+							Vec2 offset(shaderResources.m_DetailDecalInfo.vTileOffs[0].z, shaderResources.m_DetailDecalInfo.vTileOffs[0].w);
+							ar(offset, "offset", "Offset");
+
+							shaderResources.m_DetailDecalInfo.vTileOffs[0] = Vec4(tile.x, tile.y, offset.x, offset.y);
+
+							SerializeWordToDegree(ar, shaderResources.m_DetailDecalInfo.nRotation[0], "rotation", "Rotation");
+
+							float deformation = (float)shaderResources.m_DetailDecalInfo.nDeformation[0] * fUint8RatioToFloat;
+							ar(deformation, "deformation", "Deformation");
+							shaderResources.m_DetailDecalInfo.nDeformation[0] = (uint8)int_round(deformation / fUint8RatioToFloat);
+
+							float sortingOffset = (float)shaderResources.m_DetailDecalInfo.nThreshold[0] * fUint8RatioToFloat;
+							ar(sortingOffset, "sortingOffset", "Sorting Offset");
+							shaderResources.m_DetailDecalInfo.nThreshold[0] = (uint8)int_round(sortingOffset / fUint8RatioToFloat);
+
+							ar.closeBlock();
+						}
+
+						if (ar.openBlock("bottom", "-Bottom Layer"))
+						{
+							Vec2 tile(shaderResources.m_DetailDecalInfo.vTileOffs[1].x, shaderResources.m_DetailDecalInfo.vTileOffs[1].y);
+							ar(tile, "tile", "Tile");
+
+							Vec2 offset(shaderResources.m_DetailDecalInfo.vTileOffs[1].z, shaderResources.m_DetailDecalInfo.vTileOffs[1].w);
+							ar(offset, "offset", "Offset");
+
+							shaderResources.m_DetailDecalInfo.vTileOffs[1] = Vec4(tile.x, tile.y, offset.x, offset.y);
+
+							SerializeWordToDegree(ar, shaderResources.m_DetailDecalInfo.nRotation[1], "rotation", "Rotation");
+
+							float deformation = (float)shaderResources.m_DetailDecalInfo.nDeformation[1] * fUint8RatioToFloat;
+							ar(deformation, "deformation", "Deformation");
+							shaderResources.m_DetailDecalInfo.nDeformation[1] = (uint8)int_round(deformation / fUint8RatioToFloat);
+
+							float sortingOffset = (float)shaderResources.m_DetailDecalInfo.nThreshold[1] * fUint8RatioToFloat;
+							ar(sortingOffset, "sortingOffset", "Sorting Offset");
+							shaderResources.m_DetailDecalInfo.nThreshold[1] = (uint8)int_round(sortingOffset / fUint8RatioToFloat);
+
+							ar.closeBlock();
+						}
+
+						ar.closeBlock();
+					}
+				}
+
+				if (pTexModifier)
+				{
+					if (ar.openBlock("tiling", "-Tiling"))
+					{
+						if (ar.openBlock("isTilingUV", "Is Tiling UV"))
+						{
+							ar(shaderTexture.m_bUTile, "isTilingU", "^Is Tiling U");
+							ar(shaderTexture.m_bVTile, "isTilingV", "^Is Tiling V");
+
+							ar.closeBlock();
+						}
+
+						Vec2 tilingUV(shaderTexture.GetTiling(0), shaderTexture.GetTiling(1));
+						ar(tilingUV, "tilingUV", "Tiling UV");
+						pTexModifier->m_Tiling[0] = tilingUV.x;
+						pTexModifier->m_Tiling[1] = tilingUV.y;
+
+						Vec2 offsetUV(shaderTexture.GetOffset(0), shaderTexture.GetOffset(1));
+						ar(offsetUV, "offsetUV", "Offset UV");
+						pTexModifier->m_Offs[0] = offsetUV.x;
+						pTexModifier->m_Offs[1] = offsetUV.y;
+
+						//Using inline controls to imitate vector
+
+						if (ar.openBlock("rotationUVW", "Rotation UVW"))
+						{
+
+							SerializeWordToDegree(ar, pTexModifier->m_Rot[0], "rotateU", "^Rotation U");
+							SerializeWordToDegree(ar, pTexModifier->m_Rot[1], "rotateV", "^Rotation V");
+							SerializeWordToDegree(ar, pTexModifier->m_Rot[2], "rotateW", "^Rotation W");
+
+							ar.closeBlock();
+						}
+
+						ar.closeBlock();
+					}
+
+					if (ar.openBlock("rotator", "-Rotator"))
+					{
+						ETexModRotateType type = (ETexModRotateType)pTexModifier->m_eRotType;
+						ar(type, "type", "Type");
+						pTexModifier->m_eRotType = (uint8)type;
+
+						SerializeWordToDegree(ar, pTexModifier->m_RotOscRate[2], "rate", "Rate");
+						SerializeWordToDegree(ar, pTexModifier->m_RotOscPhase[2], "phase", "Phase");
+						SerializeWordToDegree(ar, pTexModifier->m_RotOscAmplitude[2], "amplitude", "Amplitude");
+
+						Vec2 centerUV(pTexModifier->m_RotOscCenter[0], pTexModifier->m_RotOscCenter[1]);
+						ar(centerUV, "centerUV", "Center UV");
+
+						pTexModifier->m_RotOscCenter[0] = centerUV.x;
+						pTexModifier->m_RotOscCenter[1] = centerUV.y;
+						pTexModifier->m_RotOscCenter[2] = 0.0f;
+
+						ar.closeBlock();
+					}
+
+					if (ar.openBlock("oscillator", "-Oscillator"))
+					{
+						if (ar.openBlock("typeUV", "Type UV"))
+						{
+
+							ETexModMoveType typeU = (ETexModMoveType)pTexModifier->m_eMoveType[0];
+							ar(typeU, "typeU", "^Type U");
+							pTexModifier->m_eMoveType[0] = (uint8)typeU;
+
+							ETexModMoveType typeV = (ETexModMoveType)pTexModifier->m_eMoveType[1];
+							ar(typeV, "typeV", "^Type V");
+							pTexModifier->m_eMoveType[1] = (uint8)typeV;
+
+							ar.closeBlock();
+						}
+
+						Vec2 rateUV(pTexModifier->m_OscRate[0], pTexModifier->m_OscRate[1]);
+						ar(rateUV, "rateUV", "Rate UV");
+						pTexModifier->m_OscRate[0] = rateUV.x;
+						pTexModifier->m_OscRate[1] = rateUV.y;
+
+						Vec2 phaseUV(pTexModifier->m_OscPhase[0], pTexModifier->m_OscPhase[1]);
+						ar(phaseUV, "phaseUV", "Phase UV");
+						pTexModifier->m_OscPhase[0] = phaseUV.x;
+						pTexModifier->m_OscPhase[1] = phaseUV.y;
+
+						Vec2 amplitudeUV(pTexModifier->m_OscAmplitude[0], pTexModifier->m_OscAmplitude[1]);
+						ar(amplitudeUV, "amplitudeUV", "Amplitude UV");
+						pTexModifier->m_OscAmplitude[0] = amplitudeUV.x;
+						pTexModifier->m_OscAmplitude[1] = amplitudeUV.y;
+
+						ar.closeBlock();
+					}
 				}
 
 				ar.closeBlock();
 			}
-		}
-
-		if (pTexModifier)
-		{
-			if (ar.openBlock("tiling", "-Tiling"))
-			{
-				ar.openBlock("isTilingUV", "Is Tiling UV");
-				ar(shaderTexture.m_bUTile, "isTilingU", "^Is Tiling U");
-
-				ar(shaderTexture.m_bVTile, "isTilingV", "^Is Tiling V");
-				ar.closeBlock();
-
-				Vec2 tilingUV(shaderTexture.GetTiling(0), shaderTexture.GetTiling(1));
-				ar(tilingUV, "tilingUV", "Tiling UV");
-				pTexModifier->m_Tiling[0] = tilingUV.x;
-				pTexModifier->m_Tiling[1] = tilingUV.y;
-
-				Vec2 offsetUV(shaderTexture.GetOffset(0), shaderTexture.GetOffset(1));
-				ar(offsetUV, "offsetUV", "Offset UV");
-				pTexModifier->m_Offs[0] = offsetUV.x;
-				pTexModifier->m_Offs[1] = offsetUV.y;
-
-				//Using inline controls to imitate vector
-
-				ar.openBlock("rotationUVW", "Rotation UVW");
-
-				SerializeWordToDegree(ar, pTexModifier->m_Rot[0], "rotateU", "^Rotation U");
-				SerializeWordToDegree(ar, pTexModifier->m_Rot[1], "rotateV", "^Rotation V");
-				SerializeWordToDegree(ar, pTexModifier->m_Rot[2], "rotateW", "^Rotation W");
-
-				ar.closeBlock();
-
-				ar.closeBlock();
-			}
-
-			if (ar.openBlock("rotator", "-Rotator"))
-			{
-				ETexModRotateType type = (ETexModRotateType)pTexModifier->m_eRotType;
-				ar(type, "type", "Type");
-				pTexModifier->m_eRotType = (uint8)type;
-
-				SerializeWordToDegree(ar, pTexModifier->m_RotOscRate[2], "rate", "Rate");
-				SerializeWordToDegree(ar, pTexModifier->m_RotOscPhase[2], "phase", "Phase");
-				SerializeWordToDegree(ar, pTexModifier->m_RotOscAmplitude[2], "amplitude", "Amplitude");
-
-				Vec2 centerUV(pTexModifier->m_RotOscCenter[0], pTexModifier->m_RotOscCenter[1]);
-				ar(centerUV, "centerUV", "Center UV");
-
-				pTexModifier->m_RotOscCenter[0] = centerUV.x;
-				pTexModifier->m_RotOscCenter[1] = centerUV.y;
-				pTexModifier->m_RotOscCenter[2] = 0.0f;
-
-				ar.closeBlock();
-			}
-
-			if (ar.openBlock("oscillator", "-Oscillator"))
-			{
-				ar.openBlock("typeUV", "Type UV");
-
-				ETexModMoveType typeU = (ETexModMoveType)pTexModifier->m_eMoveType[0];
-				ar(typeU, "typeU", "^Type U");
-				pTexModifier->m_eMoveType[0] = (uint8)typeU;
-
-				ETexModMoveType typeV = (ETexModMoveType)pTexModifier->m_eMoveType[1];
-				ar(typeV, "typeV", "^Type V");
-				pTexModifier->m_eMoveType[1] = (uint8)typeV;
-
-				ar.closeBlock();
-
-				Vec2 rateUV(pTexModifier->m_OscRate[0], pTexModifier->m_OscRate[1]);
-				ar(rateUV, "rateUV", "Rate UV");
-				pTexModifier->m_OscRate[0] = rateUV.x;
-				pTexModifier->m_OscRate[1] = rateUV.y;
-
-				Vec2 phaseUV(pTexModifier->m_OscPhase[0], pTexModifier->m_OscPhase[1]);
-				ar(phaseUV, "phaseUV", "Phase UV");
-				pTexModifier->m_OscPhase[0] = phaseUV.x;
-				pTexModifier->m_OscPhase[1] = phaseUV.y;
-
-				Vec2 amplitudeUV(pTexModifier->m_OscAmplitude[0], pTexModifier->m_OscAmplitude[1]);
-				ar(amplitudeUV, "amplitudeUV", "Amplitude UV");
-				pTexModifier->m_OscAmplitude[0] = amplitudeUV.x;
-				pTexModifier->m_OscAmplitude[1] = amplitudeUV.y;
-
-				ar.closeBlock();
-			}
-
 		}
 
 		ar.closeBlock();
 	}
-
-	ar.closeBlock();
 }
 
 CMaterialSerializer::SShaderParamInfo CMaterialSerializer::ParseShaderParamScript(const SShaderParam& param)
@@ -993,7 +923,9 @@ void CMaterialSerializer::SerializeShaderParams(Serialization::IArchive& ar, boo
 	});
 
 	if (shaderParams.empty())
+	{
 		return;
+	}
 
 	if (ar.isInput() && bShaderChanged)
 	{
@@ -1002,115 +934,121 @@ void CMaterialSerializer::SerializeShaderParams(Serialization::IArchive& ar, boo
 		m_shaderParamInfoCache.clear();
 	}
 
-	bool bParseScript = m_shaderParamInfoCache.size() == 0;
-	bool bShaderParamsChanged = false;
-
-	ar.openBlock("shaderParams", "Shader Params");
-
-	const int count = shaderParams.size();
-	for (int i = 0; i < count; i++)
+	if (ar.openBlock("shaderParams", "Shader Params"))
 	{
-		SShaderParam& param = shaderParams[i];
+		bool bShaderParamsChanged = false;
 
-		if (bParseScript)
-			m_shaderParamInfoCache[param.m_Name] = ParseShaderParamScript(param);
-
-		const auto& info = m_shaderParamInfoCache[param.m_Name];
-
-		switch (param.m_Type)
+		const int count = shaderParams.size();
+		for (int i = 0; i < count; i++)
 		{
-		case eType_BYTE:
-			{
-				int value = (int)param.m_Value.m_Byte;
-				SerializeShaderParam(ar, value, param.m_Name, info);
-				if (value != (int)param.m_Value.m_Byte)
-				{
-					bShaderParamsChanged = true;
-					param.m_Value.m_Byte = value;
-				}
-				break;
-			}
-		case eType_SHORT:
-			{
-				int value = (int)param.m_Value.m_Short;
-				SerializeShaderParam(ar, value, param.m_Name, info);
-				if (value != (int)param.m_Value.m_Short)
-				{
-					bShaderParamsChanged = true;
-					param.m_Value.m_Short = value;
-				}
-				break;
-			}
-		case eType_INT:
-			{
-				int value = param.m_Value.m_Int;
-				SerializeShaderParam(ar, value, param.m_Name, info);
-				if (value != param.m_Value.m_Int)
-				{
-					bShaderParamsChanged = true;
-					param.m_Value.m_Int = value;
-				}
-				break;
-			}
-		case eType_FLOAT:
-			{
-				float value = param.m_Value.m_Float;
-				SerializeShaderParam(ar, value, param.m_Name, info);
-				if (value != param.m_Value.m_Float)
-				{
-					bShaderParamsChanged = true;
-					param.m_Value.m_Float = value;
-				}
-				break;
-			}
-		case eType_FCOLOR:
-			{
-				ColorF color(param.m_Value.m_Color[0], param.m_Value.m_Color[1], param.m_Value.m_Color[2], param.m_Value.m_Color[3]);
-				const ColorF oldColor = color;
-				ar(color, param.m_Name, info.m_uiName);
-				if (info.m_description.size())
-					ar.doc(info.m_description.c_str());
-				if (color != oldColor)
-				{
-					bShaderParamsChanged = true;
-					param.m_Value.m_Color[0] = color.r;
-					param.m_Value.m_Color[1] = color.g;
-					param.m_Value.m_Color[2] = color.b;
-					param.m_Value.m_Color[3] = color.a;
-				}
+			SShaderParam& param = shaderParams[i];
 
-				break;
-			}
-		case eType_VECTOR:
+			//Check if this parameter is present in the cache, if not parse it and add to cache
+			if (m_shaderParamInfoCache.find(param.m_Name) == m_shaderParamInfoCache.end())
 			{
-				Vec3 vec(param.m_Value.m_Vector[0], param.m_Value.m_Vector[1], param.m_Value.m_Vector[2]);
-				const Vec3 oldVec = vec;
-				ar(vec, param.m_Name, info.m_uiName);
-				if (info.m_description.size())
-					ar.doc(info.m_description.c_str());
-				if (vec != oldVec)
+				m_shaderParamInfoCache[param.m_Name] = ParseShaderParamScript(param);
+			}
+
+			//Infos are used for serializing a decorator (if necessary, also used by the property tree for UI limits) and the shader param name (used by the property tree to name rows)
+			const SShaderParamInfo& info = m_shaderParamInfoCache[param.m_Name];
+
+			switch (param.m_Type)
+			{
+			case eType_BYTE:
 				{
-					bShaderParamsChanged = true;
-					param.m_Value.m_Vector[0] = vec.x;
-					param.m_Value.m_Vector[1] = vec.y;
-					param.m_Value.m_Vector[2] = vec.z;
+					int value = (int)param.m_Value.m_Byte;
+					SerializeShaderParam(ar, value, param.m_Name, info);
+					if (value != (int)param.m_Value.m_Byte)
+					{
+						bShaderParamsChanged = true;
+						param.m_Value.m_Byte = value;
+					}
+					break;
 				}
+			case eType_SHORT:
+				{
+					int value = (int)param.m_Value.m_Short;
+					SerializeShaderParam(ar, value, param.m_Name, info);
+					if (value != (int)param.m_Value.m_Short)
+					{
+						bShaderParamsChanged = true;
+						param.m_Value.m_Short = value;
+					}
+					break;
+				}
+			case eType_INT:
+				{
+					int value = param.m_Value.m_Int;
+					SerializeShaderParam(ar, value, param.m_Name, info);
+					if (value != param.m_Value.m_Int)
+					{
+						bShaderParamsChanged = true;
+						param.m_Value.m_Int = value;
+					}
+					break;
+				}
+			case eType_FLOAT:
+				{
+					float value = param.m_Value.m_Float;
+					SerializeShaderParam(ar, value, param.m_Name, info);
+					if (value != param.m_Value.m_Float)
+					{
+						bShaderParamsChanged = true;
+						param.m_Value.m_Float = value;
+					}
+					break;
+				}
+			case eType_FCOLOR:
+				{
+					ColorF color(param.m_Value.m_Color[0], param.m_Value.m_Color[1], param.m_Value.m_Color[2], param.m_Value.m_Color[3]);
+					const ColorF oldColor = color;
+					ar(color, param.m_Name, info.m_uiName);
+					if (info.m_description.size())
+						ar.doc(info.m_description.c_str());
+					if (color != oldColor)
+					{
+						bShaderParamsChanged = true;
+						param.m_Value.m_Color[0] = color.r;
+						param.m_Value.m_Color[1] = color.g;
+						param.m_Value.m_Color[2] = color.b;
+						param.m_Value.m_Color[3] = color.a;
+					}
+
+					break;
+				}
+			case eType_VECTOR:
+				{
+					Vec3 vec(param.m_Value.m_Vector[0], param.m_Value.m_Vector[1], param.m_Value.m_Vector[2]);
+					const Vec3 oldVec = vec;
+					ar(vec, param.m_Name, info.m_uiName);
+					if (info.m_description.size())
+						ar.doc(info.m_description.c_str());
+					if (vec != oldVec)
+					{
+						bShaderParamsChanged = true;
+						param.m_Value.m_Vector[0] = vec.x;
+						param.m_Value.m_Vector[1] = vec.y;
+						param.m_Value.m_Vector[2] = vec.z;
+					}
+					break;
+				}
+			default:
+				//Apparently unknown type parameters are a frequent occurence, do not warn
+				//CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "Unknown shader parameter type found in material %s: %s", m_pMaterial->GetName().c_str(), param.m_Name);
 				break;
 			}
-		default:
-			//Apparently unknown type parameters are a frequent occurence, do not warn
-			//CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "Unknown shader parameter type found in material %s: %s", m_pMaterial->GetName().c_str(), param.m_Name);
-			break;
 		}
-	}
 
-	if (ar.isInput() && bShaderParamsChanged)
-	{
-		if (m_pMaterial->GetShaderItem().m_pShaderResources)
-			m_pMaterial->GetShaderItem().m_pShaderResources->SetShaderParams(&m_pMaterial->GetShaderResources(), m_pMaterial->GetShaderItem().m_pShader);
-	}
+		if (ar.isInput() && bShaderParamsChanged)
+		{
+			if (m_pMaterial->GetShaderItem().m_pShaderResources)
+			{
+				m_pMaterial->GetShaderItem().m_pShaderResources->SetShaderParams(&m_pMaterial->GetShaderResources(), m_pMaterial->GetShaderItem().m_pShader);
+			}
+		}
 
-	ar.closeBlock();
+		ar.closeBlock();
+	}
 }
 
 void CMaterialSerializer::SerializeShaderGenParams(Serialization::IArchive& ar)
@@ -1148,15 +1086,11 @@ void CMaterialSerializer::SerializeShaderGenParams(Serialization::IArchive& ar)
 
 	ar.closeBlock();
 
-	m_pMaterial->SetShaderGenMask(shaderGenMask);
+	//This ensures that the material data is loaded to render thread and the results are correctly updated into material resources
+	m_pMaterial->SetShaderGenMaskFromUI(shaderGenMask);
 }
 
-QWidget* CMaterialSerializer::CreateLegacyPropertyTree()
-{
-	return new CMaterialSerializer::CMaterialLegacyPropertyTree(this);
-}
-
-QWidget* CMaterialSerializer::CreatePropertyTree()
+QPropertyTree* CMaterialSerializer::CreatePropertyTree()
 {
 	return new CMaterialSerializer::CMaterialPropertyTree(this);
 }

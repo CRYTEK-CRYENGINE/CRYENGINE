@@ -57,7 +57,7 @@ inline bool strcpy_with_clamp(TChar* const dst, size_t const dst_size_in_bytes, 
 	}
 
 	const size_t src_n = src_size_in_bytes / sizeof(TChar);
-	const size_t n = (std::min)(dst_size_in_bytes / sizeof(TChar) - 1, src_n);
+	const size_t n = std::min(dst_size_in_bytes / sizeof(TChar) - 1, src_n);
 
 	for (size_t i = 0; i < n; ++i)
 	{
@@ -97,7 +97,7 @@ inline bool strcat_with_clamp(TChar* const dst, size_t const dst_size_in_bytes, 
 	}
 
 	const size_t src_n = src_size_in_bytes / sizeof(TChar);
-	const size_t n = (std::min)(dst_n - dst_len, src_n);
+	const size_t n = std::min(dst_n - dst_len, src_n);
 	TChar* dst_ptr = &dst[dst_len];
 
 	for (size_t i = 0; i < n; ++i)
@@ -138,6 +138,7 @@ inline bool vsprintf_with_clamp(char* const dst, size_t const dst_size_in_bytes,
 #else
 	const int n = vsnprintf(dst, dst_size_in_bytes, format, args);
 #endif
+
 
 #if CRY_COMPILER_MSVC && CRY_COMPILER_VERSION < 1900
 	if (n < 0 || n == dst_size_in_bytes)
@@ -295,13 +296,20 @@ static inline bool MatchesWildcards_Tpl(const CharType* pStr, const CharType* pW
 //! \endcond
 
 //////////////////////////////////////////////////////////////////////////
-// cry_strcpy(), cry_strcpy_wchar()
 
+//! Copies all characters from 0-terminated src to dst of given size.
+//! When content from src is longer than dst can hold, the content is clamped.
+//! The copied content in dst is guaranteed to end with a terminating-0, even in case of clamping.
+//! Note the function can be potentially unsafe because of memory reordering.
 inline bool cry_strcpy(_Out_writes_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, dst_size_in_bytes, src, (size_t)-1);
 }
 
+//! Copies all characters from src of given size to dst of given size.
+//! When content from src is longer than dst can hold, the content is clamped.
+//! The copied content in dst is guaranteed to end with a terminating-0, even in case of clamping.
+//! Note the function can be potentially unsafe because of memory reordering.
 inline bool cry_strcpy(_Out_writes_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, dst_size_in_bytes, src, src_size_in_bytes);
@@ -317,6 +325,12 @@ template<size_t SIZE_IN_CHARS>
 inline bool cry_strcpy(_Out_writes_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHARS], const char* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, SIZE_IN_CHARS, src, src_size_in_bytes);
+}
+
+template<size_t DST_SIZE_IN_CHARS, size_t SRC_SIZE_IN_CHARS>
+inline bool cry_fixed_size_strcpy(_Out_writes_z_(DST_SIZE_IN_CHARS) char (&dst)[DST_SIZE_IN_CHARS], const char (&src)[SRC_SIZE_IN_CHARS])
+{
+	return CryStringUtils_Internal::strcpy_with_clamp<char>(dst, DST_SIZE_IN_CHARS, src, SRC_SIZE_IN_CHARS);
 }
 
 inline bool cry_strcpy_wchar(_Out_writes_z_(dst_size_in_bytes) wchar_t* const dst, size_t const dst_size_in_bytes, const wchar_t* const src)
@@ -344,6 +358,10 @@ inline bool cry_strcpy_wchar(_Out_writes_z_(SIZE_IN_CHARS*2) wchar_t (&dst)[SIZE
 //////////////////////////////////////////////////////////////////////////
 // cry_strcat(), cry_strcat_wchar()
 
+//! Appends all characters from 0-terminated src to dst of given size.
+//! When the result is longer than dst can hold, the content is clamped.
+//! The copied content in dst is guaranteed to end with a terminating-0, even in case of clamping.
+//! Note the function can be potentially unsafe because of memory reordering.
 inline bool cry_strcat( _Inout_updates_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<char>(dst, dst_size_in_bytes, src, (size_t)-1);
@@ -355,6 +373,10 @@ inline bool cry_strcat( _Inout_updates_z_(SIZE_IN_CHARS) char (&dst)[SIZE_IN_CHA
 	return CryStringUtils_Internal::strcat_with_clamp<char>(dst, SIZE_IN_CHARS, src, (size_t)-1);
 }
 
+//! Appends all characters from src of given size to dst of given size.
+//! When the result is longer than dst can hold, the content is clamped.
+//! The copied content in dst is guaranteed to end with a terminating-0, even in case of clamping.
+//! Note the function can be potentially unsafe because of memory reordering.
 inline bool cry_strcat( _Inout_updates_z_(dst_size_in_bytes) char* const dst, size_t const dst_size_in_bytes, const char* const src, size_t const src_size_in_bytes)
 {
 	return CryStringUtils_Internal::strcat_with_clamp<char>(dst, dst_size_in_bytes, src, src_size_in_bytes);
@@ -457,4 +479,63 @@ inline int cry_strnicmp(const char* string1, const char* string2, size_t count)
 #else
 	return strnicmp(string1, string2, count);
 #endif
+}
+
+//! CRY_IS_STRING_LITERAL(some_var) -> cry_is_string_literal_impl( "some_var" )
+//! CRY_IS_STRING_LITERAL("string literal") -> cry_is_string_literal_impl( "\"string literal\"" )
+//! so we detect string literals by opening and closing quotes
+#define CRY_IS_STRING_LITERAL(STR) cry_is_string_literal_impl( #STR )
+
+//c++11 allows only return statements in constexpr, so we need to split the code into recursive function calls
+//  constexpr bool cry_is_string_literal_impl(const char* szStr)
+//  {
+// 	if (szStr[0] != '"') // could also detect L and R strings, when needed
+// 		return false;
+// 
+// 	bool insideQuotes = true;
+// 	for (size_t strIndex = 1; szStr[strIndex] != 0; ++strIndex)
+// 	{
+// 		if (insideQuotes)
+// 		{
+// 			if (szStr[strIndex] == '\\')
+// 				++strIndex;
+// 			else if (szStr[strIndex] == '"')
+// 				insideQuotes = false;
+// 		}
+// 		else
+// 		{ // only allow spaces between strings. Technically comments would be possible too ...
+// 			if (szStr[strIndex] == '"')
+// 				insideQuotes = true;
+// 			else if (!isspace(szStr[strIndex]))
+// 				return false;
+// 		}
+// 	}
+// 	return !insideQuotes;
+
+constexpr bool cry_is_string_literal_impl_outside_quotes(const char* szStr);
+
+constexpr bool cry_is_string_literal_impl_in_quotes(const char* szStr)
+{
+	return szStr[0] == '\\'
+		? cry_is_string_literal_impl_in_quotes(szStr + 2)
+		: (szStr[0] == '"'
+			? cry_is_string_literal_impl_outside_quotes(szStr + 1)
+			: cry_is_string_literal_impl_in_quotes(szStr + 1));
+}
+
+constexpr bool isspace_constexpr(char chr)
+{
+	return chr == ' ' || chr == '\t' || chr == '\n' || chr == '\r' || chr == '\f' || chr == '\v';
+}
+
+constexpr bool cry_is_string_literal_impl_outside_quotes(const char* szStr)
+{
+	return szStr[0] == 0
+		|| (isspace_constexpr(szStr[0]) && cry_is_string_literal_impl_outside_quotes(szStr + 1))
+		|| (szStr[0] == '"' && cry_is_string_literal_impl_in_quotes(szStr + 1));
+}
+
+constexpr bool cry_is_string_literal_impl(const char* szStr)
+{
+	return szStr[0] == '"' && cry_is_string_literal_impl_in_quotes(szStr + 1);
 }

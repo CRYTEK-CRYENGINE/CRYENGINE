@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _DevBuffer_H_
-#define _DevBuffer_H_
+#pragma once
 
 #if !defined(D3DBuffer)
 	#define D3DBuffer void
@@ -161,7 +160,7 @@ typedef _smart_ptr<CConstantBuffer> CConstantBufferPtr;
 class CGraphicsDeviceConstantBuffer : public IGraphicsDeviceConstantBuffer
 {
 public:
-	CGraphicsDeviceConstantBuffer() : m_size(0), m_bDirty(false) {};
+	CGraphicsDeviceConstantBuffer() : m_size(0), m_bDirty(false) {}
 	virtual void       SetData(const uint8* data, size_t size) override;
 	// Should only be called from the thread that can create and update constant buffers
 	CConstantBufferPtr GetConstantBuffer();
@@ -178,27 +177,6 @@ private:
 	bool                                               m_bDirty;
 
 	static CryCriticalSection                          s_accessLock;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////
-// Pool statistics
-struct SDeviceBufferPoolStats : private NoCopy
-{
-	string                buffer_descr;
-	size_t                bank_size;       // size of a pool bank in bytes
-	size_t                num_banks;       // number of banks currently allocated
-	size_t                num_allocs;      // number of allocs present in the device pool
-	IDefragAllocatorStats allocator_stats; // backing allocator statistics
-
-	SDeviceBufferPoolStats()
-		: buffer_descr()
-		, bank_size()
-		, num_banks()
-		, num_allocs()
-		, allocator_stats()
-	{ memset(&allocator_stats, 0x0, sizeof(allocator_stats)); }
-
-	~SDeviceBufferPoolStats() {}
 };
 
 class CDeviceBufferManager
@@ -257,7 +235,7 @@ public:
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////
-	// Initialization and destruction and high level update funcationality
+	// Initialization and destruction and high level update functionality
 	bool Init();
 	void Update(uint32 frameId, bool called_during_loading);
 	void ReleaseEmptyBanks(uint32 frameId);
@@ -690,5 +668,3 @@ static inline bool FetchBufferData(void* dst, const void* src, size_t sze)
 
 	return requires_flush;
 }
-
-#endif // _D3DBuffer_H

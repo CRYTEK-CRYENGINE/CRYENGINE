@@ -144,11 +144,8 @@ SShaderBin* CShaderManBin::SaveBinShader(
 		{
 
 		}
-		if (dwToken == eT_fetchinst)
-		{
-			int nnn = 0;
-		}
-		else if (dwToken == eT_include)
+
+		if (dwToken == eT_include)
 		{
 			assert(bKey);
 			SkipCharacters(&buf, kWhiteSpace);
@@ -172,7 +169,7 @@ SShaderBin* CShaderManBin::SaveBinShader(
 
 			PathUtil::RemoveExtension(com);
 
-			SShaderBin* pBIncl = GetBinShader(com, true, 0);
+			//SShaderBin* pBIncl = GetBinShader(com, true, 0);
 			//
 			//assert(pBIncl);
 
@@ -261,7 +258,7 @@ SShaderBin* CShaderManBin::SaveBinShader(
 			pBin->m_Tokens.push_back(0);
 		}
 	}
-	if (!pBin->m_Tokens[0])
+	if (!pBin->m_Tokens.size() || !pBin->m_Tokens[0])
 		pBin->m_Tokens.push_back(eT_skip);
 
 	pBin->SetCRC(pBin->ComputeCRC());
@@ -554,8 +551,7 @@ void CShaderManBin::mfGeneratePublicFXParams(CShader* pSH, CParserBin& Parser)
 					sp.m_Type = eType_FCOLOR;
 					if (szVal[0] == '{')
 						szVal++;
-					int n = sscanf(szVal, "%f, %f, %f, %f", &sp.m_Value.m_Color[0], &sp.m_Value.m_Color[1], &sp.m_Value.m_Color[2], &sp.m_Value.m_Color[3]);
-					assert(n == 4);
+					CRY_VERIFY(sscanf(szVal, "%f, %f, %f, %f", &sp.m_Value.m_Color[0], &sp.m_Value.m_Color[1], &sp.m_Value.m_Color[2], &sp.m_Value.m_Color[3]) == 4);
 				}
 				else
 				{
@@ -709,7 +705,7 @@ bool CShaderManBin::SaveBinShaderLocalInfo(SShaderBin* pBin, uint32 dwName, uint
 
 SShaderBin* CShaderManBin::LoadBinShader(FILE* fpBin, const char* szName, const char* szNameBin, bool bReadParams)
 {
-	LOADING_TIME_PROFILE_SECTION(iSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(iSystem);
 
 	gEnv->pCryPak->FSeek(fpBin, 0, SEEK_SET);
 	SShaderBinHeader Header;
@@ -969,7 +965,10 @@ SShaderBin* CShaderManBin::GetBinShader(const char* szName, bool bInclude, uint3
 	stack_string nameFile;
 	string nameBin;
 	FILE* fpSrc = NULL;
+
+#if !defined(_RELEASE)
 	uint32 nSourceCRC32 = 0;
+#endif
 
 	const char *szExt = bInclude ? "cfi" : "cfx";
 	// First look for source in Game folder
@@ -1427,18 +1426,14 @@ bool CShaderManBin::ParseBinFX_Global_Annotations(CParserBin& Parser, SParserFra
 			ef->m_Flags2 |= EF2_FORCE_DRAWAFTERWATER;
 			break;
 		case eT_DepthFixup:
-#if !CRY_PLATFORM_ORBIS
 			if (!ef)
 				break;
 			ef->m_Flags2 |= EF2_DEPTH_FIXUP;
-#endif
 			break;
 		case eT_DepthFixupReplace:
-#if !CRY_PLATFORM_ORBIS
 			if (!ef)
 				break;
 			ef->m_Flags2 |= EF2_DEPTH_FIXUP_REPLACE;
-#endif
 			break;
 		case eT_SingleLightPass:
 			if (!ef)
@@ -2654,7 +2649,7 @@ void CShaderManBin::AddTextureToScript(CParserBin& Parser, SFXTexture* pr, PodAr
 
 bool CShaderManBin::ParseBinFX_Technique_Pass_GenerateShaderData(CParserBin& Parser, FXMacroBin& Macros, SShaderFXParams& FXParams, uint32 dwSHName, EHWShaderClass eSHClass, uint64& nAffectMask, uint32 dwSHType, PodArray<uint32>& SHData, SShaderTechnique* pShTech)
 {
-	LOADING_TIME_PROFILE_SECTION(iSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(iSystem);
 	assert(gRenDev->m_pRT->IsRenderThread() || gRenDev->m_pRT->IsLevelLoadingThread());
 
 	bool bRes = true;
@@ -2995,7 +2990,7 @@ bool CShaderManBin::ParseBinFX_Technique_Pass_LoadShader(CParserBin& Parser, FXM
 {
 	assert(gRenDev->m_pRT->IsRenderThread() || gRenDev->m_pRT->IsLevelLoadingThread());
 
-	LOADING_TIME_PROFILE_SECTION(iSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(iSystem);
 	bool bRes = true;
 
 	assert(!SHFrame.IsEmpty());
@@ -3124,7 +3119,6 @@ bool CShaderManBin::ParseBinFX_Technique_Pass(CParserBin& Parser, SParserFrame& 
 	byte AlphaRef = 0;
 	int State = GS_DEPTHWRITE;
 
-	int nMaxTMU = 0;
 	signed char Cull = -1;
 	int nIndex;
 	EToken eSrcBlend = eT_unknown;
@@ -3656,7 +3650,7 @@ bool CShaderManBin::ParseBinFX_Technique_CustomRE(CParserBin& Parser, SParserFra
 
 SShaderTechnique* CShaderManBin::ParseBinFX_Technique(CParserBin& Parser, SParserFrame& Frame, SParserFrame Annotations, std::vector<SShaderTechParseParams>& techParams, bool* bPublic)
 {
-	LOADING_TIME_PROFILE_SECTION(iSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(iSystem);
 
 	SParserFrame OldFrame = Parser.BeginFrame(Frame);
 
@@ -3726,7 +3720,7 @@ float g_fTimeA;
 
 bool CShaderManBin::ParseBinFX(SShaderBin* pBin, CShader* ef, uint64 nMaskGen)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(pBin->m_szName);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, pBin->m_szName);
 
 	bool bRes = true;
 
@@ -3850,7 +3844,6 @@ bool CShaderManBin::ParseBinFX(SShaderBin* pBin, CShader* ef, uint64 nMaskGen)
 	ef->mfFree();
 
 	assert(ef->m_HWTechniques.Num() == 0);
-	int nInd = 0;
 
 	ETokenStorageClass nTokenStorageClass;
 	while ((nTokenStorageClass = Parser.ParseObject(sCommands)))
@@ -3879,7 +3872,7 @@ bool CShaderManBin::ParseBinFX(SShaderBin* pBin, CShader* ef, uint64 nMaskGen)
 				SFXSampler Pr;
 				Parser.CopyTokens(Parser.m_Name, Pr.m_dwName);
 	#ifdef _DEBUG
-				const char* sampName = Parser.GetString(Parser.m_Name);
+				//const char* sampName = Parser.GetString(Parser.m_Name);
 	#endif
 				if (eT == eT_SamplerState)
 					Pr.m_eType = eSType_Sampler;
@@ -4028,8 +4021,8 @@ bool CShaderManBin::ParseBinFX(SShaderBin* pBin, CShader* ef, uint64 nMaskGen)
 					}
 					else if (CParserBin::m_nPlatform & (SF_D3D11 | SF_D3D12 | SF_ORBIS | SF_DURANGO | SF_GL4 | SF_GLES3 | SF_VULKAN))
 					{
-						uint32 nTokName = Parser.GetToken(Parser.m_Name);
-						const char* name = Parser.GetString(nTokName);
+						//uint32 nTokName = Parser.GetToken(Parser.m_Name);
+						//const char* name = Parser.GetString(nTokName);
 						
 						Pr.m_nCB = CB_PER_DRAW;
 					}
@@ -4513,7 +4506,7 @@ bool CShaderManBin::ParseBinFX_Dummy(SShaderBin* pBin, std::vector<string>& Shad
 			{
 				uint32 nToken = Parser.m_Tokens[Parser.m_Name.m_nFirstToken];
 				bool bPublicTechnique = false;
-				SShaderTechnique* pShTech = ParseBinFX_Technique(Parser, Parser.m_Data, Parser.m_Annotations, techParams, &bPublicTechnique);
+				ParseBinFX_Technique(Parser, Parser.m_Data, Parser.m_Annotations, techParams, &bPublicTechnique);
 				if (bPublicTechnique)
 				{
 					const char* name = Parser.GetString(nToken);
@@ -4748,7 +4741,6 @@ uint32 SFXParam::GetComponent(EHWShaderClass eSHClass)
 		assert(b[0] == 'c');
 		if (b[0] == 'c')
 		{
-			int nReg = atoi(&b[1]);
 			b++;
 			while (*b != '.')
 			{

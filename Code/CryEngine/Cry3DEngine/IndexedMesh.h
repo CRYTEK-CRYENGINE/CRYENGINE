@@ -1,12 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   IndexedMesh.h
-//  Created:     28/5/2001 by Vladimir Kajalin
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef IDX_MESH_H
-#define IDX_MESH_H
+#pragma once
 
 #include <CryCore/Containers/CryArray.h>
 #include <Cry3DEngine/CGF/CryHeaders.h>
@@ -14,13 +8,11 @@
 
 class CIndexedMesh
 	: public IIndexedMesh
-	  , public CMesh
-	  , public stl::intrusive_linked_list_node<CIndexedMesh>
-	  , public Cry3DEngineBase
+	, public CMesh
+	, public stl::intrusive_linked_list_node<CIndexedMesh>
+	, public Cry3DEngineBase
 {
 public:
-	CIndexedMesh();
-	virtual ~CIndexedMesh();
 
 	//////////////////////////////////////////////////////////////////////////
 	// IIndexedMesh
@@ -189,5 +181,3 @@ public:
 
 	void GetMemoryUsage(class ICrySizer* pSizer) const;
 };
-
-#endif // IDX_MESH_H

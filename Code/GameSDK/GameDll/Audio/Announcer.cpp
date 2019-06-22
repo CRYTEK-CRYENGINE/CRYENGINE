@@ -21,6 +21,7 @@ History:
 #include <GameXmlParamReader.h>
 #include "GameRulesModules/IGameRulesRoundsModule.h"
 #include "GameRulesModules/IGameRulesStateModule.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #define ANNOUNCER_FILENAME "Scripts/Sounds/cw2_Annoucements.xml"
 

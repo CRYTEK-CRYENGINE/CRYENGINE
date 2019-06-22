@@ -4,9 +4,9 @@
 #include "FileMonitorMiddleware.h"
 
 #include "Common.h"
-#include "AudioControlsEditorPlugin.h"
 #include "Common/IImpl.h"
 
+#include <IEditor.h>
 #include <CryString/CryPath.h>
 
 namespace ACE

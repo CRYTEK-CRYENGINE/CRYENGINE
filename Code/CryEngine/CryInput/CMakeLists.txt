@@ -136,7 +136,7 @@ end_sources()
 CryEngineModule(CryInput PCH "StdAfx.cpp" SOLUTION_FOLDER "CryEngine")
 
 if (DURANGO)
-	target_link_libraries( ${THIS_PROJECT} PRIVATE uuid ws2_32 )
+	target_link_libraries( ${THIS_PROJECT} PRIVATE uuid ws2_32 xi)
 	target_compile_options(${THIS_PROJECT} PRIVATE /EHsc /ZW)
 elseif(APPLE)
 	target_include_directories( ${THIS_PROJECT} PRIVATE "${SDK_DIR}/SDL2/include/mac" "${SDK_DIR}/SDL2/include/SDL" "${SDK_DIR}/SDL2/SDL@8112/include" )

@@ -7,6 +7,7 @@
 #include "StatsRecordingMgr.h"
 #include "Actor.h"
 #include "UI/HUD/HUDEventDispatcher.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 const float CGodMode::m_timeToWaitBeforeRespawn = 4.0f;
 const char * CGodMode::m_godModeCVarName = "g_godMode";

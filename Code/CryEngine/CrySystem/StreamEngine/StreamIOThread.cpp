@@ -106,14 +106,14 @@ void CStreamingIOThread::ThreadEntry()
 	{
 		if (m_bNewRequests || !m_newFileRequests.empty())
 		{
-			CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO - Process New Request");
+			CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO - Process New Request");
 
 			READ_WRITE_BARRIER
 			  ProcessNewRequests();
 		}
 		else
 		{
-			CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - StreamIO New Request");
+			CRY_PROFILE_SECTION_WAITING(PROFILE_SYSTEM, "Wait - StreamIO New Request");
 
 			if (m_eMediaType == eStreamSourceTypeDisc && gEnv->pSystem->GetPlatformOS())
 			{
@@ -157,7 +157,7 @@ void CStreamingIOThread::ThreadEntry()
 
 		if (m_bNeedReset)
 		{
-			CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO Process Reset");
+			CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO Process Reset");
 
 			ProcessReset();
 		}
@@ -173,7 +173,7 @@ void CStreamingIOThread::ThreadEntry()
 
 			if (pFileRequest->HasFailed())
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO Process High Prio Task");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO Process High Prio Task");
 
 				// check if request was high prio, then decrease open count
 				if (pFileRequest->IgnoreOutofTmpMem())
@@ -190,7 +190,7 @@ void CStreamingIOThread::ThreadEntry()
 			//////////////////////////////////////////////////////////////////////////
 			if (bIsOOM && !m_bCancelThreadRequest)
 			{
-				CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - StreamIO Memory out of budget");
+				CRY_PROFILE_SECTION_WAITING(PROFILE_SYSTEM, "Wait - StreamIO Memory out of budget");
 
 				m_pStreamEngine->FlagTempMemOutOfBudget();
 				if (m_iUrgentRequests > 0)
@@ -228,7 +228,7 @@ void CStreamingIOThread::ThreadEntry()
 
 			// Simply let the io thread sleep when paused before doing any actual IO
 			{
-				CRY_PROFILE_REGION_WAITING(PROFILE_SYSTEM, "Wait - StreamIO Paused Sleep");
+				CRY_PROFILE_SECTION_WAITING(PROFILE_SYSTEM, "Wait - StreamIO Paused Sleep");
 
 				while (m_bPaused)
 				{
@@ -248,7 +248,7 @@ void CStreamingIOThread::ThreadEntry()
 			uint32 nSizeOnMedia = 0;
 
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO Process High Prio Task Handling");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO Process High Prio Task Handling");
 
 				// check if request was high prio, then decrease open count
 				if (pFileRequest->IgnoreOutofTmpMem())
@@ -352,19 +352,19 @@ void CStreamingIOThread::ThreadEntry()
 			if (m_bNewRequests)
 			{
 				READ_WRITE_BARRIER
-				  CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO Process New Request");
+				  CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO Process New Request");
 
 				ProcessNewRequests();
 			}
 			if (m_bNeedReset)
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO Process Reset");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO Process Reset");
 
 				ProcessReset();
 			}
 			if (m_bNeedSorting)
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO Sort Requests");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO Sort Requests");
 
 				SortRequests();
 			}
@@ -372,7 +372,7 @@ void CStreamingIOThread::ThreadEntry()
 			//////////////////////////////////////////////////////////////////////////
 #ifdef STREAMENGINE_ENABLE_STATS
 			{
-				CRY_PROFILE_REGION(PROFILE_SYSTEM, "StreamIO Updating Stats");
+				CRY_PROFILE_SECTION(PROFILE_SYSTEM, "StreamIO Updating Stats");
 
 				if (g_cvars.sys_streaming_max_bandwidth != 0)
 				{

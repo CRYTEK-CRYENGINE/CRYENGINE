@@ -10,7 +10,7 @@
 
 class BlockPalette;
 struct BlockPaletteItem;
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 namespace CharacterTool {
 
@@ -48,7 +48,7 @@ private:
 	void PresetsChanged();
 	EventContentToColorMap                     m_eventContentToColorMap;
 	BlockPalette*                              m_palette;
-	QPropertyTree*                             m_tree;
+	QPropertyTreeLegacy*                             m_tree;
 	std::unique_ptr<AnimEventPresetCollection> m_presetCollection;
 };
 

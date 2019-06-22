@@ -23,7 +23,7 @@ public:
 	CState& operator=(CState const&) = delete;
 	CState& operator=(CState&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	explicit CState(
 		AkUInt32 const stateGroupId,
 		AkUInt32 const stateId,
@@ -41,7 +41,7 @@ public:
 		: m_stateGroupId(stateGroupId)
 		, m_stateId(stateId)
 	{}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 	virtual ~CState() override = default;
 
@@ -55,10 +55,10 @@ private:
 	AkUInt32 const m_stateGroupId;
 	AkUInt32 const m_stateId;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_stateGroupName;
 	CryFixedStringT<MaxControlNameLength> const m_stateName;
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 };
 } // namespace Wwise
 } // namespace Impl

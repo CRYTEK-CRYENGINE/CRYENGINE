@@ -18,6 +18,7 @@ History:
 #include "2DRenderUtils.h"
 #include "UI/UIManager.h"
 #include "UI/Utils/ScreenLayoutManager.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 //-----------------------------------------------------------------------------------------------------
 

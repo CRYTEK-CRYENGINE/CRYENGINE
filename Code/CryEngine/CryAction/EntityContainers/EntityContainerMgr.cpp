@@ -5,7 +5,7 @@
 #include "EntityContainerMgr.h"
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryFlowGraph/IFlowGraphModuleManager.h>
-
+#include <CrySystem/ConsoleRegistration.h>
 
 CEntityContainerMgr::CEntityContainerMgr()
 	: m_listeners(16) // reasonable starting point

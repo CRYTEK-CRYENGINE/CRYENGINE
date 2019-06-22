@@ -12,6 +12,13 @@ namespace Impl
 {
 namespace Wwise
 {
+enum class EEventFlags : EnumFlagsType
+{
+	None           = 0,
+	ToBeDestructed = BIT(0),
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(EEventFlags);
+
 class CEvent final : public ITriggerConnection, public CPoolObject<CEvent, stl::PSyncNone>
 {
 public:
@@ -22,22 +29,22 @@ public:
 	CEvent& operator=(CEvent const&) = delete;
 	CEvent& operator=(CEvent&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	explicit CEvent(AkUniqueID const id, float const maxAttenuation, char const* const szName)
 		: m_id(id)
+		, m_flags(EEventFlags::None)
 		, m_maxAttenuation(maxAttenuation)
 		, m_numInstances(0)
-		, m_toBeDestructed(false)
 		, m_name(szName)
 	{}
 #else
 	explicit CEvent(AkUniqueID const id, float const maxAttenuation)
 		: m_id(id)
+		, m_flags(EEventFlags::None)
 		, m_maxAttenuation(maxAttenuation)
 		, m_numInstances(0)
-		, m_toBeDestructed(false)
 	{}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 	virtual ~CEvent() override = default;
 
@@ -46,29 +53,30 @@ public:
 	virtual void           Stop(IObject* const pIObject) override;
 	// ~CryAudio::Impl::ITriggerConnection
 
-	AkUniqueID GetId() const             { return m_id; }
-	float      GetMaxAttenuation() const { return m_maxAttenuation; }
+	AkUniqueID GetId() const                   { return m_id; }
+	float      GetMaxAttenuation() const       { return m_maxAttenuation; }
 
-	void       IncrementNumInstances()   { ++m_numInstances; }
+	void       SetFlag(EEventFlags const flag) { m_flags |= flag; }
+
+	void       IncrementNumInstances()         { ++m_numInstances; }
 	void       DecrementNumInstances();
 
-	bool       CanBeDestructed() const   { return m_toBeDestructed && (m_numInstances == 0); }
-	void       SetToBeDestructed() const { m_toBeDestructed = true; }
+	bool       CanBeDestructed() const { return ((m_flags& EEventFlags::ToBeDestructed) != 0) && (m_numInstances == 0); }
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	char const* GetName() const { return m_name.c_str(); }
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 private:
 
 	AkUniqueID const m_id;
+	EEventFlags      m_flags;
 	float const      m_maxAttenuation;
 	uint16           m_numInstances;
-	mutable bool     m_toBeDestructed;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 };
 } // namespace Wwise
 } // namespace Impl

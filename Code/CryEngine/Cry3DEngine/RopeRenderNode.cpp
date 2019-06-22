@@ -55,7 +55,7 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// tessellation support
-	int  Index(int iS, int iM) { return iS + (m_iSliceSamples + 1) * iM; };
+	int  Index(int iS, int iM) { return iS + (m_iSliceSamples + 1) * iM; }
 	void ComputeSinCos();
 	void ComputeVertices(Vec3* akVertex);
 	void ComputeNormals();
@@ -684,7 +684,7 @@ public:
 public:
 	TubeSurface tubeSurface;
 
-	CRopeSurfaceCache() {};
+	CRopeSurfaceCache() {}
 	~CRopeSurfaceCache() {}
 
 private:
@@ -877,7 +877,7 @@ void CRopeRenderNode::Render(const SRendParams& rParams, const SRenderingPassInf
 
 	DBG_LOCK_TO_THREAD(this);
 
-	if (GetCVars()->e_Ropes == 0 || (m_dwRndFlags & ERF_HIDDEN) || m_pMaterial == NULL)
+	if (GetCVars()->e_Ropes == 0 || m_pMaterial == NULL)
 		return; // false;
 
 	if (GetCVars()->e_Ropes == 2)
@@ -901,8 +901,8 @@ void CRopeRenderNode::Render(const SRendParams& rParams, const SRenderingPassInf
 	pObj->m_ObjFlags |= FOB_TRANS_MASK | rParams.dwFObjFlags;
 	pObj->m_ObjFlags |= (m_dwRndFlags & ERF_FOB_ALLOW_TERRAIN_LAYER_BLEND) ? FOB_ALLOW_TERRAIN_LAYER_BLEND : FOB_NONE;
 	pObj->m_fAlpha = rParams.fAlpha;
-	pObj->SetAmbientColor(rParams.AmbientColor, passInfo);
-	pObj->SetMatrix(m_worldTM, passInfo);
+	pObj->SetAmbientColor(rParams.AmbientColor);
+	pObj->SetMatrix(m_worldTM);
 
 	pObj->m_ObjFlags |= FOB_INSHADOW;
 
@@ -1717,6 +1717,7 @@ void CRopeRenderNode::UpdateRenderMesh()
 				const float dx = bbox.GetSize()[iax] * trans.s * m_params.segObjLen, dxInv = 1 / dx;
 				if (iax)
 					trans.q = Quat::CreateRotationV0V1(Vec3(0, iax & 1, iax >> 1 & 1), Vec3(1, 0, 0));
+				trans.q = Quat::CreateRotationAA(m_params.segObjRot0, Vec3(1, 0, 0)) * trans.q;
 				Quat dq = Quat::CreateRotationAA(m_params.segObjRot, Vec3(1, 0, 0) * trans.q);
 				trans.t = Vec3(-bbox.min[iax] * trans.s, 0, 0);
 				uint8 nosmooth = m_params.nFlags & eRope_SegObjBends ? 0 : 255;
@@ -1728,6 +1729,9 @@ void CRopeRenderNode::UpdateRenderMesh()
 				texSeg.data = (Vec2*)pSegMesh->GetUVPtr(texSeg.iStride, FSL_READ);
 				strided_pointer<SPipTangents> tngSeg;
 				tngSeg.data = (SPipTangents*)pSegMesh->GetTangentPtr(tngSeg.iStride, FSL_READ);
+				strided_pointer<byte> clr, clrSeg;
+				if (clrSeg.data = (byte*)pSegMesh->GetColorPtr(clrSeg.iStride, FSL_READ))
+					clr.data = (byte*)m_pRenderMesh->GetColorPtr(clr.iStride, FSL_VIDEO_CREATE);
 				Vec3_tpl<vtx_idx>* idxSeg = (Vec3_tpl<vtx_idx>*)pSegMesh->GetIndexPtr(FSL_READ);
 				int nvtx = pSegMesh->GetVerticesCount(), ntris = pSegMesh->GetIndicesCount() / 3;
 				m_tmpIdx.resize(m_params.nNumSegments * ntris);
@@ -1736,6 +1740,8 @@ void CRopeRenderNode::UpdateRenderMesh()
 					for (int j = 0; j < nvtx; j++, i++)
 					{
 						vtx[i] = trans * vtxSeg[j];
+						if (clrSeg.data)
+							clr[i] = clrSeg[j];
 						Vec4 t4, b4;
 						tngSeg[j].GetTB(t4, b4);
 						Vec3 t3(t4), b3(b4), n = (t3 ^ b3).GetNormalizedFast();
@@ -1774,7 +1780,7 @@ void CRopeRenderNode::UpdateRenderMesh()
 				uint8 w[3] = { 0, (uint8)(m_params.nFlags & eRope_Smooth ? 127 : 0), 127 };
 				for (int iz = 0, i = 0; iz < (nLengthSamples - 1) * 3 - 1; pt.x += !(iz++ % 3) * seglen, w[0] = w[1])
 				{
-					Quat qtang(sqrt2 * 0.5f, -sqrt2 * 0.5f, 0, 0); // start with rotation by -90 around x, then rotate by +angle around x each step
+					Quat qtang(static_cast<float>(sqrt2 * 0.5), static_cast<float>(-sqrt2 * 0.5), 0.0f, 0.0f); // start with rotation by -90 around x, then rotate by +angle around x each step
 					for (int j = 0; j < s; j++, i++)
 					{
 						const float r = m_params.fThickness * (1 + pt.x * kr);

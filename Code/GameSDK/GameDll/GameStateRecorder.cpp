@@ -25,6 +25,7 @@
 #include "Inventory.h"
 #include "Game.h"
 #include <CryAISystem/IAIObjectManager.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 // avoid fake mistakes when health is raising progressively 
 // there can be small mismatches due to time-dependent health regeneration

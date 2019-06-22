@@ -4,11 +4,16 @@
 #include "CommandModel.h"
 
 #include "CustomCommand.h"
+#include "DragDrop.h"
+#include "EditorFramework/ToolBar/ToolBarService.h"
 #include "ICommandManager.h"
 #include "QCommandAction.h"
 #include "QtUtil.h"
 
-const char* CommandModel::s_ColumnNames[3] = { QT_TR_NOOP("Action"), QT_TR_NOOP("Command"), QT_TR_NOOP("Shortcut") };
+#include <QJsonDocument>
+
+const char* CCommandModel::s_ColumnNames[3] = { QT_TR_NOOP("Action"), QT_TR_NOOP("Command"), QT_TR_NOOP("Shortcut") };
+const char* CCommandModel::s_commandMimeType = QT_TR_NOOP("Command");
 
 namespace Private_CommandModel
 {
@@ -36,45 +41,88 @@ ItemType GetItemType(const QModelIndex& index)
 
 } // namespace Private_CommandModel
 
-CommandModel::CommandModel()
+CCommandModel::CCommandModel()
+	: m_supportsDragAndDrop(false)
 {
+	Initialize();
 }
 
-CommandModel::~CommandModel()
+CCommandModel::CCommandModel(const std::vector<CCommand*>& commands)
+	: m_supportsDragAndDrop(false)
+{
+	Initialize(commands);
+}
+
+CCommandModel::~CCommandModel()
 {
 	GetIEditor()->GetICommandManager()->signalChanged.DisconnectObject(this);
 }
 
-void CommandModel::Initialize()
+void CCommandModel::Initialize()
 {
-	GetIEditor()->GetICommandManager()->signalChanged.Connect(this, &CommandModel::Rebuild);
+	GetIEditor()->GetICommandManager()->signalChanged.Connect(this, &CCommandModel::Rebuild);
 	Rebuild();
 }
 
-void CommandModel::Rebuild()
+void CCommandModel::Initialize(const std::vector<CCommand*>& commands)
 {
 	beginResetModel();
 
 	m_modules.clear();
 
-	std::vector<CCommand*> cmds;
-	GetIEditor()->GetICommandManager()->GetCommandList(cmds);
-
-	for (CCommand* cmd : cmds)
+	for (CCommand* pCommand : commands)
 	{
-		if (cmd->CanBeUICommand())
+		CRY_ASSERT_MESSAGE(pCommand, "Invalid pointer to command");
+		if (pCommand && pCommand->CanBeUICommand())
 		{
-			CUiCommand* uiCmd = static_cast<CUiCommand*>(cmd);
-
-			CommandModule& module = FindOrCreateModule(cmd->GetModule().c_str());
-			module.m_commands.push_back(uiCmd);
+			CommandModule& module = FindOrCreateModule(pCommand->GetModule().c_str());
+			module.m_commands.push_back(pCommand);
 		}
 	}
 
 	endResetModel();
 }
 
-QVariant CommandModel::data(const QModelIndex& index, int role /* = Qt::DisplayRole */) const
+void CCommandModel::Rebuild()
+{
+	std::vector<CCommand*> commands;
+	GetIEditor()->GetICommandManager()->GetCommandList(commands);
+	Initialize(commands);
+}
+
+Qt::DropActions CCommandModel::supportedDropActions() const
+{
+	return m_supportsDragAndDrop ? Qt::CopyAction : Qt::IgnoreAction;
+}
+
+QMimeData* CCommandModel::mimeData(const QModelIndexList& indexes) const
+{
+	CDragDropData* pDragDropData = new CDragDropData();
+	CCommand* pCommand = nullptr;
+
+	for (const QModelIndex& index : indexes)
+	{
+		if (index.isValid())
+		{
+			QVariant commandVar = index.model()->data(index, (int)CCommandModel::Roles::CommandPointerRole);
+			if (commandVar.isValid())
+			{
+				pCommand = commandVar.value<CCommand*>();
+			}
+		}
+	}
+
+	if (pCommand)
+	{
+		CToolBarService::QCommandDesc commandDesc(pCommand);
+		QJsonDocument doc = QJsonDocument::fromVariant(commandDesc.ToVariant());
+		pDragDropData->SetCustomData(GetCommandMimeType(), doc.toBinaryData());
+	}
+
+	return pDragDropData;
+}
+
+QVariant CCommandModel::data(const QModelIndex& index, int role /* = Qt::DisplayRole */) const
 {
 	using namespace Private_CommandModel;
 
@@ -208,7 +256,7 @@ QVariant CommandModel::data(const QModelIndex& index, int role /* = Qt::DisplayR
 	return QVariant();
 }
 
-bool CommandModel::hasChildren(const QModelIndex& parent /* = QModelIndex() */) const
+bool CCommandModel::hasChildren(const QModelIndex& parent /* = QModelIndex() */) const
 {
 	if (!parent.isValid())
 	{
@@ -220,7 +268,7 @@ bool CommandModel::hasChildren(const QModelIndex& parent /* = QModelIndex() */) 
 	}
 }
 
-QVariant CommandModel::headerData(int section, Qt::Orientation orientation, int role /* = Qt::DisplayRole */) const
+QVariant CCommandModel::headerData(int section, Qt::Orientation orientation, int role /* = Qt::DisplayRole */) const
 {
 	if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
 	{
@@ -232,21 +280,36 @@ QVariant CommandModel::headerData(int section, Qt::Orientation orientation, int 
 	}
 }
 
-Qt::ItemFlags CommandModel::flags(const QModelIndex& index) const
+Qt::ItemFlags CCommandModel::flags(const QModelIndex& index) const
 {
+	Qt::ItemFlags indexFlags = QAbstractItemModel::flags(index);
+
 	if (index.parent().isValid())
 	{
 		const auto pCommand = GetCommand(index);
 		if (pCommand->IsCustomCommand() || index.column() == 2)
 		{
-			return QAbstractItemModel::flags(index) | Qt::ItemIsEditable;
+			indexFlags |= Qt::ItemIsEditable;
 		}
 	}
 
-	return QAbstractItemModel::flags(index);
+	if (!m_supportsDragAndDrop)
+		return indexFlags;
+
+	CCommand* pCommand = nullptr;
+	QVariant commandVar = index.model()->data(index, (int)CCommandModel::Roles::CommandPointerRole);
+	if (commandVar.isValid())
+	{
+		pCommand = commandVar.value<CCommand*>();
+	}
+
+	if (index.isValid() && pCommand)
+		return indexFlags | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled;
+
+	return indexFlags;
 }
 
-QModelIndex CommandModel::index(int row, int column, const QModelIndex& parent /*= QModelIndex()*/) const
+QModelIndex CCommandModel::index(int row, int column, const QModelIndex& parent /*= QModelIndex()*/) const
 {
 	if (parent.isValid())
 	{
@@ -272,7 +335,7 @@ QModelIndex CommandModel::index(int row, int column, const QModelIndex& parent /
 	}
 }
 
-QModelIndex CommandModel::parent(const QModelIndex& index) const
+QModelIndex CCommandModel::parent(const QModelIndex& index) const
 {
 	{
 		const CCommandModuleDescription* desc = reinterpret_cast<const CCommandModuleDescription*>(index.internalPointer());
@@ -294,7 +357,7 @@ QModelIndex CommandModel::parent(const QModelIndex& index) const
 		{
 			if (m_modules[i].m_name == moduleName)
 			{
-				return CommandModel::index(i, 0);
+				return CCommandModel::index(i, 0);
 			}
 		}
 	}
@@ -302,7 +365,7 @@ QModelIndex CommandModel::parent(const QModelIndex& index) const
 	return QModelIndex();
 }
 
-bool CommandModel::setData(const QModelIndex& index, const QVariant& value, int role /*= Qt::EditRole*/)
+bool CCommandModel::setData(const QModelIndex& index, const QVariant& value, int role /*= Qt::EditRole*/)
 {
 	//no need to notify of the change here because there can only be one view of this model
 	if (role == Qt::EditRole)
@@ -352,7 +415,7 @@ bool CommandModel::setData(const QModelIndex& index, const QVariant& value, int 
 	return false;
 }
 
-int CommandModel::rowCount(const QModelIndex& parent /* = QModelIndex() */) const
+int CCommandModel::rowCount(const QModelIndex& parent /* = QModelIndex() */) const
 {
 	if (parent.isValid())
 	{
@@ -364,7 +427,7 @@ int CommandModel::rowCount(const QModelIndex& parent /* = QModelIndex() */) cons
 	}
 }
 
-QModelIndex CommandModel::GetIndex(CCommand* command, uint column /*= 0*/) const
+QModelIndex CCommandModel::GetIndex(CCommand* command, uint column /*= 0*/) const
 {
 	QString moduleName(command->GetModule().c_str());
 
@@ -376,7 +439,7 @@ QModelIndex CommandModel::GetIndex(CCommand* command, uint column /*= 0*/) const
 			{
 				if (m_modules[i].m_commands[j] == command)
 				{
-					return CommandModel::index(j, column, CommandModel::index(i, column));
+					return CCommandModel::index(j, column, CCommandModel::index(i, column));
 				}
 			}
 		}
@@ -385,7 +448,7 @@ QModelIndex CommandModel::GetIndex(CCommand* command, uint column /*= 0*/) const
 	return QModelIndex();
 }
 
-CCommand* CommandModel::GetCommand(const QModelIndex& index) const
+CCommand* CCommandModel::GetCommand(const QModelIndex& index) const
 {
 	if (index.isValid())
 	{
@@ -399,13 +462,13 @@ CCommand* CommandModel::GetCommand(const QModelIndex& index) const
 	return nullptr;
 }
 
-QCommandAction* CommandModel::GetAction(uint moduleIndex, uint commandIndex) const
+QCommandAction* CCommandModel::GetAction(uint moduleIndex, uint commandIndex) const
 {
 	const auto pCommand = static_cast<CUiCommand*>(m_modules[moduleIndex].m_commands[commandIndex]);
 	return static_cast<QCommandAction*>(pCommand->GetUiInfo());
 }
 
-CommandModel::CommandModule& CommandModel::FindOrCreateModule(const QString& moduleName)
+CCommandModel::CommandModule& CCommandModel::FindOrCreateModule(const QString& moduleName)
 {
 	CommandModule module;
 	module.m_name = moduleName;

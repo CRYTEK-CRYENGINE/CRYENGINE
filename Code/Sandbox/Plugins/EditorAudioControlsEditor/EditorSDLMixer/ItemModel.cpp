@@ -12,148 +12,13 @@
 #include <PathUtils.h>
 #include <QtUtil.h>
 
-#include <QDirIterator>
-
 namespace ACE
 {
 namespace Impl
 {
 namespace SDLMixer
 {
-//////////////////////////////////////////////////////////////////////////
-bool HasDirValidData(QDir const& dir)
-{
-	bool hasValidData = false;
-
-	if (dir.exists())
-	{
-		QDirIterator itFiles(dir.path(), (QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot));
-
-		while (itFiles.hasNext())
-		{
-			QFileInfo const& fileInfo(itFiles.next());
-
-			if (fileInfo.isFile())
-			{
-				hasValidData = true;
-				break;
-			}
-		}
-
-		if (!hasValidData)
-		{
-			QDirIterator itDirs(dir.path(), (QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot));
-
-			while (itDirs.hasNext())
-			{
-				QDir const& folder(itDirs.next());
-
-				if (HasDirValidData(folder))
-				{
-					hasValidData = true;
-					break;
-				}
-			}
-		}
-	}
-
-	return hasValidData;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void GetFilesFromDir(QDir const& dir, QString const& folderName, FileImportInfos& outFileImportInfos)
-{
-	if (dir.exists())
-	{
-		QString const parentFolderName = (folderName.isEmpty() ? (dir.dirName() + "/") : (folderName + dir.dirName() + "/"));
-
-		for (auto const& fileInfo : dir.entryInfoList(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot))
-		{
-			if (fileInfo.isFile())
-			{
-				outFileImportInfos.emplace_back(fileInfo, s_supportedFileTypes.contains(fileInfo.suffix(), Qt::CaseInsensitive), parentFolderName);
-			}
-		}
-
-		for (auto const& fileInfo : dir.entryInfoList(QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot))
-		{
-			QDir const& folder(fileInfo.absoluteFilePath());
-			GetFilesFromDir(folder, parentFolderName, outFileImportInfos);
-		}
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool CanDropExternalData(QMimeData const* const pData)
-{
-	bool hasValidData = false;
-	CDragDropData const* const pDragDropData = CDragDropData::FromMimeData(pData);
-
-	if (pDragDropData->HasFilePaths())
-	{
-		QStringList& allFiles = pDragDropData->GetFilePaths();
-
-		for (auto const& filePath : allFiles)
-		{
-			QFileInfo const& fileInfo(filePath);
-
-			if (fileInfo.isFile() && s_supportedFileTypes.contains(fileInfo.suffix(), Qt::CaseInsensitive))
-			{
-				hasValidData = true;
-				break;
-			}
-		}
-
-		if (!hasValidData)
-		{
-			for (auto const& filePath : allFiles)
-			{
-				QDir const& folder(filePath);
-
-				if (HasDirValidData(folder))
-				{
-					hasValidData = true;
-					break;
-				}
-			}
-		}
-	}
-
-	return hasValidData;
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool DropExternalData(QMimeData const* const pData, FileImportInfos& outFileImportInfos)
-{
-	CRY_ASSERT_MESSAGE(outFileImportInfos.empty(), "Passed container must be empty during %s", __FUNCTION__);
-
-	if (CanDropExternalData(pData))
-	{
-		CDragDropData const* const pDragDropData = CDragDropData::FromMimeData(pData);
-
-		if (pDragDropData->HasFilePaths())
-		{
-			QStringList const& allFiles = pDragDropData->GetFilePaths();
-
-			for (auto const& filePath : allFiles)
-			{
-				QFileInfo const& fileInfo(filePath);
-
-				if (fileInfo.isFile())
-				{
-					outFileImportInfos.emplace_back(fileInfo, s_supportedFileTypes.contains(fileInfo.suffix(), Qt::CaseInsensitive));
-				}
-				else
-				{
-					QDir const& folder(filePath);
-					GetFilesFromDir(folder, "", outFileImportInfos);
-				}
-			}
-		}
-	}
-
-	return !outFileImportInfos.empty();
-}
+using Items = std::vector<CItem const*>;
 
 //////////////////////////////////////////////////////////////////////////
 QString GetTargetFolderPath(CItem const* const pItem)
@@ -197,32 +62,88 @@ CItemModelAttribute* GetAttributeForColumn(CItemModel::EColumns const column)
 	switch (column)
 	{
 	case CItemModel::EColumns::Notification:
-		pAttribute = &ModelUtils::s_notificationAttribute;
-		break;
+		{
+			pAttribute = &ModelUtils::s_notificationAttribute;
+			break;
+		}
 	case CItemModel::EColumns::Connected:
-		pAttribute = &ModelUtils::s_connectedAttribute;
-		break;
+		{
+			pAttribute = &ModelUtils::s_connectedAttribute;
+			break;
+		}
 	case CItemModel::EColumns::PakStatus:
-		pAttribute = &ModelUtils::s_pakStatus;
-		break;
+		{
+			pAttribute = &ModelUtils::s_pakStatus;
+			break;
+		}
 	case CItemModel::EColumns::InPak:
-		pAttribute = &ModelUtils::s_inPakAttribute;
-		break;
+		{
+			pAttribute = &ModelUtils::s_inPakAttribute;
+			break;
+		}
 	case CItemModel::EColumns::OnDisk:
-		pAttribute = &ModelUtils::s_onDiskAttribute;
-		break;
+		{
+			pAttribute = &ModelUtils::s_onDiskAttribute;
+			break;
+		}
 	case CItemModel::EColumns::Localized:
-		pAttribute = &ModelUtils::s_localizedAttribute;
-		break;
+		{
+			pAttribute = &ModelUtils::s_localizedAttribute;
+			break;
+		}
 	case CItemModel::EColumns::Name:
-		pAttribute = &Attributes::s_nameAttribute;
-		break;
+		{
+			pAttribute = &Attributes::s_nameAttribute;
+			break;
+		}
 	default:
-		pAttribute = nullptr;
-		break;
+		{
+			pAttribute = nullptr;
+			break;
+		}
 	}
 
 	return pAttribute;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void GetTopLevelSelectedIds(Items& items, ControlIds& ids)
+{
+	for (auto const pItem : items)
+	{
+		// Check if item has ancestors that are also selected
+		bool isAncestorAlsoSelected = false;
+
+		for (auto const pOtherItem : items)
+		{
+			if (pItem != pOtherItem)
+			{
+				// Find if pOtherItem is the ancestor of pItem
+				auto pParent = static_cast<CItem*>(pItem->GetParent());
+
+				while (pParent != nullptr)
+				{
+					if (pParent == pOtherItem)
+					{
+						break;
+					}
+
+					pParent = static_cast<CItem*>(pParent->GetParent());
+				}
+
+				if (pParent != nullptr)
+				{
+					isAncestorAlsoSelected = true;
+					break;
+				}
+			}
+		}
+
+		if (!isAncestorAlsoSelected)
+		{
+			ids.push_back(pItem->GetId());
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -276,21 +197,16 @@ QVariant CItemModel::data(QModelIndex const& index, int role) const
 
 		if (pItem != nullptr)
 		{
-			if (role == static_cast<int>(ModelUtils::ERoles::Name))
+			switch (index.column())
 			{
-				variant = QtUtil::ToQString(pItem->GetName());
-			}
-			else
-			{
-				EItemFlags const flags = pItem->GetFlags();
-
-				switch (index.column())
+			case static_cast<int>(EColumns::Notification):
 				{
-				case static_cast<int>(EColumns::Notification):
+					switch (role)
 					{
-						switch (role)
+					case Qt::DecorationRole:
 						{
-						case Qt::DecorationRole:
+							EItemFlags const flags = pItem->GetFlags();
+
 							if ((flags & (EItemFlags::IsConnected | EItemFlags::IsContainer)) == 0)
 							{
 								variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::NoConnection);
@@ -299,8 +215,13 @@ QVariant CItemModel::data(QModelIndex const& index, int role) const
 							{
 								variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::Localized);
 							}
+
 							break;
-						case Qt::ToolTipRole:
+						}
+					case Qt::ToolTipRole:
+						{
+							EItemFlags const flags = pItem->GetFlags();
+
 							if ((flags & (EItemFlags::IsConnected | EItemFlags::IsContainer)) == 0)
 							{
 								variant = TypeToString(pItem->GetType()) + tr(" is not connected to any audio system control");
@@ -309,105 +230,143 @@ QVariant CItemModel::data(QModelIndex const& index, int role) const
 							{
 								variant = TypeToString(pItem->GetType()) + tr(" is localized");
 							}
+
 							break;
-						case static_cast<int>(ModelUtils::ERoles::Id):
+						}
+					case static_cast<int>(ModelUtils::ERoles::Id):
+						{
 							variant = pItem->GetId();
 							break;
-						default:
+						}
+					default:
+						{
 							break;
 						}
 					}
+
 					break;
-				case static_cast<int>(EColumns::Connected):
+				}
+			case static_cast<int>(EColumns::Connected):
+				{
+					EItemFlags const flags = pItem->GetFlags();
+
 					if ((role == Qt::CheckStateRole) && ((flags& EItemFlags::IsContainer) == 0))
 					{
 						variant = ((flags& EItemFlags::IsConnected) != 0) ? Qt::Checked : Qt::Unchecked;
 					}
+
 					break;
-				case static_cast<int>(EColumns::PakStatus):
+				}
+			case static_cast<int>(EColumns::PakStatus):
+				{
+					switch (role)
 					{
-						switch (role)
+					case Qt::DecorationRole:
 						{
-						case Qt::DecorationRole:
-							{
-								EPakStatus const pakStatus = pItem->GetPakStatus();
+							EPakStatus const pakStatus = pItem->GetPakStatus();
 
-								if (pakStatus != EPakStatus::None)
-								{
-									variant = ModelUtils::GetPakStatusIcon(pItem->GetPakStatus());
-								}
-							}
-							break;
-						case Qt::ToolTipRole:
+							if (pakStatus != EPakStatus::None)
 							{
-								EPakStatus const pakStatus = pItem->GetPakStatus();
-
-								if (pakStatus == (EPakStatus::InPak | EPakStatus::OnDisk))
-								{
-									variant = TypeToString(pItem->GetType()) + tr(" is in pak and on disk");
-								}
-								else if ((pakStatus& EPakStatus::InPak) != 0)
-								{
-									variant = TypeToString(pItem->GetType()) + tr(" is only in pak file");
-								}
-								else if ((pakStatus& EPakStatus::OnDisk) != 0)
-								{
-									variant = TypeToString(pItem->GetType()) + tr(" is only on disk");
-								}
+								variant = ModelUtils::GetPakStatusIcon(pItem->GetPakStatus());
 							}
+
 							break;
 						}
-					}
-					break;
-				case static_cast<int>(EColumns::InPak):
-					{
-						if (role == Qt::CheckStateRole)
+					case Qt::ToolTipRole:
 						{
-							variant = ((pItem->GetPakStatus() & EPakStatus::InPak) != 0) ? Qt::Checked : Qt::Unchecked;
+							EPakStatus const pakStatus = pItem->GetPakStatus();
+
+							if (pakStatus == (EPakStatus::InPak | EPakStatus::OnDisk))
+							{
+								variant = TypeToString(pItem->GetType()) + tr(" is in pak and on disk");
+							}
+							else if ((pakStatus& EPakStatus::InPak) != 0)
+							{
+								variant = TypeToString(pItem->GetType()) + tr(" is only in pak file");
+							}
+							else if ((pakStatus& EPakStatus::OnDisk) != 0)
+							{
+								variant = TypeToString(pItem->GetType()) + tr(" is only on disk");
+							}
+
+							break;
 						}
 					}
+
 					break;
-				case static_cast<int>(EColumns::OnDisk):
-					{
-						if (role == Qt::CheckStateRole)
-						{
-							variant = ((pItem->GetPakStatus() & EPakStatus::OnDisk) != 0) ? Qt::Checked : Qt::Unchecked;
-						}
-					}
-					break;
-				case static_cast<int>(EColumns::Localized):
+				}
+			case static_cast<int>(EColumns::InPak):
+				{
 					if (role == Qt::CheckStateRole)
 					{
-						variant = ((flags& EItemFlags::IsLocalized) != 0) ? Qt::Checked : Qt::Unchecked;
+						variant = ((pItem->GetPakStatus() & EPakStatus::InPak) != 0) ? Qt::Checked : Qt::Unchecked;
 					}
+
 					break;
-				case static_cast<int>(EColumns::Name):
+				}
+			case static_cast<int>(EColumns::OnDisk):
+				{
+					if (role == Qt::CheckStateRole)
 					{
-						switch (role)
+						variant = ((pItem->GetPakStatus() & EPakStatus::OnDisk) != 0) ? Qt::Checked : Qt::Unchecked;
+					}
+
+					break;
+				}
+			case static_cast<int>(EColumns::Localized):
+				{
+					if (role == Qt::CheckStateRole)
+					{
+						variant = ((pItem->GetFlags() & EItemFlags::IsLocalized) != 0) ? Qt::Checked : Qt::Unchecked;
+					}
+
+					break;
+				}
+			case static_cast<int>(EColumns::Name):
+				{
+					switch (role)
+					{
+					case Qt::DecorationRole:
 						{
-						case Qt::DecorationRole:
 							variant = GetTypeIcon(pItem->GetType());
 							break;
-						case Qt::DisplayRole:
-						case Qt::ToolTipRole:
+						}
+					case Qt::DisplayRole: // Intentional fall-through.
+					case Qt::ToolTipRole:
+						{
 							variant = QtUtil::ToQString(pItem->GetName());
 							break;
-						case static_cast<int>(ModelUtils::ERoles::Id):
+						}
+					case static_cast<int>(ModelUtils::ERoles::Id):
+						{
 							variant = pItem->GetId();
 							break;
-						case static_cast<int>(ModelUtils::ERoles::SortPriority):
+						}
+					case static_cast<int>(ModelUtils::ERoles::SortPriority):
+						{
 							variant = static_cast<int>(pItem->GetType());
 							break;
-						case static_cast<int>(ModelUtils::ERoles::IsPlaceholder):
-							variant = (flags& EItemFlags::IsPlaceHolder) != 0;
+						}
+					case static_cast<int>(ModelUtils::ERoles::IsPlaceholder):
+						{
+							variant = (pItem->GetFlags() & EItemFlags::IsPlaceHolder) != 0;
 							break;
-						case static_cast<int>(ModelUtils::ERoles::InternalPointer):
+						}
+					case static_cast<int>(ModelUtils::ERoles::InternalPointer):
+						{
 							variant = reinterpret_cast<intptr_t>(pItem);
 							break;
-						default:
+						}
+					default:
+						{
 							break;
 						}
 					}
+
+					break;
+				}
+			default:
+				{
 					break;
 				}
 			}
@@ -431,26 +390,39 @@ QVariant CItemModel::headerData(int section, Qt::Orientation orientation, int ro
 			switch (role)
 			{
 			case Qt::DecorationRole:
-				if (section == static_cast<int>(EColumns::Notification))
 				{
-					variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::NotificationHeader);
+					if (section == static_cast<int>(EColumns::Notification))
+					{
+						variant = ModelUtils::GetItemNotificationIcon(ModelUtils::EItemStatus::NotificationHeader);
+					}
+
+					break;
 				}
-				break;
+
 			case Qt::DisplayRole:
-				// For the notification header an icon is used instead of text.
-				if (section != static_cast<int>(EColumns::Notification))
+				{
+					// For the notification header an icon is used instead of text.
+					if (section != static_cast<int>(EColumns::Notification))
+					{
+						variant = pAttribute->GetName();
+					}
+
+					break;
+				}
+			case Qt::ToolTipRole:
 				{
 					variant = pAttribute->GetName();
+					break;
 				}
-				break;
-			case Qt::ToolTipRole:
-				variant = pAttribute->GetName();
-				break;
 			case Attributes::s_getAttributeRole:
-				variant = QVariant::fromValue(pAttribute);
-				break;
+				{
+					variant = QVariant::fromValue(pAttribute);
+					break;
+				}
 			default:
-				break;
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -526,14 +498,14 @@ QModelIndex CItemModel::parent(QModelIndex const& index) const
 //////////////////////////////////////////////////////////////////////////
 bool CItemModel::canDropMimeData(QMimeData const* pData, Qt::DropAction action, int row, int column, QModelIndex const& parent) const
 {
-	return CanDropExternalData(pData);
+	return m_impl.CanDropExternalData(pData);
 }
 
 //////////////////////////////////////////////////////////////////////////
 bool CItemModel::dropMimeData(QMimeData const* pData, Qt::DropAction action, int row, int column, QModelIndex const& parent)
 {
 	FileImportInfos fileImportInfos;
-	bool const wasDropped = DropExternalData(pData, fileImportInfos);
+	bool const wasDropped = m_impl.DropExternalData(pData, fileImportInfos);
 
 	if (wasDropped)
 	{
@@ -587,14 +559,27 @@ QMimeData* CItemModel::mimeData(QModelIndexList const& indexes) const
 
 	nameIndexes.erase(std::unique(nameIndexes.begin(), nameIndexes.end()), nameIndexes.end());
 
+	Items items;
+	items.reserve(static_cast<size_t>(nameIndexes.size()));
+
 	for (auto const& index : nameIndexes)
 	{
 		CItem const* const pItem = ItemFromIndex(index);
 
 		if (pItem != nullptr)
 		{
-			stream << pItem->GetId();
+			items.push_back(pItem);
 		}
+	}
+
+	ControlIds ids;
+	ids.reserve(items.size());
+
+	GetTopLevelSelectedIds(items, ids);
+
+	for (auto const id : ids)
+	{
+		stream << id;
 	}
 
 	pDragDropData->SetCustomData(ModelUtils::s_szImplMimeType, byteArray);

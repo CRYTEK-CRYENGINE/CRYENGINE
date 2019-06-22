@@ -283,6 +283,7 @@ void CGameContext::AddLoadLevelTasks(IContextEstablisher* pEst, bool isServer, i
 		const bool loadingNewLevel = (flags & eEF_LoadNewLevel) != 0;
 		if (flags & eEF_LevelLoaded)
 		{
+			AddActionEvent(pEst, eCVS_Begin, SActionEvent(eAE_resetLoadedLevel, loadingNewLevel));
 			AddRandomSystemReset(pEst, eCVS_Begin, loadingNewLevel);
 		}
 		if (flags & eEF_LoadNewLevel)

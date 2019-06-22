@@ -243,9 +243,8 @@ struct IObjectManager
 	//! @param flags Can be one of SerializeFlags.
 	virtual void Serialize(XmlNodeRef& rootNode, bool isLoading, int flags = SERIALIZE_ALL) = 0;
 
-	//! Load objects from object archive.
-	//! @param bSelect if set newly loaded object will be selected.
-	virtual void LoadObjects(CObjectArchive& ar, bool select) = 0;
+	//! Handles loading of objects from archive, guaranteeing unique names and selecting them
+	virtual void CreateAndSelectObjects(CObjectArchive& ar) = 0;
 
 	virtual void ChangeObjectId(const CryGUID& oldId, const CryGUID& newId) = 0;
 	virtual void NotifyPrefabObjectChanged(CBaseObject* pObject) = 0;

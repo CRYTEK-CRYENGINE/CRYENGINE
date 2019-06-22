@@ -51,7 +51,7 @@ protected:
 	void showEvent(QShowEvent* e) override;
 
 protected:
-	class QPropertyTree*               m_propertyTree;
+	class QPropertyTreeLegacy*               m_propertyTree;
 	std::unordered_map<ICVar*, uint64> m_varCallbackMap;
 	CViewport*                         m_pViewport;
 };

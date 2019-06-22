@@ -8,7 +8,7 @@
 #include <PathUtils.h>
 #include <ThreadingUtils.h>
 
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include <QIcon>
 #include <QPixmap>
@@ -24,7 +24,7 @@ namespace Private_AssetThumbnailsLoader
 std::vector<char> LoadThumbnailData(const CAsset& asset)
 {
 	ICryPak* const pPak = GetISystem()->GetIPak();
-	FILE* pFile = pPak->FOpen(asset.GetThumbnailPath(), "rbx");
+	FILE* pFile = pPak->FOpen(asset.GetThumbnailPath(), "rb");
 	if (!pFile)
 	{
 		return{};

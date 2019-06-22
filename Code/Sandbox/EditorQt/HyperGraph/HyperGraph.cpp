@@ -132,7 +132,7 @@ struct sortEdges
 
 bool CHyperGraphSerializer::Serialize(XmlNodeRef& node, bool bLoading, bool bLoadEdges, bool bIsPaste)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	static ICVar* pCVarFlowGraphWarnings = gEnv->pConsole->GetCVar("g_display_fg_warnings");
 
 	bool bHasChanges = false;
@@ -676,7 +676,7 @@ void CHyperGraph::RemoveEdgeSilent(CHyperEdge* pEdge)
 
 void CHyperGraph::ClearAll()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	m_nodesMap.clear();
 	m_edgesMap.clear();
 	m_iMissingNodes = 0;
@@ -1024,7 +1024,7 @@ void CHyperGraph::Serialize(XmlNodeRef& node, bool bLoading, CObjectArchive* ar)
 	CHyperGraphSerializer serializer(this, ar);
 	if (bLoading)
 	{
-		LOADING_TIME_PROFILE_SECTION_ARGS("Loading");
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, "Loading");
 
 		ClearAll();
 
@@ -1040,7 +1040,7 @@ void CHyperGraph::Serialize(XmlNodeRef& node, bool bLoading, CObjectArchive* ar)
 	}
 	else
 	{
-		LOADING_TIME_PROFILE_SECTION_ARGS("Saving");
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, "Saving");
 		for (NodesMap::iterator nit = m_nodesMap.begin(); nit != m_nodesMap.end(); ++nit)
 		{
 			serializer.SaveNode(nit->second);
@@ -1078,7 +1078,7 @@ bool CHyperGraph::Save(const char* filename)
 
 bool CHyperGraph::Load(const char* filename)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(filename);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, filename);
 	m_filename = filename;
 	if (m_name.IsEmpty())
 	{

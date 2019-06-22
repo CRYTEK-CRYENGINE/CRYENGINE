@@ -643,7 +643,7 @@ bool CPathFollower::Update(PathFollowResult& result, const Vec3& curPos, const V
 	}
 
 #ifndef _RELEASE
-	if (gAIEnv.CVars.DrawPathFollower == 1)
+	if (gAIEnv.CVars.pathFollower.DrawPathFollower == 1)
 	{
 		Draw();
 	}

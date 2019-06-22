@@ -363,6 +363,7 @@ add_sources("CryNetwork_socket_uber.cpp"
 	SOURCE_GROUP "Socket Library"
 		"Socket/SocketIOManagerDurango.h"
 		"Socket/SocketIOManagerDurango.cpp"
+		"Socket/DurangoAssociationTemplate.h"
 )
 
 end_sources()

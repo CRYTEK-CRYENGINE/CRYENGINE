@@ -24,10 +24,10 @@ struct PropertyRowPrefabLink::Picker : IPickObjectCallback
 	// and exit if we are the only owners.
 	yasli::SharedPtr<PropertyRowPrefabLink> row;
 	bool picking;
-	PropertyTree*                           tree;
+	PropertyTreeLegacy*                           tree;
 	CPrefabObject*                          prefab;
 
-	Picker(PropertyRowPrefabLink* row, PropertyTree* tree)
+	Picker(PropertyRowPrefabLink* row, PropertyTreeLegacy* tree)
 		: row(row)
 		, picking(false)
 		, tree(tree)
@@ -74,7 +74,7 @@ struct PropertyRowPrefabLink::Picker : IPickObjectCallback
 
 // ---------------------------------------------------------------------------
 
-PrefabLinkMenuHandler::PrefabLinkMenuHandler(PropertyTree* tree, PropertyRowPrefabLink* self)
+PrefabLinkMenuHandler::PrefabLinkMenuHandler(PropertyTreeLegacy* tree, PropertyRowPrefabLink* self)
 	: self(self), tree(tree)
 {
 }
@@ -139,7 +139,7 @@ void PropertyRowPrefabLink::select()
 	pObjectManager->SelectObject(pObject);
 }
 
-void PropertyRowPrefabLink::pick(PropertyTree* tree)
+void PropertyRowPrefabLink::pick(PropertyTreeLegacy* tree)
 {
 	if (!picker_)
 		picker_.reset(new Picker(this, tree));
@@ -198,7 +198,7 @@ void PropertyRowPrefabLink::clear()
 	guid_ = CryGUID::Null();
 }
 
-bool PropertyRowPrefabLink::onContextMenu(IMenu& menu, PropertyTree* tree)
+bool PropertyRowPrefabLink::onContextMenu(IMenu& menu, PropertyTreeLegacy* tree)
 {
 	yasli::SharedPtr<PropertyRow> selfPointer(this);
 

@@ -2,14 +2,14 @@
 
 #include "stdafx.h"
 #include "Cue.h"
-#include "BaseObject.h"
+#include "Object.h"
 #include "CueInstance.h"
 #include "Impl.h"
 #include "Listener.h"
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	#include <Logger.h>
-#endif // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -22,17 +22,13 @@ ETriggerResult CCue::Execute(IObject* const pIObject, TriggerInstanceId const tr
 {
 	ETriggerResult result = ETriggerResult::Failure;
 
-	auto const pBaseObject = static_cast<CBaseObject*>(pIObject);
+	auto const pObject = static_cast<CObject*>(pIObject);
 
 	switch (m_actionType)
 	{
 	case EActionType::Start:
 		{
-			CriAtomExPlayerHn const pPlayer = pBaseObject->GetPlayer();
-
-			criAtomExPlayer_Set3dListenerHn(pPlayer, g_pListener->GetHandle());
-			criAtomExPlayer_Set3dSourceHn(pPlayer, pBaseObject->Get3dSource());
-
+			CriAtomExPlayerHn const pPlayer = pObject->GetPlayer();
 			auto const iter = g_acbHandles.find(m_cueSheetId);
 
 			if (iter != g_acbHandles.end())
@@ -43,15 +39,15 @@ ETriggerResult CCue::Execute(IObject* const pIObject, TriggerInstanceId const tr
 				criAtomExPlayer_SetCueName(pPlayer, m_pAcbHandle, cueName);
 				CriAtomExPlaybackId const playbackId = criAtomExPlayer_Start(pPlayer);
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
-				CCueInstance* const pCueInstance = g_pImpl->ConstructCueInstance(triggerInstanceId, playbackId, *this, *pBaseObject);
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
+				CCueInstance* const pCueInstance = g_pImpl->ConstructCueInstance(triggerInstanceId, playbackId, *this, *pObject);
 #else
 				CCueInstance* const pCueInstance = g_pImpl->ConstructCueInstance(triggerInstanceId, playbackId, *this);
-#endif                // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif                // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
-				pBaseObject->AddCueInstance(pCueInstance);
+				pObject->AddCueInstance(pCueInstance);
 
-				if (pCueInstance->PrepareForPlayback(*pBaseObject))
+				if (pCueInstance->PrepareForPlayback(*pObject))
 				{
 					result = ((pCueInstance->GetFlags() & ECueInstanceFlags::IsVirtual) != 0) ? ETriggerResult::Virtual : ETriggerResult::Playing;
 				}
@@ -60,32 +56,32 @@ ETriggerResult CCue::Execute(IObject* const pIObject, TriggerInstanceId const tr
 					result = ETriggerResult::Pending;
 				}
 			}
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 			else
 			{
 				Cry::Audio::Log(ELogType::Warning, R"(Cue "%s" failed to play because ACB file "%s" was not loaded)",
 				                static_cast<char const*>(m_name), static_cast<char const*>(m_cueSheetName));
 			}
-#endif        // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif        // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 			break;
 		}
 	case EActionType::Stop:
 		{
-			pBaseObject->StopCue(m_id);
+			pObject->StopCue(m_id);
 			result = ETriggerResult::DoNotTrack;
 
 			break;
 		}
 	case EActionType::Pause:
 		{
-			pBaseObject->PauseCue(m_id);
+			pObject->PauseCue(m_id);
 			result = ETriggerResult::DoNotTrack;
 			break;
 		}
 	case EActionType::Resume:
 		{
-			pBaseObject->ResumeCue(m_id);
+			pObject->ResumeCue(m_id);
 			result = ETriggerResult::DoNotTrack;
 
 			break;
@@ -102,8 +98,8 @@ ETriggerResult CCue::Execute(IObject* const pIObject, TriggerInstanceId const tr
 //////////////////////////////////////////////////////////////////////////
 void CCue::Stop(IObject* const pIObject)
 {
-	auto const pBaseObject = static_cast<CBaseObject*>(pIObject);
-	pBaseObject->StopCue(m_id);
+	auto const pObject = static_cast<CObject*>(pIObject);
+	pObject->StopCue(m_id);
 }
 
 //////////////////////////////////////////////////////////////////////////

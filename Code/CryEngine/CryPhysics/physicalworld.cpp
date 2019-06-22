@@ -389,7 +389,7 @@ void SEntityGrid::Init()
 void CPhysicalWorld::Init()
 {
 	InitGeoman();
-	m_pTmpEntList=0; m_pTmpEntList1=0; m_pTmpEntList2=0; m_pGroupMass=0; m_pMassList = 0; m_pGroupIds = 0; m_pGroupNums = 0;
+	m_pTmpEntList=0; m_pTmpEntList1=0; m_pGroupMass=0; m_pMassList = 0; m_pGroupIds = 0; m_pGroupNums = 0;
 	m_nEnts = 0; m_nEntsAlloc = 0; m_bEntityCountReserved = 0;
 	m_entgrid.Init();
 	m_gthunks = 0;
@@ -530,7 +530,7 @@ static void FreeThunks(pe_gridthunk* thunks)
 //////////////////////////////////////////////////////////////////////////
 void CPhysicalWorld::AllocGThunksPool( int nNewSize )
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Physics, 0, "Physical Grid Pool");
+	MEMSTAT_CONTEXT(EMemStatContextType::Physics, "Physical Grid Pool");
 
 	if (nNewSize==m_thunkPoolSz)
 		return;
@@ -625,7 +625,6 @@ void CPhysicalWorld::Shutdown(int bDeleteGeometries)
 	DeallocGThunksPool();
 	if (m_pTmpEntList) delete[] m_pTmpEntList; m_pTmpEntList = 0;
 	if (m_pTmpEntList1) delete[] m_pTmpEntList1; m_pTmpEntList1 = 0;
-	if (m_pTmpEntList2) delete[] m_pTmpEntList2; m_pTmpEntList2 = 0;
 	if (m_pGroupMass) delete[] m_pGroupMass; m_pGroupMass = 0;
 	if (m_pMassList) delete[] m_pMassList; m_pMassList = 0;
 	if (m_pGroupIds) delete[] m_pGroupIds; m_pGroupIds = 0;
@@ -993,6 +992,9 @@ SEntityGrid* CPhysicalWorld::DestroyGrid(SEntityGrid *pgrid)
 		}
 	m_gthunks[pgrid->m_iGThunk0].inextOwned = m_iFreeGThunk0;
 	m_iFreeGThunk0 = pgrid->m_iGThunk0;
+	for(CPhysicalEntity *pent=m_pHiddenEnts; pent; pent=pent->m_next)
+		if (GetGrid(pent)==pgrid)	// check hidden ents explicitly, since they don't have grid thunks
+			SetGrid(pent, &m_entgrid);
 	pgrid->Free();
 	delete pgrid;
 	return next;
@@ -1194,10 +1196,10 @@ int CPhysicalWorld::GetSurfaceParameters(int surface_idx, float &bounciness,floa
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 IPhysicalEntity* CPhysicalWorld::CreatePhysicalEntity(pe_type type, float lifeTime, pe_params* params, void *pForeignData,int iForeignData,
-																											int id, IPhysicalEntity *pHostPlaceholder, IGeneralMemoryHeap* pHeap)
+													int id, IPhysicalEntity *pHostPlaceholder, IGeneralMemoryHeap* pHeap)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other,0,"CreatePhysicalEntity");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CreatePhysicalEntity");
 
 	CPhysicalEntity *res=0;
 	CPhysicalPlaceholder *pEntityHost = (CPhysicalPlaceholder*)pHostPlaceholder;
@@ -1248,10 +1250,11 @@ IPhysicalEntity* CPhysicalWorld::CreatePhysicalEntity(pe_type type, float lifeTi
 	res->m_flags |= 0x80000000u;
 	if (params)
 		res->SetParams(params, iForeignData==0x5AFE || get_iCaller()<MAX_PHYS_THREADS);
+	if (iForeignData=='nreg')
+		return res;
 
 	int isPOD = IsPODThread(this);
 	if (!m_lockStep && (isPOD || !m_lockTPR) && lifeTime==0) {
-		WriteLockCond lock1(m_lockCaller[MAX_PHYS_THREADS], !isPOD && m_nEnts+1>m_nEntsAlloc-1);
 		WriteLockCond lock2(m_lockTPR, !isPOD && m_nEnts+1>m_nEntsAlloc-1);
 		WriteLock lock(m_lockStep);
 		res->m_flags &= ~0x80000000u;
@@ -1261,8 +1264,6 @@ IPhysicalEntity* CPhysicalWorld::CreatePhysicalEntity(pe_type type, float lifeTi
 			m_nEntListAllocs++; m_bEntityCountReserved = 0;
 			ReallocateList(m_pTmpEntList,m_nEnts-1,nEntsAllocNew);
 			ReallocateList(m_pTmpEntList1,m_nEnts-1,nEntsAllocNew);
-			if (m_threadData[MAX_PHYS_THREADS].szList<nEntsAllocNew)
-				ReallocateList(m_pTmpEntList2,m_threadData[MAX_PHYS_THREADS].szList,nEntsAllocNew);
 			ReallocateList(m_pGroupMass,m_nEnts-1,nEntsAllocNew);
 			ReallocateList(m_pMassList,m_nEnts-1,nEntsAllocNew);
 			ReallocateList(m_pGroupIds,m_nEnts-1,nEntsAllocNew);
@@ -1526,16 +1527,14 @@ DEBUG_BREAK;
 		if (bWasRegistered)
 			m_nTypeEnts[pent->GetType()]--;
 		if (bWasRegistered && --m_nEnts < m_nEntsAlloc-8192 && !m_bEntityCountReserved) {
-			WriteLockCond lock1(m_lockCaller[MAX_PHYS_THREADS], m_vars.bMultithreaded && !bThreadSafe && IsPODThread(this));
 			m_nEntsAlloc -= 8192; m_nEntListAllocs++;
 			ReallocateList(m_pTmpEntList,m_nEntsAlloc+8192,m_nEntsAlloc);
 			ReallocateList(m_pTmpEntList1,m_nEntsAlloc+8192,m_nEntsAlloc);
-			ReallocateList(m_pTmpEntList2,m_nEntsAlloc+8192,m_nEntsAlloc);
 			ReallocateList(m_pGroupMass,0,m_nEntsAlloc);
 			ReallocateList(m_pMassList,0,m_nEntsAlloc);
 			ReallocateList(m_pGroupIds,0,m_nEntsAlloc);
 			ReallocateList(m_pGroupNums,0,m_nEntsAlloc);
-			m_threadData[0].szList=m_threadData[MAX_PHYS_THREADS].szList = m_nEntsAlloc;
+			m_threadData[0].szList = m_nEntsAlloc;
 		}
 	} else if (pent->m_iSimClass>=0) {
 		pe_action_reset reset;
@@ -1560,7 +1559,6 @@ int CPhysicalWorld::ReserveEntityCount(int nNewEnts)
 		m_nEntListAllocs++; m_bEntityCountReserved = 1;
 		ReallocateList(m_pTmpEntList,m_nEnts,m_nEntsAlloc);
 		ReallocateList(m_pTmpEntList1,m_nEnts,m_nEntsAlloc);
-		ReallocateList(m_pTmpEntList2,m_nEnts,m_nEntsAlloc);
 		ReallocateList(m_pGroupMass,m_nEnts,m_nEntsAlloc);
 		ReallocateList(m_pMassList,m_nEnts,m_nEntsAlloc);
 		ReallocateList(m_pGroupIds,m_nEnts,m_nEntsAlloc);
@@ -1753,8 +1751,6 @@ int CPhysicalWorld::ReallocTmpEntList(CPhysicalEntity **&pEntList, int iCaller, 
 	pEntList = m_threadData[iCaller].pTmpEntList;
 	if (iCaller==0)
 		m_pTmpEntList = m_threadData[iCaller].pTmpEntList;
-	else if (iCaller==MAX_PHYS_THREADS)
-		m_pTmpEntList2 = m_threadData[iCaller].pTmpEntList;
 	return m_threadData[iCaller].szList = szNew;
 }
 
@@ -1937,7 +1933,7 @@ int CPhysicalWorld::GetEntitiesAround(const Vec3 &ptmin,const Vec3 &ptmax, CPhys
 									AtomicAdd(&pent->m_lockUpdate, bProcessed^1);
 									volatile char *pw=(volatile char*)&pent->m_lockUpdate+(1+eBigEndian); for(;*pw;); // ReadLock(m_lockUpdate)
 									AtomicAdd(&pent->m_bProcessed, maskCaller & ~-bProcessed);
-									CryInterlockedAdd((int64*)&pent->m_nUsedParts, (pent->m_nUsedParts & 15*maskCaller4)*(bProcessed-1u));
+									CryInterlockedAdd((int64*)&pent->m_nUsedParts, (pent->m_nUsedParts & 15*maskCaller4)*(bProcessed-1ll));
 									int nUsedParts = pent->m_nUsedParts>>iCaller*4 & 15;
 									int notFull = nUsedParts+1>>4 ^ 1;
 									notFull &= 1-iszero((INT_PTR)pGridEnt->m_pEntBuddy);
@@ -2409,7 +2405,7 @@ int __curstep = 0; // debug
 void CPhysicalWorld::TimeStep(float time_interval, int flags)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CPhysicalWorld::TimeStep");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CPhysicalWorld::TimeStep");
 
 	float m,/*m_groupTimeStep,*/time_interval_org = time_interval;
 	CPhysicalEntity *pent,*phead,*ptail,**pentlist,*pent_next,*pent1,*pentmax;
@@ -2438,9 +2434,9 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 	}
 
 	{
-    WriteLock lock1(m_lockCaller[MAX_PHYS_THREADS]),lock2(m_lockStep);
+    WriteLock lock2(m_lockStep);
 		int iCaller = get_iCaller();
-		WriteLockCond lock3(m_lockCaller[iCaller], iCaller>MAX_PHYS_THREADS);
+		WriteLockCond lock3(m_lockCaller[iCaller], iCaller>=MAX_PHYS_THREADS);
 		char **pQueueSlots;
 		int nQueueSlots;
 		volatile int64 timer = CryGetTicks();
@@ -2473,7 +2469,6 @@ void CPhysicalWorld::TimeStep(float time_interval, int flags)
 						m_nEntsAlloc += 4096; m_nEntListAllocs++; m_bEntityCountReserved = 0;
 						ReallocateList(m_pTmpEntList,m_nEnts-1,m_nEntsAlloc);
 						ReallocateList(m_pTmpEntList1,m_nEnts-1,m_nEntsAlloc);
-						ReallocateList(m_pTmpEntList2,m_nEnts-1,m_nEntsAlloc);
 						ReallocateList(m_pGroupMass,m_nEnts-1,m_nEntsAlloc);
 						ReallocateList(m_pMassList,m_nEnts-1,m_nEntsAlloc);
 						ReallocateList(m_pGroupIds,m_nEnts-1,m_nEntsAlloc);
@@ -3962,7 +3957,6 @@ void CPhysicalWorld::DestroyDynamicEntities()
 		m_nEntsAlloc = (m_nEnts-1&~8191)+8192; m_nEntListAllocs++;
 		ReallocateList(m_pTmpEntList,nEntsAlloc,m_nEntsAlloc);
 		ReallocateList(m_pTmpEntList1,nEntsAlloc,m_nEntsAlloc);
-		ReallocateList(m_pTmpEntList2,nEntsAlloc,m_nEntsAlloc);
 		ReallocateList(m_pGroupMass,0,m_nEntsAlloc);
 		ReallocateList(m_pMassList,0,m_nEntsAlloc);
 		ReallocateList(m_pGroupIds,0,m_nEntsAlloc);
@@ -4025,28 +4019,11 @@ void CPhysicalWorld::DrawPhysicsHelperInformation(IPhysRenderer *pRenderer, int 
 
 	if (m_vars.iDrawHelpers) {
 		assert(iCaller<MAX_TOT_THREADS);
-		int i,n=0,nEntListAllocs,nGEA;
-		CPhysicalEntity **pEntList;
 		{ WriteLock lock0(m_lockCaller[iCaller]);
 			if (m_pHeightfield[iCaller] && m_vars.iDrawHelpers & 128)
 				pRenderer->DrawGeometry(m_pHeightfield[iCaller]->m_parts[0].pPhysGeom->pGeom,0,0);
-			nEntListAllocs=m_nEntListAllocs;
-			nGEA=m_nGEA[iCaller];
-
-			pEntList = iCaller ? m_pTmpEntList2:m_pTmpEntList;
-			{ ReadLock lock(m_lockList);
-				for(entype=0;entype<=6;entype++) if (m_vars.iDrawHelpers & 0x100<<entype)
-				for(pent=m_pTypedEnts[entype]; pent && nEntListAllocs==m_nEntListAllocs && nGEA==m_nGEA[iCaller]; pent=pent->m_next)
-					pEntList[n++] = (CPhysicalEntity*)(EXPAND_PTR)pent->m_id;
-				if (pent)
-					return;
-			}
-		}
-		for(i=0;i<n;i++) {
-			int id = *(int*)(pEntList+i);
-			if (nEntListAllocs!=m_nEntListAllocs || nGEA!=m_nGEA[iCaller])
-				break;
-			if ((pent=(CPhysicalEntity*)GetPhysicalEntityById(id|1<<30)) && m_vars.iDrawHelpers & 0x80<<pent->m_iSimClass+1) {
+			for(entype=0;entype<=6;entype++) if (m_vars.iDrawHelpers & 0x100<<entype)
+			for(pent=m_pTypedEnts[entype]; pent && pent->m_iSimClass==entype; pent=pent->m_next) {
 				QuatT trans = GetGrid(pent)->m_transW;
 				pRenderer->SetOffset(trans.t+m_vars.helperOffset, trans.q);
 				pent->DrawHelperInformation(pRenderer, m_vars.iDrawHelpers);
@@ -4366,7 +4343,6 @@ float CPhysicalWorld::PrimitiveWorldIntersection(const SPWIParams &pp, WriteLock
 	} else {
 		ip.bStopAtFirstTri = true;
 		ip.bNoBorder = true;
-		ip.bNoAreaContacts = true;
 	}
 	if (pp.ppcontact)
 		*pp.ppcontact = 0;
@@ -4618,7 +4594,6 @@ void CPhysicalWorld::GetMemoryStatistics(ICrySizer *pSizer)
 		pSizer->AddObject(this, sizeof(CPhysicalWorld));
 		pSizer->AddObject(m_pTmpEntList, m_nEntsAlloc*sizeof(m_pTmpEntList[0]));
 		pSizer->AddObject(m_pTmpEntList1, m_nEntsAlloc*sizeof(m_pTmpEntList1[0]));
-		pSizer->AddObject(m_pTmpEntList2, m_nEntsAlloc*sizeof(m_pTmpEntList2[0]));
 		pSizer->AddObject(m_pGroupMass, m_nEntsAlloc*sizeof(m_pGroupMass[0]));
 		pSizer->AddObject(m_pMassList, m_nEntsAlloc*sizeof(m_pMassList[0]));
 		pSizer->AddObject(m_pGroupIds, m_nEntsAlloc*sizeof(m_pGroupIds[0]));
@@ -4831,7 +4806,7 @@ uint32 CPhysicalWorld::GetPumpLoggedEventsTicks()
 void CPhysicalWorld::PumpLoggedEvents()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_PHYSICS );
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Physics, 0, "CPhysicalWorld::PumpLoggedEvents");
+	MEMSTAT_CONTEXT(EMemStatContextType::Physics, "CPhysicalWorld::PumpLoggedEvents");
 
 #ifdef ENABLE_LW_PROFILERS
 	//simple timer shown in r_DisplayInfo=3

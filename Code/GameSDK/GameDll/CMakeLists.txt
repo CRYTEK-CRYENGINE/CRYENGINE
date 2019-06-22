@@ -1087,6 +1087,31 @@ add_sources("CryGameSDKDLL_uber_24.cpp"
 		"VehicleMovementStdWheeled.h"
 )
 
+add_sources("CryGameSDKDLL_uber_25.cpp"
+	PROJECTS CryGameSDK
+	SOURCE_GROUP "Dialog System"
+		"DialogSystem/DialogActorContext.cpp"
+		"DialogSystem/DialogLoader.cpp"
+		"DialogSystem/DialogLoaderMK2.cpp"
+		"DialogSystem/DialogScript.cpp"
+		"DialogSystem/DialogSession.cpp"
+		"DialogSystem/DialogSystem.cpp"
+		"DialogSystem/ScriptBind_DialogSystem.cpp"
+		"SubtitleManager.cpp"
+		"DialogSystem/DialogActorContext.h"
+		"DialogSystem/DialogCommon.h"
+		"DialogSystem/DialogLoader.h"
+		"DialogSystem/DialogLoaderMK2.h"
+		"DialogSystem/DialogScript.h"
+		"DialogSystem/DialogSession.h"
+		"DialogSystem/DialogSystem.h"
+		"DialogSystem/ScriptBind_DialogSystem.h"
+		"SubtitleManager.h"
+		"DialogSystem/DialogQueuesManager.h"
+		"DialogSystem/DialogQueuesManager.cpp"
+		"DialogSystem/FlowDialogNode.cpp"
+)
+
 add_sources("CryGameSDKDLL_uber_3.cpp"
 	PROJECTS CryGameSDK
 	SOURCE_GROUP "Actor Files\\\\Player\\\\ActionControllers\\\\InteractiveAction"

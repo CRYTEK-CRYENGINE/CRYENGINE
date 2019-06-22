@@ -1,21 +1,22 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __CSHADER_H__
-#define __CSHADER_H__
+#pragma once
 
-#include <map>
 #include "CShaderBin.h"
 #include "ShaderSerialize.h"
 #include "ShaderCache.h"
-#include "ShaderComponents.h" // ECGParam
+#include "ShaderComponents.h"
 #include "../ResFileLookupDataMan.h"
 
+#include <map>
+
 struct SRenderBuf;
-class CRenderElement;
 struct SEmitter;
 struct SParticleInfo;
 struct SPartMoveStage;
 struct SSunFlare;
+
+class CRenderElement;
 
 //===============================================================================
 
@@ -565,7 +566,3 @@ public:
 #if CRY_PLATFORM_WINDOWS
 	#pragma warning( pop ) //AMD Port
 #endif
-
-//=====================================================================
-
-#endif                   // __CSHADER_H__

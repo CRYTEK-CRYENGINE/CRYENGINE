@@ -25,7 +25,7 @@ namespace Cry
 				virtual void SetStatus(const char* szStatus) override;
 				virtual void SetPresence(const SRichPresence& presence) override;
 				virtual void GetPresence(SRichPresence& presence) const override;
-				virtual ITexture* GetAvatar(EAvatarSize size) const override;
+				virtual TextureId GetAvatar(EAvatarSize size) const override;
 				virtual const DynArray<AccountIdentifier>& GetConnectedAccounts() const override;
 				virtual bool IsLocal() const override;
 				// ~IAccount
@@ -35,6 +35,7 @@ namespace Cry
 			protected:
 				CSteamID m_id;
 				DynArray<AccountIdentifier> m_connectedAccounts;
+				mutable _smart_ptr<ITexture> m_pAvatars[3]; // Indexed by EAvatarSize
 			};
 		}
 	}

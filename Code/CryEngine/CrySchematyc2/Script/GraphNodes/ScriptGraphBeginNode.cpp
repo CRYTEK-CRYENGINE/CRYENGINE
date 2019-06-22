@@ -40,7 +40,7 @@ namespace Schematyc2
 
 	void CScriptGraphBeginNode::Refresh(const SScriptRefreshParams& params)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		CScriptGraphNodeBase::Refresh(params);
 
@@ -50,7 +50,7 @@ namespace Schematyc2
 
 	void CScriptGraphBeginNode::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		CScriptGraphNodeBase::Serialize(archive);
 	}

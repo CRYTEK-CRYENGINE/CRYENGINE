@@ -4,6 +4,7 @@
 #include "Object.h"
 #include "Event.h"
 #include "EventInstance.h"
+#include "Listener.h"
 #include "Impl.h"
 #include <CryAudio/IAudioSystem.h>
 
@@ -18,7 +19,7 @@ void CObject::StopEvent(uint32 const pathId)
 {
 	for (auto const pEventInstance : m_eventInstances)
 	{
-		if (pEventInstance->GetEvent().pathId == pathId)
+		if (pEventInstance->GetEvent().GetPathId() == pathId)
 		{
 			pEventInstance->Stop();
 		}
@@ -69,7 +70,7 @@ void CObject::SetTransformation(CTransformation const& transformation)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CObject::SetOcclusion(float const occlusion)
+void CObject::SetOcclusion(IListener* const pIListener, float const occlusion, uint8 const numRemainingListeners)
 {
 }
 
@@ -90,11 +91,26 @@ void CObject::StopAllTriggers()
 //////////////////////////////////////////////////////////////////////////
 ERequestStatus CObject::SetName(char const* const szName)
 {
-#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE)
 	m_name = szName;
-#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE
 
 	return ERequestStatus::Success;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::AddListener(IListener* const pIListener)
+{
+	m_pListener = static_cast<CListener*>(pIListener);
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::RemoveListener(IListener* const pIListener)
+{
+	if (m_pListener == static_cast<CListener*>(pIListener))
+	{
+		m_pListener = nullptr;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

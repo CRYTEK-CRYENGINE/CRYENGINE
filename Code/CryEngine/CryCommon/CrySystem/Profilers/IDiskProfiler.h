@@ -49,6 +49,51 @@ struct SDiskProfileStatistics
 	}
 };
 
+#if defined(ENABLE_LOADING_PROFILER)
+struct DiskOperationInfo
+{
+	DiskOperationInfo() : m_nSeeksCount(0), m_nFileOpenCount(0), m_nFileReadCount(0), m_dOperationTime(0.), m_dOperationSize(0.) {}
+	int    m_nSeeksCount;
+	int    m_nFileOpenCount;
+	int    m_nFileReadCount;
+	double m_dOperationTime;
+	double m_dOperationSize;
+
+	DiskOperationInfo& operator-=(const DiskOperationInfo& rv)
+	{
+		m_nSeeksCount -= rv.m_nSeeksCount;
+		m_nFileOpenCount -= rv.m_nFileOpenCount;
+		m_nFileReadCount -= rv.m_nFileReadCount;
+		m_dOperationSize -= rv.m_dOperationSize;
+		m_dOperationTime -= rv.m_dOperationTime;
+		return *this;
+	}
+
+	DiskOperationInfo& operator+=(const DiskOperationInfo& rv)
+	{
+		m_nSeeksCount += rv.m_nSeeksCount;
+		m_nFileOpenCount += rv.m_nFileOpenCount;
+		m_nFileReadCount += rv.m_nFileReadCount;
+		m_dOperationSize += rv.m_dOperationSize;
+		m_dOperationTime += rv.m_dOperationTime;
+		return *this;
+	}
+
+	DiskOperationInfo operator-(const DiskOperationInfo& rv)
+	{
+		DiskOperationInfo res(*this);
+		return res -= rv;
+	}
+
+	DiskOperationInfo operator+(const DiskOperationInfo& rv)
+	{
+		DiskOperationInfo res(*this);
+		return res += rv;
+	}
+
+};
+#endif ////ENABLE_LOADING_PROFILER
+
 //! Disk Profile interface class.
 class IDiskProfiler
 {

@@ -24,6 +24,8 @@ public:
 			return;
 
 		CacheProperties(*pEntity, m_cachedProperties);
+
+		pObject->SetLayerModified();
 	}
 
 	virtual int GetSize() override { return sizeof(*this); }
@@ -33,19 +35,24 @@ public:
 		CUndoBaseObject::Undo(bUndo);
 
 		CEntityObject* pObject = static_cast<CEntityObject*>(GetIEditor()->GetObjectManager()->FindObject(m_guid));
-		IEntity* pEntity = pObject->GetIEntity();
-		if (pEntity == nullptr)
-			return;
-
-		CacheProperties(*pEntity, m_cachedPropertiesRedo);
-
-		for (const SCachedComponent& cachedComponent : m_cachedProperties)
+		if (pObject)
 		{
-			IEntityComponent* pComponent = pEntity->GetComponentByGUID(cachedComponent.componentInstanceGUID);
-			if (pComponent == nullptr)
-				continue;
+			IEntity* pEntity = pObject->GetIEntity();
+			if (pEntity == nullptr)
+				return;
 
-			RestoreComponentProperties(pComponent, *cachedComponent.pProperties.get());
+			CacheProperties(*pEntity, m_cachedPropertiesRedo);
+
+			for (const SCachedComponent& cachedComponent : m_cachedProperties)
+			{
+				IEntityComponent* pComponent = pEntity->GetComponentByGUID(cachedComponent.componentInstanceGUID);
+				if (pComponent == nullptr)
+					continue;
+
+				RestoreComponentProperties(pComponent, *cachedComponent.pProperties.get());
+			}
+
+			pObject->SetLayerModified();
 		}
 	}
 	virtual void Redo() override
@@ -65,6 +72,8 @@ public:
 
 			RestoreComponentProperties(pComponent, *cachedComponent.pProperties.get());
 		}
+
+		pObject->SetLayerModified();
 	}
 
 protected:
@@ -133,6 +142,8 @@ public:
 				continue;
 
 			pEntity->RemoveComponent(pComponent);
+		
+			pEntityObject->SetLayerModified();
 		}
 
 		GetIEditor()->GetObjectManager()->EmitPopulateInspectorEvent();
@@ -151,6 +162,8 @@ public:
 				continue;
 
 			componentInstanceInfo.instanceGUID = AddComponentInternal(pEntity);
+		
+			pEntityObject->SetLayerModified();
 		}
 
 		GetIEditor()->GetObjectManager()->EmitPopulateInspectorEvent();
@@ -161,7 +174,13 @@ public:
 		const CryGUID& componentInstanceGUID = AddComponentInternal(pEntity);
 		if (!componentInstanceGUID.IsNull())
 		{
-			m_affectedEntityInfo.emplace_back(SComponentInstanceInfo{ pEntity->GetGuid(), componentInstanceGUID });
+			const CryGUID& guid = pEntity->GetGuid();
+			m_affectedEntityInfo.emplace_back(SComponentInstanceInfo{ guid, componentInstanceGUID });
+			
+			if (CEntityObject* pEntityObject = static_cast<CEntityObject*>(GetIEditorImpl()->GetObjectManager()->FindObject(guid)))
+			{
+				pEntityObject->SetLayerModified();
+			}
 		}
 	}
 

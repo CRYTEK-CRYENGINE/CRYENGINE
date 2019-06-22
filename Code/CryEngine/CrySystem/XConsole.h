@@ -8,9 +8,12 @@
 #include <CryCore/Containers/CryListenerSet.h>
 #include "Timer.h"
 
+struct IFFont;
 struct IIpnut;
 struct INetwork;
-struct IFFont;
+struct IRenderer;
+struct ITexture;
+
 class CSystem;
 
 #define MAX_HISTORY_ENTRIES 50
@@ -76,9 +79,6 @@ struct string_nocase_lt
 		return stricmp(s1, s2) < 0;
 	}
 };
-
-class ITexture;
-struct IRenderer;
 
 /*! engine console implementation
    @see IConsole

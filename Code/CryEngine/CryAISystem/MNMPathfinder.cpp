@@ -66,7 +66,7 @@ void MNM::PathfinderUtils::QueuedRequest::SetupAttentionTargetDanger()
 			const float effectRange = 0.0f; // Effect over all the world
 			const Vec3& dangerPosition = pEntity ? pEntity->GetPos() : pAttTarget->GetPos();
 			MNM::DangerAreaConstPtr info;
-			info.reset(new MNM::DangerAreaT<MNM::eWCT_Direction>(dangerPosition, effectRange, gAIEnv.CVars.PathfinderDangerCostForAttentionTarget));
+			info.reset(new MNM::DangerAreaT<MNM::eWCT_Direction>(dangerPosition, effectRange, gAIEnv.CVars.pathfinder.PathfinderDangerCostForAttentionTarget));
 			dangerousAreas.push_back(info);
 		}
 	}
@@ -95,7 +95,7 @@ void MNM::PathfinderUtils::QueuedRequest::SetupExplosiveDangers()
 
 	const IEntity* pEntity = gEnv->pEntitySystem->GetEntity(requesterEntityId);
 	
-	const float maxDistanceSq = sqr(gAIEnv.CVars.PathfinderExplosiveDangerMaxThreatDistance);
+	const float maxDistanceSq = sqr(gAIEnv.CVars.pathfinder.PathfinderExplosiveDangerMaxThreatDistance);
 	const float maxDistanceSqToMergeExplosivesThreat = 3.0f;
 
 	std::vector<Vec3> grenadesLocations;
@@ -111,8 +111,8 @@ void MNM::PathfinderUtils::QueuedRequest::SetupExplosiveDangers()
 			if (it == dangerousAreas.end())
 			{
 				MNM::DangerAreaConstPtr info;
-				info.reset(new MNM::DangerAreaT<MNM::eWCT_Range>(pos, gAIEnv.CVars.PathfinderExplosiveDangerRadius,
-				                                                 gAIEnv.CVars.PathfinderDangerCostForExplosives));
+				info.reset(new MNM::DangerAreaT<MNM::eWCT_Range>(pos, gAIEnv.CVars.pathfinder.PathfinderExplosiveDangerRadius,
+				                                                 gAIEnv.CVars.pathfinder.PathfinderDangerCostForExplosives));
 				dangerousAreas.push_back(info);
 			}
 		}
@@ -143,8 +143,8 @@ void MNM::PathfinderUtils::QueuedRequest::SetupGroupMatesAvoidance()
 			MNM::DangerAreaConstPtr dangerArea;
 			dangerArea.reset(new MNM::DangerAreaT<MNM::eWCT_Range>(
 			                   groupMemberAIObject->GetPos(),
-			                   gAIEnv.CVars.PathfinderGroupMatesAvoidanceRadius,
-			                   gAIEnv.CVars.PathfinderAvoidanceCostForGroupMates
+			                   gAIEnv.CVars.pathfinder.PathfinderGroupMatesAvoidanceRadius,
+			                   gAIEnv.CVars.pathfinder.PathfinderAvoidanceCostForGroupMates
 			                   ));
 			dangerousAreas.push_back(dangerArea);
 		}
@@ -171,8 +171,8 @@ DECLARE_JOB("PathConstruction", PathConstructionJob, ConstructPathIfWayWasFoundJ
 
 CMNMPathfinder::CMNMPathfinder()
 {
-	m_pathfindingFailedEventsToDispatch.reserve(gAIEnv.CVars.MNMPathfinderConcurrentRequests);
-	m_pathfindingCompletedEventsToDispatch.reserve(gAIEnv.CVars.MNMPathfinderConcurrentRequests);
+	m_pathfindingFailedEventsToDispatch.reserve(gAIEnv.CVars.pathfinder.MNMPathfinderConcurrentRequests);
+	m_pathfindingCompletedEventsToDispatch.reserve(gAIEnv.CVars.pathfinder.MNMPathfinderConcurrentRequests);
 }
 
 CMNMPathfinder::~CMNMPathfinder()
@@ -344,7 +344,7 @@ void CMNMPathfinder::SetupNewValidPathRequests()
 		{
 			MNM::PathfinderUtils::ProcessingContext& processingContext = m_processingContextsPool.GetContextAtPosition(id);
 			assert(processingContext.status == MNM::PathfinderUtils::ProcessingContext::Reserved);
-			processingContext.workingSet.aStarNodesList.SetFrameTimeQuota(gAIEnv.CVars.MNMPathFinderQuota);
+			processingContext.workingSet.aStarNodesList.SetFrameTimeQuota(gAIEnv.CVars.pathfinder.MNMPathFinderQuota);
 
 			const EMNMPathResult pathResult = SetupForNextPathRequest(idQueuedRequest, requestToServe, processingContext);
 			if (pathResult != EMNMPathResult::Success)
@@ -372,7 +372,7 @@ void CMNMPathfinder::SpawnJobs()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	const bool isPathfinderMultithreaded = gAIEnv.CVars.MNMPathfinderMT != 0;
+	const bool isPathfinderMultithreaded = gAIEnv.CVars.pathfinder.MNMPathfinderMT != 0;
 	if (isPathfinderMultithreaded)
 	{
 		m_processingContextsPool.ExecuteFunctionOnElements(functor(*this, &CMNMPathfinder::SpawnAppropriateJobIfPossible));
@@ -466,7 +466,7 @@ void CMNMPathfinder::Update()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	if (gAIEnv.CVars.MNMPathFinderDebug)
+	if (gAIEnv.CVars.pathfinder.MNMPathFinderDebug)
 	{
 		DebugAllStatistics();
 	}
@@ -500,7 +500,7 @@ void CMNMPathfinder::OnNavigationMeshChanged(const NavigationMeshID meshId, cons
 
 			const NavigationMesh& mesh = gAIEnv.pNavigationSystem->GetMesh(meshId);
 			const MNM::vector3_t meshCoordinates = mesh.navMesh.GetTileContainerCoordinates(tileId);
-			for (size_t side = 0; side < MNM::CNavMesh::SideCount; ++side)
+			for (size_t side = 0; side < MNM::NavMesh::SideCount; ++side)
 			{
 				const MNM::TileID neighbourTileId = mesh.navMesh.GetNeighbourTileID(meshCoordinates.x.as_int(), meshCoordinates.y.as_int(), meshCoordinates.z.as_int(), side);
 
@@ -740,7 +740,7 @@ void CMNMPathfinder::ConstructPathIfWayWasFound(MNM::PathfinderUtils::Processing
 		++processingContext.constructedPathsCount;
 
 		CTimeValue timeBeforePathConstruction;
-		if (gAIEnv.CVars.MNMPathFinderDebug)
+		if (gAIEnv.CVars.pathfinder.MNMPathFinderDebug)
 		{
 			timeBeforePathConstruction = gEnv->pTimer->GetAsyncCurTime();
 		}
@@ -753,7 +753,7 @@ void CMNMPathfinder::ConstructPathIfWayWasFound(MNM::PathfinderUtils::Processing
 		  processingRequest.data.requestParams.endLocation,
 		  *&outputPath);
 
-		if (gAIEnv.CVars.MNMPathFinderDebug)
+		if (gAIEnv.CVars.pathfinder.MNMPathFinderDebug)
 		{
 			CTimeValue timeAfterPathConstruction = gEnv->pTimer->GetAsyncCurTime();
 			const float constructionPathTime = timeAfterPathConstruction.GetDifferenceInSeconds(timeBeforePathConstruction) * 1000.0f;
@@ -763,17 +763,17 @@ void CMNMPathfinder::ConstructPathIfWayWasFound(MNM::PathfinderUtils::Processing
 
 		if (bPathConstructed)
 		{
-			if (processingRequest.data.requestParams.beautify && gAIEnv.CVars.BeautifyPath)
+			if (processingRequest.data.requestParams.beautify && gAIEnv.CVars.pathfinder.BeautifyPath)
 			{
 				CTimeValue timeBeforeBeautifyPath;
-				if (gAIEnv.CVars.MNMPathFinderDebug)
+				if (gAIEnv.CVars.pathfinder.MNMPathFinderDebug)
 				{
 					timeBeforeBeautifyPath = gEnv->pTimer->GetAsyncCurTime();
 				}
 
-				outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.PathStringPullingIterations, processingRequest.data.requestParams.pCustomPathCostComputer.get());
+				outputPath.PullPathOnNavigationMesh(navMesh, gAIEnv.CVars.pathfinder.PathStringPullingIterations, processingRequest.data.requestParams.pCustomPathCostComputer.get());
 
-				if (gAIEnv.CVars.MNMPathFinderDebug)
+				if (gAIEnv.CVars.pathfinder.MNMPathFinderDebug)
 				{
 					CTimeValue timeAfterBeautifyPath = gEnv->pTimer->GetAsyncCurTime();
 					const float beautifyPathTime = timeAfterBeautifyPath.GetDifferenceInSeconds(timeBeforeBeautifyPath) * 1000.0f;

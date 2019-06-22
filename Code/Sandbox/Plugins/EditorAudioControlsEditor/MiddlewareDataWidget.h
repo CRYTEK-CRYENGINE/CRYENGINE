@@ -3,9 +3,7 @@
 #pragma once
 
 #include "Common/ControlInfo.h"
-#include "Common/FileImportInfo.h"
 #include <QWidget>
-#include <FileDialogs/ExtensionFilter.h>
 
 class QVBoxLayout;
 
@@ -31,12 +29,6 @@ private:
 	void InitImplDataWidget();
 	void ClearImplDataWidget();
 	void GetConnectedControls(ControlId const implItemId, SControlInfos& controlInfos);
-	void OnImportFiles(
-		ExtensionFilterVector const& extensionFilters,
-		QStringList const& supportedTypes,
-		QString const& targetFolderName,
-		bool const isLocalized);
-	void OpenFileImporter(FileImportInfos const& fileImportInfos, QString const& targetFolderName, bool const isLocalized);
 
 	QVBoxLayout* const m_pLayout;
 	QWidget*           m_pImplDataPanel;

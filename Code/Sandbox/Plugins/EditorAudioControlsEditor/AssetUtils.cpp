@@ -3,7 +3,7 @@
 #include "StdAfx.h"
 #include "AssetUtils.h"
 
-#include "AudioControlsEditorPlugin.h"
+#include "AssetsManager.h"
 #include "Common/IConnection.h"
 #include "Common/IImpl.h"
 
@@ -79,6 +79,24 @@ string GenerateUniqueControlName(string const& name, EAssetType const type)
 }
 
 //////////////////////////////////////////////////////////////////////////
+ControlId GenerateUniqueAssetId(string const& name, EAssetType const type)
+{
+	return CryAudio::StringToId((name + "/" + GetTypeName(type)).c_str());
+}
+
+//////////////////////////////////////////////////////////////////////////
+ControlId GenerateUniqueStateId(string const& switchName, string const& stateName)
+{
+	return CryAudio::StringToId((switchName + "/" + stateName + "/" + GetTypeName(EAssetType::State)).c_str());
+}
+
+//////////////////////////////////////////////////////////////////////////
+ControlId GenerateUniqueFolderId(string const& name, CAsset* const pParent)
+{
+	return CryAudio::StringToId((pParent->GetFullHierarchyName() + "/" + name + "/" + GetTypeName(EAssetType::Folder)).c_str());
+}
+
+//////////////////////////////////////////////////////////////////////////
 CAsset* GetParentLibrary(CAsset* const pAsset)
 {
 	CAsset* pParent = pAsset;
@@ -99,35 +117,55 @@ char const* GetTypeName(EAssetType const type)
 	switch (type)
 	{
 	case EAssetType::Trigger:
-		szTypeName = "Trigger";
-		break;
+		{
+			szTypeName = "Trigger";
+			break;
+		}
 	case EAssetType::Parameter:
-		szTypeName = "Parameter";
-		break;
+		{
+			szTypeName = "Parameter";
+			break;
+		}
 	case EAssetType::Switch:
-		szTypeName = "Switch";
-		break;
+		{
+			szTypeName = "Switch";
+			break;
+		}
 	case EAssetType::State:
-		szTypeName = "State";
-		break;
+		{
+			szTypeName = "State";
+			break;
+		}
 	case EAssetType::Environment:
-		szTypeName = "Environment";
-		break;
+		{
+			szTypeName = "Environment";
+			break;
+		}
 	case EAssetType::Preload:
-		szTypeName = "Preload";
-		break;
+		{
+			szTypeName = "Preload";
+			break;
+		}
 	case EAssetType::Setting:
-		szTypeName = "Setting";
-		break;
+		{
+			szTypeName = "Setting";
+			break;
+		}
 	case EAssetType::Folder:
-		szTypeName = "Folder";
-		break;
+		{
+			szTypeName = "Folder";
+			break;
+		}
 	case EAssetType::Library:
-		szTypeName = "Library";
-		break;
+		{
+			szTypeName = "Library";
+			break;
+		}
 	default:
-		szTypeName = nullptr;
-		break;
+		{
+			szTypeName = nullptr;
+			break;
+		}
 	}
 
 	return szTypeName;
@@ -173,24 +211,28 @@ void SelectTopLevelAncestors(Assets const& source, Assets& dest)
 	}
 }
 
-void TryConstructTriggerConnectionNode(XmlNodeRef const pTriggerNode, IConnection const* const pIConnection)
+//////////////////////////////////////////////////////////////////////////
+void TryConstructTriggerConnectionNode(
+	XmlNodeRef const& triggerNode,
+	IConnection const* const pIConnection,
+	CryAudio::ContextId const contextId)
 {
-	XmlNodeRef const pConnectionNode = g_pIImpl->CreateXMLNodeFromConnection(pIConnection, EAssetType::Trigger);
+	XmlNodeRef const connectionNode = g_pIImpl->CreateXMLNodeFromConnection(pIConnection, EAssetType::Trigger, contextId);
 
-	if (pConnectionNode != nullptr)
+	if (connectionNode.isValid())
 	{
 		// Don't add identical nodes!
 		bool shouldAddNode = true;
-		int const numNodeChilds = pTriggerNode->getChildCount();
+		int const numNodeChilds = triggerNode->getChildCount();
 
 		for (int i = 0; i < numNodeChilds; ++i)
 		{
-			XmlNodeRef const pTempNode = pTriggerNode->getChild(i);
+			XmlNodeRef const tempNode = triggerNode->getChild(i);
 
-			if ((pTempNode != nullptr) && (_stricmp(pTempNode->getTag(), pConnectionNode->getTag()) == 0))
+			if ((tempNode.isValid()) && (_stricmp(tempNode->getTag(), connectionNode->getTag()) == 0))
 			{
-				int const numAttributes1 = pTempNode->getNumAttributes();
-				int const numAttributes2 = pConnectionNode->getNumAttributes();
+				int const numAttributes1 = tempNode->getNumAttributes();
+				int const numAttributes2 = connectionNode->getNumAttributes();
 
 				if (numAttributes1 == numAttributes2)
 				{
@@ -202,8 +244,8 @@ void TryConstructTriggerConnectionNode(XmlNodeRef const pTriggerNode, IConnectio
 
 					for (int k = 0; k < numAttributes1; ++k)
 					{
-						pTempNode->getAttributeByIndex(k, &key1, &val1);
-						pConnectionNode->getAttributeByIndex(k, &key2, &val2);
+						tempNode->getAttributeByIndex(k, &key1, &val1);
+						connectionNode->getAttributeByIndex(k, &key2, &val2);
 
 						if ((_stricmp(key1, key2) != 0) || (_stricmp(val1, val2) != 0))
 						{
@@ -222,7 +264,7 @@ void TryConstructTriggerConnectionNode(XmlNodeRef const pTriggerNode, IConnectio
 
 		if (shouldAddNode)
 		{
-			pTriggerNode->addChild(pConnectionNode);
+			triggerNode->addChild(connectionNode);
 		}
 	}
 }

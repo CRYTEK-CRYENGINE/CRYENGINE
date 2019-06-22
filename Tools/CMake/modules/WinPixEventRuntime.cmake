@@ -1,0 +1,7 @@
+if (WINDOWS)
+	add_library(WinPixEventRuntime SHARED IMPORTED GLOBAL)
+	set_target_properties(WinPixEventRuntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SDK_DIR}/winpixeventruntime/Include")
+	set_target_properties(WinPixEventRuntime PROPERTIES IMPORTED_IMPLIB "${SDK_DIR}/winpixeventruntime/bin/WinPixEventRuntime.lib")
+	set_target_properties(WinPixEventRuntime PROPERTIES IMPORTED_LOCATION "${SDK_DIR}/winpixeventruntime/bin/WinPixEventRuntime.dll")
+	deploy_runtime_files("${SDK_DIR}/winpixeventruntime/bin/WinPixEventRuntime.dll")
+endif()

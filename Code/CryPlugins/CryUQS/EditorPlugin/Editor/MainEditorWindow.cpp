@@ -20,7 +20,7 @@
 
 #include <QtUtil.h>
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <Util/EditorUtils.h>
 #include <EditorFramework/Events.h>
 #include <Controls/QuestionDialog.h>
@@ -238,17 +238,17 @@ void CMainEditorWindow::BuildLibraryPanel()
 
 void CMainEditorWindow::BuildDocumentPanel()
 {
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	treeStyle.levelIndent = 1.0f;
 	treeStyle.firstLevelIndent = 1.0f;
 
-	m_pDocumentPropertyTree = new QPropertyTree();
+	m_pDocumentPropertyTree = new QPropertyTreeLegacy();
 	m_pDocumentPropertyTree->setExpandLevels(5);
 	m_pDocumentPropertyTree->setTreeStyle(treeStyle);
 	m_pDocumentPropertyTree->setUndoEnabled(true); // TODO pavloi 2017.04.03: use global editor's undo manager
 
-	connect(m_pDocumentPropertyTree, &QPropertyTree::signalChanged, this, &CMainEditorWindow::OnDocumentPropertyTreeChanged);
+	connect(m_pDocumentPropertyTree, &QPropertyTreeLegacy::signalChanged, this, &CMainEditorWindow::OnDocumentPropertyTreeChanged);
 
 	m_pDocumentTabsWidget = new QTabWidget;
 	m_pDocumentTabsWidget->addTab(m_pDocumentPropertyTree, "Document");
@@ -274,12 +274,12 @@ void CMainEditorWindow::BuildSimulatorPanel()
 				pVBoxLayout->setAlignment(Qt::AlignTop);
 
 				{
-					PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+					PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 					treeStyle.propertySplitter = false; // true would squeeze the labels more, such they quickly become unreadable
 					treeStyle.levelIndent = 1.0f;       // 0.0f would swallow nested properties (such as the x/y/z textboxes of a Vec3)
 					treeStyle.firstLevelIndent = 1.0f;  // (related)
 
-					m_pSimulatorPropertyTree = new QPropertyTree;
+					m_pSimulatorPropertyTree = new QPropertyTreeLegacy;
 					m_pSimulatorPropertyTree->setTreeStyle(treeStyle);
 					m_pSimulatorPropertyTree->setSizeToContent(true); // ensure that the property-tree doesn't use more space than the sum of the individual controls (weird, one would expect this to happen automatically...)
 

@@ -56,7 +56,7 @@ public:
 
 	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		switch (event)
 		{
 		case eFE_Activate:
@@ -195,7 +195,7 @@ public:
 
 	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		switch (event)
 		{
 		case eFE_Activate:
@@ -359,7 +359,7 @@ public:
 
 	virtual void ProcessEvent(EFlowEvent event, SActivationInfo* pActInfo) override
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		switch (event)
 		{
 		case eFE_Activate:

@@ -12,8 +12,8 @@ namespace Impl
 {
 namespace Wwise
 {
-extern CryAudio::Impl::Wwise::SPoolSizes g_connections;
-extern Platforms g_platforms;
+using ConnectionsByContext = std::map<CryAudio::ContextId, CryAudio::Impl::Wwise::SPoolSizes>;
+extern ConnectionsByContext g_connections;
 
 static CryIcon s_errorIcon;
 static CryIcon s_auxBusIcon;
@@ -64,41 +64,53 @@ inline CryIcon const& GetTypeIcon(EItemType const type)
 	switch (type)
 	{
 	case EItemType::AuxBus:
-		return s_auxBusIcon;
-		break;
+		{
+			return s_auxBusIcon;
+		}
 	case EItemType::Event:
-		return s_eventIcon;
-		break;
+		{
+			return s_eventIcon;
+		}
 	case EItemType::Parameter:
-		return s_parameterIcon;
-		break;
+		{
+			return s_parameterIcon;
+		}
 	case EItemType::PhysicalFolder:
-		return s_physicalFolderIcon;
-		break;
+		{
+			return s_physicalFolderIcon;
+		}
 	case EItemType::SoundBank:
-		return s_soundBankIcon;
-		break;
+		{
+			return s_soundBankIcon;
+		}
 	case EItemType::StateGroup:
-		return s_stateGroupIcon;
-		break;
+		{
+			return s_stateGroupIcon;
+		}
 	case EItemType::State:
-		return s_stateIcon;
-		break;
+		{
+			return s_stateIcon;
+		}
 	case EItemType::SwitchGroup:
-		return s_switchGroupIcon;
-		break;
+		{
+			return s_switchGroupIcon;
+		}
 	case EItemType::Switch:
-		return s_switchIcon;
-		break;
+		{
+			return s_switchIcon;
+		}
 	case EItemType::VirtualFolder:
-		return s_virtualFolderIcon;
-		break;
+		{
+			return s_virtualFolderIcon;
+		}
 	case EItemType::WorkUnit:
-		return s_workUnitIcon;
-		break;
+		{
+			return s_workUnitIcon;
+		}
 	default:
-		return s_errorIcon;
-		break;
+		{
+			return s_errorIcon;
+		}
 	}
 }
 
@@ -108,41 +120,53 @@ inline QString const& TypeToString(EItemType const type)
 	switch (type)
 	{
 	case EItemType::AuxBus:
-		return s_auxBusTypeName;
-		break;
+		{
+			return s_auxBusTypeName;
+		}
 	case EItemType::Event:
-		return s_eventTypeName;
-		break;
+		{
+			return s_eventTypeName;
+		}
 	case EItemType::Parameter:
-		return s_parameterTypeName;
-		break;
+		{
+			return s_parameterTypeName;
+		}
 	case EItemType::PhysicalFolder:
-		return s_physicalFolderTypeName;
-		break;
+		{
+			return s_physicalFolderTypeName;
+		}
 	case EItemType::SoundBank:
-		return s_soundBankTypeName;
-		break;
+		{
+			return s_soundBankTypeName;
+		}
 	case EItemType::StateGroup:
-		return s_stateGroupTypeName;
-		break;
+		{
+			return s_stateGroupTypeName;
+		}
 	case EItemType::State:
-		return s_stateTypeName;
-		break;
+		{
+			return s_stateTypeName;
+		}
 	case EItemType::SwitchGroup:
-		return s_switchGroupTypeName;
-		break;
+		{
+			return s_switchGroupTypeName;
+		}
 	case EItemType::Switch:
-		return s_switchTypeName;
-		break;
+		{
+			return s_switchTypeName;
+		}
 	case EItemType::VirtualFolder:
-		return s_virtualFolderTypeName;
-		break;
+		{
+			return s_virtualFolderTypeName;
+		}
 	case EItemType::WorkUnit:
-		return s_workUnitTypeName;
-		break;
+		{
+			return s_workUnitTypeName;
+		}
 	default:
-		return s_emptyTypeName;
-		break;
+		{
+			return s_emptyTypeName;
+		}
 	}
 }
 } // namespace Wwise

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include "Entity.h"
 	#include "Common.h"
 
@@ -23,13 +23,13 @@ public:
 	CPreviewTrigger& operator=(CPreviewTrigger&&) = delete;
 
 	CPreviewTrigger()
-		: Control(g_previewTriggerId, EDataScope::Global, g_szPreviewTriggerName)
+		: Control(g_previewTriggerId, GlobalContextId, g_szPreviewTriggerName)
 	{}
 
 	~CPreviewTrigger();
 
 	void Execute(Impl::ITriggerInfo const& triggerInfo);
-	void Execute(XmlNodeRef const pNode);
+	void Execute(XmlNodeRef const& node);
 	void Clear();
 
 private:
@@ -39,4 +39,4 @@ private:
 	TriggerConnections m_connections;
 };
 }      // namespace CryAudio
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE

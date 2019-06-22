@@ -512,7 +512,7 @@ void CSmartObjectOffMeshNavigation::OnNavMeshChanged(NavigationAgentTypeID navAg
 
 void CSmartObjectOffMeshNavigation::OnNavigationEvent(const INavigationSystem::ENavigationEvent event)
 {
-	if (event == INavigationSystem::NavigationCleared)
+	if (event == INavigationSystem::ENavigationEvent::NavigationCleared)
 	{
 		m_registeredObjects.clear();
 	}

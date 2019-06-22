@@ -55,13 +55,6 @@ void CPersistantDebug::AddEntityTag(const SEntityTagParams& params, const char* 
 		if (ent)
 		{
 			CryLog("[Entity Tag] %s added tag: %s", ent->GetName(), params.text.c_str());
-
-			if (m_pETLog->GetIVal() > 1)
-			{
-				char text[256];
-				cry_sprintf(text, "[Entity Tag] %s", params.text.c_str());
-				gEnv->pAISystem->Record(ent->GetAI(), IAIRecordable::E_NONE, text);
-			}
 		}
 	}
 }

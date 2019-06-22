@@ -19,6 +19,7 @@ namespace Schematyc2
 	namespace
 	{
 		static const size_t s_defaultBucketSize      = 128;
+		static const size_t s_gridCellReserveSize    = 0;
 	}
 
 	////////////////////////////////////////////////////////////////
@@ -41,11 +42,11 @@ namespace Schematyc2
 	////////////////////////////////////////////////////////////////
 	void CRelevanceGrid::Construct()
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc2::CRelevanceGrid::Construct");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc2::CRelevanceGrid::Construct");
 
 		const float terrainSize = static_cast<float>(gEnv->p3DEngine->GetTerrainSize());
 
-		m_gridSize = int(terrainSize / CVars::sc_RelevanceGridCellSize);
+		m_gridSize = int(terrainSize / CVars::sc2_RelevanceGridCellSize);
 		m_gridSizeMinusOne = m_gridSize - 1;
 		m_updateHalfDistance = 0;
 
@@ -54,10 +55,13 @@ namespace Schematyc2
 		m_grid.clear();
 
 		m_grid.resize(m_gridSize * m_gridSize);
-		for (SGridCell& cell : m_grid)
+		if (s_gridCellReserveSize > 0)
 		{
-			cell.globalUpdateCallbacks.reserve(16);
-			cell.localGridUpdateCallbacks.reserve(16);
+			for (SGridCell& cell : m_grid)
+			{
+				cell.globalUpdateCallbacks.reserve(s_gridCellReserveSize);
+				cell.localGridUpdateCallbacks.reserve(s_gridCellReserveSize);
+			}
 		}
 	}
 
@@ -68,7 +72,7 @@ namespace Schematyc2
 		{
 		case ESYSTEM_EVENT_LEVEL_LOAD_START:
 			{
-				LOADING_TIME_PROFILE_SECTION_NAMED("ESYSTEM_EVENT_LEVEL_LOAD_START");
+				CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "ESYSTEM_EVENT_LEVEL_LOAD_START");
 				if (gEnv->IsEditor())
 				{
 					Construct();
@@ -230,7 +234,7 @@ namespace Schematyc2
 
 		if (!m_updateHalfDistance)
 		{
-			m_updateHalfDistance = int(pRelevanceContext->GetDefaultGridDistanceUpdate() / Schematyc2::CVars::sc_RelevanceGridCellSize);
+			m_updateHalfDistance = int(pRelevanceContext->GetDefaultGridDistanceUpdate() / Schematyc2::CVars::sc2_RelevanceGridCellSize);
 		}
 
 		size_t relevantEntitiesCount(0);
@@ -331,7 +335,7 @@ namespace Schematyc2
 
 #if DEBUG_RELEVANCE_GRID
 		// TODO pavloi 2017.10.02: add debug draw of m_dynamicObjects
-		if (CVars::sc_RelevanceGridDebugStatic)
+		if (CVars::sc2_RelevanceGridDebugStatic)
 		{
 			DebugDrawStatic(pRelevanceContext);
 		}
@@ -438,8 +442,8 @@ namespace Schematyc2
 	////////////////////////////////////////////////////////////////
 	void CRelevanceGrid::GetCellCoordinates(const Vec3 worldPos, ushort &x, ushort& y, ushort& cellIdx) const
 	{
-		x = (ushort)clamp_tpl(int(worldPos.x / CVars::sc_RelevanceGridCellSize), 0, m_gridSizeMinusOne);
-		y = (ushort)clamp_tpl(int(worldPos.y / CVars::sc_RelevanceGridCellSize), 0, m_gridSizeMinusOne);
+		x = (ushort)clamp_tpl(int(worldPos.x / CVars::sc2_RelevanceGridCellSize), 0, m_gridSizeMinusOne);
+		y = (ushort)clamp_tpl(int(worldPos.y / CVars::sc2_RelevanceGridCellSize), 0, m_gridSizeMinusOne);
 		cellIdx = y * m_gridSize + x;
 	}
 
@@ -481,7 +485,7 @@ namespace Schematyc2
 		flags.SetDepthTestFlag(e_DepthTestOff);
 		pRenderAuxGeom->SetRenderFlags(flags);
 
-		const float cellSize = CVars::sc_RelevanceGridCellSize;
+		const float cellSize = CVars::sc2_RelevanceGridCellSize;
 		const float halfCellSize = cellSize * 0.5f - 0.05f;
 		auto buildCellAabb = [cellSize, halfCellSize](int cellX, int cellY)
 		{
@@ -504,7 +508,7 @@ namespace Schematyc2
 		ti.color[1] = textColor.rgba[1];
 		ti.color[2] = textColor.rgba[2];
 		ti.color[3] = textColor.rgba[3];
-		ti.flags = eDrawText_FixedSize | eDrawText_Center | eDrawText_800x600;
+		ti.flags = eDrawText_FixedSize | eDrawText_Center;
 		ti.scale = IRenderAuxText::ASize(1.25f).val;
 
 		auto printCallback = [](const SUpdateCallback& callback, string& textBuf)
@@ -519,8 +523,15 @@ namespace Schematyc2
 			}
 		};
 
-		const bool isDrawAllCells = CVars::sc_RelevanceGridDebugStatic > 1;
-		const bool isPrintExtraInfo = CVars::sc_RelevanceGridDebugStatic > 2;
+		const bool isDrawAllCells = (CVars::sc2_RelevanceGridDebugStatic & 2) != 0;
+		const bool isPrintExtraInfo = (CVars::sc2_RelevanceGridDebugStatic & 4) != 0;
+		const bool isLogMemoryStats = (CVars::sc2_RelevanceGridDebugStatic & 8) != 0;
+		CVars::sc2_RelevanceGridDebugStatic &= ~8;
+
+		if (isLogMemoryStats)
+		{
+			DebugLogStaticMemoryStats();
+		}
 
 		for (const SRelevantCell& relevantCell : m_relevantCells)
 		{
@@ -579,6 +590,57 @@ namespace Schematyc2
 				}
 			}
 		}
+	}
+
+	void CRelevanceGrid::DebugLogStaticMemoryStats()
+	{
+		CryLogAlways("gridSize %d", m_gridSize);
+		CryLogAlways("grid size %zu, capacity %zu, mem %zu", m_grid.size(), m_grid.capacity(), m_grid.capacity() * sizeof(m_grid[0]));
+
+		struct SMemStat
+		{
+			size_t capVecMem = 0;
+			size_t useVecMem = 0;
+			size_t minCap = -1, maxCap = 0, avgCap = 0;
+			size_t minSize = -1, maxSize = 0, avgSize = 0;
+
+			void Update(const TUpdateCallbacks& v)
+			{
+				const size_t cap = v.capacity();
+				const size_t size = v.size();
+
+				minCap = std::min(cap, minCap);
+				maxCap = std::max(cap, maxCap);
+				avgCap += cap;
+
+				minSize = std::min(size, minSize);
+				maxSize = std::max(size, maxSize);
+				avgSize += size;
+
+				capVecMem += cap * sizeof(v[0]);
+				useVecMem += size * sizeof(v[0]);
+			}
+
+			void Log(const size_t count)
+			{
+				CryLogAlways("capacity min %zu max %zu avg %.2lf", minCap, maxCap, double(avgCap) / count);
+				CryLogAlways("size     min %zu max %zu avg %.2lf", minSize, maxSize, double(avgSize) / count);
+				CryLogAlways("capacity mem %zu", capVecMem);
+				CryLogAlways("used mem     %zu", useVecMem);
+				CryLogAlways("diff mem     %zu", capVecMem - useVecMem);
+			}
+		};
+
+		SMemStat global, local;
+		for (const SGridCell& cell : m_grid)
+		{
+			global.Update(cell.globalUpdateCallbacks);
+			local.Update(cell.localGridUpdateCallbacks);
+		}
+		CryLogAlways("global");
+		global.Log(m_grid.size());
+		CryLogAlways("local");
+		local.Log(m_grid.size());
 	}
 #endif // DEBUG_RELEVANCE_GRID
 
@@ -736,7 +798,7 @@ namespace Schematyc2
 	bool CUpdateScheduler::Update(UpdatePriority beginPriority, UpdatePriority endPriority, CUpdateRelevanceContext* pRelevanceContext)
 	{
 		CRY_PROFILE_FUNCTION(PROFILE_GAME);
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc2::CUpdateScheduler::Update");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc2::CUpdateScheduler::Update");
 
 		if(m_bInFrame)
 		{
@@ -776,11 +838,11 @@ namespace Schematyc2
 					SUpdateContext& context = frequencyUpdateContexts[slot.bucketIndex];
 					if (slot.bucketIndex == EUpdateFrequency::EveryFrame)
 					{
-						bucket.Update<false>(context, slot.priority, curFrameId, stats);
+						bucket.Update<false>(context, slot.priority, curFrameId, stats, m_debugNameMap);
 					}
 					else
 					{
-						bucket.Update<true>(context, slot.priority, curFrameId, stats);
+						bucket.Update<true>(context, slot.priority, curFrameId, stats, m_debugNameMap);
 					}
 				}
 			}
@@ -845,6 +907,16 @@ namespace Schematyc2
 	void CUpdateScheduler::SetIsDynamicObjectCallback(IsDynamicObjectPredicate isDynamicObject)
 	{
 		m_isDynamicObject = isDynamicObject;
+	}
+
+	void CUpdateScheduler::SetDebugPriorityNames(const DebugPriorityNameArray& debugNames)
+	{
+		DebugPriorityNameArray::const_iterator it = debugNames.begin();
+
+		for (; it < debugNames.end(); ++it)
+		{
+			m_debugNameMap.insert(*it);
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1130,10 +1202,53 @@ namespace Schematyc2
 	}
 
 	////////////////////////////////////////////////////////////////
-	template <bool UseStride>
-	void CUpdateScheduler::CBucket::Update(const SUpdateContext context, UpdatePriority priority, uint32 frameId, UpdateSchedulerStats::SUpdateBucketStats& outUpdateStats)
+	const char* CUpdateScheduler::CBucket::GetDebugName(UpdatePriority priority, const TPriorityDebugNameMap& debugNames)
 	{
+		stack_string debugName;
+
+		TPriorityDebugNameMap::const_iterator it = debugNames.find(priority);
+		if (it != debugNames.end())
+		{
+			debugName.Format("Priority: %s", it->second);
+		}
+		else
+		{
+			debugName = "Priority: Unknown";
+		}
+
+		switch (m_frequency)
+		{
+		case EUpdateFrequency::EveryFrame:
+			debugName += ", Update Freq: Every Frame";
+			break;
+		case EUpdateFrequency::EveryTwoFrames:
+			debugName += ", Update Freq: Every Two Frames";
+			break;
+		case EUpdateFrequency::EveryFourFrames:
+			debugName += ", Update Freq: Every Four Frames";
+			break;
+		case EUpdateFrequency::EveryEightFrames:
+			debugName += ", Update Freq: Every Eight Frames";
+			break;
+		default:
+			debugName += ", Update Freq: Unknown";
+			break;
+		}
+
+		static_assert((int)EUpdateFrequency::Count == 4, "Unexpected Update Frequency Enum Count");
+
+		return debugName.c_str();
+	}
+
+	////////////////////////////////////////////////////////////////
+	template <bool UseStride>
+	void CUpdateScheduler::CBucket::Update(const SUpdateContext context, UpdatePriority priority, uint32 frameId, UpdateSchedulerStats::SUpdateBucketStats& outUpdateStats, const TPriorityDebugNameMap& debugNames)
+	{
+#if DEBUG_BUCKETS_NAMES
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_GAME, GetDebugName(priority, debugNames));
+#else
 		CRY_PROFILE_FUNCTION(PROFILE_GAME);
+#endif
 
 		size_t updatedCount = 0;
 

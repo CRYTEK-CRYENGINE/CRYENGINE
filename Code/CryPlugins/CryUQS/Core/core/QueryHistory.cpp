@@ -174,19 +174,15 @@ namespace UQS
 			return m_debugMessageCollection;
 		}
 
-		void CHistoricQuery::OnQueryCreated(size_t queryCreatedFrame, const CTimeValue& queryCreatedTimestamp)
+		void CHistoricQuery::OnQueryCreated(size_t queryCreatedFrame, const CTimeValue& queryCreatedTimestamp, const char* szQueryBlueprintName)
 		{
 			m_queryCreatedFrame = queryCreatedFrame;
 			m_queryCreatedTimestamp = queryCreatedTimestamp;
+			m_queryBlueprintName = szQueryBlueprintName;
 			m_queryLifetimeStatus = EQueryLifetimeStatus::QueryIsAlive;
 
 			// notify the top-level query-history-manager that the underlying query has just been created/started
 			m_pOwningHistoryManager->UnderlyingQueryJustGotCreated(m_queryID);
-		}
-
-		void CHistoricQuery::OnQueryBlueprintInstantiationStarted(const char* szQueryBlueprintName)
-		{
-			m_queryBlueprintName = szQueryBlueprintName;
 		}
 
 		void CHistoricQuery::OnQueryCanceled(const CQueryBase::SStatistics& finalStatistics)
@@ -1294,6 +1290,35 @@ namespace UQS
 			return true;
 		}
 
+		DECLARE_JOB("UQSHistory", TAsyncXmlSerializeJob, CQueryHistory::AsyncXmlSerializeJob);
+		void CQueryHistory::AsyncXmlSerializeJob(string xmlFilePath, SHistoryData snapshot)
+		{
+			if (m_serializationMutex.TryLock())
+			{
+#if !defined(EXCLUDE_NORMAL_LOG)
+				const CTimeValue timestampBefore = gEnv->pTimer->GetAsyncTime();
+#endif
+				Serialization::IArchiveHost* pArchiveHost = gEnv->pSystem->GetArchiveHost();
+				if (pArchiveHost->SaveXmlFile(xmlFilePath.c_str(), Serialization::SStruct(snapshot), "UQSQueryHistory"))
+				{
+#if !defined(EXCLUDE_NORMAL_LOG)
+					const CTimeValue timestampAfter = gEnv->pTimer->GetAsyncTime();
+					const float elapsedSeconds = (timestampAfter - timestampBefore).GetSeconds();
+					CryLogAlways("[UQS] Successfully dumped query history containing %i queries to '%s' in %.2f seconds", (int)snapshot.historicQueries.size(), xmlFilePath.c_str(), elapsedSeconds);
+#endif
+				}
+				else
+				{
+					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "[UQS] Could not serialize the live query history to xml file '%s' (Serialization::IArchiveHost::SaveXmlFile() failed for some reason)", xmlFilePath.c_str());
+				}
+				m_serializationMutex.Unlock();
+			}
+			else
+			{
+				CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "[UQS] CQueryHistory::StartAsyncXmlSerializeJob: async serializing still in progress - please try again in a few seconds.");
+			}
+		}
+
 		void CQueryHistory::StartAsyncXmlSerializeJob(const char* szXmlFilePath)
 		{
 			string xmlFilePath(szXmlFilePath);
@@ -1310,35 +1335,9 @@ namespace UQS
 				}
 			}
 
-			auto myLambda = [snapshot, xmlFilePath, this]()
-			{
-				if (m_serializationMutex.TryLock())
-				{
-#if !defined(EXCLUDE_NORMAL_LOG)
-					const CTimeValue timestampBefore = gEnv->pTimer->GetAsyncTime();
-#endif
-					Serialization::IArchiveHost* pArchiveHost = gEnv->pSystem->GetArchiveHost();
-					if (pArchiveHost->SaveXmlFile(xmlFilePath.c_str(), Serialization::SStruct(snapshot), "UQSQueryHistory"))
-					{
-#if !defined(EXCLUDE_NORMAL_LOG)
-						const CTimeValue timestampAfter = gEnv->pTimer->GetAsyncTime();
-						const float elapsedSeconds = (timestampAfter - timestampBefore).GetSeconds();
-						CryLogAlways("[UQS] Successfully dumped query history containing %i queries to '%s' in %.2f seconds", (int)snapshot.historicQueries.size(), xmlFilePath.c_str(), elapsedSeconds);
-#endif
-					}
-					else
-					{
-						CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "[UQS] Could not serialize the live query history to xml file '%s' (Serialization::IArchiveHost::SaveXmlFile() failed for some reason)", xmlFilePath.c_str());
-					}
-					m_serializationMutex.Unlock();
-				}
-				else
-				{
-					CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_ERROR, "[UQS] CQueryHistory::StartAsyncXmlSerializeJob: async serializing still in progress - please try again in a few seconds.");
-				}
-			};
-
-			gEnv->pJobManager->AddLambdaJob("UQSHistory", myLambda, JobManager::eStreamPriority);
+			TAsyncXmlSerializeJob job(xmlFilePath, snapshot);
+			job.SetClassInstance(this);
+			job.Run(JobManager::eStreamPriority);
 			CryLogAlways("[UQS] Just added a new job to serialize the live query history. We'll let you know once that job is finished.");
 		}
 

@@ -25,7 +25,7 @@ CFlowGraphModule::~CFlowGraphModule()
 
 void CFlowGraphModule::Destroy()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(m_name)
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, m_name)
 
 	ClearCallNodesForInstances();
 	ClearGlobalControlNodes();
@@ -49,7 +49,7 @@ void CFlowGraphModule::Destroy()
 
 bool CFlowGraphModule::PreLoadModule(const char* fileName)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(fileName);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, fileName);
 
 	m_fileName = fileName;
 
@@ -109,7 +109,7 @@ bool CFlowGraphModule::PreLoadModule(const char* fileName)
 
 bool CFlowGraphModule::LoadModuleGraph(const char* moduleName, const char* fileName)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(moduleName)
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, moduleName)
 
 	assert(m_name == moduleName);
 	assert(m_fileName == fileName);
@@ -337,7 +337,7 @@ void CFlowGraphModule::RegisterStartNodeForInstanceBeingCreated(CFlowModuleStart
 
 void CFlowGraphModule::CreateInstance(EntityId entityId, TModuleInstanceId runningInstanceId)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(m_name.c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, m_name.c_str());
 
 	assert(m_pRootGraph); // can not clone an instance if the root graph is missing to clone from
 	if (m_pRootGraph)

@@ -215,7 +215,7 @@ void CAILightManager::Update(bool forceUpdate)
 //===================================================================
 void CAILightManager::DebugDraw()
 {
-	int mode = gAIEnv.CVars.DebugDrawLightLevel;
+	int mode = gAIEnv.CVars.legacyDebugDraw.DebugDrawLightLevel;
 	if (mode == 0)
 		return;
 

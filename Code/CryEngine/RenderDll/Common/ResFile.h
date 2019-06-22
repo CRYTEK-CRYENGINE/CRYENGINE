@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __RESFILE_H__
-#define __RESFILE_H__
+#pragma once
 
 #include <CryString/CryName.h>
 
@@ -339,5 +338,3 @@ public:
 	CResFile* getHandle() { return rf; }
 	const CResFile* getHandle() const { return rf; }
 };
-
-#endif //  __RESFILE_H__

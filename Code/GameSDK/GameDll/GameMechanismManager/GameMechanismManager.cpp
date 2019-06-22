@@ -4,6 +4,7 @@
 #include "GameMechanismManager.h"
 #include "GameMechanismBase.h"
 #include "Utility/CryWatch.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 CGameMechanismManager * CGameMechanismManager::s_instance = NULL;
 

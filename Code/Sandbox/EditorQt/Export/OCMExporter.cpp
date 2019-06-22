@@ -116,9 +116,9 @@ size_t COCMExporter::SaveMesh(CFileEndianWriter& rWriter, const SExportObject* p
 		Pos.reserve(Pos.size() + FaceCount * 9);
 		for (size_t a = 0; a < FaceCount; a++)
 		{
-			const Export::Vector3D& rV0 = pVerts[pFaces[a].idx[0]];
-			const Export::Vector3D& rV1 = pVerts[pFaces[a].idx[1]];
-			const Export::Vector3D& rV2 = pVerts[pFaces[a].idx[2]];
+			const Export::Vector3D& rV0 = pVerts[pFaces[a].vertex[0]];
+			const Export::Vector3D& rV1 = pVerts[pFaces[a].vertex[1]];
+			const Export::Vector3D& rV2 = pVerts[pFaces[a].vertex[2]];
 			const Vec3 VO0(rV0.x, rV0.y, rV0.z);
 			const Vec3 VO1(rV1.x, rV1.y, rV1.z);
 			const Vec3 VO2(rV2.x, rV2.y, rV2.z);

@@ -1,14 +1,15 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 #include "StdAfx.h"
 #include "PolledKeyManager.h"
+
+#include "CommandManager.h"
 #include "IEditorImpl.h"
 
 #include <QCoreApplication>
 #include <QKeyEvent>
 
 #include <Commands/PolledKey.h>
-#include "Commands/QCommandAction.h"
-#include "CommandManager.h"
+#include <Commands/QCommandAction.h>
 
 CPolledKeyManager::CPolledKeyManager()
 {

@@ -113,6 +113,8 @@ private:
 
 	void                                 FillPathFollowerParams(PathFollowerParams& params) const;
 
+	void                                 RegisterEntityIfRequired();
+
 	// Callbacks
 	void                      QueueRequestPathFindingRequest(MNMPathRequest& request);
 	Movement::PathfinderState CheckOnPathfinderState();

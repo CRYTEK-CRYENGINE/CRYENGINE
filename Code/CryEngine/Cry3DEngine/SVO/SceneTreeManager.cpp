@@ -23,7 +23,7 @@ extern CSvoEnv* gSvoEnv;
 
 void CSvoManager::CheckAllocateGlobalCloud()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!gSvoEnv && Cry3DEngineBase::GetCVars()->e_svoEnabled)
 	{
 		float mapSize = (float)Cry3DEngineBase::Get3DEngine()->GetTerrainSize();
@@ -172,8 +172,8 @@ void CSvoManager::Release()
 
 void CSvoManager::Render(bool bSyncUpdate)
 {
-	LOADING_TIME_PROFILE_SECTION;
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CSvoManager::Render");
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CSvoManager::Render");
 
 	if (GetCVars()->e_svoTI_Apply && (!m_bLevelLoadingInProgress || gEnv->IsEditor()) && !GetCVars()->e_svoTI_Active)
 	{
@@ -191,7 +191,7 @@ void CSvoManager::Render(bool bSyncUpdate)
 
 	if (GetCVars()->e_svoLoadTree)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("SVO Load Tree");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "SVO Load Tree");
 		SAFE_DELETE(gSvoEnv);
 
 		GetCVars()->e_svoEnabled = 1;
@@ -206,7 +206,7 @@ void CSvoManager::Render(bool bSyncUpdate)
 
 	if (GetCVars()->e_svoEnabled && GetCVars()->e_svoRender)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("SVO Render");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "SVO Render");
 
 		CheckAllocateGlobalCloud();
 

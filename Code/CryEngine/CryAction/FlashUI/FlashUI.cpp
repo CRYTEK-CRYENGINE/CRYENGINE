@@ -102,7 +102,7 @@ CFlashUI::CFlashUI()
 //-------------------------------------------------------------------
 void CFlashUI::Init()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (CV_gfx_enabled)
 	{
 		m_pFlashUIActionEvents = new CFlashUIActionEvents();
@@ -115,7 +115,7 @@ void CFlashUI::Init()
 //-------------------------------------------------------------------
 bool CFlashUI::PostInit()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	bool res = true;
 
 	if (CV_gfx_enabled)
@@ -224,7 +224,7 @@ void CFlashUI::UnregisterListeners()
 //------------------------------------------------------------------------------------
 void CFlashUI::Reload()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	UIACTION_LOG("FlashUI reload start");
 
 	ReloadAllBootStrapper();
@@ -373,7 +373,7 @@ void CFlashUI::UpdateSortedElements()
 //------------------------------------------------------------------------------------
 void CFlashUI::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR lparam)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	switch (event)
 	{
 	case ESYSTEM_EVENT_GAME_POST_INIT_DONE:
@@ -571,7 +571,7 @@ void CFlashUI::OnLoadingProgress(ILevelInfo* pLevel, int progressAmount)
 			const bool bStandAlone = (nRecursionLevel <= 0);
 			if (bStandAlone)
 			{
-				gEnv->pSystem->RenderBegin(SDisplayContextKey{});
+				gEnv->pSystem->RenderBegin(SDisplayContextKey{}, SGraphicsPipelineKey::BaseGraphicsPipelineKey);
 			}
 
 			const float currTime = gEnv->pTimer->GetAsyncCurTime();
@@ -589,7 +589,7 @@ void CFlashUI::OnLoadingProgress(ILevelInfo* pLevel, int progressAmount)
 //------------------------------------------------------------------------------------
 void CFlashUI::LoadtimeUpdate(float fDeltaTime)
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 	if (m_bSortedElementsInvalidated)
 	{
@@ -617,7 +617,7 @@ void CFlashUI::LoadtimeUpdate(float fDeltaTime)
 //------------------------------------------------------------------------------------
 void CFlashUI::LoadtimeRender()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 	if (CV_gfx_draw == 1)
 	{
@@ -626,7 +626,7 @@ void CFlashUI::LoadtimeRender()
 		if (stereoRenderer->GetStereoEnabled())
 			stereoRenderer->PrepareFrame();
 
-		for (auto &pFlashPlayer : m_loadtimePlayerList)
+		for (auto& pFlashPlayer : m_loadtimePlayerList)
 		{
 			auto p = pFlashPlayer;
 			p->SetClearFlags(FRT_CLEAR_COLOR, Clr_Transparent);
@@ -652,7 +652,7 @@ void CFlashUI::LoadtimeRender()
 #endif
 void CFlashUI::UpdateFG()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	static bool isUpdating = false;
 	CRY_ASSERT_MESSAGE(!isUpdating, "Recursive loop: trying to update UIAction FlowGraphs within update loop!");
@@ -1094,7 +1094,7 @@ void CFlashUI::CreateNodes()
 	// Do nodes registration with flow graph system
 	for (auto pNodeFactory : m_UINodes)
 	{
-		gEnv->pFlowSystem->RegisterType(pNodeFactory->GetNodeTypeName(),pNodeFactory);
+		gEnv->pFlowSystem->RegisterType(pNodeFactory->GetNodeTypeName(), pNodeFactory);
 	}
 }
 
@@ -1294,7 +1294,7 @@ void CFlashUI::LoadFromFile(const char* pFolderName, const char* pSearch, bool (
 //-------------------------------------------------------------------
 void CFlashUI::PreloadTextures(const char* pLevelName)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	ReleasePreloadedTextures(false);
 

@@ -1,17 +1,26 @@
 #include <CrySystem/ISystem.h>
 #include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 // The function that will be executed with the command
 void MyCommand(IConsoleCmdArgs* pArgs)
 {
 	// The first argument is always the name of the command
 	const char* szCommand = pArgs->GetArg(0);
+
+	if (szCommand != nullptr && szCommand[0] != '\0')
+	{
+	}
+
 	if (pArgs->GetArgCount() > 1)
 	{
 		// Get the first argument, if any
 		const char* szFirstArgument = pArgs->GetArg(1);
 
-		/* Handle the command, and its argument here */
+		if (szFirstArgument != nullptr && szFirstArgument[0] != '\0')
+		{
+			/* Handle the command, and its argument here */
+		}
 	}
 }
 

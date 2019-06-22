@@ -288,7 +288,7 @@ void ZlibInflateElement_Impl(const void* pCompressed, void* pUncompressed, unsig
 //////////////////////////////////////////////////////////////////////////
 void ZipDir::CZipFile::LoadToMemory(IMemoryBlock* pData)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (!m_pInMemoryData)
 	{
@@ -498,7 +498,7 @@ ZipDir::FileEntry::FileEntry(const CDRFileHeader& header, const SExtraZipFileDat
 // way it's stored into zip file
 int ZipDir::ZipRawUncompress(CMTSafeHeap* pHeap, void* pUncompressed, unsigned long* pDestSize, const void* pCompressed, unsigned long nSrcSize)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 	int nReturnCode;
 
 	ZlibInflateElement_Impl(pCompressed, pUncompressed, nSrcSize, *pDestSize, pDestSize, &nReturnCode, pHeap);

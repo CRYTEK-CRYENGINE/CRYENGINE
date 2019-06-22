@@ -1,14 +1,6 @@
-// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
-
-// -------------------------------------------------------------------------
-//  Created:     06/02/2015 by Filipe amim
-//  Description:
-// -------------------------------------------------------------------------
-//
-////////////////////////////////////////////////////////////////////////////
+// Copyright 2015-2019 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
-#include <CryMath/FinalizingSpline.h>
 #include "ParticleCommon.h"
 #include "ParticleDebug.h"
 #include "ParticleContainer.h"
@@ -18,7 +10,7 @@
 #include "ParticleEmitter.h"
 #include "Features/FeatureCollision.h"
 
-CRY_PFX2_DBG
+#include <CryRenderer/IRenderAuxGeom.h>
 
 namespace pfx2
 {
@@ -89,8 +81,7 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime& runtime, size_t emitte
 	const float screenHeight = float(pRenderAux->GetCamera().GetViewSurfaceZ());
 
 	const CParticleContainer& container = runtime.GetContainer();
-	//const SComponentParams& params = runtime.ComponentParams();
-	const uint numInstances = runtime.GetNumInstances();
+	const uint numSpawners = runtime.Container(EDD_Spawner).Size();
 	IPidStream parentIds = container.GetIPidStream(EPDT_ParentId);
 	IFStream normAges = container.GetIFStream(EPDT_NormalAge);
 	const Vec2 screenSz = Vec2(screenWidth, screenHeight);
@@ -100,13 +91,13 @@ void DebugDrawComponentRuntime(CParticleComponentRuntime& runtime, size_t emitte
 	const float off = barSz * 0.5f;
 	Vec2 pos;
 
-	// instance bars
-	if (numInstances)
+	// spawner bars
+	if (numSpawners)
 	{
-		const Vec2 instSz = Vec2(barSz, 0.9f / numInstances);
+		const Vec2 instSz = Vec2(barSz, 0.9f / numSpawners);
 		const Vec2 instLoc = Vec2(barIdx * barGap + startPos, startPos);
 		pos = instLoc;
-		for (uint i = 0; i < numInstances; ++i)
+		for (uint i = 0; i < numSpawners; ++i)
 		{
 			AABB box;
 			box.min = pos;
@@ -307,9 +298,8 @@ void DebugParticleSystem(const TParticleEmitters& activeEmitters)
 {
 	DebugOptSpline();
 
-	CVars* pCVars = static_cast<C3DEngine*>(gEnv->p3DEngine)->GetCVars();
-	const bool debugContainers = (pCVars->e_ParticlesDebug & AlphaBit('c')) != 0;
-	const bool debugCollisions = (pCVars->e_ParticlesDebug & AlphaBit('k')) != 0;
+	const int debugContainers = DebugMode('c');
+	const int debugCollisions = DebugMode('k');
 
 	if (debugContainers || debugCollisions)
 	{

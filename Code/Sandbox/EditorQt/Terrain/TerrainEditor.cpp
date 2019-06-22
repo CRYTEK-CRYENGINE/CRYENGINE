@@ -261,21 +261,21 @@ void CTerrainEditor::InitTerrainMenu()
 	if (pFileMenu)
 	{
 		int sec = pFileMenu->GetNextEmptySection();
-		pFileMenu->AddAction(GetAction("terrain.generate_terrain_texture"), sec);
-		pFileMenu->AddAction(GetAction("terrain.generate_terrain"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.generate_terrain_texture"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.generate_terrain"), sec);
 
 		sec = pFileMenu->GetNextEmptySection();
-		pFileMenu->AddAction(GetAction("terrain.import_heightmap"), sec);
-		pFileMenu->AddAction(GetAction("terrain.export_heightmap"), sec);
-		pFileMenu->AddAction(GetAction("terrain.import_block"), sec);
-		pFileMenu->AddAction(GetAction("terrain.export_block"), sec);
-		pFileMenu->AddAction(GetAction("terrain.export_area"), sec);
-		pFileMenu->AddAction(GetAction("terrain.export_area_with_objects"), sec);
-		pFileMenu->AddAction(GetAction("terrain.terrain_texture_dialog"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.import_heightmap"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.export_heightmap"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.import_block"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.export_block"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.export_area"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.export_area_with_objects"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.terrain_texture_dialog"), sec);
 
 		sec = pFileMenu->GetNextEmptySection();
-		pFileMenu->AddAction(GetAction("terrain.import_layers"), sec);
-		pFileMenu->AddAction(GetAction("terrain.export_layers"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.import_layers"), sec);
+		pFileMenu->AddAction(GetAction_Deprecated("terrain.export_layers"), sec);
 	}
 
 	CAbstractMenu* const pEditMenu = GetMenu(MenuItems::EditMenu);
@@ -283,65 +283,65 @@ void CTerrainEditor::InitTerrainMenu()
 	if (pEditMenu)
 	{
 		int sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.select_terrain"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.select_terrain"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.make_isle"), sec);
-		pEditMenu->AddAction(GetAction("terrain.remove_ocean"), sec);
-		pEditMenu->AddAction(GetAction("terrain.set_ocean_height"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.make_isle"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.remove_ocean"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.set_ocean_height"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.set_terrain_max_height"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.set_terrain_max_height"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.flatten_light"), sec);
-		pEditMenu->AddAction(GetAction("terrain.flatten_heavy"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.flatten_light"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.flatten_heavy"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.smooth"), sec);
-		pEditMenu->AddAction(GetAction("terrain.smooth_slope"), sec);
-		pEditMenu->AddAction(GetAction("terrain.smooth_beach_coast"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.smooth"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.smooth_slope"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.smooth_beach_coast"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.normalize"), sec);
-		pEditMenu->AddAction(GetAction("terrain.reduce_range_light"), sec);
-		pEditMenu->AddAction(GetAction("terrain.reduce_range_heavy"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.normalize"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.reduce_range_light"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.reduce_range_heavy"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.erase_terrain"), sec);
-		pEditMenu->AddAction(GetAction("terrain.resize_terrain"), sec);
-		pEditMenu->AddAction(GetAction("terrain.invert_heightmap"), sec);
-		pEditMenu->AddAction(GetAction("terrain.reload_terrain"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.erase_terrain"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.resize_terrain"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.invert_heightmap"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.reload_terrain"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
-		pEditMenu->AddAction(GetAction("terrain.refine_tiles"), sec);
+		pEditMenu->AddAction(GetAction_Deprecated("terrain.refine_tiles"), sec);
 
 		sec = pEditMenu->GetNextEmptySection();
 		pEditMenu->AddAction(new QCommandAction("Brush Settings...", "general.open_pane 'Brush Settings'", nullptr));
 	}
 
 	CAbstractMenu* pLayerMenu = GetRootMenu()->CreateMenu(tr("Layers"), 0);
-	pLayerMenu->AddAction(GetAction("terrain.create_layer"));
-	pLayerMenu->AddAction(GetAction("terrain.delete_layer"));
-	pLayerMenu->AddAction(GetAction("terrain.duplicate_layer"));
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.create_layer"));
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.delete_layer"));
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.duplicate_layer"));
 
 	int sec = pLayerMenu->GetNextEmptySection();
-	pLayerMenu->AddAction(GetAction("terrain.move_layer_to_top"), sec);
-	pLayerMenu->AddAction(GetAction("terrain.move_layer_up"), sec);
-	pLayerMenu->AddAction(GetAction("terrain.move_layer_down"), sec);
-	pLayerMenu->AddAction(GetAction("terrain.move_layer_to_bottom"), sec);
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.move_layer_to_top"), sec);
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.move_layer_up"), sec);
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.move_layer_down"), sec);
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.move_layer_to_bottom"), sec);
 
 	sec = pLayerMenu->GetNextEmptySection();
-	pLayerMenu->AddAction(GetAction("terrain.flood_layer"), sec);
+	pLayerMenu->AddAction(GetAction_Deprecated("terrain.flood_layer"), sec);
 
 	CAbstractMenu* pToolsMenu = GetRootMenu()->CreateMenu(tr("Tools"), 0);
-	pToolsMenu->AddAction(GetAction("terrain.flatten_tool"), sec);
-	pToolsMenu->AddAction(GetAction("terrain.smooth_tool"), sec);
-	pToolsMenu->AddAction(GetAction("terrain.raise_lower_tool"), sec);
-	pToolsMenu->AddAction(GetAction("terrain.duplicate_tool"), sec);
-	pToolsMenu->AddAction(GetAction("terrain.make_holes_tool"), sec);
-	pToolsMenu->AddAction(GetAction("terrain.fill_holes_tool"), sec);
-	pToolsMenu->AddAction(GetAction("terrain.paint_texture_tool"), sec);
+	pToolsMenu->AddAction(GetAction_Deprecated("terrain.flatten_tool"), sec);
+	pToolsMenu->AddAction(GetAction_Deprecated("terrain.smooth_tool"), sec);
+	pToolsMenu->AddAction(GetAction_Deprecated("terrain.raise_lower_tool"), sec);
+	pToolsMenu->AddAction(GetAction_Deprecated("terrain.duplicate_tool"), sec);
+	pToolsMenu->AddAction(GetAction_Deprecated("terrain.make_holes_tool"), sec);
+	pToolsMenu->AddAction(GetAction_Deprecated("terrain.fill_holes_tool"), sec);
+	pToolsMenu->AddAction(GetAction_Deprecated("terrain.paint_texture_tool"), sec);
 
 	ForceRebuildMenu();
 }

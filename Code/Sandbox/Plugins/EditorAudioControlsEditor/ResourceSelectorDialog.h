@@ -24,7 +24,8 @@ class CResourceSelectorDialog final : public CEditorDialog
 	Q_OBJECT
 
 public:
-	struct SResourceSelectionDialogResult
+
+	struct SResourceSelectionDialogResult final
 	{
 		string selectedItem;
 		bool   selectionAccepted;
@@ -36,7 +37,7 @@ public:
 	CResourceSelectorDialog& operator=(CResourceSelectorDialog const&) = delete;
 	CResourceSelectorDialog& operator=(CResourceSelectorDialog&&) = delete;
 
-	explicit CResourceSelectorDialog(EAssetType const type, Scope const scope, QWidget* const pParent);
+	explicit CResourceSelectorDialog(EAssetType const type, bool const isSwitchAndState, QWidget* const pParent);
 	virtual ~CResourceSelectorDialog() override;
 
 	//! Returns if the operation was accepted or not. If the operation was accepted the newly selected item is in selectedItem. If the operation was canceled selectedItem will be set to szCurrentValue
@@ -53,17 +54,17 @@ private slots:
 
 private:
 
-	QModelIndex         FindItem(string const& sControlName);
+	QModelIndex         FindItem(string const& controlName);
 	QAbstractItemModel* CreateLibraryModelFromIndex(QModelIndex const& sourceIndex);
 	void                DeleteModels();
+	string              GetSwitchStateNameFromState(string const& stateName);
 
 	// QDialog
 	virtual bool eventFilter(QObject* pObject, QEvent* pEvent) override;
 	// ~QDialog
 
 	EAssetType const                    m_type;
-	Scope const                         m_scope;
-	bool                                m_selectionIsValid = false;
+	bool                                m_selectionIsValid;
 
 	QSearchBox* const                   m_pSearchBox;
 	CTreeView* const                    m_pTreeView;
@@ -75,5 +76,6 @@ private:
 
 	static string                       s_previousControlName;
 	static EAssetType                   s_previousControlType;
+	static bool                         s_isSwitchAndState;
 };
 } // namespace ACE

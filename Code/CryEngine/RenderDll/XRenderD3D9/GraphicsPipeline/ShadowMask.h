@@ -4,12 +4,11 @@
 
 #include "Common/GraphicsPipelineStage.h"
 #include "Common/FullscreenPass.h"
-#include "StandardGraphicsPipeline.h"
 
 namespace ShadowMaskInternal
 {
-	class CSunShadows;
-	class CLocalLightShadows;
+class CSunShadows;
+class CLocalLightShadows;
 }
 
 class CShadowMaskStage : public CGraphicsPipelineStage
@@ -18,7 +17,9 @@ class CShadowMaskStage : public CGraphicsPipelineStage
 	friend class ShadowMaskInternal::CLocalLightShadows;
 
 public:
-	CShadowMaskStage();
+	static const EGraphicsPipelineStage StageID = eStage_ShadowMask;
+
+	CShadowMaskStage(CGraphicsPipeline& graphicsPipeline);
 
 	void Init() final;
 	void Prepare();

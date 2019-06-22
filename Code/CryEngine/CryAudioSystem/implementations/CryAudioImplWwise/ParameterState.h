@@ -23,7 +23,7 @@ public:
 	CParameterState& operator=(CParameterState const&) = delete;
 	CParameterState& operator=(CParameterState&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	explicit CParameterState(
 		AkUInt32 const id,
 		AkRtpcValue const rtpcValue,
@@ -39,7 +39,7 @@ public:
 		: m_id(id)
 		, m_rtpcValue(rtpcValue)
 	{}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 	virtual ~CParameterState() override = default;
 
@@ -53,9 +53,9 @@ private:
 	AkUInt32 const    m_id;
 	AkRtpcValue const m_rtpcValue;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 };
 } // namespace Wwise
 } // namespace Impl

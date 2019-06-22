@@ -27,7 +27,7 @@ void CAsyncCommandQueue::SExecuteCommandlist::Process(const STaskArgs& args)
 	Info.pSignalSemaphores    = SignalableSemaphores;
 	// *INDENT-ON*
 
-	VkResult res = vkQueueSubmit(
+	vkQueueSubmit(
 		args.pCommandListPool->GetVkCommandQueue(),
 		1,
 		&Info,

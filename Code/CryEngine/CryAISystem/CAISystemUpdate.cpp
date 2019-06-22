@@ -162,7 +162,7 @@ void CAISystem::TryUpdateDebugFakeDamageIndicators()
 	}
 
 	// Update fake damage indicators
-	if (gAIEnv.CVars.DrawFakeDamageInd > 0)
+	if (gAIEnv.CVars.legacyDebugDraw.DrawFakeDamageInd > 0)
 	{
 		for (unsigned i = 0; i < m_DEBUG_fakeDamageInd.size(); )
 		{
@@ -256,8 +256,11 @@ void CAISystem::SubsystemUpdateSystemComponents()
 void CAISystem::SubsystemUpdateCommunicationManager()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI)
-	CRY_ASSERT(gAIEnv.pCommunicationManager);
-	gAIEnv.pCommunicationManager->Update(m_frameDeltaTime);
+	if (gAIEnv.CVars.legacyCommunicationSystem.CommunicationSystem)
+	{
+		CRY_ASSERT(gAIEnv.pCommunicationManager);
+		gAIEnv.pCommunicationManager->Update(m_frameDeltaTime);
+	}
 }
 
 void CAISystem::TrySubsystemUpdateVisionMap(const CTimeValue frameStartTime, const float frameDeltaTime, const bool isAutomaticUpdate)
@@ -283,18 +286,23 @@ void CAISystem::TrySubsystemUpdateAuditionMap(const CTimeValue frameStartTime, c
 void CAISystem::SubsystemUpdateGroupManager()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI)
-	CRY_ASSERT(gAIEnv.pGroupManager);
-	gAIEnv.pGroupManager->Update(m_frameDeltaTime);
+	if (gAIEnv.CVars.legacyGroupSystem.GroupSystem)
+	{
+		CRY_ASSERT(gAIEnv.pGroupManager);
+		gAIEnv.pGroupManager->Update(m_frameDeltaTime);
+	}
 }
 
 void CAISystem::TrySubsystemUpdateCoverSystem(const CTimeValue frameStartTime, const float frameDeltaTime, const bool isAutomaticUpdate)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI)
-	CRY_ASSERT(gAIEnv.pCoverSystem);
-	if (!ShouldUpdateSubsystem(IAISystem::ESubsystemUpdateFlag::CoverSystem, isAutomaticUpdate))
-		return;
+	if (gAIEnv.CVars.legacyCoverSystem.CoverSystem)
+	{
+		if (!ShouldUpdateSubsystem(IAISystem::ESubsystemUpdateFlag::CoverSystem, isAutomaticUpdate))
+			return;
 
-	gAIEnv.pCoverSystem->Update(frameStartTime, frameDeltaTime);
+		gAIEnv.pCoverSystem->Update(frameStartTime, frameDeltaTime);
+	}
 }
 
 void CAISystem::TrySubsystemUpdateNavigationSystem(const CTimeValue frameStartTime, const float frameDeltaTime, const bool isAutomaticUpdate)
@@ -415,7 +423,7 @@ void CAISystem::SubsystemUpdateInterestManager()
 	CRY_PROFILE_FUNCTION(PROFILE_AI)
 	ICentralInterestManager* pInterestManager = CCentralInterestManager::GetInstance();
 	CRY_ASSERT(pInterestManager);
-	if (pInterestManager->Enable(gAIEnv.CVars.InterestSystem != 0))
+	if (pInterestManager->Enable(gAIEnv.CVars.legacyInterestSystem.InterestSystem != 0))
 		pInterestManager->Update(m_frameDeltaTime);
 }
 
@@ -433,19 +441,22 @@ void CAISystem::TrySubsystemUpdateBehaviorTreeManager(const CTimeValue frameStar
 void CAISystem::SubsystemUpdateTacticalPointSystem()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI)
-	CRY_ASSERT(gAIEnv.pTacticalPointSystem);
-	gAIEnv.pTacticalPointSystem->Update(gAIEnv.CVars.TacticalPointUpdateTime);
+	if (gAIEnv.CVars.legacyTacticalPointSystem.TacticalPointSystem)
+	{
+		CRY_ASSERT(gAIEnv.pTacticalPointSystem);
+		gAIEnv.pTacticalPointSystem->Update(gAIEnv.CVars.legacyTacticalPointSystem.TacticalPointUpdateTime);
+	}
 }
 
 void CAISystem::SubsystemUpdateAmbientFire()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI);
 
-	if (gAIEnv.CVars.AmbientFireEnable == 0)
+	if (gAIEnv.CVars.legacyFiring.AmbientFireEnable == 0)
 		return;
 
 	int64 dt((GetFrameStartTime() - m_lastAmbientFireUpdateTime).GetMilliSecondsAsInt64());
-	if (dt < (int)(gAIEnv.CVars.AmbientFireUpdateInterval * 1000.0f))
+	if (dt < (int)(gAIEnv.CVars.legacyFiring.AmbientFireUpdateInterval * 1000.0f))
 		return;
 
 	// Marcio: Update ambient fire towards all players.
@@ -590,7 +601,7 @@ void CAISystem::SubsystemUpdateAmbientFire()
 			std::sort(shooters.begin(), shooters.end());
 
 			uint32 i = 0;
-			uint32 quota = gAIEnv.CVars.AmbientFireQuota;
+			uint32 quota = gAIEnv.CVars.legacyFiring.AmbientFireQuota;
 
 			for (TShooters::iterator it = shooters.begin(); it != shooters.end(); ++it)
 			{
@@ -779,7 +790,7 @@ void CAISystem::SubsystemUpdateActorsAndTargetTrackAndORCA()
 		}
 
 		{
-			CRY_PROFILE_REGION(PROFILE_AI, "UpdateActors - Full Updates");
+			CRY_PROFILE_SECTION(PROFILE_AI, "UpdateActors - Full Updates");
 
 			AIActorVector::iterator it = fullUpdates.begin();
 			AIActorVector::iterator end = fullUpdates.end();
@@ -833,7 +844,7 @@ void CAISystem::SubsystemUpdateActorsAndTargetTrackAndORCA()
 		}
 
 		{
-			CRY_PROFILE_REGION(PROFILE_AI, "UpdateActors - Dry Updates");
+			CRY_PROFILE_SECTION(PROFILE_AI, "UpdateActors - Dry Updates");
 
 			AIActorVector::iterator it = dryUpdates.begin();
 			AIActorVector::iterator end = dryUpdates.end();
@@ -843,7 +854,7 @@ void CAISystem::SubsystemUpdateActorsAndTargetTrackAndORCA()
 		}
 
 		{
-			CRY_PROFILE_REGION(PROFILE_AI, "UpdateActors - Subsystems Updates");
+			CRY_PROFILE_SECTION(PROFILE_AI, "UpdateActors - Subsystems Updates");
 
 			for (IAISystemComponent* systemComponent : m_setSystemComponents)
 			{
@@ -871,7 +882,7 @@ void CAISystem::SubsystemUpdateActorsAndTargetTrackAndORCA()
 
 	if (activeAIActorCount > 0)
 	{
-		CRY_PROFILE_REGION(PROFILE_AI, "UpdateActors - Proxy Updates");
+		CRY_PROFILE_SECTION(PROFILE_AI, "UpdateActors - Proxy Updates");
 		{
 			{
 				AIActorVector::iterator fit = fullUpdates.begin();
@@ -947,7 +958,7 @@ void CAISystem::SubsystemUpdateTargetTrackManager()
 void CAISystem::SubsystemUpdateCollisionAvoidanceSystem()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_AI)
-	if (gAIEnv.CVars.EnableORCA)
+	if (gAIEnv.CVars.collisionAvoidance.EnableORCA)
 		gAIEnv.pCollisionAvoidanceSystem->Update(m_frameDeltaTime);
 }
 

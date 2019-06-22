@@ -8,9 +8,6 @@
 #include <semaphore.h>
 #include <sched.h>
 
-#include <CrySystem/ISystem.h>
-#include <CrySystem/ILog.h>
-
 // PTHREAD_MUTEX_FAST_NP is only defined by Pthreads-w32 & Pthreads-w64
 #if !defined(PTHREAD_MUTEX_FAST_NP)
 	#define PTHREAD_MUTEX_FAST_NP PTHREAD_MUTEX_NORMAL

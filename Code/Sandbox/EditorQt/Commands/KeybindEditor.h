@@ -67,7 +67,7 @@ protected:
 	static void  OnKeybindsChanged();
 
 private:
-
+	static std::vector<string> GetKeyBindDirectories(const char* szRelativePath);
 	void OnContextMenu(const QPoint& pos) const;
 	void OnAddCustomCommand() const;
 	void OnRemoveCustomCommand(CCustomCommand* command) const;

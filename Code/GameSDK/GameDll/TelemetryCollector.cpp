@@ -31,6 +31,7 @@
 #include <CrySystem/Profilers/IStatoscope.h>
 #include "DataPatchDownloader.h"
 #include "GameRules.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if !defined (_RELEASE)
 #define TELEMETRY_CHECKS_FOR_OLD_ERRORLOGS (1)
@@ -326,13 +327,10 @@ CTelemetryCollector::CTelemetryCollector() :
 	UpdateClientName();
 
 #ifdef ENABLE_PROFILING_CODE
-	string	tmpStr = "%USER%/TelemetryTransactions";
-	char path[ICryPak::g_nMaxPath];
-	path[sizeof(path) - 1] = 0;
-	gEnv->pCryPak->AdjustFileName(tmpStr, path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
+	CryPathString path;
+	gEnv->pCryPak->AdjustFileName("%USER%/TelemetryTransactions", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
 
-	m_telemetryRecordingPath=path;
-
+	m_telemetryRecordingPath = path;
 	gEnv->pCryPak->MakeDir(m_telemetryRecordingPath.c_str());
 #endif
 }
@@ -429,32 +427,32 @@ bool CTelemetryCollector::MoveLogFileOutOfTheWay(
 		tm *today = localtime( &ltime );
 		strftime(timeStr.m_str, timeStr.MAX_SIZE, "%Y-%m-%d-%H-%M-%S", today);
 
-		CryFixedStringT<128> newTargetFilename;
+		CryPathString newTargetFilename;
 		newTargetFilename.Format("%s_%s.log", inTargetFilename, timeStr.c_str());
 
-		char sourceFullPathBuf[ICryPak::g_nMaxPath];
-		const char *sourceFullPath = gEnv->pCryPak->AdjustFileName(inSourceFilename, sourceFullPathBuf, ICryPak::FOPEN_HINT_QUIET);
-		char targetFullPathBuf[ICryPak::g_nMaxPath];
-		const char *targetFullPath = gEnv->pCryPak->AdjustFileName(newTargetFilename.c_str(), targetFullPathBuf, ICryPak::FOPEN_HINT_QUIET);
+		CryPathString sourceFullPath;
+		gEnv->pCryPak->AdjustFileName(inSourceFilename, sourceFullPath, ICryPak::FOPEN_HINT_QUIET);
+		CryPathString targetFullPath;
+		gEnv->pCryPak->AdjustFileName(newTargetFilename, targetFullPath, ICryPak::FOPEN_HINT_QUIET);
 
-		if (sourceFullPath != NULL && targetFullPath != NULL)
+		if (!sourceFullPath.empty() && !targetFullPath.empty())
 		{
 			// file rename - TRC/TCR failure?
 			// can use crypak's AdjustFileName() ?
 			int result=rename(sourceFullPath, targetFullPath);
 			if (result)
 			{
-				CryLog("CTelemetryCollector::MoveLogFileOutOfTheWay() failed to rename error file from %s to %s return=%d (errno=%d)", sourceFullPath, targetFullPath, result, errno);
+				CryLog("CTelemetryCollector::MoveLogFileOutOfTheWay() failed to rename error file from %s to %s return=%d (errno=%d)", sourceFullPath.c_str(), targetFullPath.c_str(), result, errno);
 			}
 			else
 			{
-				CryLog("CTelemetryCollector::MoveLogFileOutOfTheWay() succeeded in renaming error file from %s to %s", sourceFullPath, targetFullPath);
+				CryLog("CTelemetryCollector::MoveLogFileOutOfTheWay() succeeded in renaming error file from %s to %s", sourceFullPath.c_str(), targetFullPath.c_str());
 				success=true;
 			}
 		}
 		else
 		{
-			CryLog("CTelemetryCollector::MoveLogFileOutOfTheWay() failed to generate full paths for the old (%s (%p)) and new (%s (%p)) error log files", inSourceFilename, sourceFullPath, newTargetFilename.c_str(), targetFullPath);
+			CryLog("CTelemetryCollector::MoveLogFileOutOfTheWay() failed to generate full paths for the old (%s (%p)) and new (%s (%p)) error log files", inSourceFilename, sourceFullPath.c_str(), newTargetFilename.c_str(), targetFullPath.c_str());
 		}
 	}
 	else
@@ -1144,16 +1142,14 @@ int CTelemetryCollector::MakePostHeader(
 	// a path on the remote server rather than a path on the local file system
 	destFile += GetIndexOfFirstValidCharInFilePath(destFile, strlen(destFile), true, true);
 
-	char szFullPathBuf[ICryPak::g_nMaxPath];
-
 	// Would be nice to also specify ICryPak::FLAGS_NO_LOWCASE here, but that also stops the expansion of %USER% into the user directory [TF]
-	ICryPak			*pak=gEnv->pCryPak;
-	pak->AdjustFileName(destFile, szFullPathBuf, ICryPak::FLAGS_NO_FULL_PATH);
+	CryPathString fullPath;
+	gEnv->pCryPak->AdjustFileName(destFile, fullPath, ICryPak::FLAGS_NO_FULL_PATH);
 
 	// strip .\ off the beginning of file names
 	// .\ is used to refer to a file in the games root directory but putting .\ at the beginning of file names on the server is not the intention
 	// start with a drive letter? we don't want those on the server either
-	string webSafeFileName(szFullPathBuf + GetIndexOfFirstValidCharInFilePath(szFullPathBuf, strlen(szFullPathBuf), true, true));
+	string webSafeFileName(fullPath.begin() + GetIndexOfFirstValidCharInFilePath(fullPath, fullPath.length(), true, true));
 	CryLog( "webSafeFileName='%s'",webSafeFileName.c_str());
 
 	GameNetworkUtils::WebSafeEscapeString(&webSafeFileName);
@@ -1400,7 +1396,7 @@ bool CTelemetryCollector::TrySubmitTelemetryProducer(
 			CTelemetryHTTPPostChunkSplitter *pSplit=new CTelemetryHTTPPostChunkSplitter(pInProducer);
 			pInProducer=pSplit;
 			pLargeSubmitData->m_pProducer=pInProducer;
-			cry_strcpy(pLargeSubmitData->m_remoteFileName,"<telemetry producer>");		// can always extract name from post header later if it is needed
+			cry_fixed_size_strcpy(pLargeSubmitData->m_remoteFileName,"<telemetry producer>");		// can always extract name from post header later if it is needed
 
 			assert(inFlags&k_tf_chunked);		// Telemetry producers must be chunked
 			CRY_ASSERT_MESSAGE(inLen<=int(sizeof(pLargeSubmitData->m_postHeaderContents)),"http post header too long, truncating - message liable to get lost");
@@ -1866,11 +1862,11 @@ ITelemetryProducer::EResult CTelemetryHTTPPostChunkSplitter::ProduceTelemetry(
 
 				footer+="\r\n";
 
-				int			footerLength=footer.length();
+				size_t footerLength = footer.length();
 
-				assert(footerLength<=inBufferSize);			// could fix this by splitting footer over multiple produce() calls, but it is an unnecessary complication for the buffer sizes in use
+				assert(footerLength <= static_cast<size_t>(inBufferSize));			// could fix this by splitting footer over multiple produce() calls, but it is an unnecessary complication for the buffer sizes in use
 
-				footerLength=min(footerLength,inBufferSize);
+				footerLength = std::min<size_t>(footerLength, inBufferSize);
 
 				memcpy(pOutBuffer,footer.c_str(),footerLength);
 
@@ -2759,10 +2755,6 @@ void CTelemetryCollector::GetMemoryUsage( ICrySizer* pSizer ) const
 
 	pSizer->AddString(m_curSessionId);
 	pSizer->AddString(m_websafeClientName);
-#ifdef ENABLE_PROFILING_CODE
-	m_telemetryRecordingPath.GetMemoryUsage(pSizer);
-	m_telemetryMemoryLogPath.GetMemoryUsage(pSizer);
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////

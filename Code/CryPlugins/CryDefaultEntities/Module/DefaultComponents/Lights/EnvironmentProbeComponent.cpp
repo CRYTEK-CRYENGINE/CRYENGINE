@@ -77,7 +77,7 @@ Cry::Entity::EventFlags CEnvironmentProbeComponent::GetEventMask() const
 }
 
 #ifndef RELEASE
-void CEnvironmentProbeComponent::Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext &context) const
+void CEnvironmentProbeComponent::Render(const IEntity& entity, const IEntityComponent& component, SEntityPreviewContext& context) const
 {
 	if (context.bSelected)
 	{
@@ -88,7 +88,9 @@ void CEnvironmentProbeComponent::Render(const IEntity& entity, const IEntityComp
 
 		if (m_generation.pSelectionObject != nullptr)
 		{
-			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(gEnv->p3DEngine->GetRenderingCamera());
+			const SRenderingPassInfo& passInfo = *context.pPassInfo;
+
+			gEnv->pRenderer->EF_StartEf(passInfo);
 
 			SRendParams rp;
 			rp.AmbientColor = ColorF(0.0f, 0.0f, 0.0f, 1);

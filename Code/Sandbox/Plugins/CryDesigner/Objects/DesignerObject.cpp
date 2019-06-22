@@ -9,6 +9,7 @@
 #include "Util/Undo.h"
 #include "DesignerEditor.h"
 
+#include <IAIManager.h>
 #include <Material/MaterialManager.h>
 #include <GameEngine.h>
 
@@ -657,7 +658,7 @@ void DesignerObjectFlags::Serialize(Serialization::IArchive& ar)
 	ar(outdoor, "outdoor", "Outdoor");
 	ar(rainOccluder, "rainOccluder", "Rain Occluder");
 	ar(ratioViewDist, "ratioViewDist", "View Distance Ratio");
-	ar(excludeFromTriangulation, "excludeFromTriangulation", "AI Exclude From Triangulation");
+	ar(excludeFromTriangulation, "excludeFromTriangulation", "Exclude From Navigation");
 	ar(hideable, "hideable", "AI Hideable");
 	ar(noDynWater, "noDynWater", "No Dynamic Water");
 	ar(noStaticDecals, "noStaticDecals", "No Static Decal");
@@ -682,7 +683,8 @@ void ModifyFlag(T& nFlags, const T& flag, bool var)
 
 void DesignerObjectFlags::Update()
 {
-	uint64 nFlags = m_pObj->GetCompiler()->GetRenderFlags();
+	const uint64 nOldFlags = m_pObj->GetCompiler()->GetRenderFlags();
+	uint64 nFlags = nOldFlags;
 	int statobjFlags = m_pObj->GetCompiler()->GetStaticObjFlags();
 
 	ModifyFlag<uint64>(nFlags, ERF_OUTDOORONLY, outdoor);
@@ -704,6 +706,13 @@ void DesignerObjectFlags::Update()
 	m_pObj->GetCompiler()->SetStaticObjFlags(statobjFlags);
 	m_pObj->GetCompiler()->Compile(m_pObj, m_pObj->GetModel(), eShelf_Base, true);
 	ApplyPostProcess(m_pObj->GetMainContext(), ePostProcess_SyncPrefab);
+
+	if ((nOldFlags & ERF_EXCLUDE_FROM_TRIANGULATION) != (nFlags & ERF_EXCLUDE_FROM_TRIANGULATION))
+	{
+		AABB bbox;
+		m_pObj->GetBoundBox(bbox);
+		GetIEditor()->GetAIManager()->OnAreaModified(bbox);
+	}
 }
 
 }

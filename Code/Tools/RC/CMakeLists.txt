@@ -104,6 +104,7 @@ add_subdirectory("${CRY_LIBS_DIR}/ilmbase" "${CMAKE_CURRENT_BINARY_DIR}/ilmbase"
 add_subdirectory("${CRY_LIBS_DIR}/alembic" "${CMAKE_CURRENT_BINARY_DIR}/alembic")
 add_subdirectory("${CRY_LIBS_DIR}/hdf5" "${CMAKE_CURRENT_BINARY_DIR}/hdf5")
 add_subdirectory("${CRY_LIBS_DIR}/vco" "${CMAKE_CURRENT_BINARY_DIR}/vco")
+add_subdirectory("${CRY_LIBS_DIR}/qpOASES" "${CMAKE_CURRENT_BINARY_DIR}/qpOASES")
 
 add_subdirectory("${CRYENGINE_SOURCE_DIR}/Code/Tools/CryXML" "${CMAKE_CURRENT_BINARY_DIR}/CryXML")
 add_subdirectory("${CRYENGINE_SOURCE_DIR}/Code/CryEngine/CryPhysics" "${CMAKE_CURRENT_BINARY_DIR}/CryPhysics")

@@ -25,7 +25,7 @@ namespace Cry
 		public:
 
 			explicit                                 CNode();               // default ctor required for yasli serialization
-			explicit                                 CNode(const char* szNodeName, const CTree& owningTree);
+			explicit                                 CNode(const char* szNodeName, CTree& owningTree);
 			CNode&                                   operator = (CNode && other);
 
 			// INode
@@ -33,14 +33,20 @@ namespace Cry
 			virtual INode&                           AddChild_UniqueStringAutoIncrement(const char* szChildNodeNamePrefix) override;
 			virtual INode&                           AddChild_FindLastAutoIncrementedUniqueNameOrCreateIfNotYetExisting(const char* szChildNodeNamePrefix) override;
 			virtual INode&                           AddChild_CurrentSystemFrame() override;
+
 			virtual IRenderPrimitiveCollection&      GetRenderPrimitiveCollection() override;
 			virtual ILogMessageCollection&           GetLogMessageCollection() override;
 			virtual const char*                      GetName() const override;
 			virtual const INode*                     GetParent() const override;
 			virtual size_t                           GetChildCount() const override;
 			virtual const INode&                     GetChild(size_t index) const override;
+			virtual const ITimeMetadata&             GetTimeMetadataMin() const override;
+			virtual const ITimeMetadata&             GetTimeMetadataMax() const override;
+
 			virtual void                             DrawRenderPrimitives(bool recursivelyDrawChildrenAsWell) const override;
+			virtual void                             DrawRenderPrimitives(bool recursivelyDrawChildrenAsWell, const CTimeValue start, const CTimeValue end) const override;
 			virtual void                             VisitLogMessages(ILogMessageVisitor& visitor, bool bRecurseDownAllChildren) const override;
+			virtual void                             VisitLogMessages(ILogMessageVisitor& visitor,  bool bRecurseDownAllChildren, const CTimeValue start, const CTimeValue end) const override;
 			// ~INode
 
 			void                                     Serialize(Serialization::IArchive& ar);
@@ -51,6 +57,10 @@ namespace Cry
 			void                                     GatherStatisticsRecursively(SStatistics& outStats) const;
 			void                                     PrintHierarchyToConsoleRecursively(int indentLevel) const;
 			void                                     PrintStatisticsToConsole(const char* szMessagePrefix) const;
+
+			// These gets called when the RenderPrimitiveCollection/LogMessageCollection/Children metadata are updated.
+			void                                     OnTimeMetadataMinChanged(const CTimeMetadata& metadata);
+			void                                     OnTimeMetadataMaxChanged(const CTimeMetadata& metadata);
 
 		private:
 
@@ -64,9 +74,12 @@ namespace Cry
 			void                                     SetParentInChildrenRecursively();
 			void                                     BuildFastLookupTable();
 
+			void                                     UpdateTimeMetadataMin();
+			void                                     UpdateTimeMetadataMax();
+
 		private:
 
-			const CTree*                             m_pOwningTree;
+			CTree*                                   m_pOwningTree;
 			CNode*                                   m_pParent;
 			string                                   m_name;
 			CRenderPrimitiveCollection               m_renderPrimitives;
@@ -74,6 +87,9 @@ namespace Cry
 			std::vector <std::unique_ptr<CNode>>     m_children;
 			std::map <string, size_t>                m_childrenByName;   // for fast lookup in FindChildNode(); key = child name, value = index into m_children[]
 			std::map <string, int>                   m_uniqueNamesCache;    // for keeping track of when a unique name is to be generated using an integer-suffix that will auto-increment; key = name prefix, value = last auto-incremented integer value
+
+			CTimeMetadata                            m_timeMetadataMin;
+			CTimeMetadata                            m_timeMetadataMax;
 		};
 
 	}

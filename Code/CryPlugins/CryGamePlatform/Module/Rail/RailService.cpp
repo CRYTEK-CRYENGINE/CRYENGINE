@@ -7,6 +7,7 @@
 #include "RailHelper.h"
 
 #include <CrySystem/ICmdLine.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 // Included only once per DLL module.
 #include <CryCore/Platform/platform_impl.inl>
@@ -285,6 +286,29 @@ namespace Cry
 
 				return m_friends;
 			}
+
+#if CRY_GAMEPLATFORM_EXPERIMENTAL
+			const DynArray<IAccount*>& CService::GetBlockedAccounts() const
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "[Rail][Service] GetBlockedAccounts() is not implemented yet");
+
+				return m_blockedAccounts;
+			}
+
+			const DynArray<IAccount*>& CService::GetMutedAccounts() const
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "[Rail][Service] GetMutedAccounts() is not implemented yet");
+
+				return m_mutedAccounts;
+			}
+
+			bool CService::GetEnvironmentValue(const char* szVarName, string& valueOut) const
+			{
+				CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "[Rail][Service] GetEnvironmentValue() is not implemented yet");
+
+				return false;
+			}
+#endif // CRY_GAMEPLATFORM_EXPERIMENTAL
 
 			CAccount* CService::GetAccountById(const AccountIdentifier& accountId) const
 			{

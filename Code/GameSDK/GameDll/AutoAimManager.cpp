@@ -18,6 +18,7 @@ $DateTime$
 #include "Actor.h"
 #include <CryAISystem/IFactionMap.h>
 #include <CryRenderer/IRenderAuxGeom.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CAutoAimManager::CAutoAimManager()
 : m_closeCombatSnapTargetId(0)

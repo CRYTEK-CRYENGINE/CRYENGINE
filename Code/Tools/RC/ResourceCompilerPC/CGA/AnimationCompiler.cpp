@@ -1196,7 +1196,6 @@ static void ProcessAnimationJob(AnimationJob* job)
 	const string& sourcePath = job->m_sourcePath;
 	const string& intermediatePath = job->m_intermediatePath;
 	const string& destPath = job->m_destinationPath;
-	const string& reportFile = writeDest ? destPath : intermediatePath;
 
 	const bool isAIM = IsAimAnimation(job->m_skeleton->m_SkinningInfo, job->m_animationPath);
 	const bool isLook = IsLookAnimation(job->m_skeleton->m_SkinningInfo, job->m_animationPath);

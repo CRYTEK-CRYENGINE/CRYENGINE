@@ -89,7 +89,10 @@ void CSkeletonPose::SkeletonPostProcess(Skeleton::CPoseData& poseData)
 		g_pCharacterManager->m_arrVisible.push_back(m_bInstanceVisible);
 	}
 
-	m_pInstance->m_AttachmentManager.UpdateAttachedObjects(poseData);
+	if (m_pPostProcessCallback)
+		(*m_pPostProcessCallback)(m_pInstance, m_pPostProcessCallbackData);
+
+	m_pInstance->m_AttachmentManager.UpdateAttachedObjects();
 	if (m_pInstance->IsCharacterVisible() || m_bFullSkeletonUpdate)
 		UpdateBBox();
 
@@ -103,9 +106,6 @@ void CSkeletonPose::SkeletonPostProcess(Skeleton::CPoseData& poseData)
 		m_nForceSkeletonUpdate--;
 		if (m_nForceSkeletonUpdate < 0) m_nForceSkeletonUpdate = 0;
 	}
-
-	if (m_pPostProcessCallback)
-		(*m_pPostProcessCallback)(m_pInstance, m_pPostProcessCallbackData);
 
 	m_pPoseDataWriteable = NULL;
 

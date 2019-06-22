@@ -4,8 +4,8 @@
 
 #include "AK/AkWwiseSDKVersion.h"
 
-#if (AK_WWISESDK_VERSION_MAJOR != 2018) || (AK_WWISESDK_VERSION_MINOR != 1) || (AK_WWISESDK_VERSION_SUBMINOR > 5)
-	#error This version of Wwise is not supported. The supported versions are 2018.1.0 to 2018.1.5
+#if (AK_WWISESDK_VERSION_MAJOR != 2019) || (AK_WWISESDK_VERSION_MINOR != 1) || (AK_WWISESDK_VERSION_SUBMINOR > 1)
+	#error This version of Wwise is not supported. The supported versions are 2019.1.0 to 2019.1.1
 #endif
 
 #include "AK/SoundEngine/Common/AkTypes.h"
@@ -16,9 +16,9 @@
 #define CRY_AUDIO_IMPL_WWISE_ASSERT_OK(x) (CRY_ASSERT(x == AK_Success))
 #define CRY_AUDIO_IMPL_WWISE_IS_OK(x)     (x == AK_Success)
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	#include <CryThreading/CryThread.h>
-#endif // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -28,17 +28,14 @@ namespace Wwise
 {
 class CImpl;
 class CListener;
-class CBaseObject;
-class CGlobalObject;
 class CEventInstance;
 
 extern CImpl* g_pImpl;
-extern CListener* g_pListener;
-extern CGlobalObject* g_pObject;
 
 extern uint32 g_numObjectsWithRelativeVelocity;
 
 using EventInstances = std::vector<CEventInstance*>;
+using Listeners = std::vector<CListener*>;
 
 //////////////////////////////////////////////////////////////////////////
 inline void FillAKVector(Vec3 const& vCryVector, AkVector& vAKVector)
@@ -70,18 +67,13 @@ inline void FillAKListenerPosition(CTransformation const& transformation, AkList
 	outTransformation.SetOrientation(vec1, vec2);
 }
 
-extern AkGameObjectID g_listenerId; // To be removed once multi-listener support is implemented.
-extern AkGameObjectID g_globalObjectId;
-
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
-constexpr char const* g_globalObjectName = "Global Object";
-
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 class CEventInstance;
-class CBaseObject;
+class CObject;
 
 extern CryCriticalSection g_cs;
 extern std::unordered_map<AkPlayingID, CEventInstance*> g_playingIds;
-extern std::unordered_map<AkGameObjectID, CBaseObject*> g_gameObjectIds;
+extern std::unordered_map<AkGameObjectID, CObject*> g_gameObjectIds;
 
 using States = std::map<CryFixedStringT<MaxControlNameLength>, CryFixedStringT<MaxControlNameLength>>;
 extern States g_debugStates;
@@ -95,7 +87,7 @@ enum class EDebugListFilter : EnumFlagsType
 CRY_CREATE_ENUM_FLAG_OPERATORS(EDebugListFilter);
 
 constexpr EDebugListFilter g_debugListMask = EDebugListFilter::EventInstances | EDebugListFilter::States;
-#endif // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 }      // namespace Wwise
 }      // namespace Impl
 }      // namespace CryAudio

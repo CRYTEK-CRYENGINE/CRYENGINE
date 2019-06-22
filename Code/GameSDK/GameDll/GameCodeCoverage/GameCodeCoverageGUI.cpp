@@ -17,6 +17,7 @@ History:
 #include <CryGame/IGameFramework.h>
 #include "GameCodeCoverage/GameCodeCoverageManager.h"
 #include "Utility/CryWatch.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if ENABLE_GAME_CODE_COVERAGE
 

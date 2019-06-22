@@ -1,5 +1,5 @@
 {
-	"version": 3,
+	"version": 4,
 	"type": "",
 	"info": {
 		"name": "Rolling Ball",
@@ -18,21 +18,17 @@
 	"require": {
 		"engine": "engine-dev",
 		"plugins": [
-			{ "type": "EPluginType::Native", "path": "CryDefaultEntities" },
-			{ "type": "EPluginType::Native", "path": "CrySensorSystem" },
-			{ "type": "EPluginType::Native", "path": "CryPerceptionSystem" },
-			{ "type": "EPluginType::Managed", "path": "bin/Game.dll" },
+			{ "type": "EType::Native", "path": "CryDefaultEntities" },
+			{ "type": "EType::Native", "path": "CrySensorSystem" },
+			{ "type": "EType::Native", "path": "CryPerceptionSystem" },
+			{ "type": "EType::Managed", "path": "bin/Game.dll" },
 			{
-				"type": "EPluginType::Native",
+				"type": "EType::Native",
 				"path": "CryGamePlatform",
 				"platforms": [ "PS4" ]
 			}
 		]
 	},
-	"console_variables": {
-		"sys_target_platforms": "pc,ps4,xboxone,linux"
-	},
-	"console_commands": {
-		"map": "example"
-	}
+	"console_variables": { "sys_target_platforms": "pc,ps4,xboxone,linux" },
+	"console_commands": { "map": "example" }
 }

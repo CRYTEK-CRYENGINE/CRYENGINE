@@ -7015,6 +7015,9 @@ IDC_PHYS_PINCH          CURSOR                  "res\\phys_pinch.cur"
 IDC_PHYS_GRAB           CURSOR                  "res\\phys_pull.cur"
 IDC_PHYS_AIM            CURSOR                  "res\\phys_hit.cur"
 IDC_SCISSORS            CURSOR                  "res\\scissors.cur"
+IDC_PHYS_PIN            CURSOR                  "res\\phys_pin.cur"
+IDC_PHYS_FORK           CURSOR                  "res\\phys_fork.cur"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

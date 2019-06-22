@@ -8,7 +8,7 @@
 
 struct ICharacterInstance;
 class QToolBar;
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 namespace CharacterTool
 {
@@ -27,7 +27,7 @@ struct SModeContext
 	ICharacterInstance*    character;
 	TransformPanel*        transformPanel;
 	QToolBar*              toolbar;
-	vector<QPropertyTree*> layerPropertyTrees;
+	vector<QPropertyTreeLegacy*> layerPropertyTrees;
 };
 
 struct IViewportMode : public QViewportConsumer

@@ -100,7 +100,7 @@ bool CCompiledMonoLibrary::Load(int loadIndex)
 		{
 			mono_array_set(pPluginsStringArray, MonoInternals::MonoString*, i, mono_string_new(m_pDomain->GetMonoDomain(), pluginPaths[i]));
 		}
-		const CAppDomain* pDomain = static_cast<CAppDomain*>(GetMonoRuntime()->GetActiveDomain());
+
 		MonoInternals::MonoArray* pArray = MonoInternals::mono_array_new(GetMonoRuntime()->GetActiveDomain()->GetHandle(), MonoInternals::mono_get_string_class(), 0);
 		void* pParams[5] = { pMonoAssemblyPath->GetManagedObject(), pSourceFilesStringArray, pPluginsStringArray, &pArray, &outErrorCount };
 		pCompilationMethod->InvokeStatic(pParams);

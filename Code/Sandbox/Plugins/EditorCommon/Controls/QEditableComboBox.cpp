@@ -18,6 +18,8 @@ QEditableComboBox::QEditableComboBox(QWidget* pParent)
 	m_pComboBox->SetCanHaveEmptySelection(false);
 
 	QHBoxLayout* pLayout = new QHBoxLayout();
+	pLayout->setSpacing(0);
+	pLayout->setMargin(0);
 
 	pLayout->addWidget(m_pLineEdit);
 	pLayout->addWidget(m_pComboBox);

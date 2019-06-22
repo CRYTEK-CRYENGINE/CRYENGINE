@@ -39,6 +39,7 @@ public:
 	virtual EFeatureType      GetFeatureType() override { return EFT_Render; }
 	virtual CParticleFeature* ResolveDependency(CParticleComponent* pComponent) override;
 	virtual void              AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override;
+	virtual void              Render(CParticleComponentRuntime& runtime, const SRenderContext& renderContext) override;
 
 private:
 	template<typename T>
@@ -52,14 +53,12 @@ private:
 	gpu_pfx2::ESortMode   m_sortMode     = gpu_pfx2::ESortMode::None;
 	gpu_pfx2::EFacingMode m_facingMode   = gpu_pfx2::EFacingMode::Screen;
 	UFloat10              m_axisScale    = 1.0f;
-	SFloat                m_sortBias     = 0.0f;
 };
 
 void CFeatureRenderGpuSprites::AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams)
 {
 	CParticleRenderBase::AddToComponent(pComponent, pParams);
 	pParams->m_renderObjectFlags |= FOB_POINT_SPRITE;
-	pParams->m_renderObjectSortBias = m_sortBias;
 	pParams->m_shaderData.m_axisScale = m_axisScale;
 }
 
@@ -86,6 +85,19 @@ CParticleFeature* CFeatureRenderGpuSprites::ResolveDependency(CParticleComponent
 
 	return this;
 }
+
+void CFeatureRenderGpuSprites::Render(CParticleComponentRuntime& runtime, const SRenderContext& renderContext)
+{
+	CParticleRenderBase::Render(runtime, renderContext);
+
+	// Accumulate render stats
+	SParticleStats stats;
+	runtime.GetGpuRuntime()->AccumStats(stats);
+	auto& statsGPU = GetPSystem()->GetThreadData().statsGPU;
+	statsGPU.components.rendered += stats.components.rendered;
+	statsGPU.particles.rendered += stats.particles.rendered;
+}
+
 
 CRY_PFX2_LEGACY_FEATURE(CFeatureRenderGpuSprites, "Render", "GPU Sprites");
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureRenderGpuSprites, "GPU Particles", "Sprites", colorGPU);

@@ -64,8 +64,15 @@ struct ISystem
 {
 	virtual ~ISystem() {}
 
-	virtual void RegisterAgent(IAgent* pAgent) = 0;
-	virtual void UnregisterAgent(IAgent* pAgent) = 0;
+	//! Tries to register the Agent to the Collision Avoidance System.
+	//! \param pAgent Agent to be registered.
+	//! \return True if the agent was successfully registered or was already registered. False otherwise.
+	virtual bool RegisterAgent(IAgent* pAgent) = 0;
+
+	//! Tries to unregister the Agent from the Collision Avoidance System if it was previously registered.
+	//! \param pAgent Agent to be unregistered.
+	//! \return True if the agent was successfully unregistered. False if the agent was not registered.
+	virtual bool UnregisterAgent(IAgent* pAgent) = 0;
 };
 
 } // namespace CollisionAvoidance

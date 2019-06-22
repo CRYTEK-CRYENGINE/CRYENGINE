@@ -16,7 +16,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include <Material/Material.h>
 
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 
 #include <QColorDialog>
 #include <QMenu>
@@ -80,7 +80,7 @@ CMaterialSettings* CMaterialPanel::GetMaterialSettings()
 	return m_pMaterialSettings.get();
 }
 
-QPropertyTree* CMaterialPanel::GetMaterialSettingsTree()
+QPropertyTreeLegacy* CMaterialPanel::GetMaterialSettingsTree()
 {
 	return m_pMaterialSettingsTree;
 }
@@ -171,7 +171,7 @@ IMaterial* CMaterialPanel::GetMatInfo()
 
 void CMaterialPanel::SetupUi()
 {
-	m_pMaterialSettingsTree = new QPropertyTree();
+	m_pMaterialSettingsTree = new QPropertyTreeLegacy();
 	m_pMaterialSettingsTree->setSizeToContent(true);
 	m_pMaterialSettingsTree->setEnabled(false);
 	m_pMaterialSettingsTree->attach(Serialization::SStruct(*m_pMaterialSettings));

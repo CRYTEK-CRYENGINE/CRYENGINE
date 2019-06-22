@@ -6,8 +6,8 @@
 
 #include <IEditor.h>
 #include <CrySerialization/IArchive.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
-#include <QPropertyTree/QPropertyDialog.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
+#include <QPropertyTreeLegacy/QPropertyDialog.h>
 
 #include <QWindow>
 #include <QGuiApplication>
@@ -48,7 +48,7 @@ END_MESSAGE_MAP()
 CMFCPropertyTree::CMFCPropertyTree()
 	: m_propertyTree(0)
 {
-	m_propertyTree = new QPropertyTree(0);
+	m_propertyTree = new QPropertyTreeLegacy(0);
 	m_signalHandler = new CMFCPropertyTreeSignalHandler(this);
 }
 
@@ -95,7 +95,7 @@ int CMFCPropertyTree::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	QEvent e(QEvent::EmbeddingControl);
 	QCoreApplication::sendEvent(m_propertyTree, &e);
 	m_propertyTree->setUndoEnabled(true);
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	m_propertyTree->setTreeStyle(treeStyle);
 	m_propertyTree->show();

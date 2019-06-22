@@ -1,4 +1,4 @@
-// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -50,10 +50,13 @@ struct IViewPaneClass : public IClassDesc
 	virtual IPane* CreatePane() const { return 0; }
 };
 
-struct IPane : public IStateSerializable
+struct EDITOR_COMMON_API IPane : IStateSerializable
 {
-public:
+	static CCrySignal<void(IPane*)> s_signalPaneCreated;
+
 	virtual ~IPane() {}
+
+	virtual void Initialize() { }
 
 	virtual QWidget* GetWidget() = 0;
 
@@ -62,6 +65,8 @@ public:
 
 	// Return text for view pane title.
 	virtual const char* GetPaneTitle() const = 0;
+
+	virtual std::vector<IPane*> GetSubPanes() const { return {}; }
 
 	// Initial pane size.
 	virtual QRect GetPaneRect() { return QRect(0, 0, 800, 500); }
@@ -102,6 +107,7 @@ public:
 		QWidget::setAttribute(Qt::WA_DeleteOnClose);
 	}
 	virtual ~CDockableWidgetT() {}
+
 	virtual QWidget* GetWidget() override { return this; }
 };
 

@@ -594,16 +594,11 @@ int CScriptBind_Action::DontSyncPhysics(IFunctionHandler* pH, ScriptHandle entit
 //------------------------------------------------------------------------
 int CScriptBind_Action::HasAI(IFunctionHandler* pH, ScriptHandle entityId)
 {
-	bool bResult = false;
-
 	const EntityId id = (EntityId)entityId.n;
 	IEntity* pEntity = gEnv->pEntitySystem->GetEntity(id);
-	if (pEntity)
-	{
-		bResult = (pEntity->GetAI() != 0);
-	}
-
-	return pH->EndFunction(bResult);
+	
+	const bool hasAI = pEntity ? pEntity->HasAI() : false;
+	return pH->EndFunction(hasAI);
 }
 
 //------------------------------------------------------------------------

@@ -39,7 +39,7 @@ public:
 	CEventInstance& operator=(CEventInstance const&) = delete;
 	CEventInstance& operator=(CEventInstance&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE)
 	explicit CEventInstance(TriggerInstanceId const triggerInstanceId, CEvent& event, CObject const& object)
 		: m_triggerInstanceId(triggerInstanceId)
 		, m_event(event)
@@ -64,7 +64,7 @@ public:
 		, m_state(EEventInstanceState::None)
 		, m_toBeRemoved(false)
 	{}
-#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE
 
 	~CEventInstance();
 
@@ -87,9 +87,9 @@ public:
 	EEventInstanceState GetState() const                          { return m_state; }
 	void                SetState(EEventInstanceState const state) { m_state = state; }
 
-#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE)
 	CObject const& GetObject() const { return m_object; }
-#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE
 
 private:
 
@@ -106,9 +106,9 @@ private:
 	bool                             m_toBeRemoved;
 	PaSampleFormat                   m_sampleFormat;
 
-#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE)
 	CObject const& m_object;
-#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE
 };
 } // namespace PortAudio
 } // namespace Impl

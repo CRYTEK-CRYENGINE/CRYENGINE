@@ -8,6 +8,15 @@ void GetDynamicsStatus(IPhysicalEntity& physicalEntity)
 	{
 		/* The pe_status_dynamics can now be used */
 		const Vec3& velocity = dynStatus.v;
+
+		if (!velocity.IsZero())
+		{
+		}
+
 		const Vec3& angularVelocity = dynStatus.w;
+
+		if (!angularVelocity.IsZero())
+		{
+		}
 	}
 }

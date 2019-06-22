@@ -74,8 +74,8 @@ class CTelemetryCollector : public ITelemetryCollector, public ILevelSystemListe
 		string					m_curSessionId;
 		string					m_websafeClientName;
 #ifdef ENABLE_PROFILING_CODE
-		CryFixedStringT<512>	m_telemetryRecordingPath;
-		CryFixedStringT<512> m_telemetryMemoryLogPath;
+		CryPathString	        m_telemetryRecordingPath;
+		CryPathString           m_telemetryMemoryLogPath;
 #endif
 
 		CryMutex			m_largeFileMutex;
@@ -110,7 +110,7 @@ class CTelemetryCollector : public ITelemetryCollector, public ILevelSystemListe
 	public:
 		struct SLargeFileSubmitData
 		{
-			char m_remoteFileName[ICryPak::g_nMaxPath];			// remote filename to submit to
+			char m_remoteFileName[MAX_PATH];			// remote filename to submit to
 			char m_chunkData[k_largeFileSubmitChunkSize];		// current chunk data being submitted
 			char m_postHeaderContents[k_maxHttpHeaderSize];		// post header contents - we'll need to patch for each chunk send. 
 			int m_postHeaderSize;															// post header size

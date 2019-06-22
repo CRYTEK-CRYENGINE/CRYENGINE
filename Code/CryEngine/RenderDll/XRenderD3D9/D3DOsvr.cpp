@@ -80,7 +80,7 @@ void CD3DOsvrRenderer::CreateTextureSwapSets(uint32 width, uint32 height, uint32
 	TArray<Texture> textures;
 
 	TextureSet* texSetsptr = texSets.Grow(swapSetCount);
-	Texture* texptr = textures.Grow(swapSetCount * EyeCount);
+	textures.Grow(swapSetCount * EyeCount);
 
 	swapSets.numTextureSets = swapSetCount;
 	swapSets.pTextureSets = texSetsptr;

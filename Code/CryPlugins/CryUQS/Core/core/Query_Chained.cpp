@@ -21,9 +21,11 @@ namespace UQS
 			// nothing
 		}
 
-		void CQuery_Chained::HandleChildQueryFinishedWithSuccess(const CQueryID& childQueryID, QueryResultSetUniquePtr&& pResultSet)
+		void CQuery_Chained::HandleChildQueryFinishedWithSuccess(CQueryBase& childQuery)
 		{
 			CRY_PROFILE_FUNCTION_ARG(UQS_PROFILED_SUBSYSTEM_TO_USE, m_pQueryBlueprint->GetName());	// mainly for keeping an eye on the copy operation of the items below
+
+			QueryResultSetUniquePtr pResultSet = childQuery.ClaimResultSet();
 
 			CRY_ASSERT(pResultSet != nullptr);
 
@@ -51,9 +53,7 @@ namespace UQS
 			}
 
 			// transfer all item-monitors from the child to ourself to keep monitoring until a higher-level query decides differently
-			CQueryBase* pChildQuery = g_pHub->GetQueryManager().FindQueryByQueryID(childQueryID);
-			CRY_ASSERT(pChildQuery);
-			pChildQuery->TransferAllItemMonitorsToOtherQuery(*this);
+			childQuery.TransferAllItemMonitorsToOtherQuery(*this);
 		}
 
 	}

@@ -47,7 +47,6 @@ static void sParseRuntimeShaderFlag(const char* szScr, const char* szAnnotations
 		uint32 n = sscanf(szScr, "%255s %255s", str, strval);
 		if (n == 2)
 		{
-			bool bOK = false;
 			if (strval[0] == '%')
 			{
 				SShaderGen* pGen = gRenDev->m_cEF.m_pGlobalExt;

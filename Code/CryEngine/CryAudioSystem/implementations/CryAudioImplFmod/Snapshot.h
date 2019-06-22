@@ -29,7 +29,7 @@ public:
 	CSnapshot& operator=(CSnapshot const&) = delete;
 	CSnapshot& operator=(CSnapshot&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	explicit CSnapshot(
 		uint32 const id,
 		EActionType const actionType,
@@ -51,7 +51,7 @@ public:
 		, m_actionType(actionType)
 		, m_pEventDescription(pEventDescription)
 	{}
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 
 	virtual ~CSnapshot() override = default;
 

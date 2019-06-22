@@ -21,7 +21,7 @@
 #include <CryCore/Platform/platform.h>
 
 #if CRY_PLATFORM_DURANGO // no prefetching on durango, as it costs more than it gains
-	#define PrefetchLine(ptr, off) (void)(0)
+	#define PrefetchLine(ptr, off) ((ptr),(off))
 	#define ResetLine128(ptr, off) (void)(0)
 	#define FlushLine128(ptr, off) (void)(0)
 #else

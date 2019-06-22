@@ -5,15 +5,15 @@
 #include "Common.h"
 #include "System.h"
 #include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if defined(CRY_AUDIO_USE_OCCLUSION)
 	#include "PropagationProcessor.h"
 #endif // CRY_AUDIO_USE_OCCLUSION
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include "Common/Logger.h"
-	#include <CryGame/IGameFramework.h>
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -31,7 +31,7 @@ void OnOcclusionPlaneSizeChanged(ICVar* const pCvar)
 }
 #endif // CRY_AUDIO_USE_OCCLUSION
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 //////////////////////////////////////////////////////////////////////////
 void CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs)
 {
@@ -40,7 +40,7 @@ void CmdExecuteTrigger(IConsoleCmdArgs* pCmdArgs)
 	if (numArgs == 2)
 	{
 		ControlId const triggerId = StringToId(pCmdArgs->GetArg(1));
-		gEnv->pAudioSystem->ExecuteTrigger(triggerId);
+		g_system.ExecuteTrigger(triggerId);
 	}
 	else
 	{
@@ -55,12 +55,12 @@ void CmdStopTrigger(IConsoleCmdArgs* pCmdArgs)
 
 	if (numArgs == 1)
 	{
-		gEnv->pAudioSystem->StopTrigger(InvalidControlId);
+		g_system.StopTrigger(InvalidControlId);
 	}
 	else if (numArgs == 2)
 	{
 		ControlId const triggerId = StringToId(pCmdArgs->GetArg(1));
-		gEnv->pAudioSystem->StopTrigger(triggerId);
+		g_system.StopTrigger(triggerId);
 	}
 	else
 	{
@@ -77,7 +77,7 @@ void CmdSetParameter(IConsoleCmdArgs* pCmdArgs)
 	{
 		ControlId const parameterId = StringToId(pCmdArgs->GetArg(1));
 		double const value = atof(pCmdArgs->GetArg(2));
-		gEnv->pAudioSystem->SetParameter(parameterId, static_cast<float>(value));
+		g_system.SetParameter(parameterId, static_cast<float>(value));
 	}
 	else
 	{
@@ -94,7 +94,7 @@ void CmdSetParameterGlobally(IConsoleCmdArgs* pCmdArgs)
 	{
 		ControlId const parameterId = StringToId(pCmdArgs->GetArg(1));
 		double const value = atof(pCmdArgs->GetArg(2));
-		gEnv->pAudioSystem->SetParameterGlobally(parameterId, static_cast<float>(value));
+		g_system.SetParameterGlobally(parameterId, static_cast<float>(value));
 	}
 	else
 	{
@@ -111,7 +111,7 @@ void CmdSetSwitchState(IConsoleCmdArgs* pCmdArgs)
 	{
 		ControlId const switchId = StringToId(pCmdArgs->GetArg(1));
 		SwitchStateId const switchStateId = StringToId(pCmdArgs->GetArg(2));
-		gEnv->pAudioSystem->SetSwitchState(switchId, switchStateId);
+		g_system.SetSwitchState(switchId, switchStateId);
 	}
 	else
 	{
@@ -128,7 +128,7 @@ void CmdSetSwitchStateGlobally(IConsoleCmdArgs* pCmdArgs)
 	{
 		ControlId const switchId = StringToId(pCmdArgs->GetArg(1));
 		SwitchStateId const switchStateId = StringToId(pCmdArgs->GetArg(2));
-		gEnv->pAudioSystem->SetSwitchStateGlobally(switchId, switchStateId);
+		g_system.SetSwitchStateGlobally(switchId, switchStateId);
 	}
 	else
 	{
@@ -144,7 +144,7 @@ void CmdLoadRequest(IConsoleCmdArgs* pCmdArgs)
 	if (numArgs == 2)
 	{
 		ControlId const id = StringToId(pCmdArgs->GetArg(1));
-		gEnv->pAudioSystem->PreloadSingleRequest(id, false);
+		g_system.PreloadSingleRequest(id, false);
 	}
 	else
 	{
@@ -160,7 +160,7 @@ void CmdUnloadRequest(IConsoleCmdArgs* pCmdArgs)
 	if (numArgs == 2)
 	{
 		ControlId const id = StringToId(pCmdArgs->GetArg(1));
-		gEnv->pAudioSystem->UnloadSingleRequest(id);
+		g_system.UnloadSingleRequest(id);
 	}
 	else
 	{
@@ -176,7 +176,7 @@ void CmdLoadSetting(IConsoleCmdArgs* pCmdArgs)
 	if (numArgs == 2)
 	{
 		ControlId const id = StringToId(pCmdArgs->GetArg(1));
-		gEnv->pAudioSystem->LoadSetting(id);
+		g_system.LoadSetting(id);
 	}
 	else
 	{
@@ -192,11 +192,43 @@ void CmdUnloadSetting(IConsoleCmdArgs* pCmdArgs)
 	if (numArgs == 2)
 	{
 		ControlId const id = StringToId(pCmdArgs->GetArg(1));
-		gEnv->pAudioSystem->UnloadSetting(id);
+		g_system.UnloadSetting(id);
 	}
 	else
 	{
 		Cry::Audio::Log(ELogType::Error, "Usage: s_UnloadSetting [SettingName]");
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CmdActivateContext(IConsoleCmdArgs* pCmdArgs)
+{
+	int const numArgs = pCmdArgs->GetArgCount();
+
+	if (numArgs == 2)
+	{
+		ContextId const id = StringToId(pCmdArgs->GetArg(1));
+		g_system.ActivateContext(id);
+	}
+	else
+	{
+		Cry::Audio::Log(ELogType::Error, "Usage: s_ActivateContext [ContextName]");
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CmdDeactivateContext(IConsoleCmdArgs* pCmdArgs)
+{
+	int const numArgs = pCmdArgs->GetArgCount();
+
+	if (numArgs == 2)
+	{
+		ContextId const id = StringToId(pCmdArgs->GetArg(1));
+		g_system.DeactivateContext(id);
+	}
+	else
+	{
+		Cry::Audio::Log(ELogType::Error, "Usage: s_DeactivateContext [ContextName]");
 	}
 }
 
@@ -209,9 +241,15 @@ void CmdResetRequestCount(IConsoleCmdArgs* pCmdArgs)
 //////////////////////////////////////////////////////////////////////////
 void CmdRefresh(IConsoleCmdArgs* pCmdArgs)
 {
-	GetISystem()->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_AUDIO_REFRESH, reinterpret_cast<UINT_PTR>(gEnv->pGameFramework->GetLevelName()), 0);
+	GetISystem()->GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_AUDIO_REFRESH, 0, 0);
 }
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+
+//////////////////////////////////////////////////////////////////////////
+void OnDebugDrawChanged(ICVar* const pCvar)
+{
+	g_system.UpdateDebugInfo();
+}
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 //////////////////////////////////////////////////////////////////////////
 void CCVars::RegisterVariables()
@@ -223,9 +261,9 @@ void CCVars::RegisterVariables()
 	               "Default: 393216 (384 MiB)\n");
 #endif // CRY_PLATFORM_DURANGO
 
-	REGISTER_CVAR2("s_AudioObjectPoolSize", &m_objectPoolSize, m_objectPoolSize, VF_REQUIRE_APP_RESTART,
+	REGISTER_CVAR2("s_ObjectPoolSize", &m_objectPoolSize, m_objectPoolSize, VF_REQUIRE_APP_RESTART,
 	               "Sets the number of preallocated audio objects and corresponding audio proxies.\n"
-	               "Usage: s_AudioObjectPoolSize [0/...]\n"
+	               "Usage: s_ObjectPoolSize [0/...]\n"
 	               "Default: 256\n");
 
 	REGISTER_CVAR2("s_TriggerInstancePoolSize", &m_triggerInstancePoolSize, m_triggerInstancePoolSize, VF_REQUIRE_APP_RESTART,
@@ -233,10 +271,23 @@ void CCVars::RegisterVariables()
 	               "Usage: s_TriggerInstancePoolSize [0/...]\n"
 	               "Default: 512\n");
 
-	REGISTER_CVAR2("s_IgnoreWindowFocus", &m_ignoreWindowFocus, 0, VF_NULL,
+	REGISTER_CVAR2("s_IgnoreWindowFocus", &m_ignoreWindowFocus, m_ignoreWindowFocus, VF_NULL,
 	               "If set to 1, the audio system will not execute the \"lose_focus\" and \"get_focus\" triggers when the application window focus changes.\n"
 	               "Usage: s_IgnoreWindowFocus [0/1]\n"
 	               "Default: 0 (off)\n");
+
+	REGISTER_CVAR2("s_PoolAllocationMode", &m_poolAllocationMode, m_poolAllocationMode, VF_REQUIRE_APP_RESTART,
+	               "Defines how pool sizes for audio controls are accumulated. The pool sizes are determined by the amount of controls that exist in a context.\n"
+	               "Usage: s_PoolAllocationMode [0/...]\n"
+	               "Default: 0\n"
+	               "0: Accumulate pool sizes of all contexts.\n"
+	               "1: Accumulate pool sizes of the global context and the largest pool size for each control in any other context.\n"
+	               "This option may be used if maximum one other context besides the global context will be active at any time.\n");
+
+	m_pListeners = REGISTER_STRING(g_szListenersCVarName, "", VF_READONLY,
+	                               "Specifies the names of listeners that should get constructed when the audio system gets initialized.\n"
+	                               "Usage: s_Listeners Listener1,Listener2,..\n"
+	                               "More than one listener can be specified by using a comma separated list");
 
 #if defined(CRY_AUDIO_USE_OCCLUSION)
 	REGISTER_CVAR2("s_OcclusionMaxDistance", &m_occlusionMaxDistance, m_occlusionMaxDistance, VF_CHEAT | VF_CHEAT_NOCHECK,
@@ -264,7 +315,7 @@ void CCVars::RegisterVariables()
 	               "Usage: s_OcclusionMediumDistance [0/...]\n"
 	               "Default: 80 m\n");
 
-	REGISTER_CVAR2_CB("s_OcclusionListenerPlaneSize", &m_occlusionListenerPlaneSize, 1.0f, VF_CHEAT | VF_CHEAT_NOCHECK,
+	REGISTER_CVAR2_CB("s_OcclusionListenerPlaneSize", &m_occlusionListenerPlaneSize, m_occlusionListenerPlaneSize, VF_CHEAT | VF_CHEAT_NOCHECK,
 	                  "Sets the size of the plane at listener position against which occlusion is calculated.\n"
 	                  "Usage: s_OcclusionListenerPlaneSize [0/...]\n"
 	                  "Default: 1.0 (100 cm)\n",
@@ -299,7 +350,7 @@ void CCVars::RegisterVariables()
 	               "1: Initial occlusion check uses 1 ray from the center of the listener occlusion plane.\n"
 	               "2: Initial occlusion check uses 5 rays. The center ray and one at each corner of the listener occlusion plane.\n");
 
-	#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+	#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	REGISTER_CVAR2("s_OcclusionGlobalType", &m_occlusionGlobalType, m_occlusionGlobalType, VF_DEV_ONLY,
 	               "Can override audio objects' obstruction/occlusion ray type on a global scale.\n"
 	               "If set it determines whether audio objects use no, adaptive, low, medium or high granularity for rays.\n"
@@ -313,10 +364,10 @@ void CCVars::RegisterVariables()
 	               "5: All audio objects use high ray casting.\n"
 	               "Usage: s_OcclusionGlobalType [0/1/2/3/4/5]\n"
 	               "Default: 0\n");
-	#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+	#endif // CRY_AUDIO_USE_DEBUG_CODE
 #endif   // CRY_AUDIO_USE_OCCLUSION
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	REGISTER_CVAR2("s_DebugDistance", &m_debugDistance, m_debugDistance, VF_CHEAT | VF_CHEAT_NOCHECK,
 	               "Limits drawing of audio object debug info to the specified distance around the active listeners. Setting this cvar to 0 disables the limiting.\n"
 	               "Usage: s_DebugDistance [0/...]\n"
@@ -331,65 +382,68 @@ void CCVars::RegisterVariables()
 	               "b: Warnings\n"
 	               "c: Comments\n");
 
-	REGISTER_CVAR2("s_DrawAudioDebug", &m_drawDebug, 0, VF_CHEAT | VF_CHEAT_NOCHECK | VF_BITFIELD,
-	               "Draws AudioTranslationLayer related debug data to the screen.\n"
-	               "Usage: s_DrawAudioDebug [0ab...] (flags can be combined)\n"
-	               "0: No audio debug info on the screen.\n"
-	               "a: Draw spheres around active audio objects.\n"
-	               "b: Draw text labels for active audio objects.\n"
-	               "c: Draw trigger names for active audio objects.\n"
-	               "d: Draw current states for active audio objects.\n"
-	               "e: Draw Parameter values for active audio objects.\n"
-	               "f: Draw Environment amounts for active audio objects.\n"
-	               "g: Draw distance to listener for active audio objects.\n"
-	               "h: Draw occlusion ray labels.\n"
-	               "i: Draw occlusion rays.\n"
-	               "j: Draw spheres with occlusion ray offset radius around active audio objects.\n"
-	               "k: Draw listener occlusion plane.\n"
-	               "l: Draw global object info.\n"
-	               "m: Draw middleware specific info for active audio objects.\n"
-	               "q: Hide audio system memory info.\n"
-	               "r: Apply filter also to inactive object debug info.\n"
-	               "s: Draw detailed memory pool debug info.\n"
-	               "v: List implementation specific info.\n"
-	               "w: List active audio objects.\n"
-	               "x: Draw FileCache Manager debug info.\n"
-	               "y: Draw Request debug info.\n"
-	               );
+	REGISTER_CVAR2_CB("s_DrawDebug", &m_drawDebug, m_drawDebug, VF_CHEAT | VF_CHEAT_NOCHECK | VF_BITFIELD,
+	                  "Draws AudioTranslationLayer related debug data to the screen.\n"
+	                  "Usage: s_DrawDebug [0ab...] (flags can be combined)\n"
+	                  "0: No audio debug info on the screen.\n"
+	                  "a: Draw spheres around active audio objects.\n"
+	                  "b: Draw text labels for active audio objects.\n"
+	                  "c: Draw trigger names for active audio objects.\n"
+	                  "d: Draw current states for active audio objects.\n"
+	                  "e: Draw Parameter values for active audio objects.\n"
+	                  "f: Draw Environment amounts for active audio objects.\n"
+	                  "g: Draw distance to listener for active audio objects.\n"
+	                  "h: Draw occlusion ray labels.\n"
+	                  "i: Draw occlusion rays.\n"
+	                  "j: Draw spheres with occlusion ray offset radius around active audio objects.\n"
+	                  "k: Draw occlusion listener plane.\n"
+	                  "l: Draw occlusion collision spheres.\n"
+	                  "m: Draw global playback info.\n"
+	                  "n: Draw middleware specific info for active audio objects.\n"
+	                  "q: Hide audio system memory info.\n"
+	                  "r: Apply filter also to inactive object debug info.\n"
+	                  "s: Draw detailed memory pool debug info.\n"
+	                  "u: List contexts.\n"
+	                  "v: List implementation specific info.\n"
+	                  "w: List active audio objects.\n"
+	                  "x: Draw FileCache Manager debug info.\n"
+	                  "y: Draw Request debug info.\n",
+	                  OnDebugDrawChanged);
 
-	REGISTER_CVAR2("s_FileCacheManagerDebugFilter", &m_fileCacheManagerDebugFilter, 0, VF_CHEAT | VF_CHEAT_NOCHECK | VF_BITFIELD,
-	               "Allows for filtered display of the different AFCM entries such as Globals, Level Specifics, Game Hints and so on.\n"
+	REGISTER_CVAR2("s_FileCacheManagerDebugFilter", &m_fileCacheManagerDebugFilter, m_fileCacheManagerDebugFilter, VF_CHEAT | VF_CHEAT_NOCHECK | VF_BITFIELD,
+	               "Allows for filtered display of the different AFCM entries by context such as Globals, User Defined, Game Hints and so on.\n"
 	               "Usage: s_FileCacheManagerDebugFilter [0ab...] (flags can be combined)\n"
 	               "Default: 0 (all)\n"
 	               "a: Globals\n"
-	               "b: Level Specifics\n"
-	               "c: Game Hints\n");
+	               "b: User Defined\n"
+	               "c: Non-Autoloaded\n");
 
-	REGISTER_CVAR2("s_HideInactiveAudioObjects", &m_hideInactiveObjects, 1, VF_DEV_ONLY,
+	REGISTER_CVAR2("s_HideInactiveObjects", &m_hideInactiveObjects, m_hideInactiveObjects, VF_DEV_ONLY,
 	               "When drawing audio object names on the screen this cvar can be used to choose between all registered audio objects or only those that reference active audio triggers.\n"
-	               "Usage: s_HideInactiveAudioObjects [0/1]\n"
+	               "Usage: s_HideInactiveObjects [0/1]\n"
 	               "Default: 1 (active only)\n");
 
-	m_pDebugFilter = REGISTER_STRING("s_DebugFilter", "", 0,
-	                                 "Allows for filtered display of audio debug info by a search string.\n"
-	                                 "Usage: s_DebugFilter spaceship\n"
-	                                 "Default: " " (all)\n");
+	m_pDebugFilter = REGISTER_STRING_CB("s_DebugFilter", "", 0,
+	                                    "Allows for filtered display of audio debug info by a search string.\n"
+	                                    "Usage: s_DebugFilter spaceship\n"
+	                                    "Default: " " (all)\n",
+	                                    OnDebugDrawChanged);
 
 	REGISTER_COMMAND("s_ExecuteTrigger", CmdExecuteTrigger, VF_CHEAT,
 	                 "Execute an Audio Trigger.\n"
-	                 "The argument is the name of the trigger to be executed on the Global Object.\n"
+	                 "The argument is the name of the trigger to be executed on the Default Object.\n"
 	                 "Usage: s_ExecuteTrigger MuteDialog\n");
 
 	REGISTER_COMMAND("s_StopTrigger", CmdStopTrigger, VF_CHEAT,
 	                 "Execute an Audio Trigger.\n"
-	                 "The argument is the name of the trigger to be stopped on the Global Object.\n"
-	                 "If no argument ois provided, all playing triggers on the Global Object get stopped.\n"
+	                 "The argument is the name of the trigger to be stopped on the Default Object.\n"
+	                 "If no argument ois provided, all playing triggers on the Default Object get stopped.\n"
 	                 "Usage: s_StopTrigger MuteDialog\n");
 
 	REGISTER_COMMAND("s_SetParameter", CmdSetParameter, VF_CHEAT,
 	                 "Set an Audio Parameter value.\n"
 	                 "The first argument is the name of the parameter to be set, the second argument is the float value to be set."
-	                 "The parameter is set on the Global Object.\n"
+	                 "The parameter is set on the Default Object.\n"
 	                 "Usage: s_SetParameter volume_music 1.0\n");
 
 	REGISTER_COMMAND("s_SetParameterGlobally", CmdSetParameterGlobally, VF_CHEAT,
@@ -401,7 +455,7 @@ void CCVars::RegisterVariables()
 	REGISTER_COMMAND("s_SetSwitchState", CmdSetSwitchState, VF_CHEAT,
 	                 "Set an Audio Switch to a provided State.\n"
 	                 "The first argument is the name of the switch to, the second argument is the name of the state to be set."
-	                 "The switch state is set on the Global Object.\n"
+	                 "The switch state is set on the Default Object.\n"
 	                 "Usage: s_SetSwitchState weather rain\n");
 
 	REGISTER_COMMAND("s_SetSwitchStateGlobally", CmdSetSwitchStateGlobally, VF_CHEAT,
@@ -430,14 +484,24 @@ void CCVars::RegisterVariables()
 	                 "The argument is the name of the setting to unload.\n"
 	                 "Usage: s_UnloadSetting main_menu\n");
 
+	REGISTER_COMMAND("s_ActivateContext", CmdActivateContext, VF_CHEAT,
+	                 "Activates a context and loads the meta data and auto-loaded preload requests of that context.\n"
+	                 "The argument is the name of the context to activate.\n"
+	                 "Usage: s_ActivateContext intro\n");
+
+	REGISTER_COMMAND("s_DeactivateContext", CmdDeactivateContext, VF_CHEAT,
+	                 "Deactivates a context and unloads the meta data and preload requests of that context.\n"
+	                 "The argument is the name of the context to deactivate.\n"
+	                 "Usage: s_DeactivateContext intro\n");
+
 	REGISTER_COMMAND("s_ResetRequestCount", CmdResetRequestCount, VF_CHEAT,
-	                 "Resets the request counts shown in s_DrawAudioDebug y.\n"
-	                 "Usage: s_resetRequestCount\n");
+	                 "Resets the request counts shown in s_DrawDebug y.\n"
+	                 "Usage: s_ResetRequestCount\n");
 
 	REGISTER_COMMAND("s_Refresh", CmdRefresh, VF_CHEAT,
 	                 "Refreshes the audio system.\n"
 	                 "Usage: s_Refresh\n");
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -451,9 +515,11 @@ void CCVars::UnregisterVariables()
 		pConsole->UnregisterVariable("s_FileCacheManagerSize");
 #endif // CRY_PLATFORM_DURANGO
 
-		pConsole->UnregisterVariable("s_AudioObjectPoolSize");
+		pConsole->UnregisterVariable("s_ObjectPoolSize");
 		pConsole->UnregisterVariable("s_TriggerInstancePoolSize");
 		pConsole->UnregisterVariable("s_IgnoreWindowFocus");
+		pConsole->UnregisterVariable("s_PoolAllocationMode");
+		pConsole->UnregisterVariable(g_szListenersCVarName);
 
 #if defined(CRY_AUDIO_USE_OCCLUSION)
 		pConsole->UnregisterVariable("s_OcclusionMaxDistance");
@@ -466,18 +532,17 @@ void CCVars::UnregisterVariables()
 		pConsole->UnregisterVariable("s_OcclusionCollisionTypes");
 		pConsole->UnregisterVariable("s_OcclusionSetFullOnMaxHits");
 		pConsole->UnregisterVariable("s_OcclusionInitialRayCastMode");
-	#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+	#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 		pConsole->UnregisterVariable("s_OcclusionGlobalType");
-	#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+	#endif // CRY_AUDIO_USE_DEBUG_CODE
 #endif   // CRY_AUDIO_USE_OCCLUSION
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 		pConsole->UnregisterVariable("s_DebugDistance");
 		pConsole->UnregisterVariable("s_LoggingOptions");
-		pConsole->UnregisterVariable("s_DrawAudioDebug");
+		pConsole->UnregisterVariable("s_DrawDebug");
 		pConsole->UnregisterVariable("s_FileCacheManagerDebugFilter");
-		pConsole->UnregisterVariable("s_HideInactiveAudioObjects");
-
+		pConsole->UnregisterVariable("s_HideInactiveObjects");
 		pConsole->UnregisterVariable("s_DebugFilter");
 		pConsole->UnregisterVariable("s_ExecuteTrigger");
 		pConsole->UnregisterVariable("s_StopTrigger");
@@ -489,9 +554,11 @@ void CCVars::UnregisterVariables()
 		pConsole->UnregisterVariable("s_UnloadRequest");
 		pConsole->UnregisterVariable("s_LoadSetting");
 		pConsole->UnregisterVariable("s_UnloadSetting");
+		pConsole->UnregisterVariable("s_ActivateContext");
+		pConsole->UnregisterVariable("s_DeactivateContext");
 		pConsole->UnregisterVariable("s_ResetRequestCount");
 		pConsole->UnregisterVariable("s_Refresh");
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 	}
 }
 }      // namespace CryAudio

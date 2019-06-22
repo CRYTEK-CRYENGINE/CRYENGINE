@@ -355,7 +355,7 @@ inline void CAnyArray::InsertPointerAt(uint32 index, const CAny& source)
 		CRY_ASSERT_MESSAGE(source.IsPointer(), "Trying to add value type 'source' to pointer array.");
 	}
 	CRY_ASSERT_MESSAGE(m_isPointer, "Can't add pointer type 'source' to value array.");
-	CRY_ASSERT_MESSAGE(source.IsEmpty(), "Parameter 'source' is empty.");
+	CRY_ASSERT_MESSAGE(source.IsEmpty() == false, "Parameter 'source' is empty.");
 }
 
 inline void CAnyArray::InsertPointerAt(uint32 index, const void* pPointer, TypeIndex typeIndex)
@@ -741,7 +741,10 @@ inline void CAnyArray::ClearAll()
 
 inline void CAnyArray::DestructAll()
 {
-	CallDestructors(0, m_size);
+	if (m_typeIndex.IsValid())
+	{
+		CallDestructors(0, m_size);
+	}
 
 	CryModuleFree(m_pData);
 	m_pData = nullptr;

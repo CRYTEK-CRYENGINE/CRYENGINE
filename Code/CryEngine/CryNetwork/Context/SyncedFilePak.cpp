@@ -99,7 +99,7 @@ private:
 	uint32              m_cursor;
 };
 
-const char* CSyncedFilePak::AdjustFileName(const char* src, char dst[g_nMaxPath], unsigned nFlags, bool* bFoundInPak /*=NULL*/)
+void CSyncedFilePak::AdjustFileName(const char* src, CryPathString& dst, unsigned nFlags, bool* bFoundInPak /*=NULL*/)
 {
 	CryFatalError("%s not implemented", __FUNCTION__);
 	return 0;

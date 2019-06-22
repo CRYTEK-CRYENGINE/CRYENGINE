@@ -1,17 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   GLView.hpp
-//  Version:     v1.00
-//  Created:     26/03/2015 by Valerio Guagliumi.
-//  Description: Declares the resource view types and related functions
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __GLVIEW__
-#define __GLVIEW__
+#pragma once
 
 #include "GLResource.hpp"
 
@@ -312,5 +301,3 @@ SOutputMergerViewPtr CreateRenderTargetView(SResource* pResource, D3D11_RESOURCE
 SOutputMergerViewPtr CreateDepthStencilView(SResource* pResource, D3D11_RESOURCE_DIMENSION eDimension, const D3D11_DEPTH_STENCIL_VIEW_DESC& kViewDesc, CContext* pContext);
 
 }
-
-#endif //__GLVIEW__

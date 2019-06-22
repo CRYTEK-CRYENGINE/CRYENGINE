@@ -29,15 +29,15 @@
 #endif
 
 #include "UnicodeEncoding.h"
-#include <string.h>                 // For str(n)len and memcpy.
-#include <wchar.h>                  // For wcs(n)len.
-#include <stddef.h>                 // For size_t and ptrdiff_t.
-#include <iterator>                 // For std::iterator_traits.
-#include <string>                   // For std::basic_string.
-#include <vector>                   // For std::vector.
-#include <list>                     // For std::list.
-#include <deque>                    // For std::deque.
-#include <type_traits>              // ... standard type-traits (as of C++11).
+#include <cstring>     // For str(n)len and memcpy.
+#include <wchar.h>     // For wcs(n)len.
+#include <stddef.h>    // For size_t and ptrdiff_t.
+#include <iterator>    // For std::iterator_traits.
+#include <string>      // For std::basic_string.
+#include <vector>      // For std::vector.
+#include <list>        // For std::list.
+#include <deque>       // For std::deque.
+#include <type_traits> // ... standard type-traits (as of C++11).
 
 // Forward declare the supported types.
 // Before actually instantiating a binding however, you need to have the full definition included.

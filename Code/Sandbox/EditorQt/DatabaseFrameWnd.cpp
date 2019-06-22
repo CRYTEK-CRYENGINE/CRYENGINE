@@ -155,7 +155,7 @@ void CDatabaseFrameWnd::InitTreeCtrl()
 
 void CDatabaseFrameWnd::ReloadLibs()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!m_pItemManager)
 		return;
 

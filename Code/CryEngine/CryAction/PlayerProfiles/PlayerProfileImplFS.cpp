@@ -1385,7 +1385,7 @@ XmlNodeRef CSerializerXML::GetSection(CPlayerProfileManager::EPlayerProfileSecti
 // some helpers
 bool SaveXMLFile(const string& filename, const XmlNodeRef& rootNode)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	bool ok = false;
 

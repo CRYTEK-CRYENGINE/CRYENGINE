@@ -1,0 +1,14 @@
+<PackageName>_ROOT
+------------------
+
+Calls to :command:`find_package(<PackageName>)` will search in prefixes
+specified by the ``<PackageName>_ROOT`` CMake variable, where
+``<PackageName>`` is the name given to the ``find_package`` call
+and ``_ROOT`` is literal.  For example, ``find_package(Foo)`` will search
+prefixes specified in the ``Foo_ROOT`` CMake variable (if set).
+See policy :policy:`CMP0074`.
+
+This variable may hold a single prefix or a
+:ref:`;-list <CMake Language Lists>` of multiple prefixes.
+
+See also the :envvar:`<PackageName>_ROOT` environment variable.

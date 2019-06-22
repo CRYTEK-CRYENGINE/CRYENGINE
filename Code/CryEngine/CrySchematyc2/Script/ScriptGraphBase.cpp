@@ -12,6 +12,7 @@
 #include "Script/GraphNodes/ScriptGraphGetNode.h"      // #SchematycTODO : Where should script graph node creators be registered?
 #include "Script/GraphNodes/ScriptGraphNodeFactory.h"  // #SchematycTODO : Where should the script graph node factory live?
 #include "Script/GraphNodes/ScriptGraphSwitchNode.h"   // #SchematycTODO : Where should script graph node creators be registered?
+#include "Script/GraphNodes/ScriptGraphBranchNode.h"   // #SchematycTODO : Where should script graph node creators be registered?
 
 namespace Schematyc2
 {
@@ -62,7 +63,8 @@ namespace Schematyc2
 			CScriptGraphBeginNode::RegisterCreator(g_scriptGraphNodeFactory);
 			CScriptGraphFunctionNode::RegisterCreator(g_scriptGraphNodeFactory);
 			CScriptGraphGetNode::RegisterCreator(g_scriptGraphNodeFactory);
-			//CScriptGraphSwitchNode::RegisterCreator(g_scriptGraphNodeFactory);
+			CScriptGraphSwitchNode::RegisterCreator(g_scriptGraphNodeFactory);
+			CScriptGraphBranchNode::RegisterCreator(g_scriptGraphNodeFactory);
 			bRegister = false;
 		}
 	}
@@ -90,7 +92,7 @@ namespace Schematyc2
 
 	void CScriptGraphBase::Serialize_New(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		switch(SerializationContext::GetPass(archive))
 		{

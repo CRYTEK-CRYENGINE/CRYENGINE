@@ -106,7 +106,7 @@ public:
 		, m_BlockStart(cursor)
 		, m_Capacity(capacity)
 	{
-		DX12_ASSERT(cursor + capacity <= pHeap->GetCapacity());
+		DX12_ASSERT(cursor + capacity <= pHeap->GetCapacity(), "DescriptorHeap capacity overflow");
 	}
 
 	CDescriptorBlock(const SDescriptorBlock& block);
@@ -140,23 +140,23 @@ public:
 
 	ILINE D3D12_CPU_DESCRIPTOR_HANDLE GetHandleOffsetCPU(INT offset) const
 	{
-		DX12_ASSERT((offset < 0) || (m_Cursor + offset < m_Capacity));
+		DX12_ASSERT((offset < 0) || (m_Cursor + offset < m_Capacity), "DescriptorHeap capacity overflow");
 		return m_pDescriptorHeap->GetHandleOffsetCPU_R(static_cast<INT>(m_BlockStart + m_Cursor) + offset);
 	}
 	ILINE D3D12_GPU_DESCRIPTOR_HANDLE GetHandleOffsetGPU(INT offset) const
 	{
-		DX12_ASSERT((offset < 0) || (m_Cursor + offset < m_Capacity));
+		DX12_ASSERT((offset < 0) || (m_Cursor + offset < m_Capacity), "DescriptorHeap capacity overflow");
 		return m_pDescriptorHeap->GetHandleOffsetGPU_R(static_cast<INT>(m_BlockStart + m_Cursor) + offset);
 	}
 
 	ILINE D3D12_GPU_DESCRIPTOR_HANDLE GetHandleGPUFromCPU(D3D12_CPU_DESCRIPTOR_HANDLE handle) const
 	{
-		DX12_ASSERT(m_pDescriptorHeap->GetHandleOffsetCPU(m_BlockStart).ptr <= handle.ptr && handle.ptr < m_pDescriptorHeap->GetHandleOffsetCPU(m_BlockStart + GetCapacity()).ptr);
+		DX12_ASSERT(m_pDescriptorHeap->GetHandleOffsetCPU(m_BlockStart).ptr <= handle.ptr && handle.ptr < m_pDescriptorHeap->GetHandleOffsetCPU(m_BlockStart + GetCapacity()).ptr, "Getting Descriptor Out-of-bounds");
 		return m_pDescriptorHeap->GetHandleGPUFromCPU(handle);
 	}
 	ILINE D3D12_CPU_DESCRIPTOR_HANDLE GetHandleCPUFromGPU(D3D12_GPU_DESCRIPTOR_HANDLE handle) const
 	{
-		DX12_ASSERT(m_pDescriptorHeap->GetHandleOffsetGPU(m_BlockStart).ptr <= handle.ptr && handle.ptr < m_pDescriptorHeap->GetHandleOffsetGPU(m_BlockStart + GetCapacity()).ptr);
+		DX12_ASSERT(m_pDescriptorHeap->GetHandleOffsetGPU(m_BlockStart).ptr <= handle.ptr && handle.ptr < m_pDescriptorHeap->GetHandleOffsetGPU(m_BlockStart + GetCapacity()).ptr, "Getting Descriptor Out-of-bounds");
 		return m_pDescriptorHeap->GetHandleCPUFromGPU(handle);
 	}
 

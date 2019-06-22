@@ -197,6 +197,7 @@ void CFogVolumeRenderNode::SetFogVolumeProperties(const SFogVolumeProperties& pr
 		m_localBounds.min = Vec3(-1, -1, -1).CompMul(m_scale);
 		m_localBounds.max = -m_localBounds.min;
 		UpdateWorldSpaceBBox();
+		UpdateFogVolumeMatrices();
 	}
 
 	m_volumeType = clamp_tpl<int32>(properties.m_volumeType,
@@ -466,7 +467,7 @@ void CFogVolumeRenderNode::Render(const SRendParams& rParam, const SRenderingPas
 			return;
 
 		// set basic render object properties
-		pRenderObject->SetMatrix(m_matNodeWS, passInfo);
+		pRenderObject->SetMatrix(m_matNodeWS);
 		pRenderObject->m_ObjFlags |= FOB_TRANS_MASK;
 		pRenderObject->m_fSort = 0;
 
@@ -556,7 +557,7 @@ void CFogVolumeRenderNode::TraceFogVolumes(const Vec3& worldPos, ColorF& fogColo
 			const CFogVolumeRenderNode* pFogVol((*it).m_pFogVol);
 
 			// only trace visible fog volumes
-			if (!(pFogVol->GetRndFlags() & ERF_HIDDEN))
+			if (!pFogVol->IsHidden())
 			{
 				// check if view ray intersects with bounding box of current fog volume
 				if (Overlap::Lineseg_AABB(lineseg, pFogVol->m_WSBBox))

@@ -41,6 +41,8 @@ void CObjManager::MakeShadowCastersList(CVisArea* pArea, const AABB& aabbReceive
 
 int CObjManager::MakeStaticShadowCastersList(IRenderNode* pIgnoreNode, ShadowMapFrustum* pFrustum, const PodArray<struct SPlaneObject>* pShadowHull, int renderNodeExcludeFlags, int nMaxNodes, const SRenderingPassInfo& passInfo)
 {
+	FUNCTION_PROFILER_3DENGINE;
+
 	const int curLevel = 0;
 	int nRemainingNodes = nMaxNodes;
 

@@ -20,7 +20,7 @@
 #include <CrySystem/ILog.h>
 #include <CrySystem/IProjectManager.h>
 #include <CryAISystem/IAISystem.h>
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "NativeToManagedInterfaces/IMonoNativeToManagedInterface.h"
 #include <CryInput/IHardwareMouse.h>
@@ -142,11 +142,11 @@ bool CMonoRuntime::InitializeRuntime()
 	const char* szMonoDirectoryParent = "bin\\common";
 
 	char sMonoLib[_MAX_PATH];
-	sprintf_s(sMonoLib, "%s\\%s\\Mono\\lib", engineRoot, szMonoDirectoryParent);
+	sprintf_s(sMonoLib, "%s%s\\Mono\\lib", engineRoot, szMonoDirectoryParent);
 	char sMonoEtc[_MAX_PATH];
-	sprintf_s(sMonoEtc, "%s\\%s\\Mono\\etc", engineRoot, szMonoDirectoryParent);
+	sprintf_s(sMonoEtc, "%s%s\\Mono\\etc", engineRoot, szMonoDirectoryParent);
 
-	if (!gEnv->pCryPak->IsFileExist(sMonoLib, ICryPak::eFileLocation_OnDisk) || !gEnv->pCryPak->IsFileExist(sMonoEtc, ICryPak::eFileLocation_OnDisk))
+	if (!gEnv->pCryPak->IsFolder(sMonoLib) || !gEnv->pCryPak->IsFolder(sMonoEtc))
 	{
 		CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_ERROR, "Failed to initialize Mono runtime, Mono directory was not found or incomplete in %s directory", szMonoDirectoryParent);
 		return false;
@@ -189,8 +189,11 @@ std::shared_ptr<Cry::IEnginePlugin> CMonoRuntime::LoadBinary(const char* szBinar
 	// Mono runtime is only initialized at demand when there are C# plug-ins available
 	if (!m_initialized)
 	{
-		m_initialized = true;
-		InitializeRuntime();
+		m_initialized = InitializeRuntime();
+		if (!m_initialized)
+		{
+			return nullptr;
+		}
 	}
 
 	string binaryPath;
@@ -368,9 +371,11 @@ void CMonoRuntime::ReloadPluginDomain()
 	}
 	else
 	{
-		m_initialized = true;
-		InitializeRuntime();
-		InitializePluginDomain();
+		m_initialized = InitializeRuntime();
+		if (m_initialized)
+		{
+			InitializePluginDomain();
+		}
 	}
 }
 
@@ -527,8 +532,7 @@ void CMonoRuntime::OnSystemEvent(ESystemEvent event, UINT_PTR wparam, UINT_PTR l
 			// Otherwise, C# is only initialized when a plug-in is loaded from disk
 			if (HasScriptFiles(gEnv->pSystem->GetIProjectManager()->GetCurrentAssetDirectoryAbsolute()) && !m_initialized)
 			{
-				m_initialized = true;
-				InitializeRuntime();
+				m_initialized = InitializeRuntime();
 			}
 
 			if (m_initialized)

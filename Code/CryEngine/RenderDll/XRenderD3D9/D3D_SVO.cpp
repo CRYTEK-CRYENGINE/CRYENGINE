@@ -16,6 +16,7 @@
 	#include "D3D_SVO.h"
 	#include "Common/RenderView.h"
 	#include "GraphicsPipeline/TiledLightVolumes.h"
+	#include "GraphicsPipeline/ShadowMap.h"
 
 _smart_ptr<CTexture> CSvoRenderer::s_pRsmColorMap;
 _smart_ptr<CTexture> CSvoRenderer::s_pRsmNormlMap;
@@ -23,6 +24,20 @@ _smart_ptr<CTexture> CSvoRenderer::s_pRsmPoolCol;
 _smart_ptr<CTexture> CSvoRenderer::s_pRsmPoolNor;
 
 CSvoRenderer* CSvoRenderer::s_pInstance = 0;
+
+SSvoPrimitivePasses::SSvoPrimitivePasses(CGraphicsPipeline* pGraphicsPipeline)
+	: m_tsDiff(pGraphicsPipeline)
+	, m_tsSpec(pGraphicsPipeline)
+	, m_passClearBricks(pGraphicsPipeline)
+	, m_passInjectDynamicLights(pGraphicsPipeline)
+	, m_passInjectStaticLights(pGraphicsPipeline)
+	, m_passInjectAirOpacity(pGraphicsPipeline)
+	, m_passPropagateLighting_1to2(pGraphicsPipeline)
+	, m_passPropagateLighting_2to3(pGraphicsPipeline)
+	, m_passTroposphere(pGraphicsPipeline)
+	, currentKey(pGraphicsPipeline->GetKey())
+{
+}
 
 CSvoRenderer::CSvoRenderer()
 {
@@ -137,8 +152,8 @@ void CSvoRenderer::UpdateCompute(CRenderView* pRenderView)
 	{
 		PROFILE_LABEL_SCOPE("TI_INJECT_CLEAR");
 
-		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count(); )
-			ExecuteComputeShader("ComputeClearBricks", m_passClearBricks, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
+		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count();)
+			ExecuteComputeShader("ComputeClearBricks", m_pPasses->m_passClearBricks, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
 	}
 
 	// voxelize dynamic meshes
@@ -152,15 +167,15 @@ void CSvoRenderer::UpdateCompute(CRenderView* pRenderView)
 	{
 		PROFILE_LABEL_SCOPE("TI_INJECT_AIR");
 
-		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count(); )
-			ExecuteComputeShader("ComputeInjectAtmosphere", m_passInjectAirOpacity, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
+		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count();)
+			ExecuteComputeShader("ComputeInjectAtmosphere", m_pPasses->m_passInjectAirOpacity, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
 	}
 
 	{
 		PROFILE_LABEL_SCOPE("TI_INJECT_LIGHT");
 
-		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count(); )
-			ExecuteComputeShader("ComputeDirectStaticLighting", m_passInjectStaticLights, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
+		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count();)
+			ExecuteComputeShader("ComputeDirectStaticLighting", m_pPasses->m_passInjectStaticLights, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
 	}
 
 	if (e_svoTI_PropagationBooster || e_svoTI_InjectionMultiplier)
@@ -170,8 +185,8 @@ void CSvoRenderer::UpdateCompute(CRenderView* pRenderView)
 			PROFILE_LABEL_SCOPE("TI_INJECT_REFL0");
 
 			m_nCurPropagationPassID = 0;
-			for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count(); )
-				ExecuteComputeShader("ComputePropagateLighting", m_passPropagateLighting_1to2, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
+			for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count();)
+				ExecuteComputeShader("ComputePropagateLighting", m_pPasses->m_passPropagateLighting_1to2, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
 		}
 
 		if (e_svoTI_NumberOfBounces > 2)
@@ -179,8 +194,8 @@ void CSvoRenderer::UpdateCompute(CRenderView* pRenderView)
 			PROFILE_LABEL_SCOPE("TI_INJECT_REFL1");
 
 			m_nCurPropagationPassID++;
-			for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count(); )
-				ExecuteComputeShader("ComputePropagateLighting", m_passPropagateLighting_2to3, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
+			for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateIncr.Count();)
+				ExecuteComputeShader("ComputePropagateLighting", m_pPasses->m_passPropagateLighting_2to3, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateIncr);
 		}
 	}
 
@@ -192,8 +207,8 @@ void CSvoRenderer::UpdateCompute(CRenderView* pRenderView)
 
 		// TODO: cull not affected nodes
 
-		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateNear.Count(); )
-			ExecuteComputeShader("ComputeDirectDynamicLighting", m_passInjectDynamicLights, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateNear);
+		for (int nNodesForUpdateStartIndex = 0; nNodesForUpdateStartIndex < m_arrNodesForUpdateNear.Count();)
+			ExecuteComputeShader("ComputeDirectDynamicLighting", m_pPasses->m_passInjectDynamicLights, &nNodesForUpdateStartIndex, 0, m_arrNodesForUpdateNear);
 	}
 
 	nLightsDynamicCountPrevFrame = m_arrLightsDynamic.Count();
@@ -254,7 +269,7 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 
 	// setup in/out textures
 
-	if (&rp == &m_passInjectAirOpacity)
+	if (&rp == &m_pPasses->m_passInjectAirOpacity)
 	{
 		// update OPAC
 		rp.SetOutputUAV(2, vp_RGB0.pTex);
@@ -271,7 +286,7 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 		SetupLightSources(m_arrLightsStatic, rp);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 	}
-	else if (&rp == &m_passInjectStaticLights)
+	else if (&rp == &m_pPasses->m_passInjectStaticLights)
 	{
 		// update RGB1
 		rp.SetOutputUAV(2, vp_RGB0.pTex);
@@ -291,7 +306,7 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 		SetupLightSources(m_arrLightsStatic, rp);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 	}
-	else if (&rp == &m_passInjectDynamicLights)
+	else if (&rp == &m_pPasses->m_passInjectDynamicLights)
 	{
 		BindTiledLights(m_arrLightsDynamic, (CComputeRenderPass&)rp);
 
@@ -319,7 +334,7 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 		SetupLightSources(m_arrLightsDynamic, rp);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 	}
-	else if (&rp == &m_passPropagateLighting_1to2)
+	else if (&rp == &m_pPasses->m_passPropagateLighting_1to2)
 	{
 		// update RGB2
 		if (vp_RGB0.pUAV)
@@ -340,7 +355,7 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 		SetupLightSources(m_arrLightsStatic, rp);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 	}
-	else if (&rp == &m_passPropagateLighting_2to3)
+	else if (&rp == &m_pPasses->m_passPropagateLighting_2to3)
 	{
 		// update RGB3
 		if (vp_RGB0.pUAV)
@@ -361,7 +376,7 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 		SetupLightSources(m_arrLightsStatic, rp);
 		SetupNodesForUpdate(*pnNodesForUpdateStartIndex, arrNodesForUpdate, rp);
 	}
-	else if (&rp == &m_passClearBricks)
+	else if (&rp == &m_pPasses->m_passClearBricks)
 	{
 		if (vp_RGB4.pUAV)
 			rp.SetOutputUAV(3, vp_RGB4.pTex);
@@ -396,27 +411,32 @@ void CSvoRenderer::ExecuteComputeShader(const char* szTechFinalName, CSvoCompute
 	#endif
 }
 
-CTexture* CSvoRenderer::GetGBuffer(int nId) // simplify branch compatibility
+CTexture* CSvoRenderer::GetGBuffer(const CGraphicsPipelineResources& pipelineResources, int nId) // simplify branch compatibility
 {
 	CTexture* pRes;
 
 	if (nId == 0)
-		pRes = CRendererResources::s_ptexSceneNormalsMap;
+		pRes = pipelineResources.m_pTexSceneNormalsMap;
 	else if (nId == 1)
-		pRes = CRendererResources::s_ptexSceneDiffuse;
+		pRes = pipelineResources.m_pTexSceneDiffuse;
 	else if (nId == 2)
-		pRes = CRendererResources::s_ptexSceneSpecular;
+		pRes = pipelineResources.m_pTexSceneSpecular;
 	else
 		pRes = 0;
 
 	return pRes;
 }
 
+CTexture* CSvoRenderer::GetZBuffer(const CGraphicsPipelineResources& pipelineResources, bool bLinear)
+{
+	return pipelineResources.m_pTexLinearDepth;
+}
+
 void CSvoRenderer::TropospherePass()
 {
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 
-	CSvoFullscreenPass& rp = m_passTroposphere;
+	CSvoFullscreenPass& rp = m_pPasses->m_passTroposphere;
 
 	if (m_texInfo.bSvoFreeze || !m_texInfo.pTexTree)
 		return;
@@ -451,7 +471,7 @@ void CSvoRenderer::TraceSunShadowsPass()
 {
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 
-	CSvoFullscreenPass& rp = m_passTroposphere;
+	CSvoFullscreenPass& rp = m_pPasses->m_passTroposphere;
 
 	if (m_texInfo.bSvoFreeze || !m_texInfo.pTexTree)
 		return;
@@ -467,6 +487,7 @@ void CSvoRenderer::TraceSunShadowsPass()
 	rp.SetRequireWorldPos(true);
 	rp.SetRequirePerViewConstantBuffer(true);
 
+	SetupRsmSunTextures(rp);
 	SetupCommonSamplers(rp);
 	SetupSvoTexturesForRead(m_texInfo, rp, e_svoTI_NumberOfBounces, 0, 0);
 	SetupGBufferTextures(rp);
@@ -490,25 +511,28 @@ void CSvoRenderer::TraceSunShadowsPass()
 
 void CSvoRenderer::SetupGBufferTextures(CSvoFullscreenPass& rp)
 {
-	rp.SetTexture(4, CRendererResources::s_ptexLinearDepth);
-	rp.SetTexture(14, GetGBuffer(0));
-	rp.SetTexture(5, GetGBuffer(1));
-	rp.SetTexture(7, GetGBuffer(2));
+	const CGraphicsPipelineResources& pipelineResources = RenderView()->GetGraphicsPipeline()->GetPipelineResources();
+
+	rp.SetTexture(4, GetZBuffer(pipelineResources, true));
+	rp.SetTexture(14, GetGBuffer(pipelineResources, 0));
+	rp.SetTexture(5, GetGBuffer(pipelineResources, 1));
+	rp.SetTexture(7, GetGBuffer(pipelineResources, 2));
 }
 
 void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 {
 	CSvoFullscreenPass& rp = pTS->passConeTrace;
 
-	CheckAllocateRT(pTS == &m_tsSpec);
+	CheckAllocateRT(pTS == &m_pPasses->m_tsSpec);
 
 	if (!e_svoTI_Active || !e_svoTI_Apply || !e_svoRender || !m_pShader || m_texInfo.bSvoFreeze || !m_texInfo.pTexTree)
 		return;
 
 	const char* szTechFinalName = "ConeTracePass";
 	const bool bBindDynamicLights = !GetIntegratioMode() && e_svoTI_InjectionMultiplier && m_arrLightsDynamic.Count();
+	const CGraphicsPipelineResources& pipelineResources = RenderView()->GetGraphicsPipeline()->GetPipelineResources();
 
-	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
+	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_pPasses->m_tsDiff));
 	rp.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 	rp.SetState(GS_NODEPTHTEST);
 
@@ -542,8 +566,8 @@ void CSvoRenderer::ConeTracePass(SSvoTargetsSet* pTS)
 
 	if (GetIntegratioMode() && e_svoTI_SSDepthTrace)
 	{
-		if (CRendererResources::s_ptexHDRTargetPrev->GetUpdateFrameID() > 1)
-			rp.SetTexture(12, CRendererResources::s_ptexHDRTargetPrev);
+		if (pipelineResources.m_pTexHDRTargetPrev->GetUpdateFrameID() > 1)
+			rp.SetTexture(12, pipelineResources.m_pTexHDRTargetPrev);
 		else
 			rp.SetTexture(12, CRendererResources::s_ptexBlack);
 	}
@@ -596,7 +620,7 @@ void CSvoRenderer::SetupCommonConstants(SSvoTargetsSet* pTS, T& rp, CTexture* pR
 		static CCryNameR paramName("SVO_ReprojectionMatrix");
 
 		static int nReprojFrameId = -1;
-		if ((pTS == &m_tsDiff) && nReprojFrameId != pRenderView->GetFrameId())
+		if ((pTS == &m_pPasses->m_tsDiff) && nReprojFrameId != pRenderView->GetFrameId())
 		{
 			nReprojFrameId = pRenderView->GetFrameId();
 
@@ -650,8 +674,10 @@ void CSvoRenderer::SetupCommonConstants(SSvoTargetsSet* pTS, T& rp, CTexture* pR
 
 	if (pRT)
 	{
+		std::shared_ptr<CGraphicsPipeline> pActivePipeline = pRenderView->GetGraphicsPipeline();
+
 		int nTargetSize = pRT->GetWidth() + pRT->GetHeight() + int(e_svoTI_SkyColorMultiplier > 0) + e_svoTI_Diffuse_Cache + e_svoTI_ShadowsFromSun;
-		bool bNoReprojection = (rp.nPrevTargetSize != nTargetSize) || (pRenderView->GetShaderRenderingFlags() & SHDF_CUBEMAPGEN) || (rd->GetActiveGPUCount() > 1);
+		bool bNoReprojection = (rp.nPrevTargetSize != nTargetSize) || (pActivePipeline->GetRenderFlags() & SHDF_CUBEMAPGEN) || (rd->GetActiveGPUCount() > 1);
 		rp.nPrevTargetSize = nTargetSize;
 
 		static CCryNameR paramName("SVO_TargetResScale");
@@ -706,7 +732,6 @@ void CSvoRenderer::SetupCommonConstants(SSvoTargetsSet* pTS, T& rp, CTexture* pR
 
 	{
 		static CCryNameR paramName("SVO_CloudShadowAnimParams");
-		CD3D9Renderer* const __restrict r = gcpRendD3D;
 		SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
 		Vec4 vData;
 		vData[0] = PF.pCloudShadowAnimParams.x;
@@ -718,7 +743,6 @@ void CSvoRenderer::SetupCommonConstants(SSvoTargetsSet* pTS, T& rp, CTexture* pR
 
 	{
 		static CCryNameR paramName("SVO_CloudShadowParams");
-		CD3D9Renderer* const __restrict r = gcpRendD3D;
 		SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
 		Vec4 vData;
 		vData[0] = PF.pCloudShadowParams.x;
@@ -755,7 +779,8 @@ void CSvoRenderer::SetupCommonSamplers(T& rp)
 
 void CSvoRenderer::DrawPonts(PodArray<SVF_P3F_C4B_T2F>& arrVerts)
 {
-	SPostEffectsUtils::UpdateFrustumCorners();
+	std::shared_ptr<CGraphicsPipeline> pActivePipeline = m_pRenderView->GetGraphicsPipeline();
+	SPostEffectsUtils::UpdateFrustumCorners(*pActivePipeline);
 
 	CVertexBuffer strip(arrVerts.GetElements(), EDefaultInputLayouts::P3F_C4B_T2F);
 
@@ -793,37 +818,37 @@ void CSvoRenderer::UpdateRender(CRenderView* pRenderView)
 	{
 		PROFILE_LABEL_SCOPE("TI_GEN_DIFF");
 
-		ConeTracePass(&m_tsDiff);
+		ConeTracePass(&m_pPasses->m_tsDiff);
 	}
 	if (GetIntegratioMode() == 2 && e_svoTI_SpecularAmplifier)
 	{
 		PROFILE_LABEL_SCOPE("TI_GEN_SPEC");
 
-		ConeTracePass(&m_tsSpec);
+		ConeTracePass(&m_pPasses->m_tsSpec);
 	}
 
 	{
 		PROFILE_LABEL_SCOPE("TI_DEMOSAIC_DIFF");
 
-		DemosaicPass(&m_tsDiff);
+		DemosaicPass(&m_pPasses->m_tsDiff);
 	}
 	if (GetIntegratioMode() == 2 && e_svoTI_SpecularAmplifier)
 	{
 		PROFILE_LABEL_SCOPE("TI_DEMOSAIC_SPEC");
 
-		DemosaicPass(&m_tsSpec);
+		DemosaicPass(&m_pPasses->m_tsSpec);
 	}
 
 	{
 		PROFILE_LABEL_SCOPE("TI_UPSCALE_DIFF");
 
-		UpscalePass(&m_tsDiff);
+		UpscalePass(&m_pPasses->m_tsDiff);
 	}
 	if (GetIntegratioMode() == 2 && e_svoTI_SpecularAmplifier && !e_svoTI_SpecularFromDiffuse)
 	{
 		PROFILE_LABEL_SCOPE("TI_UPSCALE_SPEC");
 
-		UpscalePass(&m_tsSpec);
+		UpscalePass(&m_pPasses->m_tsSpec);
 	}
 
 	const SRenderViewInfo& viewInfo = pRenderView->GetViewInfo(CCamera::eEye_Left);
@@ -848,7 +873,7 @@ void CSvoRenderer::DemosaicPass(SSvoTargetsSet* pTS)
 	if (!e_svoTI_Active || !e_svoTI_Apply || !e_svoRender || !m_pShader || !pTS->pRT_ALD_0 || m_texInfo.bSvoFreeze || !m_texInfo.pTexTree)
 		return;
 
-	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
+	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_pPasses->m_tsDiff));
 	rp.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 	rp.SetState(GS_NODEPTHTEST);
 
@@ -1001,7 +1026,7 @@ void CSvoRenderer::SetupSvoTexturesForRead(I3DEngine::SSvoStaticTexInfo& texInfo
 	if (texInfo.pGlobalSpecCM)
 		rp.SetTexture(6, static_cast<CTexture*>(texInfo.pGlobalSpecCM.get()));
 
-	if(texInfo.pTexRgb0.get())
+	if (texInfo.pTexRgb0.get())
 		rp.SetTexture(25, static_cast<CTexture*>(texInfo.pTexRgb0.get()));
 
 	#endif
@@ -1013,31 +1038,40 @@ void CSvoRenderer::CheckAllocateRT(bool bSpecPass)
 	int nWidth = screenResolution.x;
 	int nHeight = screenResolution.y;
 
-	int nVoxProxyViewportDim = e_svoVoxGenRes;
-
 	int nResScaleBase = max(e_svoTI_ResScaleBase + e_svoTI_LowSpecMode, 1);
-	int nDownscaleAir = max(e_svoTI_ResScaleAir + e_svoTI_LowSpecMode, 1);
 	int resScaleSpec = max(e_svoTI_ResScaleSpecular + e_svoTI_LowSpecMode, 1);
 
 	int nInW = (nWidth / nResScaleBase);
 	int nInH = (nHeight / nResScaleBase);
+#ifdef FEATURE_SVO_GI_ALLOW_HQ
+	int nDownscaleAir = max(e_svoTI_ResScaleAir + e_svoTI_LowSpecMode, 1);
 	int nAirW = (nWidth / nDownscaleAir);
 	int nAirH = (nHeight / nDownscaleAir);
+#endif
+
 	int specW = (nWidth / resScaleSpec);
 	int specH = (nHeight / resScaleSpec);
 
+	SSvoTargetsSet& tsDiff = m_pPasses->m_tsDiff;
+	SSvoTargetsSet& tsSpec = m_pPasses->m_tsSpec;
+
 	if (!bSpecPass)
 	{
-		CheckCreateUpdateRT(m_tsDiff.pRT_ALD_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_ALD");
-		CheckCreateUpdateRT(m_tsDiff.pRT_ALD_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_ALD");
-		CheckCreateUpdateRT(m_tsDiff.pRT_RGB_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_RGB");
-		CheckCreateUpdateRT(m_tsDiff.pRT_RGB_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_RGB");
+		CheckCreateUpdateRT(tsDiff.pRT_ALD_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_ALD");
+		CheckCreateUpdateRT(tsDiff.pRT_ALD_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_ALD");
+		CheckCreateUpdateRT(tsDiff.pRT_RGB_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_RGB");
+		CheckCreateUpdateRT(tsDiff.pRT_RGB_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_RGB");
+	}
+	else
+	{
+		CheckCreateUpdateRT(tsSpec.pRT_ALD_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_ALD");
+		CheckCreateUpdateRT(tsSpec.pRT_ALD_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_ALD");
+		CheckCreateUpdateRT(tsSpec.pRT_RGB_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_RGB");
+		CheckCreateUpdateRT(tsSpec.pRT_RGB_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_RGB");
+	}
 
-		CheckCreateUpdateRT(m_tsSpec.pRT_ALD_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_ALD");
-		CheckCreateUpdateRT(m_tsSpec.pRT_ALD_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_ALD");
-		CheckCreateUpdateRT(m_tsSpec.pRT_RGB_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_RGB");
-		CheckCreateUpdateRT(m_tsSpec.pRT_RGB_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_RGB");
-
+	if (!bSpecPass)
+	{
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 		if (e_svoTI_Troposphere_Active)
 		{
@@ -1053,47 +1087,57 @@ void CSvoRenderer::CheckAllocateRT(bool bSpecPass)
 		}
 	#endif
 
-		CheckCreateUpdateRT(m_tsDiff.pRT_RGB_DEM_MIN_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_RGB_MIN");
-		CheckCreateUpdateRT(m_tsDiff.pRT_ALD_DEM_MIN_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_ALD_MIN");
-		CheckCreateUpdateRT(m_tsDiff.pRT_RGB_DEM_MAX_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_RGB_MAX");
-		CheckCreateUpdateRT(m_tsDiff.pRT_ALD_DEM_MAX_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_ALD_MAX");
-		CheckCreateUpdateRT(m_tsDiff.pRT_RGB_DEM_MIN_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_RGB_MIN");
-		CheckCreateUpdateRT(m_tsDiff.pRT_ALD_DEM_MIN_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_ALD_MIN");
-		CheckCreateUpdateRT(m_tsDiff.pRT_RGB_DEM_MAX_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_RGB_MAX");
-		CheckCreateUpdateRT(m_tsDiff.pRT_ALD_DEM_MAX_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_ALD_MAX");
+		CheckCreateUpdateRT(tsDiff.pRT_RGB_DEM_MIN_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_RGB_MIN");
+		CheckCreateUpdateRT(tsDiff.pRT_ALD_DEM_MIN_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_ALD_MIN");
+		CheckCreateUpdateRT(tsDiff.pRT_RGB_DEM_MAX_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_RGB_MAX");
+		CheckCreateUpdateRT(tsDiff.pRT_ALD_DEM_MAX_0, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_DIFF_FIN_ALD_MAX");
+		CheckCreateUpdateRT(tsDiff.pRT_RGB_DEM_MIN_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_RGB_MIN");
+		CheckCreateUpdateRT(tsDiff.pRT_ALD_DEM_MIN_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_ALD_MIN");
+		CheckCreateUpdateRT(tsDiff.pRT_RGB_DEM_MAX_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_RGB_MAX");
+		CheckCreateUpdateRT(tsDiff.pRT_ALD_DEM_MAX_1, nInW, nInH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_DIFF_FIN_ALD_MAX");
 
-		CheckCreateUpdateRT(m_tsDiff.pRT_FIN_OUT_0, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_FIN_DIFF_OUT");
-		CheckCreateUpdateRT(m_tsDiff.pRT_FIN_OUT_1, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_FIN_DIFF_OUT");
+		CheckCreateUpdateRT(tsDiff.pRT_FIN_OUT_0, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_FIN_DIFF_OUT");
+		CheckCreateUpdateRT(tsDiff.pRT_FIN_OUT_1, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_FIN_DIFF_OUT");
+	}
+	else
+	{
+		CheckCreateUpdateRT(tsSpec.pRT_RGB_DEM_MIN_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_RGB_MIN");
+		CheckCreateUpdateRT(tsSpec.pRT_ALD_DEM_MIN_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_ALD_MIN");
+		CheckCreateUpdateRT(tsSpec.pRT_RGB_DEM_MAX_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_RGB_MAX");
+		CheckCreateUpdateRT(tsSpec.pRT_ALD_DEM_MAX_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_ALD_MAX");
+		CheckCreateUpdateRT(tsSpec.pRT_RGB_DEM_MIN_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_RGB_MIN");
+		CheckCreateUpdateRT(tsSpec.pRT_ALD_DEM_MIN_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_ALD_MIN");
+		CheckCreateUpdateRT(tsSpec.pRT_RGB_DEM_MAX_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_RGB_MAX");
+		CheckCreateUpdateRT(tsSpec.pRT_ALD_DEM_MAX_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_ALD_MAX");
 
-		CheckCreateUpdateRT(m_tsSpec.pRT_RGB_DEM_MIN_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_RGB_MIN");
-		CheckCreateUpdateRT(m_tsSpec.pRT_ALD_DEM_MIN_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_ALD_MIN");
-		CheckCreateUpdateRT(m_tsSpec.pRT_RGB_DEM_MAX_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_RGB_MAX");
-		CheckCreateUpdateRT(m_tsSpec.pRT_ALD_DEM_MAX_0, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_SPEC_FIN_ALD_MAX");
-		CheckCreateUpdateRT(m_tsSpec.pRT_RGB_DEM_MIN_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_RGB_MIN");
-		CheckCreateUpdateRT(m_tsSpec.pRT_ALD_DEM_MIN_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_ALD_MIN");
-		CheckCreateUpdateRT(m_tsSpec.pRT_RGB_DEM_MAX_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_RGB_MAX");
-		CheckCreateUpdateRT(m_tsSpec.pRT_ALD_DEM_MAX_1, specW, specH, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_SPEC_FIN_ALD_MAX");
+		CheckCreateUpdateRT(tsSpec.pRT_FIN_OUT_0, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_FIN_SPEC_OUT");
+		CheckCreateUpdateRT(tsSpec.pRT_FIN_OUT_1, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_FIN_SPEC_OUT");
+	}
 
-		CheckCreateUpdateRT(m_tsSpec.pRT_FIN_OUT_0, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SVO_FIN_SPEC_OUT");
-		CheckCreateUpdateRT(m_tsSpec.pRT_FIN_OUT_1, nWidth, nHeight, eTF_R16G16B16A16F, eTT_2D, FT_STATE_CLAMP, "SV1_FIN_SPEC_OUT");
-
+	if (!bSpecPass)
+	{
 		// swap ping-pong RT
-		std::swap(m_tsDiff.pRT_ALD_0, m_tsDiff.pRT_ALD_1);
-		std::swap(m_tsDiff.pRT_RGB_0, m_tsDiff.pRT_RGB_1);
-		std::swap(m_tsDiff.pRT_RGB_DEM_MIN_0, m_tsDiff.pRT_RGB_DEM_MIN_1);
-		std::swap(m_tsDiff.pRT_ALD_DEM_MIN_0, m_tsDiff.pRT_ALD_DEM_MIN_1);
-		std::swap(m_tsDiff.pRT_RGB_DEM_MAX_0, m_tsDiff.pRT_RGB_DEM_MAX_1);
-		std::swap(m_tsDiff.pRT_ALD_DEM_MAX_0, m_tsDiff.pRT_ALD_DEM_MAX_1);
-		std::swap(m_tsDiff.pRT_FIN_OUT_0, m_tsDiff.pRT_FIN_OUT_1);
+		std::swap(tsDiff.pRT_ALD_0, tsDiff.pRT_ALD_1);
+		std::swap(tsDiff.pRT_RGB_0, tsDiff.pRT_RGB_1);
+		std::swap(tsDiff.pRT_RGB_DEM_MIN_0, tsDiff.pRT_RGB_DEM_MIN_1);
+		std::swap(tsDiff.pRT_ALD_DEM_MIN_0, tsDiff.pRT_ALD_DEM_MIN_1);
+		std::swap(tsDiff.pRT_RGB_DEM_MAX_0, tsDiff.pRT_RGB_DEM_MAX_1);
+		std::swap(tsDiff.pRT_ALD_DEM_MAX_0, tsDiff.pRT_ALD_DEM_MAX_1);
+		std::swap(tsDiff.pRT_FIN_OUT_0, tsDiff.pRT_FIN_OUT_1);
+	}
+	else
+	{
+		std::swap(tsSpec.pRT_ALD_0, tsSpec.pRT_ALD_1);
+		std::swap(tsSpec.pRT_RGB_0, tsSpec.pRT_RGB_1);
+		std::swap(tsSpec.pRT_RGB_DEM_MIN_0, tsSpec.pRT_RGB_DEM_MIN_1);
+		std::swap(tsSpec.pRT_ALD_DEM_MIN_0, tsSpec.pRT_ALD_DEM_MIN_1);
+		std::swap(tsSpec.pRT_RGB_DEM_MAX_0, tsSpec.pRT_RGB_DEM_MAX_1);
+		std::swap(tsSpec.pRT_ALD_DEM_MAX_0, tsSpec.pRT_ALD_DEM_MAX_1);
+		std::swap(tsSpec.pRT_FIN_OUT_0, tsSpec.pRT_FIN_OUT_1);
+	}
 
-		std::swap(m_tsSpec.pRT_ALD_0, m_tsSpec.pRT_ALD_1);
-		std::swap(m_tsSpec.pRT_RGB_0, m_tsSpec.pRT_RGB_1);
-		std::swap(m_tsSpec.pRT_RGB_DEM_MIN_0, m_tsSpec.pRT_RGB_DEM_MIN_1);
-		std::swap(m_tsSpec.pRT_ALD_DEM_MIN_0, m_tsSpec.pRT_ALD_DEM_MIN_1);
-		std::swap(m_tsSpec.pRT_RGB_DEM_MAX_0, m_tsSpec.pRT_RGB_DEM_MAX_1);
-		std::swap(m_tsSpec.pRT_ALD_DEM_MAX_0, m_tsSpec.pRT_ALD_DEM_MAX_1);
-		std::swap(m_tsSpec.pRT_FIN_OUT_0, m_tsSpec.pRT_FIN_OUT_1);
-
+	if (!bSpecPass)
+	{
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
 		std::swap(m_pRT_SHAD_FIN_0, m_pRT_SHAD_FIN_1);
 	#endif
@@ -1104,15 +1148,18 @@ size_t CSvoRenderer::GetAllocatedMemory()
 {
 	size_t sizeSum = 0;
 
-	if (m_tsDiff.pRT_ALD_0.get()) sizeSum += m_tsDiff.pRT_ALD_0->GetActualSize();
-	if (m_tsDiff.pRT_ALD_1.get()) sizeSum += m_tsDiff.pRT_ALD_1->GetActualSize();
-	if (m_tsDiff.pRT_RGB_0.get()) sizeSum += m_tsDiff.pRT_RGB_0->GetActualSize();
-	if (m_tsDiff.pRT_RGB_1.get()) sizeSum += m_tsDiff.pRT_RGB_1->GetActualSize();
+	SSvoTargetsSet& tsDiff = m_pPasses->m_tsDiff;
+	SSvoTargetsSet& tsSpec = m_pPasses->m_tsSpec;
 
-	if (m_tsSpec.pRT_ALD_0.get()) sizeSum += m_tsSpec.pRT_ALD_0->GetActualSize();
-	if (m_tsSpec.pRT_ALD_1.get()) sizeSum += m_tsSpec.pRT_ALD_1->GetActualSize();
-	if (m_tsSpec.pRT_RGB_0.get()) sizeSum += m_tsSpec.pRT_RGB_0->GetActualSize();
-	if (m_tsSpec.pRT_RGB_1.get()) sizeSum += m_tsSpec.pRT_RGB_1->GetActualSize();
+	if (tsDiff.pRT_ALD_0.get()) sizeSum += tsDiff.pRT_ALD_0->GetActualSize();
+	if (tsDiff.pRT_ALD_1.get()) sizeSum += tsDiff.pRT_ALD_1->GetActualSize();
+	if (tsDiff.pRT_RGB_0.get()) sizeSum += tsDiff.pRT_RGB_0->GetActualSize();
+	if (tsDiff.pRT_RGB_1.get()) sizeSum += tsDiff.pRT_RGB_1->GetActualSize();
+
+	if (tsSpec.pRT_ALD_0.get()) sizeSum += tsSpec.pRT_ALD_0->GetActualSize();
+	if (tsSpec.pRT_ALD_1.get()) sizeSum += tsSpec.pRT_ALD_1->GetActualSize();
+	if (tsSpec.pRT_RGB_0.get()) sizeSum += tsSpec.pRT_RGB_0->GetActualSize();
+	if (tsSpec.pRT_RGB_1.get()) sizeSum += tsSpec.pRT_RGB_1->GetActualSize();
 
 #ifdef FEATURE_SVO_GI_ALLOW_HQ
 	if (m_pRT_NID_0  .get()) sizeSum += m_pRT_NID_0  ->GetActualSize();
@@ -1124,29 +1171,29 @@ size_t CSvoRenderer::GetAllocatedMemory()
 	if (m_pRT_SHAD_FIN_1  .get()) sizeSum += m_pRT_SHAD_FIN_1  ->GetActualSize();
 #endif
 
-	if (m_tsDiff.pRT_RGB_DEM_MIN_0.get()) sizeSum += m_tsDiff.pRT_RGB_DEM_MIN_0->GetActualSize();
-	if (m_tsDiff.pRT_ALD_DEM_MIN_0.get()) sizeSum += m_tsDiff.pRT_ALD_DEM_MIN_0->GetActualSize();
-	if (m_tsDiff.pRT_RGB_DEM_MAX_0.get()) sizeSum += m_tsDiff.pRT_RGB_DEM_MAX_0->GetActualSize();
-	if (m_tsDiff.pRT_ALD_DEM_MAX_0.get()) sizeSum += m_tsDiff.pRT_ALD_DEM_MAX_0->GetActualSize();
-	if (m_tsDiff.pRT_RGB_DEM_MIN_1.get()) sizeSum += m_tsDiff.pRT_RGB_DEM_MIN_1->GetActualSize();
-	if (m_tsDiff.pRT_ALD_DEM_MIN_1.get()) sizeSum += m_tsDiff.pRT_ALD_DEM_MIN_1->GetActualSize();
-	if (m_tsDiff.pRT_RGB_DEM_MAX_1.get()) sizeSum += m_tsDiff.pRT_RGB_DEM_MAX_1->GetActualSize();
-	if (m_tsDiff.pRT_ALD_DEM_MAX_1.get()) sizeSum += m_tsDiff.pRT_ALD_DEM_MAX_1->GetActualSize();
+	if (tsDiff.pRT_RGB_DEM_MIN_0.get()) sizeSum += tsDiff.pRT_RGB_DEM_MIN_0->GetActualSize();
+	if (tsDiff.pRT_ALD_DEM_MIN_0.get()) sizeSum += tsDiff.pRT_ALD_DEM_MIN_0->GetActualSize();
+	if (tsDiff.pRT_RGB_DEM_MAX_0.get()) sizeSum += tsDiff.pRT_RGB_DEM_MAX_0->GetActualSize();
+	if (tsDiff.pRT_ALD_DEM_MAX_0.get()) sizeSum += tsDiff.pRT_ALD_DEM_MAX_0->GetActualSize();
+	if (tsDiff.pRT_RGB_DEM_MIN_1.get()) sizeSum += tsDiff.pRT_RGB_DEM_MIN_1->GetActualSize();
+	if (tsDiff.pRT_ALD_DEM_MIN_1.get()) sizeSum += tsDiff.pRT_ALD_DEM_MIN_1->GetActualSize();
+	if (tsDiff.pRT_RGB_DEM_MAX_1.get()) sizeSum += tsDiff.pRT_RGB_DEM_MAX_1->GetActualSize();
+	if (tsDiff.pRT_ALD_DEM_MAX_1.get()) sizeSum += tsDiff.pRT_ALD_DEM_MAX_1->GetActualSize();
 
-	if (m_tsDiff.pRT_FIN_OUT_0.get()) sizeSum += m_tsDiff.pRT_FIN_OUT_0->GetActualSize();
-	if (m_tsDiff.pRT_FIN_OUT_1.get()) sizeSum += m_tsDiff.pRT_FIN_OUT_1->GetActualSize();
+	if (tsDiff.pRT_FIN_OUT_0.get()) sizeSum += tsDiff.pRT_FIN_OUT_0->GetActualSize();
+	if (tsDiff.pRT_FIN_OUT_1.get()) sizeSum += tsDiff.pRT_FIN_OUT_1->GetActualSize();
 
-	if (m_tsSpec.pRT_RGB_DEM_MIN_0.get()) sizeSum += m_tsSpec.pRT_RGB_DEM_MIN_0->GetActualSize();
-	if (m_tsSpec.pRT_ALD_DEM_MIN_0.get()) sizeSum += m_tsSpec.pRT_ALD_DEM_MIN_0->GetActualSize();
-	if (m_tsSpec.pRT_RGB_DEM_MAX_0.get()) sizeSum += m_tsSpec.pRT_RGB_DEM_MAX_0->GetActualSize();
-	if (m_tsSpec.pRT_ALD_DEM_MAX_0.get()) sizeSum += m_tsSpec.pRT_ALD_DEM_MAX_0->GetActualSize();
-	if (m_tsSpec.pRT_RGB_DEM_MIN_1.get()) sizeSum += m_tsSpec.pRT_RGB_DEM_MIN_1->GetActualSize();
-	if (m_tsSpec.pRT_ALD_DEM_MIN_1.get()) sizeSum += m_tsSpec.pRT_ALD_DEM_MIN_1->GetActualSize();
-	if (m_tsSpec.pRT_RGB_DEM_MAX_1.get()) sizeSum += m_tsSpec.pRT_RGB_DEM_MAX_1->GetActualSize();
-	if (m_tsSpec.pRT_ALD_DEM_MAX_1.get()) sizeSum += m_tsSpec.pRT_ALD_DEM_MAX_1->GetActualSize();
+	if (tsSpec.pRT_RGB_DEM_MIN_0.get()) sizeSum += tsSpec.pRT_RGB_DEM_MIN_0->GetActualSize();
+	if (tsSpec.pRT_ALD_DEM_MIN_0.get()) sizeSum += tsSpec.pRT_ALD_DEM_MIN_0->GetActualSize();
+	if (tsSpec.pRT_RGB_DEM_MAX_0.get()) sizeSum += tsSpec.pRT_RGB_DEM_MAX_0->GetActualSize();
+	if (tsSpec.pRT_ALD_DEM_MAX_0.get()) sizeSum += tsSpec.pRT_ALD_DEM_MAX_0->GetActualSize();
+	if (tsSpec.pRT_RGB_DEM_MIN_1.get()) sizeSum += tsSpec.pRT_RGB_DEM_MIN_1->GetActualSize();
+	if (tsSpec.pRT_ALD_DEM_MIN_1.get()) sizeSum += tsSpec.pRT_ALD_DEM_MIN_1->GetActualSize();
+	if (tsSpec.pRT_RGB_DEM_MAX_1.get()) sizeSum += tsSpec.pRT_RGB_DEM_MAX_1->GetActualSize();
+	if (tsSpec.pRT_ALD_DEM_MAX_1.get()) sizeSum += tsSpec.pRT_ALD_DEM_MAX_1->GetActualSize();
 
-	if (m_tsSpec.pRT_FIN_OUT_0.get()) sizeSum += m_tsSpec.pRT_FIN_OUT_0->GetActualSize();
-	if (m_tsSpec.pRT_FIN_OUT_1.get()) sizeSum += m_tsSpec.pRT_FIN_OUT_1->GetActualSize();
+	if (tsSpec.pRT_FIN_OUT_0.get()) sizeSum += tsSpec.pRT_FIN_OUT_0->GetActualSize();
+	if (tsSpec.pRT_FIN_OUT_1.get()) sizeSum += tsSpec.pRT_FIN_OUT_1->GetActualSize();
 
 	return sizeSum;
 }
@@ -1154,13 +1201,13 @@ size_t CSvoRenderer::GetAllocatedMemory()
 bool CSvoRenderer::IsShaderItemUsedForVoxelization(SShaderItem& rShaderItem, IRenderNode* pRN)
 {
 	CShader* pS = (CShader*)rShaderItem.m_pShader;
-	CShaderResources* pR = (CShaderResources*)rShaderItem.m_pShaderResources;
 
 	// skip some objects marked by level designer
 	//	if(pRN && pRN->IsRenderNode() && pRN->GetIntegrationType())
 	//	return false;
 
 	// skip transparent meshes except decals
+	//	CShaderResources* pR = (CShaderResources*)rShaderItem.m_pShaderResources;
 	//	if((pR->Opacity() != 1.f) && !(pS->GetFlags()&EF_DECAL))
 	//	return false;
 
@@ -1653,12 +1700,12 @@ CTexture* CSvoRenderer::GetTracedSunShadowsRT()
 
 CTexture* CSvoRenderer::GetDiffuseFinRT()
 {
-	return m_tsDiff.pRT_FIN_OUT_0;
+	return m_pPasses->m_tsDiff.pRT_FIN_OUT_0;
 }
 
 CTexture* CSvoRenderer::GetSpecularFinRT()
 {
-	return m_tsSpec.pRT_FIN_OUT_0;
+	return m_pPasses->m_tsSpec.pRT_FIN_OUT_0;
 }
 
 void CSvoRenderer::UpscalePass(SSvoTargetsSet* pTS)
@@ -1670,20 +1717,20 @@ void CSvoRenderer::UpscalePass(SSvoTargetsSet* pTS)
 	if (!e_svoTI_Active || !e_svoTI_Apply || !e_svoRender || !m_pShader)
 		return;
 
-	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_tsDiff));
+	rp.SetTechnique(m_pShader, szTechFinalName, GetRunTimeFlags(pTS == &m_pPasses->m_tsDiff));
 	rp.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants_PS);
 	rp.SetState(GS_NODEPTHTEST);
 
 	rp.SetRenderTarget(0, pTS->pRT_FIN_OUT_0);
 
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	if (pTS == &m_tsDiff && m_pRT_SHAD_FIN_0 && (e_svoTI_ShadowsFromSun || e_svoTI_SpecularFromDiffuse))
+	if (pTS == &m_pPasses->m_tsDiff && m_pRT_SHAD_FIN_0 && (e_svoTI_ShadowsFromSun || e_svoTI_SpecularFromDiffuse))
 		rp.SetRenderTarget(1, m_pRT_SHAD_FIN_0);
 	#endif
 
 	// compute specular form results of diffuse tracing
-	if (pTS == &m_tsDiff && e_svoTI_SpecularFromDiffuse)
-		rp.SetRenderTarget(2, m_tsSpec.pRT_FIN_OUT_0);
+	if (pTS == &m_pPasses->m_tsDiff && e_svoTI_SpecularFromDiffuse)
+		rp.SetRenderTarget(2, m_pPasses->m_tsSpec.pRT_FIN_OUT_0);
 
 	rp.SetRequireWorldPos(true);
 	rp.SetRequirePerViewConstantBuffer(true);
@@ -1697,12 +1744,12 @@ void CSvoRenderer::UpscalePass(SSvoTargetsSet* pTS)
 
 	rp.SetTexture(9, pTS->pRT_FIN_OUT_1);
 
-	if (pTS == &m_tsSpec && m_tsDiff.pRT_FIN_OUT_0)
+	if (pTS == &m_pPasses->m_tsSpec && m_pPasses->m_tsDiff.pRT_FIN_OUT_0)
 	{
-		rp.SetTexture(15, m_tsDiff.pRT_FIN_OUT_0);
+		rp.SetTexture(15, m_pPasses->m_tsDiff.pRT_FIN_OUT_0);
 	}
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	else if (pTS == &m_tsDiff && m_pRT_SHAD_MIN_MAX && e_svoTI_ShadowsFromSun)
+	else if (pTS == &m_pPasses->m_tsDiff && m_pRT_SHAD_MIN_MAX && e_svoTI_ShadowsFromSun)
 	{
 		rp.SetTexture(15, m_pRT_SHAD_MIN_MAX);
 	}
@@ -1713,7 +1760,7 @@ void CSvoRenderer::UpscalePass(SSvoTargetsSet* pTS)
 	}
 
 	#ifdef FEATURE_SVO_GI_ALLOW_HQ
-	if (pTS == &m_tsDiff && m_pRT_SHAD_FIN_1 && e_svoTI_ShadowsFromSun)
+	if (pTS == &m_pPasses->m_tsDiff && m_pRT_SHAD_FIN_1 && e_svoTI_ShadowsFromSun)
 		rp.SetTexture(16, m_pRT_SHAD_FIN_1);
 	#endif
 
@@ -1745,10 +1792,10 @@ void CSvoRenderer::SetupRsmSunTextures(T& rp)
 
 		pRsmDepthMap = pRsmFrustum->pDepthTex;
 
-		if (CTexture* pColorMap = GetRsmColorMap(*pRsmFrustum))
+		if (CTexture* pColorMap = GetRsmColorMap(*m_pRenderView->GetGraphicsPipeline().get(), *pRsmFrustum))
 			pRsmColorMap = pColorMap;
 
-		if (CTexture* pNormalMap = GetRsmNormlMap(*pRsmFrustum))
+		if (CTexture* pNormalMap = GetRsmNormlMap(*m_pRenderView->GetGraphicsPipeline().get(), *pRsmFrustum))
 			pRsmNormalMap = pNormalMap;
 	}
 
@@ -1770,7 +1817,7 @@ void CSvoRenderer::SetupRsmSunConstants(T& rp)
 
 	const auto& viewInfo = RenderView()->GetViewInfo(CCamera::eEye_Left);
 
-	if (pRsmFrustum && GetRsmColorMap(*pRsmFrustum))
+	if (pRsmFrustum && GetRsmColorMap(*m_pRenderView->GetGraphicsPipeline().get(), *pRsmFrustum))
 	{
 		CShadowUtils::SShadowsSetupInfo shadowsSetup = gcpRendD3D->ConfigShadowTexgen(RenderView(), pRsmFrustum, 0);
 
@@ -1809,11 +1856,13 @@ ISvoRenderer* CD3D9Renderer::GetISvoRenderer()
 template<class T>
 void CSvoRenderer::BindTiledLights(PodArray<I3DEngine::SLightTI>& lightsTI, T& rp)
 {
-	auto* tiledLights = gcpRendD3D.GetGraphicsPipeline().GetTiledLightVolumesStage();
+	std::shared_ptr<CGraphicsPipeline> pActivePipeline = m_pRenderView->GetGraphicsPipeline();
+	auto* tiledLights = pActivePipeline->GetStage<CTiledLightVolumesStage>();
+	auto* pShadowMapStage = pActivePipeline->GetStage<CShadowMapStage>();
 
 	rp.SetBuffer(16, tiledLights->GetLightShadeInfoBuffer());
 	rp.SetTexture(19, tiledLights->GetProjectedLightAtlas());
-	rp.SetTexture(20, CRendererResources::s_ptexRT_ShadowPool);
+	rp.SetTexture(20, pShadowMapStage->m_pTexRT_ShadowPool);
 
 	CTexture* ptexRsmCol = CRendererResources::s_ptexBlack;
 	CTexture* ptexRsmNor = CRendererResources::s_ptexBlack;
@@ -1836,8 +1885,6 @@ void CSvoRenderer::BindTiledLights(PodArray<I3DEngine::SLightTI>& lightsTI, T& r
 
 	CTiledLightVolumesStage::STiledLightShadeInfo* tiledLightShadeInfo = tiledLights->GetTiledLightShadeInfo();
 
-	const auto& viewInfo = RenderView()->GetViewInfo(CCamera::eEye_Left);
-
 	for (int l = 0; l < lightsTI.Count(); l++)
 	{
 		I3DEngine::SLightTI& svoLight = lightsTI[l];
@@ -1845,11 +1892,9 @@ void CSvoRenderer::BindTiledLights(PodArray<I3DEngine::SLightTI>& lightsTI, T& r
 		if (!svoLight.vDirF.w)
 			continue;
 
-		Vec4 worldViewPos = Vec4(viewInfo.cameraOrigin, 0);
-
 		for (uint32 lightIdx = 0; lightIdx < MaxNumTileLights && tiledLightShadeInfo[lightIdx].lightType != CTiledLightVolumesStage::tlTypeNone; ++lightIdx)
 		{
-			if ((tiledLightShadeInfo[lightIdx].lightType == CTiledLightVolumesStage::tlTypeRegularProjector) && svoLight.vPosR.IsEquivalent(tiledLightShadeInfo[lightIdx].posRad /*+ worldViewPos*/, .5f))
+			if ((tiledLightShadeInfo[lightIdx].lightType == CTiledLightVolumesStage::tlTypeRegularProjector) && svoLight.vPosR.IsEquivalent(tiledLightShadeInfo[lightIdx].posRad, .5f))
 			{
 				if (svoLight.vCol.w > 0)
 					svoLight.vCol.w = ((float)lightIdx + 100);
@@ -1873,8 +1918,9 @@ ShadowMapFrustum* CSvoRenderer::GetRsmSunFrustum(const CRenderView* pRenderView)
 	return nullptr;
 }
 
-CTexture* CSvoRenderer::GetRsmColorMap(const ShadowMapFrustum& rFr, bool bCheckUpdate)
+CTexture* CSvoRenderer::GetRsmColorMap(CGraphicsPipeline& graphicsPipeline, const ShadowMapFrustum& rFr, bool bCheckUpdate)
 {
+	auto* pShadowMapStage = graphicsPipeline.GetStage<CShadowMapStage>();
 	if (IsActive() && (rFr.nShadowMapLod == CSvoRenderer::GetInstance()->e_svoTI_GsmCascadeLod) && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0)
 	{
 		if (bCheckUpdate)
@@ -1886,7 +1932,7 @@ CTexture* CSvoRenderer::GetRsmColorMap(const ShadowMapFrustum& rFr, bool bCheckU
 	if (IsActive() && rFr.bUseShadowsPool && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0 && rFr.m_Flags & DLF_USE_FOR_SVOGI)
 	{
 		if (bCheckUpdate)
-			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(s_pRsmPoolCol, CRendererResources::s_ptexRT_ShadowPool->GetWidth(), CRendererResources::s_ptexRT_ShadowPool->GetHeight(), eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_COLOR");
+			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(s_pRsmPoolCol, pShadowMapStage->m_pTexRT_ShadowPool->GetWidth(), pShadowMapStage->m_pTexRT_ShadowPool->GetHeight(), eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_COLOR");
 
 		return CTexture::IsTextureExist(s_pRsmPoolCol) ? s_pRsmPoolCol.get() : nullptr;
 	}
@@ -1894,8 +1940,9 @@ CTexture* CSvoRenderer::GetRsmColorMap(const ShadowMapFrustum& rFr, bool bCheckU
 	return NULL;
 }
 
-CTexture* CSvoRenderer::GetRsmNormlMap(const ShadowMapFrustum& rFr, bool bCheckUpdate)
+CTexture* CSvoRenderer::GetRsmNormlMap(CGraphicsPipeline& graphicsPipeline, const ShadowMapFrustum& rFr, bool bCheckUpdate)
 {
+	auto* pShadowMapStage = graphicsPipeline.GetStage<CShadowMapStage>();
 	if (IsActive() && (rFr.nShadowMapLod == CSvoRenderer::GetInstance()->e_svoTI_GsmCascadeLod) && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0)
 	{
 		if (bCheckUpdate)
@@ -1907,7 +1954,7 @@ CTexture* CSvoRenderer::GetRsmNormlMap(const ShadowMapFrustum& rFr, bool bCheckU
 	if (IsActive() && rFr.bUseShadowsPool && CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0 && rFr.m_Flags & DLF_USE_FOR_SVOGI)
 	{
 		if (bCheckUpdate)
-			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(s_pRsmPoolNor, CRendererResources::s_ptexRT_ShadowPool->GetWidth(), CRendererResources::s_ptexRT_ShadowPool->GetHeight(), eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_NORMAL");
+			CSvoRenderer::GetInstance()->CheckCreateUpdateRT(s_pRsmPoolNor, pShadowMapStage->m_pTexRT_ShadowPool->GetWidth(), pShadowMapStage->m_pTexRT_ShadowPool->GetHeight(), eTF_R8G8B8A8, eTT_2D, FT_STATE_CLAMP, "SVO_PRJ_RSM_NORMAL");
 
 		return CTexture::IsTextureExist(s_pRsmPoolNor) ? s_pRsmPoolNor.get() : nullptr;
 	}
@@ -1917,14 +1964,19 @@ CTexture* CSvoRenderer::GetRsmNormlMap(const ShadowMapFrustum& rFr, bool bCheckU
 
 void CSvoRenderer::GetRsmTextures(_smart_ptr<CTexture>& pRsmColorMap, _smart_ptr<CTexture>& pRsmNormlMap, _smart_ptr<CTexture>& pRsmPoolCol, _smart_ptr<CTexture>& pRsmPoolNor)
 {
-	if (!s_pRsmColorMap)
-		s_pRsmColorMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
-	if (!s_pRsmNormlMap)
-		s_pRsmNormlMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
-	if (!s_pRsmPoolCol)
-		s_pRsmPoolCol = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
-	if (!s_pRsmPoolNor)
-		s_pRsmPoolNor = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	bool useRSM = gEnv->IsEditor() || (CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0);
+
+	if (useRSM)
+	{
+		if (!s_pRsmColorMap)
+			s_pRsmColorMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+		if (!s_pRsmNormlMap)
+			s_pRsmNormlMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+		if (!s_pRsmPoolCol)
+			s_pRsmPoolCol = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+		if (!s_pRsmPoolNor)
+			s_pRsmPoolNor = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	}
 
 	pRsmColorMap = s_pRsmColorMap;
 	pRsmNormlMap = s_pRsmNormlMap;

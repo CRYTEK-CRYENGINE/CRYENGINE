@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef INTERFACE_GPU_PHYSICS
-#define INTERFACE_GPU_PHYSICS
+#pragma once
 
 namespace gpu_physics
 {
@@ -119,5 +118,3 @@ protected:
 	virtual void InternalInjectBodies(const EBodyType type, const SBodyBase* b, const int numBodies) = 0;
 };
 }
-
-#endif

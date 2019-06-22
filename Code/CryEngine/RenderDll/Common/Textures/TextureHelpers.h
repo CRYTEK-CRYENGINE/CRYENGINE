@@ -1,18 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   TextureHelpers.h
-//  Version:     v1.00
-//  Created:     12/6/2014 by NielsF.
-//  Compilers:   Visual Studio 2012
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __TextureHelpers_h__
-#define __TextureHelpers_h__
 #pragma once
 
 #include "Texture.h"
@@ -30,5 +17,3 @@ CTexture*      LookupTexNeutral(EEfResTextures texSlot);
 bool           IsSlotAvailable(EEfResTextures texSlot);
 EShaderStage   GetShaderStagesForTexSlot(EEfResTextures texSlot);
 }
-
-#endif

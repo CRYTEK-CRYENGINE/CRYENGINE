@@ -103,7 +103,9 @@ bool CStatsAgentPipe::Send(const char *szMessage, const char *szPrefix, const ch
 	pBuffer += szMessage;
 
 	bool bSuccess = true;
+#if CRY_PLATFORM_WINDOWS
 	uint32 nBytes = pBuffer.size() + 1;
+#endif
 
 	if (statsagent_debug)
 	{

@@ -1,10 +1,13 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
+#include <QPainter>
+#include <QStyleOption>
 #include "DockableContainer.h"
 #include "QTrackingTooltip.h"
 #include "Menu/AbstractMenu.h"
 #include "Controls/EditorDialog.h"
+#include "QtViewPane.h"
 #include <QAction>
 #include <QBoxLayout>
 
@@ -275,10 +278,24 @@ void CDockableContainer::ResetLayout()
 	m_toolManager->show();
 }
 
-CDockableContainer::FactoryInfo::FactoryInfo(std::function<QWidget*()> factory, bool isUnique, bool isInternal) : m_factory(factory), m_isUnique(isUnique), m_isInternal(isInternal)
+std::vector<IPane*> CDockableContainer::GetPanes()
 {
+	std::vector<IPane*> panes;
+	for (const auto& it : m_spawned)
+	{
+		IPane* pPane = qobject_cast<IPane*>(it.second.m_widget);
+		if (pPane)
+		{
+			panes.push_back(pPane);
+		}
+	}
+	return panes;
 }
 
-CDockableContainer::WidgetInstance::WidgetInstance(QWidget* widget, QString spawnName) : m_widget(widget), m_spawnName(spawnName)
+void CDockableContainer::paintEvent(QPaintEvent* pEvent)
 {
+	QStyleOption styleOption;
+	styleOption.init(this);
+	QPainter painter(this);
+	style()->drawPrimitive(QStyle::PE_Widget, &styleOption, &painter, this);
 }

@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 
 #include "NavMeshQueryProcessing.h"
+#include "MNMUtils.h"
 
 namespace MNM
 {
@@ -57,9 +58,9 @@ namespace MNM
 		{
 			m_pNavMesh->GetVertices(triangleId, a, b, c);
 
-			if (PointInTriangle(vector2_t(m_location), vector2_t(a), vector2_t(b), vector2_t(c)))
+			if (Utils::PointInTriangle(vector2_t(m_location), vector2_t(a), vector2_t(b), vector2_t(c)))
 			{
-				const vector3_t ptClosest = ClosestPtPointTriangle(m_location, a, b, c);
+				const vector3_t ptClosest = Utils::ClosestPtPointTriangle(m_location, a, b, c);
 				const real_t::unsigned_overflow_type dSq = (ptClosest - m_location).lenSqNoOverflow();
 
 				if (dSq < m_distMinSq)
@@ -91,7 +92,7 @@ namespace MNM
 		{
 			if (m_pNavMesh->GetVertices(triangleId, a, b, c))
 			{
-				const vector3_t ptClosest = ClosestPtPointTriangle(m_localFromPosition, a, b, c);
+				const vector3_t ptClosest = Utils::ClosestPtPointTriangle(m_localFromPosition, a, b, c);
 				const real_t::unsigned_overflow_type dSq = (ptClosest - m_localFromPosition).lenSqNoOverflow();
 
 				if (dSq < m_distMinSq)
@@ -196,7 +197,7 @@ namespace MNM
 		{
 			m_pNavMesh->GetVertices(triangleId, a, b, c);
 
-			if (triangleId == m_triangleId && PointInTriangle(vector2_t(m_location), vector2_t(a), vector2_t(b), vector2_t(c)))
+			if (triangleId == m_triangleId && Utils::PointInTriangle(vector2_t(m_location), vector2_t(a), vector2_t(b), vector2_t(c)))
 			{
 				m_bFound = true;
 				m_triangleIdArray.clear();

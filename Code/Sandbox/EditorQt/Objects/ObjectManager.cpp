@@ -47,10 +47,8 @@
 #include <PathUtils.h>
 #include <Preferences/GlobalHelperPreferences.h>
 #include <Preferences/ViewportPreferences.h>
-#include <QAdvancedPropertyTree.h>
 #include <QT/Widgets/QWaitProgress.h>
 #include <QtUtil.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
 #include <Util/FileUtil.h>
 #include <Viewport.h>
 
@@ -1020,7 +1018,7 @@ void CObjectManager::DeleteObject(CBaseObject* obj)
 
 void CObjectManager::DeleteObjects(std::vector<CBaseObject*>& objects)
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 	using namespace Private_ObjectManager;
 
@@ -1116,7 +1114,7 @@ void CObjectManager::FilterOutDeletedObjects(std::vector<CBaseObject*>& objects)
 
 void CObjectManager::DeleteAllObjects()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	CPrefabManager::SkipPrefabUpdate skipUpdates;
 
 	ClearSelection();
@@ -1134,7 +1132,9 @@ void CObjectManager::DeleteAllObjects()
 
 	for (auto pRootObject : rootObjects)
 	{
+		NotifyObjectListeners(pRootObject, CObjectPreDeleteEvent(pRootObject->GetLayer()));
 		pRootObject->Done();
+		NotifyObjectListeners(pRootObject, CObjectDeleteEvent(pRootObject->GetLayer()));
 	}
 
 	// Clear map.
@@ -1923,9 +1923,9 @@ void CObjectManager::ToggleHideAllBut(CBaseObject* pObject)
 	GetObjects(objects, (CObjectLayer*)pObject->GetLayer());
 
 	bool hideAll = false;
-	for (CBaseObject* pObject : objects)
+	for (CBaseObject* pOtherObject : objects)
 	{
-		if (pObject->IsVisible())
+		if (pOtherObject != pObject && pOtherObject->IsVisible())
 		{
 			hideAll = true;
 			break;
@@ -1986,9 +1986,9 @@ void CObjectManager::ToggleFreezeAllBut(CBaseObject* pObject)
 	GetObjects(objects, (CObjectLayer*)pObject->GetLayer());
 
 	bool freezeAll = false;
-	for (CBaseObject* pObject : objects)
+	for (CBaseObject* pOtherObject : objects)
 	{
-		if (!pObject->IsFrozen())
+		if (pObject != pOtherObject && !pOtherObject->IsFrozen())
 		{
 			freezeAll = true;
 			break;
@@ -2482,27 +2482,27 @@ void CObjectManager::DeleteSelection()
 	GetIEditorImpl()->GetFlowGraphManager()->SendNotifyEvent(EHG_GRAPH_INVALIDATE);
 }
 
-bool CObjectManager::HitTestObject(CBaseObject* obj, HitContext& hc)
+bool CObjectManager::HitTestObject(CBaseObject* pObject, HitContext& hc)
 {
-	if (obj->IsFrozen())
+	if (hc.ignoreFrozenObjects && pObject->IsFrozen())
 		return false;
 
-	if (obj->IsHidden())
+	if (pObject->IsHidden())
 		return false;
 
 	// This object is rejected by deep selection.
-	if (obj->CheckFlags(OBJFLAG_NO_HITTEST))
+	if (pObject->CheckFlags(OBJFLAG_NO_HITTEST))
 		return false;
 
-	ObjectType objType = obj->GetType();
+	ObjectType objType = pObject->GetType();
 
 	// Check if this object type is masked for selection.
 	if (!(objType & gViewportSelectionPreferences.objectSelectMask))
 	{
-		return obj->IsKindOf(RUNTIME_CLASS(CGroup)) && obj->HitTest(hc);
+		return pObject->IsKindOf(RUNTIME_CLASS(CGroup)) && pObject->HitTest(hc);
 	}
 
-	const bool bSelectionHelperHit = obj->HitHelperTest(hc);
+	const bool bSelectionHelperHit = pObject->HitHelperTest(hc);
 
 	if (hc.bUseSelectionHelpers && !bSelectionHelperHit)
 		return false;
@@ -2510,11 +2510,11 @@ bool CObjectManager::HitTestObject(CBaseObject* obj, HitContext& hc)
 	if (!bSelectionHelperHit)
 	{
 		// Fast checking.
-		if (hc.camera && !obj->IsInCameraView(*hc.camera))
+		if (hc.camera && !pObject->IsInCameraView(*hc.camera))
 		{
 			return false;
 		}
-		else if (hc.bounds && !obj->IntersectRectBounds(*hc.bounds))
+		else if (hc.bounds && !pObject->IntersectRectBounds(*hc.bounds))
 		{
 			return false;
 		}
@@ -2523,22 +2523,22 @@ bool CObjectManager::HitTestObject(CBaseObject* obj, HitContext& hc)
 		if (hc.nSubObjFlags == 0)
 		{
 			Ray ray(hc.raySrc, hc.rayDir);
-			if (!obj->IntersectRayBounds(ray))
+			if (!pObject->IntersectRayBounds(ray))
 				return false;
 		}
-		else if (!obj->HitTestRect(hc))
+		else if (!pObject->HitTestRect(hc))
 		{
 			return false;
 		}
 
 		CEditTool* pEditTool = GetIEditorImpl()->GetLevelEditorSharedState()->GetEditTool();
-		if (pEditTool && pEditTool->HitTest(obj, hc))
+		if (pEditTool && pEditTool->HitTest(pObject, hc))
 		{
 			return true;
 		}
 	}
 
-	return (bSelectionHelperHit || obj->HitTest(hc));
+	return (bSelectionHelperHit || pObject->HitTest(hc));
 }
 
 bool CObjectManager::HitTest(HitContext& hitInfo)
@@ -3003,7 +3003,7 @@ void CObjectManager::Serialize(XmlNodeRef& xmlNode, bool bLoading, int flags)
 		if (root)
 		{
 			ar.node = root;
-			LoadObjects(ar, false);
+			LoadObjects(ar);
 		}
 		EndObjectsLoading();
 	}
@@ -3019,29 +3019,42 @@ void CObjectManager::Serialize(XmlNodeRef& xmlNode, bool bLoading, int flags)
 	}
 }
 
-void CObjectManager::LoadObjects(CObjectArchive& objectArchive, bool bSelect)
+void CObjectManager::CreateAndSelectObjects(CObjectArchive& objectArchive)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
+	CUndo undo("Create and Select Objects");
+	ClearSelection();
+
+	LoadObjects(objectArchive);
+	auto loadedObjectCount = objectArchive.GetLoadedObjectsCount();
+
+	// Add all newly created objects to selection
+	std::vector<CBaseObject*> objectsToSelect;
+	objectsToSelect.reserve(loadedObjectCount);
+
+	// Generate unique names and track objects to select
+	for (auto i = 0; i < loadedObjectCount; ++i)
+	{
+		CBaseObject* pObject = objectArchive.GetLoadedObject(i);
+		// Make sure the new objects have unique names
+		pObject->SetName(GenUniqObjectName(pObject->GetName()));
+		// Also add them to the list of objects to be selected
+		objectsToSelect.push_back(pObject);
+	}
+
+	SelectObjects(objectsToSelect);
+}
+
+void CObjectManager::LoadObjects(CObjectArchive& objectArchive)
+{
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	m_bLoadingObjects = true;
 
 	// Prevent the prefab manager from updating prefab instances
 	CPrefabManager::SkipPrefabUpdate skipUpdates;
 
-	XmlNodeRef objectsNode = objectArchive.node;
-	int numObjects = objectsNode->getChildCount();
-	std::vector<CBaseObject*> objects;
-	objects.reserve(numObjects);
-	for (int i = 0; i < numObjects; i++)
-	{
-		CBaseObject* obj = objectArchive.LoadObject(objectsNode->getChild(i));
-		if (obj && bSelect)
-		{
-			objects.push_back(obj);
-		}
-	}
-	CBatchProcessDispatcher batchProcessDispatcher;
-	batchProcessDispatcher.Start(objects, true);
-	AddObjectsToSelection(objects);
+	objectArchive.LoadObjects(objectArchive.node);
+
 	EndObjectsLoading(); // End progress bar, here, Resolve objects have his own.
 	objectArchive.ResolveObjects(true);
 
@@ -3195,6 +3208,10 @@ bool CObjectManager::SetObjectSelected(CBaseObject* pObject, bool bSelect, bool 
 	CRY_PROFILE_FUNCTION(PROFILE_EDITOR);
 
 	CRY_ASSERT(pObject);
+
+	// Make sure the object cannot be selected if it's locked
+	if (pObject->IsFrozen() && bSelect)
+		return false;
 
 	// Only select/unselect once. And only select objects types that are selectable (not masked)
 	if (pObject->IsSelected() == bSelect || (bSelect && (pObject->GetType() & ~gViewportSelectionPreferences.objectSelectMask)))

@@ -21,6 +21,7 @@
 #include "GameXmlParamReader.h"
 
 #include <CryString/StringUtils.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #if !defined(_RELEASE)
 	#define DEBUG_FORCEFEEDBACK_SYSTEM

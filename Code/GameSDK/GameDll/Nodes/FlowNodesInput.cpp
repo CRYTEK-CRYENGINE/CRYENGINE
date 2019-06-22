@@ -210,7 +210,7 @@ public:
 
 	int TranslateKey(int nKeyId)
 	{
-		if (nKeyId >= eKI_XI_DPadUp && nKeyId <= eKI_XI_Disconnect)
+		if (nKeyId >= eKI_XI_DPadUp && nKeyId <= eKI_XI_TriggerRBtn)
 			return nKeyId - KI_XINPUT_BASE;
 		return eXBK_Invalid;
 	}

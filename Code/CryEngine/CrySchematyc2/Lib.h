@@ -90,6 +90,8 @@ namespace Schematyc2
 		void AddVariable(const size_t iVariable);
 		void AddContainer(const size_t iContainer);
 
+		void CompactMemory();
+
 	private:
 
 		SGUID						m_guid;
@@ -146,6 +148,8 @@ namespace Schematyc2
 		void AddDestructor(size_t iDestructor);
 		void AddSignalReceiver(size_t iSignalReceiver);
 		void AddTransition(size_t iTransition);
+
+		void CompactMemory();
 
 	private:
 
@@ -461,6 +465,8 @@ namespace Schematyc2
 		SVMOp* GetLastOp();
 		void SetGraphExecutionFilter(EGraphExecutionFilter filter);
 
+		void CompactMemory();
+
 		// Debug
 		void                    AddDebugOperationSymbolNode(size_t pos, const SGUID& guid);
 		void                    AddDebugOperationSymbolInput(size_t pos, const SGUID& guid, const char* input);
@@ -468,6 +474,10 @@ namespace Schematyc2
 
 		virtual const SDebugSymbol*     GetDebugOperationSymbol(size_t pos) const override;
 		virtual size_t                  GetDebugOperationsSize() const override;
+
+		size_t GetOpCapacity() const { return m_capacity; }
+		size_t GetOpSize() const { return m_size; }
+
 
 	private:
 
@@ -659,16 +669,20 @@ namespace Schematyc2
 		CRuntimeFunction* GetFunction_New(uint32 functionIdx);
 		bool BindFunctionToGUID(const LibFunctionId& functionId, const SGUID& guid);
 
-	private:
-
-		struct SFunction // #SchematycTODO : Can't we just store the id and graph guid in the function itself?
+		void CompactMemory();
+	
+		
+		struct SFunction
 		{
-			SFunction(const LibFunctionId& _functionId, const SGUID& _graphGUID);
+			explicit SFunction(const SGUID& _graphGUID);
 
-			LibFunctionId functionId;
-			SGUID         graphGUID;
 			CLibFunction  function;
 		};
+		typedef std::map<LibFunctionId, SFunction>                TFunctionMap;
+
+		const TFunctionMap& GetFunctionMap() const { return m_functions; }
+
+	private:
 
 		DECLARE_SHARED_POINTERS(CRuntimeFunction)
 
@@ -683,7 +697,7 @@ namespace Schematyc2
 		typedef std::vector<CLibDestructor>                       TDestructorVector;
 		typedef std::vector<CLibSignalReceiver>                   TSignalReceiverVector;
 		typedef std::vector<CLibTransition>                       TTransitionVector;
-		typedef std::map<LibFunctionId, SFunction>                TFunctionMap;
+		
 		typedef std::unordered_map<SGUID, LibFunctionId>          TFunctionIdByGUIDMap;
 		typedef std::vector<CRuntimeFunctionPtr>                  Functions_New;
 		typedef std::vector<IAnyConstPtr>                         TAnyConstPtrVector;
@@ -751,6 +765,8 @@ namespace Schematyc2
 		CLibAbstractInterfaceFunctionPtr GetAbstractInterfaceFunction(const SGUID& guid);
 		CLibClassPtr AddClass(const SGUID& guid, const char* name, const SGUID& foundationGUID, const IPropertiesConstPtr& pFoundationProperties);
 		CLibClassPtr GetClass(const SGUID& guid);
+
+		void CompactMemory();
 
 	private:
 

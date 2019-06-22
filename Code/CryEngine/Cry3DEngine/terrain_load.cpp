@@ -241,8 +241,7 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 	if (!bNoLog)
 		PrintMessage("Opening %s ...", szFileName);
 
-	// rbx open flags, x is a hint to not cache whole file in memory.
-	FILE* fpDiffTexFile = gEnv->pCryPak->FOpen(Get3DEngine()->GetLevelFilePath(szFileName), "rbx");
+	FILE* fpDiffTexFile = gEnv->pCryPak->FOpen(Get3DEngine()->GetLevelFilePath(szFileName), "rb");
 
 	if (!fpDiffTexFile)
 	{
@@ -346,7 +345,7 @@ bool CTerrain::OpenTerrainTextureFile(SCommonFileHeader& hdrDiffTexHdr, STerrain
 
 		if (!m_bEditor)
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CTerrain::OpenTerrainTextureFile: ReleaseHoleNodes & UpdateTerrainNodes");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CTerrain::OpenTerrainTextureFile: ReleaseHoleNodes & UpdateTerrainNodes");
 
 			int nNodesCounterBefore = CTerrainNode::m_nNodesCounter;
 			GetParentNode()->ReleaseHoleNodes();

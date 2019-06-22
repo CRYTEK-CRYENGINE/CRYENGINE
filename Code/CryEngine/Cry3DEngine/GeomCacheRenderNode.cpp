@@ -164,7 +164,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 	DBG_LOCK_TO_THREAD(this);
 
 	if (!m_bInitialized || !m_bDrawing || (m_renderMeshes.empty() && m_renderMeshUpdateContexts.empty())
-	    || !m_pGeomCache || m_dwRndFlags & ERF_HIDDEN || !passInfo.RenderGeomCaches())
+	    || !m_pGeomCache || !passInfo.RenderGeomCaches())
 	{
 		return;
 	}
@@ -255,7 +255,7 @@ void CGeomCacheRenderNode::Render(const struct SRendParams& rendParams, const SR
 									}
 
 									auto pInstanceRenderObject = pRenderer->EF_DuplicateRO(pRenderObject, passInfo);
-									pInstanceRenderObject->SetMatrix(pieceMatrix, passInfo);
+									pInstanceRenderObject->SetMatrix(pieceMatrix);
 
 									if (pMotionVectorsCV->GetIVal() && passInfo.IsGeneralPass() && ((pInstanceRenderObject->m_ObjFlags & FOB_DYNAMIC_OBJECT) != 0))
 									{
@@ -863,14 +863,14 @@ void CGeomCacheRenderNode::FillRenderObject(const SRendParams& rendParams, const
 	pRenderObject->m_ObjFlags |= (rendParams.dwFObjFlags & ERF_FOB_ALLOW_TERRAIN_LAYER_BLEND) ? FOB_ALLOW_TERRAIN_LAYER_BLEND : FOB_NONE;
 	pRenderObject->m_ObjFlags |= rendParams.dwFObjFlags;
 
-	pRenderObject->SetAmbientColor(rendParams.AmbientColor, passInfo);
+	pRenderObject->SetAmbientColor(rendParams.AmbientColor);
 
 	if (rendParams.nTextureID >= 0)
 	{
 		pRenderObject->m_nTextureID = rendParams.nTextureID;
 	}
 
-	pRenderObject->SetMatrix(*rendParams.pMatrix, passInfo);
+	pRenderObject->SetMatrix(*rendParams.pMatrix);
 	pRenderObject->m_nClipVolumeStencilRef = rendParams.nClipVolumeStencilRef;
 
 	SRenderObjData* pRenderObjData = pRenderObject->GetObjData();

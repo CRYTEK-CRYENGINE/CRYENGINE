@@ -5,13 +5,11 @@
 #include "EntityObject.h"
 
 CUndoEntityParam::CUndoEntityParam(const char* pObjectName, const char* pVarPath, const char* pUndoDescription)
-{
-	m_entityName = pObjectName;
-	m_paramName = pVarPath;
-	m_undo = PyGetEntityParam(pObjectName, pVarPath);
-	m_undoDescription = pUndoDescription;
-
-}
+	: m_entityName(pObjectName)
+	, m_paramName(pVarPath)
+	, m_undo(PyGetEntityParam(pObjectName, pVarPath))
+	, m_undoDescription(pUndoDescription)
+{}
 
 const char* CUndoEntityParam::GetDescription()
 {

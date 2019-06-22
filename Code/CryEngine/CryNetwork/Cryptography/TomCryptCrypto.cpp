@@ -76,6 +76,12 @@ void ShutdownTomCrypt()
 	return TSharedPtr(pKey);
 }
 
+/*static*/ void CTomCryptAesState::operator delete(void* ptr)
+{
+	// See buffer allocation in CTomCryptAesState::CreateAesStateFromSecret
+	delete[] reinterpret_cast<uint8*>(ptr);
+}
+
 CTomCryptAesState::CTomCryptAesState()
 {}
 
@@ -235,6 +241,12 @@ CTomCryptSha256Hmac::CTomCryptSha256Hmac(int shaIdx, size_t secretSize)
 	CTomCryptSha256Hmac* pKey = new (reinterpret_cast<void*>(p.get())) CTomCryptSha256Hmac(shaIdx, secretSize);
 	p.release();
 	return TSharedPtr(pKey);
+}
+
+/*static*/ void CTomCryptSha256Hmac::operator delete(void* ptr)
+{
+	// See buffer allocation in CTomCryptSha256Hmac::CreateFromSecret
+	delete[] reinterpret_cast<uint8*>(ptr);
 }
 
 bool CTomCryptSha256Hmac::Hash(const uint8* pBuf, const size_t bufSize)

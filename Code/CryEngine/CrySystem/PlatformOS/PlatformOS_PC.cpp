@@ -226,7 +226,7 @@ void CPlatformOS_PC::MountDLCContent(IDLCListener* pCallback, unsigned int user,
 	else
 	{
 
-		CryFixedStringT<ICryPak::g_nMaxPath> findPath;
+		CryPathString findPath;
 		findPath.Format("%s/*", dlcDir);
 
 		CryLog("Passing %s to File Finder (dlcDir %s", findPath.c_str(), dlcDir);
@@ -503,7 +503,7 @@ IPlatformOS::EZipExtractFail CPlatformOS_PC::ExtractZips(const char* path)
 
 	//get the path to the DLC install directory
 
-	char userPath[ICryPak::g_nMaxPath];
+	CryPathString userPath;
 	gEnv->pCryPak->AdjustFileName(path, userPath, 0);
 
 	//look for zips
@@ -514,8 +514,8 @@ IPlatformOS::EZipExtractFail CPlatformOS_PC::ExtractZips(const char* path)
 	{
 		do
 		{
-			stack_string filePath;
-			filePath.Format("%s/%s", userPath, fd.name);
+			CryPathString filePath;
+			filePath.Format("%s/%s", userPath.c_str(), fd.name);
 
 			// Skip dirs, only want files, and want them to be zips
 			if ((fd.attrib == _A_SUBDIR) || strstr(fd.name, ".zip") == 0)
@@ -557,7 +557,7 @@ IPlatformOS::EZipExtractFail CPlatformOS_PC::RecurseZipContents(ZipDir::FileEntr
 	ZipDir::FileEntryTree::FileMap::iterator fileEndIt = pSourceDir->GetFileEnd();
 
 	//look for files and output them to disk
-	CryFixedStringT<ICryPak::g_nMaxPath> filePath;
+	CryPathString filePath;
 	for (; fileIt != fileEndIt && retVal == eZEF_Success; ++fileIt)
 	{
 		ZipDir::FileEntry* pFileEntry = pSourceDir->GetFileEntry(fileIt);
@@ -586,7 +586,7 @@ IPlatformOS::EZipExtractFail CPlatformOS_PC::RecurseZipContents(ZipDir::FileEntr
 	ZipDir::FileEntryTree::SubdirMap::iterator dirEndIt = pSourceDir->GetDirEnd();
 
 	//look for deeper directories in the heirarchy
-	CryFixedStringT<ICryPak::g_nMaxPath> dirPath;
+	CryPathString dirPath;
 	for (; dirIt != dirEndIt && retVal == eZEF_Success; ++dirIt)
 	{
 		dirPath.Format("%s/%s", currentPath, pSourceDir->GetDirName(dirIt));
@@ -608,7 +608,7 @@ bool CPlatformOS_PC::SxmlMissingFromHDD(ZipDir::FileEntryTree* pZipRoot, const c
 
 	ZipDir::FileEntryTree::SubdirMap::iterator dirIt = pZipRoot->GetDirBegin();
 	ZipDir::FileEntryTree::SubdirMap::iterator dirEndIt = pZipRoot->GetDirEnd();
-	CryFixedStringT<ICryPak::g_nMaxPath> dirPath;
+	CryPathString dirPath;
 	for (; dirIt != dirEndIt; ++dirIt)
 	{
 		dirPath.Format("%s/%s", userPath, pZipRoot->GetDirName(dirIt));
@@ -620,7 +620,7 @@ bool CPlatformOS_PC::SxmlMissingFromHDD(ZipDir::FileEntryTree* pZipRoot, const c
 		ZipDir::FileEntryTree::FileMap::iterator fileEndIt = pSourceDir->GetFileEnd();
 
 		//look for files
-		CryFixedStringT<ICryPak::g_nMaxPath> filePath;
+		CryPathString filePath;
 		for (; fileIt != fileEndIt; ++fileIt)
 		{
 			const char* pFileName = pSourceDir->GetFileName(fileIt);
@@ -823,7 +823,7 @@ IPlatformOS::ECDP_Open CPlatformOS_PC::DoesCachePakExist(const char* const filen
 	realFileName.Format("%%USER%%/cache/%s", filename);
 
 	const uint32 fileOpenFlags = ICryPak::FLAGS_NEVER_IN_PAK | ICryPak::FLAGS_PATH_REAL | ICryPak::FOPEN_ONDISK;
-	FILE* const file = gEnv->pCryPak->FOpen(realFileName.c_str(), "rbx", fileOpenFlags);
+	FILE* const file = gEnv->pCryPak->FOpen(realFileName.c_str(), "rb", fileOpenFlags);
 	if (file == NULL)
 	{
 		CryLog("DoesCachePakExist '%s' ERROR file not found '%s'", filename, realFileName.c_str());

@@ -92,16 +92,12 @@ void CSimpleThreadBackOff::Backoff()
 	// Sleep(1): System timer resolution dependent. Usual default is 1/64sec. So the worst case is we have to wait 15.6ms.
 	if (!(++m_counter & kHardYieldInterval))
 	{
-		// Alternate strategies
-		if (m_counter & 1)
-		{
-			// Allow threads with "same" prio to run that are scheduled on "any" processor.
-			CrySleep(0);
-		}
-		else
-		{
-			// Allow threads with "any" prio to run that are scheduled on the "same" processor.
-			SwitchToThread();
-		}
+		// Note from MSDN
+		// A value of zero causes the thread to relinquish the remainder of its time slice to any other thread that is ready to run. 
+		// If there are no other threads ready to run, the function returns immediately, and the thread continues execution.
+		// Windows XP:  A value of zero causes the thread to relinquish the remainder of its time slice to any other thread of equal priority that is ready to run. 
+		// If there are no other threads of equal priority ready to run, the function returns immediately, and the thread continues execution. 
+		// This behavior changed starting with Windows Server 2003.
+		CrySleep(0);
 	}
 }

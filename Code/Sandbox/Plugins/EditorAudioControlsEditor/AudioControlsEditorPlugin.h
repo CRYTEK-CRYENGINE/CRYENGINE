@@ -2,25 +2,19 @@
 
 #pragma once
 
+#include "Common.h"
 #include <IPlugin.h>
 #include <IEditor.h>
 
-#include "AssetsManager.h"
-
 namespace ACE
 {
-class CImplementationManager;
-extern CAssetsManager g_assetsManager;
-extern CImplementationManager g_implementationManager;
-
 enum class EReloadFlags : CryAudio::EnumFlagsType
 {
 	None = 0,
 	ReloadSystemControls = BIT(0),
 	ReloadImplData = BIT(1),
-	ReloadScopes = BIT(2),
-	SendSignals = BIT(3),
-	BackupConnections = BIT(4), };
+	SendSignals = BIT(2),
+	BackupConnections = BIT(3), };
 CRY_CREATE_ENUM_FLAG_OPERATORS(EReloadFlags);
 
 class CAudioControlsEditorPlugin final : public IPlugin, public ISystemEventListener
@@ -37,16 +31,16 @@ public:
 
 	// IPlugin
 	virtual int32       GetPluginVersion() override     { return 1; }
-	virtual char const* GetPluginName() override        { return "Audio Controls Editor"; }
+	virtual char const* GetPluginName() override        { return g_szEditorName; }
 	virtual char const* GetPluginDescription() override { return "The Audio Controls Editor enables browsing and configuring audio events exposed from the audio middleware"; }
 	// ~IPlugin
 
-	static void       SaveData();
-	static void       ReloadData(EReloadFlags const flags);
-	static void       ExecuteTrigger(string const& triggerName);
-	static void       ExecuteTriggerEx(string const& triggerName, XmlNodeRef const pNode);
-	static void       StopTriggerExecution();
-	static EErrorCode GetLoadingErrorMask() { return s_loadingErrorMask; }
+	static void SaveData();
+	static void ReloadData(EReloadFlags const flags);
+	static void ExecuteTrigger(string const& triggerName);
+	static void ExecuteTriggerEx(string const& triggerName, XmlNodeRef const& node);
+	static void StopTriggerExecution();
+	static void OnAudioCallback(CryAudio::SRequestInfo const* const pRequestInfo);
 
 	static CCrySignal<void()> SignalOnBeforeLoad;
 	static CCrySignal<void()> SignalOnAfterLoad;
@@ -63,7 +57,5 @@ private:
 
 	static FileNames           s_currentFilenames;
 	static CryAudio::ControlId s_audioTriggerId;
-
-	static EErrorCode          s_loadingErrorMask;
 };
 } // namespace ACE

@@ -1,0 +1,25 @@
+{
+    "toolBar": [
+        {
+            "command": "general.save",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "save",
+            "type": 0
+        },
+        {
+            "command": "general.reload",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "reload",
+            "type": 0
+        },
+        {
+            "command": "general.refresh",
+            "m_IsCustom": false,
+            "name": "refresh",
+            "type": 0
+        }
+    ],
+    "version": 2
+}

@@ -129,8 +129,25 @@ template<class dtype> bool is_valid(const dtype &op) { return is_valid(op.x*op.x
 	m_pWorld->m_pRenderer,m_pForeignData,m_iForeignData,m_iForeignFlags)) { \
 	if (m_pWorld->m_vars.bBreakOnValidation) DoBreak return iErrCode; }
 
+#ifndef STANDALONE_PHYSICS
+template<class T,bool alloc> struct SizerAllocator {};
+template<class T> struct SizerAllocator<T,false> { static T *alloc(int count,T* src=nullptr) { return src; } };
+template<> struct SizerAllocator<int,false> {	static int *alloc(int count,int* src=nullptr) { return count ? new int[count] : src; } };
+template<class T> struct SizerAllocator<T,true> {	static T *alloc(int count,T* src=nullptr) { return new typename std::remove_const<T>::type[count]; } };
+#define GetMode GetMode() const { return 0; } \
+	template<class T> bool AddObjectPtr(T* const& ptr, size_t size, int nCount=1) { \
+		if (GetMode()==1 && size)	const_cast<T*&>(ptr) = SizerAllocator<T,!std::is_polymorphic<T>::value>::alloc(size/sizeof(T),ptr); \
+		return AddObject(ptr, size); \
+	}	\
+	bool AddObjectPtr(struct geom* const& ptr, size_t size, int nCount) { return AddObject(ptr, size); }	\
+	int dummy
 // TODO: reference additional headers your program requires here
 #include <CryMemory/CrySizer.h>
+#undef GetMode
+#define AddObject AddObjectPtr
+#else
+#include <CryMemory/CrySizer.h>
+#endif
 #include <CrySystem/ISystem.h>
 #include <CrySystem/ILog.h>
 #include <CryPhysics/primitives.h>

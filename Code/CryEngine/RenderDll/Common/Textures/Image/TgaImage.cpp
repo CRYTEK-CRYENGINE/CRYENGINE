@@ -18,7 +18,7 @@ string OutputPath(const char* filename)
 	if (strstr(filename, ":\\") == NULL)
 	{
 		// construct path with current folder - otherwise path would start at mastercd/game
-		char szCurrDir[ICryPak::g_nMaxPath];
+		char szCurrDir[MAX_PATH];
 		CryGetCurrentDirectory(sizeof(szCurrDir), szCurrDir);
 
 		fullPath = string(szCurrDir) + "/" + filename;
@@ -159,17 +159,8 @@ bool WriteTGA(const byte* data, int width, int height, const char* filename, int
 	bwrite(desc);
 
 	int hxw = height * width;
-
-	int right = 0;
-	//  int top   = 1;
-
-	DWORD* temp_dp = (DWORD*) data;     // data = input pointer
-
 	DWORD* swap = 0;
-
 	UINT src_bytes_per_pixel = src_bits_per_pixel / 8;
-
-	UINT size_in_bytes = hxw * src_bytes_per_pixel;
 
 	if (src_bits_per_pixel == dest_bits_per_pixel)
 	{

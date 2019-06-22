@@ -96,7 +96,7 @@ using JobManager::SJobState;
 %include "../../../../CryEngine/CryCommon/CrySystem/File/IFileChangeMonitor.h"
 %include "../../../../CryEngine/CryCommon/CrySystem/Profilers/IStatoscope.h"
 %include "../../../../CryEngine/CryCommon/CrySystem/Profilers/IPerfHud.h"
-%include "../../../../CryEngine/CryCommon/CrySystem/Profilers/FrameProfiler/FrameProfiler.h"
+%include "../../../../CryEngine/CryCommon/CrySystem/Profilers/ICryProfilingSystem.h"
 %include "../../../../CryEngine/CryCommon/CryMemory/ILocalMemoryUsage.h"
 %include "../../../../CryEngine/CryCommon/CrySystem/ICodeCheckpointMgr.h"
 %ignore JobManager::SInfoBlock;

@@ -25,8 +25,3 @@ static void RegisterSpawnPointComponent(Schematyc::IEnvRegistrar& registrar)
 }
 
 CRY_STATIC_AUTO_REGISTER_FUNCTION(&RegisterSpawnPointComponent)
-
-void CSpawnPointComponent::SpawnEntity(IEntity* otherEntity)
-{
-	otherEntity->SetWorldTM(m_pEntity->GetWorldTM());
-}

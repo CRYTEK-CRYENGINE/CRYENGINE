@@ -8,6 +8,12 @@
 
 namespace ACE
 {
+using ControlId = CryAudio::ControlId;
+using ControlIds = std::vector<ControlId>;
+
+constexpr ControlId g_invalidControlId = 0;
+constexpr float g_precision = 0.0001f;
+
 enum class EAssetType : CryAudio::EnumFlagsType
 {
 	None,
@@ -38,25 +44,18 @@ enum class EItemFlags : CryAudio::EnumFlagsType
 	IsContainer = BIT(3), };
 CRY_CREATE_ENUM_FLAG_OPERATORS(EItemFlags);
 
-using ControlId = CryAudio::ControlId;
-constexpr ControlId g_invalidControlId = 0;
-
-using ControlIds = std::vector<ControlId>;
-
-using Platforms = std::vector<char const*>;
-using PlatformIndexType = uint16;
-
 enum class EImplInfoFlags : CryAudio::EnumFlagsType
 {
 	None = 0,
 	SupportsProjects = BIT(0),
-	SupportsTriggers = BIT(1),
-	SupportsParameters = BIT(2),
-	SupportsSwitches = BIT(3),
-	SupportsStates = BIT(4),
-	SupportsEnvironments = BIT(5),
-	SupportsPreloads = BIT(6),
-	SupportsSettings = BIT(7), };
+	SupportsFileImport = BIT(1),
+	SupportsTriggers = BIT(2),
+	SupportsParameters = BIT(3),
+	SupportsSwitches = BIT(4),
+	SupportsStates = BIT(5),
+	SupportsEnvironments = BIT(6),
+	SupportsPreloads = BIT(7),
+	SupportsSettings = BIT(8), };
 CRY_CREATE_ENUM_FLAG_OPERATORS(EImplInfoFlags);
 
 struct SImplInfo final

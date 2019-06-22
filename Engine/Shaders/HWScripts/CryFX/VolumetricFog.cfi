@@ -293,6 +293,7 @@ struct SVolumetricFogParams
 	float  farDistCenterLeft;
 	float  farDistCenter;
 
+#if %_RT_VOLUMETRIC_FOG
 	// PB_VolumetricFogGlobalEnvProbe0
 	float3 globalProbeColor0;
 	float  globalProbeAttenuation0;
@@ -300,6 +301,7 @@ struct SVolumetricFogParams
 	// PB_VolumetricFogGlobalEnvProbe1
 	float3 globalProbeColor1;
 	float  globalProbeAttenuation1;
+#endif
 
 	// PB_time
 	float4 timeParams;
@@ -397,11 +399,13 @@ SVolumetricFogParams vfGetVolumetricFogParamsInternal()
 	params.farDistCenterLeft = vfDistanceParams.z;
 	params.farDistCenter = vfDistanceParams.w;
 
+#if %_RT_VOLUMETRIC_FOG
 	params.globalProbeColor0 = vfGlobalEnvProbeParams0.xyz;
 	params.globalProbeAttenuation0 = vfGlobalEnvProbeParams0.w;
 
 	params.globalProbeColor1 = vfGlobalEnvProbeParams1.xyz;
 	params.globalProbeAttenuation1 = vfGlobalEnvProbeParams1.w;
+#endif
 
 	params.timeParams = vfTimeParams;
 
@@ -506,6 +510,7 @@ float4 GetVolumetricFogAnalyticalColor(
 
 	float4 diffuseProbe0 = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	float4 diffuseProbe1 = float4(0.0f, 0.0f, 0.0f, 0.0f);
+#if %_RT_VOLUMETRIC_FOG
 	if(params.globalProbeAttenuation0 > 0.0f)
 	{
 		diffuseProbe0 = vfs.globalEnvProbeTex0.SampleLevel( vfs.trilinearClampSState, cameraToWorldPos, 0 );
@@ -517,7 +522,7 @@ float4 GetVolumetricFogAnalyticalColor(
 		const float attn = (1.0f - params.globalProbeAttenuation0) * params.globalProbeAttenuation1;
 		diffuseProbe1.rgb = attn * DecodeHDRCubemap( diffuseProbe1 ) * params.globalProbeColor1.rgb;
 	}
-
+#endif
 	// exponential fog density parameters
 	const float d = lengthToTarget;// distance from camera to target matches ray-marching volumetric fog.
 	const float L = params.heightDensityScale;

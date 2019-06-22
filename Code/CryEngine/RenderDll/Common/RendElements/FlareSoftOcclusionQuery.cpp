@@ -117,7 +117,7 @@ void CFlareSoftOcclusionQuery::GetSectorSize(float& width, float& height)
 	height = s_fSectorWidth;
 }
 
-void CFlareSoftOcclusionQuery::GetOcclusionSectorInfo(SOcclusionSectorInfo& out_Info,const SRenderViewInfo& viewInfo)
+void CFlareSoftOcclusionQuery::GetOcclusionSectorInfo(SOcclusionSectorInfo& out_Info, const SRenderViewInfo& viewInfo)
 {
 	Vec3 vProjectedPos;
 	if (ComputeProjPos(m_PosToBeChecked, viewInfo.viewMatrix, viewInfo.projMatrix, vProjectedPos) == false)
@@ -130,10 +130,10 @@ void CFlareSoftOcclusionQuery::GetOcclusionSectorInfo(SOcclusionSectorInfo& out_
 	out_Info.u1 = vProjectedPos.x + m_fOccPlaneWidth / 2;
 	out_Info.v1 = vProjectedPos.y + m_fOccPlaneHeight / 2;
 
-	if (out_Info.u0 < 0)   out_Info.u0 = 0;
-	if (out_Info.v0 < 0)   out_Info.v0 = 0;
-	if (out_Info.u1 > 1)   out_Info.u1 = 1;
-	if (out_Info.v1 > 1)   out_Info.v1 = 1;
+	if (out_Info.u0 < 0) out_Info.u0 = 0;
+	if (out_Info.v0 < 0) out_Info.v0 = 0;
+	if (out_Info.u1 > 1) out_Info.u1 = 1;
+	if (out_Info.v1 > 1) out_Info.v1 = 1;
 
 	GetDomainInTexture(out_Info.x0, out_Info.y0, out_Info.x1, out_Info.y1);
 
@@ -172,7 +172,7 @@ void CFlareSoftOcclusionQuery::BatchReadResults()
 	if (!g_bCreatedGlobalResources)
 		return;
 
-	CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "CFlareSoftOcclusionQuery::BatchReadResults");
+	CRY_PROFILE_SECTION_WAITING(PROFILE_RENDERER, "CFlareSoftOcclusionQuery::BatchReadResults");
 
 	CRendererResources::s_ptexFlaresOcclusionRing[s_ringReadIdx]->GetDevTexture()->AccessCurrStagingResource(0, false, [=](void* pData, uint32 rowPitch, uint32 slicePitch)
 	{
@@ -215,10 +215,12 @@ CSoftOcclusionManager::~CSoftOcclusionManager()
 	if (m_gatherVertexBuffer != ~0u)    gcpRendD3D->m_DevBufMan.Destroy(m_gatherVertexBuffer);
 }
 
-bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass,const SRenderViewInfo& viewInfo)
+bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, const SRenderViewInfo& viewInfo, CRenderView* pRenderView)
 {
 	if (m_indexBuffer == ~0u || m_occlusionVertexBuffer == ~0u)
 		return false;
+
+	CGraphicsPipelineResources& pipelineResources = pRenderView->GetGraphicsPipeline()->GetPipelineResources();
 
 	const uint32 vertexCount = GetSize() * 4;
 	const uint32 indexCount = GetSize() * 3 * 2;
@@ -234,7 +236,7 @@ bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitiv
 		int offset = i * 4;
 
 		CFlareSoftOcclusionQuery::SOcclusionSectorInfo sInfo;
-		pSoftOcclusion->GetOcclusionSectorInfo(sInfo,viewInfo);
+		pSoftOcclusion->GetOcclusionSectorInfo(sInfo, viewInfo);
 
 		for (int k = 0; k < 4; ++k)
 			pDeviceVBAddr[offset + k].color.dcolor = 0xFFFFFFFF;
@@ -256,7 +258,7 @@ bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitiv
 
 	primitive.SetTechnique(CShaderMan::s_ShaderSoftOcclusionQuery, techRenderPlane, 0);
 	primitive.SetRenderState(GS_NODEPTHTEST);
-	primitive.SetTexture(0, CRendererResources::s_ptexLinearDepthScaled[0]);
+	primitive.SetTexture(0, pipelineResources.m_pTexLinearDepthScaled[0]);
 	primitive.SetSampler(0, EDefaultSamplerStates::PointBorder_Black);
 	primitive.SetPrimitiveType(CRenderPrimitive::ePrim_Triangle);
 	primitive.SetCustomIndexStream(m_indexBuffer, Index16);
@@ -269,7 +271,7 @@ bool CSoftOcclusionManager::PrepareOcclusionPrimitive(CRenderPrimitive& primitiv
 
 void CSoftOcclusionManager::Init()
 {
-	const int maxIndexCount = CFlareSoftOcclusionQuery::s_nIDMax * 2 * 3;
+	const int maxIndexCount  = CFlareSoftOcclusionQuery::s_nIDMax * 2 * 3;
 	const int maxVertexCount = CFlareSoftOcclusionQuery::s_nIDMax * 4;
 
 	m_indexBuffer           = gcpRendD3D->m_DevBufMan.Create(BBT_INDEX_BUFFER, BU_STATIC,   maxIndexCount  * sizeof(uint16));
@@ -296,7 +298,7 @@ void CSoftOcclusionManager::Init()
 	}
 }
 
-bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, SRenderViewInfo* pViewInfo, int viewInfoCount)
+bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, const CPrimitiveRenderPass& targetPass, SRenderViewInfo* pViewInfo, int viewInfoCount, CRenderView* pRenderView)
 {
 	CRY_ASSERT(viewInfoCount >= 0);
 
@@ -354,14 +356,14 @@ bool CSoftOcclusionManager::PrepareGatherPrimitive(CRenderPrimitive& primitive, 
 	{
 		static CCryNameR occlusionParamsName("occlusionParams");
 		const Vec4 occlusionSizeParams(
-			CFlareSoftOcclusionQuery::s_fSectorWidth, 
+			CFlareSoftOcclusionQuery::s_fSectorWidth,
 			CFlareSoftOcclusionQuery::s_fSectorHeight,
 			pViewInfo[0].downscaleFactor.x,
 			pViewInfo[0].downscaleFactor.y);
 
 		constantManager.SetNamedConstant(occlusionParamsName, occlusionSizeParams);
 	}
-	constantManager.EndNamedConstantUpdate(&targetPass.GetViewport());
+	constantManager.EndNamedConstantUpdate(&targetPass.GetViewport(), pRenderView);
 
 	return true;
 }
@@ -387,7 +389,7 @@ void CSoftOcclusionManager::Reset()
 	m_nPos = 0;
 }
 
-bool CSoftOcclusionManager::Update(SRenderViewInfo* pViewInfo, int viewInfoCount)
+bool CSoftOcclusionManager::Update(SRenderViewInfo* pViewInfo, int viewInfoCount, CRenderView* pRenderView)
 {
 	if (GetSize() > 0)
 	{
@@ -410,7 +412,7 @@ bool CSoftOcclusionManager::Update(SRenderViewInfo* pViewInfo, int viewInfoCount
 			m_occlusionPass.SetViewport(viewport);
 			m_occlusionPass.BeginAddingPrimitives();
 
-			if (PrepareOcclusionPrimitive(m_occlusionPrimitive, m_occlusionPass,*pViewInfo))
+			if (PrepareOcclusionPrimitive(m_occlusionPrimitive, m_occlusionPass, *pViewInfo, pRenderView))
 			{
 				m_occlusionPass.AddPrimitive(&m_occlusionPrimitive);
 				m_occlusionPass.Execute();
@@ -430,7 +432,7 @@ bool CSoftOcclusionManager::Update(SRenderViewInfo* pViewInfo, int viewInfoCount
 			m_gatherPass.SetViewport(viewport);
 			m_gatherPass.BeginAddingPrimitives();
 
-			if (PrepareGatherPrimitive(m_gatherPrimitive, m_gatherPass, pViewInfo, viewInfoCount))
+			if (PrepareGatherPrimitive(m_gatherPrimitive, m_gatherPass, pViewInfo, viewInfoCount, pRenderView))
 			{
 				m_gatherPass.AddPrimitive(&m_gatherPrimitive);
 				m_gatherPass.Execute();

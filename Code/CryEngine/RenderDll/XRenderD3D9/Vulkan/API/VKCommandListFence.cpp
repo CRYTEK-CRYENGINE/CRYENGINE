@@ -274,9 +274,9 @@ void CCommandListFenceSet::WaitForFence(const UINT64 fenceValue, const int id) t
 #endif
 		if (m_LastCompletedValues[id] < fenceValue)
 		{
-			VK_ASSERT(m_CurrentValues  [id] >= fenceValue && "Fence to be tested not allocated!");
-			VK_ASSERT(m_SubmittedValues[id] >= fenceValue && "Fence to be tested not submitted!");
-			VK_ASSERT(m_SignalledValues[id] >= fenceValue && "Fence to be tested not signalled!");
+			VK_ASSERT(m_CurrentValues  [id] >= fenceValue, "Fence to be tested not allocated!");
+			VK_ASSERT(m_SubmittedValues[id] >= fenceValue, "Fence to be tested not submitted!");
+			VK_ASSERT(m_SignalledValues[id] >= fenceValue, "Fence to be tested not signalled!");
 
 			const int size  = int(m_Fences[id].first.size());
 			const int start = int((m_LastCompletedValues[id] + 1) % size);
@@ -340,9 +340,9 @@ void CCommandListFenceSet::WaitForFence(const UINT64 (&fenceValues)[CMDQUEUE_NUM
 		{
 			if (m_LastCompletedValues[id] < fenceValues[id])
 			{
-				VK_ASSERT(m_CurrentValues  [id] >= fenceValues[id] && "Fence to be tested not allocated!");
-				VK_ASSERT(m_SubmittedValues[id] >= fenceValues[id] && "Fence to be tested not submitted!");
-				VK_ASSERT(m_SignalledValues[id] >= fenceValues[id] && "Fence to be tested not signalled!");
+				VK_ASSERT(m_CurrentValues  [id] >= fenceValues[id], "Fence to be tested not allocated!");
+				VK_ASSERT(m_SubmittedValues[id] >= fenceValues[id], "Fence to be tested not submitted!");
+				VK_ASSERT(m_SignalledValues[id] >= fenceValues[id], "Fence to be tested not signalled!");
 
 				const int size  = int(m_Fences[id].first.size());
 				const int start = int((m_LastCompletedValues[id] + 1) % size);

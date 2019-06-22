@@ -41,8 +41,6 @@ void CLightVolumeBuffer::UpdateContent()
 {
 	PROFILE_FRAME(DLightsInfo_UpdateSRV);
 
-	CD3D9Renderer* pRenderer = gcpRendD3D;
-
 	struct SLightVolume* pLightVols;
 	uint32 numVols;
 	gEnv->p3DEngine->GetLightVolumes(gRenDev->GetRenderThreadID(), pLightVols, numVols);

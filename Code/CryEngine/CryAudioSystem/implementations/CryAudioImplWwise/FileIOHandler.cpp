@@ -115,25 +115,25 @@ AKRESULT CFileIOHandler::Open(AkOSChar const* sFileName, AkOpenMode eOpenMode, A
 		{
 		case AK_OpenModeRead:
 			{
-				sOpenMode = "rbx";
+				sOpenMode = "rb";
 
 				break;
 			}
 		case AK_OpenModeWrite:
 			{
-				sOpenMode = "wbx";
+				sOpenMode = "wb";
 
 				break;
 			}
 		case AK_OpenModeWriteOvrwr:
 			{
-				sOpenMode = "w+bx";
+				sOpenMode = "w+b";
 
 				break;
 			}
 		case AK_OpenModeReadWrite:
 			{
-				sOpenMode = "abx";
+				sOpenMode = "ab";
 
 				break;
 			}
@@ -145,7 +145,7 @@ AKRESULT CFileIOHandler::Open(AkOSChar const* sFileName, AkOpenMode eOpenMode, A
 			}
 		}
 
-		FILE* const pFile = gEnv->pCryPak->FOpen(szFileName, sOpenMode, ICryPak::FOPEN_HINT_DIRECT_OPERATION);
+		FILE* const pFile = gEnv->pCryPak->FOpen(szFileName, sOpenMode);
 
 		if (pFile != nullptr)
 		{
@@ -198,7 +198,7 @@ AKRESULT CFileIOHandler::Open(AkFileID nFileID, AkOpenMode eOpenMode, AkFileSyst
 
 		if (fileSize > 0)
 		{
-			FILE* const pFile = gEnv->pCryPak->FOpen(szTemp, "rbx", ICryPak::FOPEN_HINT_DIRECT_OPERATION);
+			FILE* const pFile = gEnv->pCryPak->FOpen(szTemp, "rb");
 
 			if (pFile != nullptr)
 			{

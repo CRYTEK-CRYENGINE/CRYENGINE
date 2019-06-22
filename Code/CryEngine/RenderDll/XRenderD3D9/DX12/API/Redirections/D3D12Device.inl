@@ -295,8 +295,6 @@ public:
 	  REFIID riid,
 	  _COM_Outptr_ void** ppCommandList) final
 	{
-		BroadcastableD3D12CommandAllocator<numTargets>* Allocator = (BroadcastableD3D12CommandAllocator<numTargets>*)pCommandAllocator;
-
 		return BroadcastableD3D12GraphicsCommandList<numTargets>::CreateCommandList(m_Target, nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
 	}
 

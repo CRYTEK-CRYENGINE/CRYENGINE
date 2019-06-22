@@ -16,11 +16,12 @@
 #include <QSettings>
 #include <QFileSystemWatcher>
 #include <QMenuBar>
+#include <QProxyStyle>
 //////////////////////////////////////////////////////////////////////////
 
 #include "Util/BoostPythonHelpers.h"
-#include "Serialization/PropertyTree/PropertyTreeStyle.h"
-#include "Serialization/PropertyTree/PropertyTree.h"
+#include "Serialization/PropertyTreeLegacy/PropertyTreeStyle.h"
+#include "Serialization/PropertyTreeLegacy/PropertyTreeLegacy.h"
 #include "QtMainFrame.h"
 #include "SplashScreen.h"
 #include "EditorStyleHelper.h"
@@ -112,7 +113,34 @@ void SetVisualStyle()
 	   WindowsVista
 	   Fusion
 	 */
-	qApp->setStyle(QStyleFactory::create("Fusion"));
+
+	class CIconProxyStyle : public QProxyStyle
+	{
+	public:
+		CIconProxyStyle(QStyle* pStyle)
+			: QProxyStyle(pStyle)
+		{
+
+		}
+
+	public:
+		QIcon standardIcon(StandardPixmap standardIcon, const QStyleOption* pOption = nullptr, const QWidget* pWidget = nullptr) const override
+		{
+			// check the standardIcon parameter for the icon type 
+			if (standardIcon == QStyle::SP_ToolBarHorizontalExtensionButton)
+			{
+				return CryIcon("icons:common/general_dropdown_arrow.ico");
+			}
+			else if (standardIcon == QStyle::SP_ToolBarVerticalExtensionButton)
+			{
+				return CryIcon("icons:common/general_dropdown_arrow.ico");
+			}
+			return QProxyStyle::standardIcon(standardIcon, pOption, pWidget);
+		}
+	};
+
+	CIconProxyStyle* pStyle = new CIconProxyStyle(QStyleFactory::create("Fusion"));
+	qApp->setStyle(pStyle);
 
 	LoadStyleSheet();
 
@@ -129,7 +157,7 @@ void SetVisualStyle()
 	treeStyle.showSliderCursor = false;
 	treeStyle.groupRectangle = true;
 
-	PropertyTree::setDefaultTreeStyle(treeStyle);
+	PropertyTreeLegacy::setDefaultTreeStyle(treeStyle);
 
 	EnableXTDarkSkin();
 
@@ -223,7 +251,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	LOADING_TIME_PROFILE_SECTION_NAMED("Sanbox::main() after initting app instance");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Sanbox::main() after initting app instance");
 
 	WriteSessionData();
 
@@ -232,7 +260,7 @@ int main(int argc, char* argv[])
 	// We must to [re]load style sheet after creating the main form to display the logo on the title bar.
 	// Please see: #1350577. !XB (EditorQt) Restore logo by creating main frame before loading stylesheet.
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("SetVisualStyle()");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "SetVisualStyle()");
 		SetVisualStyle();
 	}
 

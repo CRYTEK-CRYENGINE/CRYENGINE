@@ -629,7 +629,7 @@ void CAABBTree::Load(CMemStream &stm, CGeometry *pGeom)
 
 int CAABBTree::SanityCheck()
 {
-	int iCaller = MAX_PHYS_THREADS;
+	const int iCaller = MAX_PHYS_THREADS;
 	const int maxDepth1 = (CRY_ARRAY_COUNT(g_BBoxBuf)-1)/4;
 	const int maxDepth2 = (CRY_ARRAY_COUNT(g_BBoxExtBuf)-1)/2;
 	return SanityCheckTree(this, min(maxDepth1, maxDepth2));

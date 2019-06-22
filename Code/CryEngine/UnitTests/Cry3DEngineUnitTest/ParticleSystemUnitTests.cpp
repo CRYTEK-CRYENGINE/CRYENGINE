@@ -5,7 +5,7 @@
 #include <../../Cry3DEngine/StdAfx.h>
 
 #include <ParticleSystem/ParticleSystem.h>
-#include <ParticleSystem/ParticleEmitter.h>
+#include <ParticleSystem/ParticleContainer.h>
 
 
 using namespace pfx2;
@@ -19,10 +19,11 @@ void ParticleContainerRemoveTest(size_t containerSz, TParticleId* toRemove, size
 	pfx2::CParticleContainer container;
 	PUseData useData = NewUseData();
 	useData->AddData(EPDT_SpawnId);
-	container.SetUsedData(useData);
-	container.AddParticles(containerSz);
-	container.ResetSpawnedParticles();
-	IOPidStream spawnIds = container.GetIOPidStream(EPDT_SpawnId);
+	container.SetUsedData(useData, EDD_Particle);
+	container.BeginSpawn();
+	container.AddElements(containerSz);
+	container.EndSpawn();
+	IOPidStream spawnIds = container.IOStream(EPDT_SpawnId);
 	for (uint i = 0; i < containerSz; ++i)
 	{
 		spawnIds.Store(i, i);
@@ -35,8 +36,9 @@ void ParticleContainerRemoveTest(size_t containerSz, TParticleId* toRemove, size
 	{
 		toRemoveMem.push_back(toRemove[i]);
 	}
-	TParticleIdArray swapIds(heap, container.GetNumParticles());
-	container.RemoveParticles(toRemoveMem, swapIds);
+	TParticleIdArray swapIds(heap, container.Size());
+	container.MakeSwapIds(toRemoveMem, swapIds);
+	container.RemoveElements(toRemoveMem);
 
 	// check if none of the particles are in the toRemove list
 	for (uint i = 0; i < containerSz - toRemoveSz; ++i)
@@ -75,6 +77,9 @@ void ParticleContainerRemoveTest(size_t containerSz, TParticleId* toRemove, size
 
 TEST(CParticleContainerTest, Remove)
 {
+	gEnv->startProfilingSection = [](SProfilingSection*) { return false; };
+	gEnv->recordProfilingMarker = [](SProfilingMarker*) {};
+
 	{
 		TParticleId toRemove[] = { 3, 4 };
 		ParticleContainerRemoveTest(5, toRemove, arraysize(toRemove));
@@ -120,25 +125,26 @@ protected:
 	{
 		static_assert(CRY_PFX2_GROUP_STRIDE == 4, "This unit test is assuming vectorization of 4 particles");
 		pContainer = std::unique_ptr<pfx2::CParticleContainer>(new pfx2::CParticleContainer());
-		PUseData useData = NewUseData();
+		useData = NewUseData();
 		useData->AddData(EPDT_ParentId);
-		pContainer->SetUsedData(useData);
+		pContainer->SetUsedData(useData, EDD_Particle);
 	}
 
 	virtual void TearDown() override
 	{
 		pContainer.reset();
+		useData.reset();
 	};
 
 	void AddParticles(uint32 count)
 	{
 		ResetSpawnedParticles();
-		pContainer->AddParticles(count);
+		pContainer->AddElements(count);
 	}
 
 	void ResetSpawnedParticles()
 	{
-		pContainer->ResetSpawnedParticles();
+		pContainer->EndSpawn();
 	}
 
 	const pfx2::CParticleContainer& GetContainer() const
@@ -152,6 +158,7 @@ protected:
 	}
 
 private:
+	PUseData useData;
 	std::unique_ptr<pfx2::CParticleContainer> pContainer;
 };
 
@@ -164,16 +171,16 @@ TEST_F(CParticleContainerSpawnTest, VectorizeSpawn)
 	AddParticles(6);
 
 	AddParticles(3);
-	REQUIRE(container.GetRealNumParticles() == 9);
-	REQUIRE(container.GetSpawnedRange().m_begin == 8);
-	REQUIRE(container.GetNumSpawnedParticles() == 3);
-	REQUIRE(container.GetMaxParticles() > 11);
+	REQUIRE(container.RealSize() == 9);
+	REQUIRE(container.SpawnedRange().m_begin == 8);
+	REQUIRE(container.NumSpawned() == 3);
+	REQUIRE(container.Capacity() > 11);
 
 	ResetSpawnedParticles();
-	REQUIRE(container.GetNumParticles() == 9);
-	REQUIRE(container.GetSpawnedRange().m_begin == 6);
-	REQUIRE(container.GetNumSpawnedParticles() == 3);
-	REQUIRE(container.GetMaxParticles() > 9);
+	REQUIRE(container.Size() == 9);
+	REQUIRE(container.SpawnedRange().m_begin == 6);
+	REQUIRE(container.NumSpawned() == 3);
+	REQUIRE(container.Capacity() > 9);
 }
 
 TEST_F(CParticleContainerSpawnTest, RealId)
@@ -181,19 +188,19 @@ TEST_F(CParticleContainerSpawnTest, RealId)
 	const pfx2::CParticleContainer& container = GetContainer();
 
 	AddParticles(1);
-	REQUIRE(container.GetRealId(0) == 0);
+	REQUIRE(container.RealId(0) == 0);
 	ResetSpawnedParticles();
 
 	ResetAll();
 	AddParticles(6);
 	AddParticles(3);
-	REQUIRE(container.GetRealId(3) == 3);
-	REQUIRE(container.GetRealId(8) == 8);
-	REQUIRE(container.GetRealId(10) == 7);
+	REQUIRE(container.RealId(3) == 3);
+	REQUIRE(container.RealId(8) == 8);
+	REQUIRE(container.RealId(10) == 7);
 	ResetSpawnedParticles();
-	REQUIRE(container.GetRealId(3) == 3);
-	REQUIRE(container.GetRealId(8) == 8);
-	REQUIRE(container.GetRealId(6) == 6);
+	REQUIRE(container.RealId(3) == 3);
+	REQUIRE(container.RealId(8) == 8);
+	REQUIRE(container.RealId(6) == 6);
 }
 
 class ParticleAttributesTest : public ::testing::Test

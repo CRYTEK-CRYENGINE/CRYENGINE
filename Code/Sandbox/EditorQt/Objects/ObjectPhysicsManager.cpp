@@ -84,6 +84,17 @@ void PyPhysicsGenerateJoints()
 		pPhysicsManager->Command_GenerateJoints();
 	}
 }
+
+void PyPhysicsStiffIK()
+{
+	ICVar *pStiff = gEnv->pConsole->GetCVar("ed_PhysToolIKStiffMode");
+	QAction* pAction = GetIEditorImpl()->GetICommandManager()->GetAction("physics.stiff_IK");
+	if (pStiff && pAction)
+	{
+		pStiff->Set(!pStiff->GetIVal());
+		pAction->setChecked(pStiff->GetIVal());
+	}
+}
 }
 
 REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(PyPhysicsResetState, physics, reset_state,
@@ -115,6 +126,9 @@ REGISTER_EDITOR_AND_SCRIPT_COMMAND(PyPhysicsGenerateJoints, physics, generate_jo
                                    CCommandDescription("Triggers generation of breakable joints"))
 REGISTER_EDITOR_UI_COMMAND_DESC(physics, generate_joints, "Generate Breakable Joints", "", "icons:General/Physics_Generate_Joints.ico", false)
 REGISTER_COMMAND_REMAPPING(ui_action, actionPhysics_Generate_Joints, physics, generate_joints)
+
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(PyPhysicsStiffIK, physics, stiff_IK,	CCommandDescription("Switches to a more stiff ragdoll IK mode"))
+REGISTER_EDITOR_UI_COMMAND_DESC(physics, stiff_IK, "Use Stiff IK Mode", "", "icons:Designer/Designer_Multiply.ico", true)
 
 //////////////////////////////////////////////////////////////////////////
 CObjectPhysicsManager::CObjectPhysicsManager()
@@ -755,8 +769,6 @@ void CObjectPhysicsManager::SimulateSelectedObjectsPositions()
 
 	m_pProgress = new CWaitProgress("Simulating Objects");
 
-	GetIEditorImpl()->GetGameEngine()->SetSimulationMode(true, true);
-
 	m_simObjects.clear();
 	for (int i = 0; i < pSel->GetCount(); i++)
 	{
@@ -770,8 +782,12 @@ void CObjectPhysicsManager::SimulateSelectedObjectsPositions()
 		pPhysEntity->Action(&aa);
 
 		m_simObjects.push_back(pSel->GetObject(i));
+		if (pObject->GetIEntity())
+			pObject->SetWorldTM(pObject->GetIEntity()->GetWorldTM());
 	}
 	m_wasSimObjects = m_simObjects.size();
+
+	GetIEditorImpl()->GetGameEngine()->SetSimulationMode(true, true);
 
 	m_fStartObjectSimulationTime = GetISystem()->GetITimer()->GetAsyncCurTime();
 	m_bSimulatingObjects = true;

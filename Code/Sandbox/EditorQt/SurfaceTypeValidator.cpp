@@ -15,7 +15,7 @@
 
 void CSurfaceTypeValidator::Validate()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	IObjectManager* pObjectManager = GetIEditorImpl()->GetObjectManager();
 	std::set<string> reportedMaterialNames;
 

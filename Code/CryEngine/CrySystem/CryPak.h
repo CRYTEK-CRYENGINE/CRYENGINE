@@ -121,7 +121,6 @@ struct CZipPseudoFile
 	enum
 	{
 		_O_COMMIT_FLUSH_MODE = 1 << 31,
-		_O_DIRECT_OPERATION  = 1 << 30
 	};
 
 	// this object must be constructed before usage
@@ -344,8 +343,8 @@ private:
 	bool InitPack(const char* szBasePath, unsigned nFlags = FLAGS_PATH_REAL);
 
 	// Return true if alias was adjusted
-	bool        AdjustAliases(char* dst);
-	const char* AdjustFileNameInternal(const char* src, char dst[g_nMaxPath], unsigned nFlags);
+	bool AdjustAliases(char* dst);
+	void AdjustFileNameInternal(const char* src, CryPathString& dst, unsigned nFlags);
 
 #if CRY_PLATFORM_ANDROID && defined(ANDROID_OBB)
 	static FILE*          m_pMainObbExpFile;  /// Reference to main expansion file.
@@ -356,7 +355,7 @@ private:
 
 public:
 	// given the source relative path, constructs the full path to the file according to the flags
-	virtual const char* AdjustFileName(const char* src, char dst[g_nMaxPath], unsigned nFlags) override;
+	virtual void AdjustFileName(const char* src, CryPathString& dst, unsigned nFlags) override;
 
 	// this is the start of indexation of pseudofiles:
 	// to the actual index , this offset is added to get the valid handle
@@ -487,15 +486,15 @@ public: // ---------------------------------------------------------------------
 	virtual bool IsInstalledToHDD(const char* acFilePath = 0) const override;
 	void         SetInstalledToHDD(bool bValue);
 
-	virtual bool OpenPack(const char* pName, unsigned nFlags = 0, IMemoryBlock* pData = 0, CryFixedStringT<ICryPak::g_nMaxPath>* pFullPath = NULL) override;
-	virtual bool OpenPack(const char* szBindRoot, const char* pName, unsigned nFlags = 0, IMemoryBlock* pData = 0, CryFixedStringT<ICryPak::g_nMaxPath>* pFullPath = NULL) override;
+	virtual bool OpenPack(const char* pName, unsigned nFlags = 0, IMemoryBlock* pData = 0, CryPathString* pFullPath = NULL) override;
+	virtual bool OpenPack(const char* szBindRoot, const char* pName, unsigned nFlags = 0, IMemoryBlock* pData = 0, CryPathString* pFullPath = NULL) override;
 	// after this call, the file will be unlocked and closed, and its contents won't be used to search for files
 	virtual bool ClosePack(const char* pName, unsigned nFlags = 0) override;
-	virtual bool OpenPacks(const char* pWildcard, unsigned nFlags = 0, std::vector<CryFixedStringT<ICryPak::g_nMaxPath>>* pFullPaths = NULL) override;
-	virtual bool OpenPacks(const char* szBindRoot, const char* pWildcard, unsigned nFlags = 0, std::vector<CryFixedStringT<ICryPak::g_nMaxPath>>* pFullPaths = NULL) override;
+	virtual bool OpenPacks(const char* pWildcard, unsigned nFlags = 0, std::vector<CryPathString>* pFullPaths = NULL) override;
+	virtual bool OpenPacks(const char* szBindRoot, const char* pWildcard, unsigned nFlags = 0, std::vector<CryPathString>* pFullPaths = NULL) override;
 
 	bool         OpenPackCommon(const char* szBindRoot, const char* pName, unsigned int nPakFlags, IMemoryBlock* pData = 0);
-	bool         OpenPacksCommon(const char* szDir, const char* pWildcardIn, char* cWork, int nPakFlags, std::vector<CryFixedStringT<ICryPak::g_nMaxPath>>* pFullPaths = NULL);
+	bool         OpenPacksCommon(const char* szDir, const char* pWildcardIn, CryPathString& wildcardPath, int nPakFlags, std::vector<CryPathString>* pFullPaths = NULL);
 
 	// closes pack files by the path and wildcard
 	virtual bool ClosePacks(const char* pWildcard, unsigned nFlags = 0) override;

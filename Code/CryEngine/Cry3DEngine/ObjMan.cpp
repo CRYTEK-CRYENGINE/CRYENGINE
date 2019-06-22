@@ -152,7 +152,9 @@ void CObjManager::UnloadObjects(bool bDeleteAll)
 	for (size_t rl = 0; rl < MAX_RECURSION_LEVELS; ++rl)
 	{
 		for (size_t ti = 0; ti < nThreadsNum; ++ti)
-			stl::free_container(m_arrVegetationSprites[rl][ti]);
+		{
+			m_arrVegetationSprites[rl][ti].reset_container();
+		}
 	}
 
 	m_lstStaticTypes.Free();
@@ -238,7 +240,7 @@ I3DEngine::ELevelLoadStatus CObjManager::CPreloadTimeslicer::DoStep(const float 
 {
 #define NEXT_STEP(step) return SetInProgress(step); case step: 
 
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	INDENT_LOG_DURING_SCOPE();
 
 	switch (m_currentStep)
@@ -390,7 +392,7 @@ I3DEngine::ELevelLoadStatus CObjManager::UpdatePreloadLevelObjects()
 		return I3DEngine::ELevelLoadStatus::Failed;
 	}
 
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	const float timeSlicingLimitSec = 1.0f;
 
@@ -532,7 +534,7 @@ class CStatObjAsyncLoader : IStatObjLoadedCallback
 {
 public:
 	CStatObjAsyncLoader(CStatObj* pObject, uint32 loadingFlags, const char* szGeomName, IStatObjFoundCallback* pCallback) :
-		m_pObject(pObject), m_pCallback(pCallback), m_geomName(szGeomName), m_loadingFlags(loadingFlags)
+		m_pObject(pObject), m_pCallback(pCallback), m_geomName(szGeomName), m_loadingFlags(loadingFlags), m_lodLoadingStarted(false), m_useStreaming(false)
 	{
 		if (s_pStreamEngine == nullptr)
 			s_pStreamEngine = gEnv->pSystem->GetStreamEngine();
@@ -612,8 +614,8 @@ IStreamEngine* CStatObjAsyncLoader::s_pStreamEngine = nullptr;
 
 void CObjManager::LoadStatObjAsync(const char* szFileName, const char* szGeomName, bool useStreaming, uint32 loadingFlags, IStatObjFoundCallback* pCallback)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(szFileName);
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Static Geometry");
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, szFileName);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Static Geometry");
 
 	SLoadPrepareState prepState = LoadStatObj_Prepare(szFileName, szGeomName, nullptr, loadingFlags);
 	CStatObj* pObject = prepState.pObject;
@@ -658,8 +660,8 @@ CStatObj* CObjManager::LoadStatObj(const char* szFileName
                                    , const char* szGeomName, IStatObj::SSubObject** ppSubObject
                                    , bool useStreaming, uint32 loadingFlags)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(szFileName);
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Static Geometry");
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, szFileName);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Static Geometry");
 	
 	SLoadPrepareState prepState = LoadStatObj_Prepare(szFileName, szGeomName, ppSubObject, loadingFlags);
 	CStatObj* pObject = prepState.pObject;
@@ -1352,28 +1354,33 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 			return true;
 
 		int nLod = pLodValue ? CLAMP(0, pLodValue->LodA(), MAX_STATOBJ_LODS_NUM - 1) : 0;
-		pRenderObject = pTempData->GetRenderObject(nLod);
+		IPermanentRenderObject* pPermanentRenderObj = static_cast<IPermanentRenderObject*>(pTempData->GetRenderObject(nLod));
 
-		uint32 passId = passInfo.IsShadowPass() ? 1 : 0;
-		uint32 passMask = BIT(passId);
+		const CRenderObject::ERenderPassType passType = passInfo.GetPassType();
 
 		// Update instance only for dirty objects
-		const auto instanceDataDirty = pRenderObject->m_bInstanceDataDirty[passId];
-		passInfo.GetIRenderView()->AddPermanentObject(pRenderObject, passInfo);
+		const bool instanceDataDirty = pPermanentRenderObj->IsInstanceDataDirty(passType);
+
+		// When permanent renderobject has sub-object and its instance data dirty, its instances need to be updated as well.
+		if (pPermanentRenderObj->IsPreparedForPass(passType) && instanceDataDirty && pPermanentRenderObj->HasSubObject())
+		{
+			pPermanentRenderObj = static_cast<IPermanentRenderObject*>(pTempData->RefreshRenderObject(nLod));
+		}
+
+		passInfo.GetIRenderView()->AddPermanentObject(pPermanentRenderObj, passInfo);
 
 		// Has this object already been filled?
-		int previousMask = CryInterlockedExchangeOr(reinterpret_cast<volatile LONG*>(&pRenderObject->m_passReadyMask), passMask);
-		if (previousMask & passMask) // Object drawn once => fast path.
+		if (pPermanentRenderObj->IsPreparedForPass(passType)) // Object drawn once => fast path.
 		{
 			if (instanceDataDirty)
 			{
 				// Update instance matrix
-				pRenderObject->SetMatrix(transformationMatrix, passInfo);
-				pRenderObject->m_bInstanceDataDirty[passId] = false;
+				pPermanentRenderObj->SetMatrix(transformationMatrix);
+				pPermanentRenderObj->SetInstanceDataDirty(passType, false);
 			}
 
 			if (GetCVars()->e_BBoxes && pTempData && pTempData->userData.pOwnerNode)
-				GetObjManager()->RenderObjectDebugInfo(pTempData->userData.pOwnerNode, pRenderObject->m_fDistance, passInfo);
+				GetObjManager()->RenderObjectDebugInfo(pTempData->userData.pOwnerNode, pPermanentRenderObj->m_fDistance, passInfo);
 
 			return true;
 		}
@@ -1381,6 +1388,10 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 		// Permanent object needs to be filled first time,
 		if (pTempData && pTempData->userData.pOwnerNode)
 			pTempData->userData.nStatObjLastModificationId = GetResourcesModificationChecksum(pTempData->userData.pOwnerNode);
+
+		pPermanentRenderObj->SetPreparedForPass(passType);
+
+		pRenderObject = pPermanentRenderObj;
 	}
 	else
 	{
@@ -1394,7 +1405,7 @@ bool CObjManager::AddOrCreatePersistentRenderObject(SRenderNodeTempData* pTempDa
 
 	// We do not have a persistant render object
 	// Always update instance matrix
-	pRenderObject->SetMatrix(transformationMatrix, passInfo);
+	pRenderObject->SetMatrix(transformationMatrix);
 
 	return false;
 }

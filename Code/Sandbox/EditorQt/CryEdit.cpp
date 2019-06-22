@@ -581,7 +581,7 @@ bool CCryEditApp::CheckIfAlreadyRunning()
 
 void CCryEditApp::InitPlugins()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	SplashScreen::SetText("Loading Plugins...");
 	// Load the plugins
 	{
@@ -591,7 +591,7 @@ void CCryEditApp::InitPlugins()
 
 void CCryEditApp::InitLevel(CEditCommandLineInfo& cmdInfo)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (m_bPreviewMode)
 	{
@@ -671,7 +671,7 @@ BOOL CCryEditApp::InitConsole()
 
 void CCryEditApp::RunInitPythonScript(CEditCommandLineInfo& cmdInfo)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (cmdInfo.m_bRunPythonScript)
 	{
 		GetIEditorImpl()->ExecuteCommand("general.run_file '%s'", cmdInfo.m_strFileName);
@@ -720,7 +720,7 @@ bool CCryEditApp::InitInstance()
 		return false;
 	}
 
-	LOADING_TIME_PROFILE_SECTION_NAMED("CCryEditApp::InitInstance() after system");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CCryEditApp::InitInstance() after system");
 
 	m_pEditor = new CEditorImpl(pGameEngine.release());
 
@@ -758,7 +758,7 @@ bool CCryEditApp::InitInstance()
 
 	if (IsInRegularEditorMode())
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CCryEditApp::InitInstance() - File Indexing");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CCryEditApp::InitInstance() - File Indexing");
 
 		CIndexedFiles::Create();
 
@@ -781,18 +781,18 @@ bool CCryEditApp::InitInstance()
 	const ICmdLineArg* pCommandArg = GetISystem()->GetICmdLine()->FindArg(eCLAT_Pre, "edCommand");
 	if (nullptr != pCommandArg)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CCryEditApp::InitInstance() - Execute Command");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CCryEditApp::InitInstance() - Execute Command");
 		GetIEditorImpl()->ExecuteCommand(pCommandArg->GetValue());
 	}
 
 	if (!m_bConsoleMode && !m_bPreviewMode)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CCryEditApp::InitInstance() - Update Views");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CCryEditApp::InitInstance() - Update Views");
 		GetIEditorImpl()->UpdateViews();
 	}
 
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CCryEditApp::InitInstance() - Init Console");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CCryEditApp::InitInstance() - Init Console");
 		if (!InitConsole())
 		{
 			return true;
@@ -800,7 +800,7 @@ bool CCryEditApp::InitInstance()
 	}
 
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CCryEditApp::InitInstance() - Load Python Plugins");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CCryEditApp::InitInstance() - Load Python Plugins");
 		RunInitPythonScript(cmdInfo);
 		PyScript::LoadPythonPlugins();
 	}
@@ -948,7 +948,6 @@ bool CCryEditApp::IdleProcessing(bool bBackgroundUpdate)
 	if (bActive || (bBackgroundUpdate && !bIsAppWindow))
 	{
 		// Start profiling frame.
-		GetIEditorImpl()->GetSystem()->GetIProfileSystem()->StartFrame();
 
 		if (GetIEditorImpl()->IsInGameMode())
 		{
@@ -957,6 +956,7 @@ bool CCryEditApp::IdleProcessing(bool bBackgroundUpdate)
 		}
 		else
 		{
+			GetIEditorImpl()->GetSystem()->GetProfilingSystem()->StartFrame();
 			if (!GetIEditorImpl()->IsInMatEditMode())
 			{
 				//Engine update is disabled during level load
@@ -979,9 +979,9 @@ bool CCryEditApp::IdleProcessing(bool bBackgroundUpdate)
 			}
 
 			GetIEditorImpl()->Notify(eNotify_OnIdleUpdate);
+			GetIEditorImpl()->GetSystem()->GetProfilingSystem()->EndFrame();
 		}
 
-		GetIEditorImpl()->GetSystem()->GetIProfileSystem()->EndFrame();
 	}
 	else if (GetIEditorImpl()->GetSystem() && GetIEditorImpl()->GetSystem()->GetILog())
 		GetIEditorImpl()->GetSystem()->GetILog()->Update(); // print messages from other threads
@@ -1348,9 +1348,9 @@ CRY_TEST(EditorCreateLevelTest, editor = true, game = false, timeout = 60.f)
 {
 	auto KillLevel = []
 	{
-		char szFullPathBuf[ICryPak::g_nMaxPath];
-		const char* szFullPath = gEnv->pCryPak->AdjustFileName("examplelevel", szFullPathBuf, ICryPak::FOPEN_ONDISK);
-		FileUtils::RemoveDirectory(szFullPath);
+		CryPathString fullPath;
+		gEnv->pCryPak->AdjustFileName("examplelevel", fullPath, ICryPak::FOPEN_ONDISK);
+		FileUtils::RemoveDirectory(fullPath);
 
 		gEnv->pCryPak->RemoveFile("examplelevel.level.cryasset");
 	};

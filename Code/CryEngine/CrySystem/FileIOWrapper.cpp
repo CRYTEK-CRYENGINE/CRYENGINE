@@ -74,7 +74,7 @@ FILE* CIOWrapper::FopenEx(const char* file, const char* mode, FileIoWrapper::Fil
 FILE * CIOWrapper::FopenEx(const char* file, const char* mode)
 #endif
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 #if !defined(SYS_ENV_AS_STRUCT)
 	PREFAST_ASSUME(gEnv);

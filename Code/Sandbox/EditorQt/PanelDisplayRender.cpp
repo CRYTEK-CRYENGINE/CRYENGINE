@@ -7,7 +7,7 @@
 #include <IObjectManager.h>
 #include <Preferences/ViewportPreferences.h>
 #include <Serialization/Decorators/EditorActionButton.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <Serialization.h>
 #include <Viewport.h>
 
@@ -78,8 +78,7 @@ const char* render_category_cvars[] =
 	"e_ProcVegetation",         "Procedural Vegetation",
 	"e_Particles",              "Particles",
 	"e_Clouds",                 "Clouds",
-	"e_GeomCaches",             "Geom Caches",
-	"e_GI",                     "Global Illumination", };
+	"e_GeomCaches",             "Geom Caches",};
 
 void OnCVarChanged(ICVar* var)
 {
@@ -178,7 +177,7 @@ CPanelDisplayRender::CPanelDisplayRender(QWidget* parent, CViewport* viewport)
 
 	SetupCallbacks();
 
-	m_propertyTree = new QPropertyTree(this);
+	m_propertyTree = new QPropertyTreeLegacy(this);
 
 	m_propertyTree->setValueColumnWidth(0.6f);
 	m_propertyTree->setAutoRevert(false);

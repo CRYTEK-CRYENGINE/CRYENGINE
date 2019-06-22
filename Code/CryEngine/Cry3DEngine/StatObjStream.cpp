@@ -196,6 +196,7 @@ void CStatObj::ReleaseStreamableContent()
 	assert(!m_pClonedSourceObject);
 	assert(!m_bSharesChildren);
 
+	_smart_ptr<IRenderMesh> pNullMesh = nullptr;
 	bool bLodsAreLoadedFromSeparateFile = (m_pLod0 != 0) ? m_pLod0->m_bLodsAreLoadedFromSeparateFile : m_bLodsAreLoadedFromSeparateFile;
 
 	if (!bLodsAreLoadedFromSeparateFile)
@@ -207,13 +208,13 @@ void CStatObj::ReleaseStreamableContent()
 			if (!pLod)
 				continue;
 
-			pLod->SetRenderMesh(0);
+			pLod->SetRenderMesh(pNullMesh);
 			pLod->FreeFoliageData();
 			pLod->m_eStreamingStatus = ecss_NotLoaded;
 
 			if (pLod->m_pParentObject)
 			{
-				pLod->m_pParentObject->SetRenderMesh(0);
+				pLod->m_pParentObject->SetRenderMesh(pNullMesh);
 				pLod->m_pParentObject->FreeFoliageData();
 				pLod->m_pParentObject->m_eStreamingStatus = ecss_NotLoaded;
 			}
@@ -233,13 +234,13 @@ void CStatObj::ReleaseStreamableContent()
 			if (!pSubLod)
 				continue;
 
-			pSubLod->SetRenderMesh(0);
+			pSubLod->SetRenderMesh(pNullMesh);
 			pSubLod->FreeFoliageData();
 			pSubLod->m_eStreamingStatus = ecss_NotLoaded;
 
 			if (pSubLod->m_pParentObject)
 			{
-				pSubLod->m_pParentObject->SetRenderMesh(0);
+				pSubLod->m_pParentObject->SetRenderMesh(pNullMesh);
 				pSubLod->m_pParentObject->FreeFoliageData();
 				pSubLod->m_pParentObject->m_eStreamingStatus = ecss_NotLoaded;
 			}
@@ -253,13 +254,13 @@ void CStatObj::ReleaseStreamableContent()
 				if (!pSubLod)
 					continue;
 
-				pSubLod->SetRenderMesh(0);
+				pSubLod->SetRenderMesh(pNullMesh);
 				pSubLod->FreeFoliageData();
 				pSubLod->m_eStreamingStatus = ecss_NotLoaded;
 
 				if (pSubLod->m_pParentObject)
 				{
-					pSubLod->m_pParentObject->SetRenderMesh(0);
+					pSubLod->m_pParentObject->SetRenderMesh(pNullMesh);
 					pSubLod->m_pParentObject->FreeFoliageData();
 					pSubLod->m_pParentObject->m_eStreamingStatus = ecss_NotLoaded;
 				}
@@ -267,7 +268,7 @@ void CStatObj::ReleaseStreamableContent()
 		}
 	}
 
-	SetRenderMesh(0);
+	SetRenderMesh(pNullMesh);
 	FreeFoliageData();
 
 	m_pMergedRenderMesh = 0;

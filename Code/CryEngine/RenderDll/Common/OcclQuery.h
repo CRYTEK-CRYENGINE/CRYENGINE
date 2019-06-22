@@ -1,16 +1,8 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   OcclQuery.h : Occlusion queries unified interface
+#pragma once
 
-   Revision history:
-* Created by Tiago Sousa
-* Todo: replace flares/CREOcclusionQuery with common queries
-
-   =============================================================================*/
-
-#ifndef __OCCLQUERY_H__
-#define __OCCLQUERY_H__
+// Todo: replace flares/CREOcclusionQuery with common queries
 
 class COcclusionQuery
 {
@@ -47,5 +39,3 @@ private:
 
 	UINT_PTR m_nOcclusionID; // This will carry a pointer D3DOcclusionQuery, so it needs to be 64-bit on Windows 64
 };
-
-#endif

@@ -7,12 +7,23 @@
 class CSkyStage : public CGraphicsPipelineStage
 {
 public:
-	CSkyStage();
+	static const EGraphicsPipelineStage StageID = eStage_Sky;
+
+	CSkyStage(CGraphicsPipeline& graphicsPipeline);
+
+	bool IsStageActive(EShaderRenderingFlags flags) const final
+	{
+		if (!(flags & SHDF_ALLOW_SKY))
+			return false;
+
+		return gcpRendD3D->m_p3DEngineCommon[gRenDev->GetRenderThreadID()].m_SkyInfo.m_bIsVisible;
+	}
 
 	void Init() final;
 	void Update() final;
 
 	void Execute(CTexture* pColorTex, CTexture* pDepthTex);
+	void ExecuteMinimum(CTexture* pColorTex, CTexture* pDepthTex);
 
 private:
 	void CreateSkyDomeTextures(int32 width, int32 height);

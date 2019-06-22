@@ -9,28 +9,36 @@
 class CHeightMapAOStage : public CGraphicsPipelineStage
 {
 public:
+	static const EGraphicsPipelineStage StageID = eStage_HeightMapAO;
+
+	CHeightMapAOStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+		, m_passSampling(&graphicsPipeline)
+		, m_passSmoothing(&graphicsPipeline)
+		, m_passMipmapGen(&graphicsPipeline) {}
+
 	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
 		return CRendererCVars::CV_r_HeightMapAO > 0;
 	}
 
-	void Init() final;
-	void Resize(int renderWidth, int renderHeight) final;
-	void OnCVarsChanged(const CCVarUpdateRecorder& cvarUpdater) final;
-	void Update() final;
+	void                    Init() final;
+	void                    Resize(int renderWidth, int renderHeight) final;
+	void                    OnCVarsChanged(const CCVarUpdateRecorder& cvarUpdater) final;
+	void                    Update() final;
 
-	void Execute();
+	void                    Execute();
 
-	bool IsValid() const { return m_bHeightMapAOExecuted; }
+	bool                    IsValid() const                         { return m_bHeightMapAOExecuted; }
 
-	const ShadowMapFrustum* GetHeightMapFrustum   () const { CRY_ASSERT(m_bHeightMapAOExecuted); return m_pHeightMapFrustum; }
-	CTexture*         GetHeightMapAOScreenDepthTex() const { CRY_ASSERT(m_bHeightMapAOExecuted); return m_pHeightMapAOScreenDepthTex; }
-	CTexture*         GetHeightMapAOTex           () const { CRY_ASSERT(m_bHeightMapAOExecuted); return  m_pHeightMapAOTex; }
-	_smart_ptr<CTexture> GetHeightMapAODepthTex   (int index) const { return  m_pHeightMapAODepth[index]; }
+	const ShadowMapFrustum* GetHeightMapFrustum() const             { CRY_ASSERT(m_bHeightMapAOExecuted); return m_pHeightMapFrustum; }
+	CTexture*               GetHeightMapAOScreenDepthTex() const    { CRY_ASSERT(m_bHeightMapAOExecuted); return m_pHeightMapAOScreenDepthTex; }
+	CTexture*               GetHeightMapAOTex() const               { CRY_ASSERT(m_bHeightMapAOExecuted); return m_pHeightMapAOTex; }
+	_smart_ptr<CTexture>    GetHeightMapAODepthTex(int index) const { return m_pHeightMapAODepth[index]; }
 
 private:
 	void Rescale(int resolutionScale);
-	
+
 	void ResizeScreenResources(bool shouldApplyHMAO, int resourceWidth, int resourceHeight);
 	void ResizeDepthResources(bool shouldApplyHMAO, int resourceWidth, int resourceHeight, ETEX_Format texFormat);
 

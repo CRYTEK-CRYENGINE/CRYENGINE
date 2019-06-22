@@ -7,21 +7,21 @@
 #include <CryCore/Containers/CryArray.h>
 
 class CMesh;
-struct CRenderChunk;
 class CRenderObject;
-struct SSkinningData;
+
+struct CRenderChunk;
+struct GeomInfo;
+struct IIndexedMesh;
 struct IMaterial;
 struct IShader;
-struct IIndexedMesh;
-struct SMRendTexVert;
-struct UCol;
-struct GeomInfo;
-
-struct TFace;
 struct SMeshSubset;
+struct SMRendTexVert;
 struct SRenderingPassInfo;
 struct SRenderObjectModifier;
-struct CRenderChunk;
+struct SSkinningData;
+struct TFace;
+struct UCol;
+
 typedef DynArray<CRenderChunk> TRenderChunkArray;
 
 //! Keep this in sync with BUFFER_USAGE hints DevBuffer.h.
@@ -229,7 +229,6 @@ struct IRenderMesh
 	virtual int   GetTextureMemoryUsage(const IMaterial* pMaterial, ICrySizer* pSizer = NULL, bool bStreamedIn = true) const = 0;
 	virtual void  KeepSysMesh(bool keep) = 0;                                                                                     // HACK: temp workaround for GDC-888
 	virtual void  UnKeepSysMesh() = 0;
-	virtual void  SetMeshLod(int nLod) = 0;
 
 	virtual void  LockForThreadAccess() = 0;
 	virtual void  UnLockForThreadAccess() = 0;

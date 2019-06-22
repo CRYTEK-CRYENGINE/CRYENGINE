@@ -10,6 +10,7 @@ class CFullscreenPass : public CPrimitiveRenderPass
 	using CPrimitiveRenderPass::SetViewport;
 
 public:
+	CFullscreenPass(CGraphicsPipeline* pGraphicsPipeline, CRenderPrimitive::EPrimitiveFlags primitiveFlags = CRenderPrimitive::eFlags_ReflectShaderConstants);
 	CFullscreenPass(CRenderPrimitive::EPrimitiveFlags primitiveFlags = CRenderPrimitive::eFlags_ReflectShaderConstants);
 	~CFullscreenPass();
 
@@ -73,12 +74,12 @@ public:
 		m_clipZ = clipSpaceZ;
 	}
 
-	void SetConstant(const CCryNameR& paramName, const Vec4 &param, EHWShaderClass shaderClass = eHWSC_Pixel)
+	void SetConstant(const CCryNameR& paramName, const Vec4& param, EHWShaderClass shaderClass = eHWSC_Pixel)
 	{
 		m_primitive.GetConstantManager().SetNamedConstant(paramName, param, shaderClass);
 	}
 
-	void SetConstant(const CCryNameR& paramName, const Matrix44 &param, EHWShaderClass shaderClass = eHWSC_Pixel)
+	void SetConstant(const CCryNameR& paramName, const Matrix44& param, EHWShaderClass shaderClass = eHWSC_Pixel)
 	{
 		SetConstantArray(paramName, reinterpret_cast<const Vec4*>(param.GetData()), 4, shaderClass);
 	}
@@ -92,6 +93,8 @@ public:
 	{
 		m_primitive.SetInlineConstantBuffer(shaderSlot, pBuffer, shaderStages);
 	}
+
+	void SetGraphicsPipeline(CGraphicsPipeline* pGraphicsPipeline) { m_pGraphicsPipeline = pGraphicsPipeline; }
 
 	template<typename T>
 	void AllocateTypedConstantBuffer(EConstantBufferShaderSlot shaderSlot, EShaderStage shaderStages)
@@ -122,22 +125,24 @@ public:
 		m_bHasCustomViewport = true;
 	}
 	void SetCustomViewport(const SRenderViewport& viewport);
-	void ClearCustomViewport()                              { m_bHasCustomViewport = false; }
+	void ClearCustomViewport() { m_bHasCustomViewport = false; }
 
 private:
-	void                     UpdatePrimitive();
+	void UpdatePrimitive();
 
-	bool                     m_bRequirePerViewCB;
-	bool                     m_bRequireWorldPos;
-	bool                     m_bPendingConstantUpdate;
+	bool               m_bRequirePerViewCB;
+	bool               m_bRequireWorldPos;
+	bool               m_bPendingConstantUpdate;
 
-	bool                     m_bHasCustomViewport = false;
+	bool               m_bHasCustomViewport = false;
 
-	f32                      m_clipZ;        // only work for WPos
-	buffer_handle_t          m_vertexBuffer; // only required for WPos
+	f32                m_clipZ;              // only work for WPos
+	buffer_handle_t    m_vertexBuffer;       // only required for WPos
 
-	CRenderPrimitive         m_primitive;
-	CConstantBufferPtr       m_pPerViewConstantBuffer = nullptr;
+	CRenderPrimitive   m_primitive;
+	CConstantBufferPtr m_pPerViewConstantBuffer = nullptr;
+
+	CGraphicsPipeline* m_pGraphicsPipeline;
 
 	// Default flags for the rendering primitive
 	CRenderPrimitive::EPrimitiveFlags m_primitiveFlags;

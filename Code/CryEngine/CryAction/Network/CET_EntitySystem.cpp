@@ -7,7 +7,6 @@
 #include "IGameRulesSystem.h"
 #include "ILevelSystem.h"
 #include "CryAction.h"
-#include <CryAudio/Dialog/IDialogSystem.h>
 #include <CryAction/IMaterialEffects.h>
 #include "ActionGame.h"
 
@@ -92,10 +91,6 @@ public:
 		if (gEnv->pGameFramework->GetIItemSystem())
 		{
 			gEnv->pGameFramework->GetIItemSystem()->Reset();
-		}
-		if (gEnv->pDialogSystem)
-		{
-			gEnv->pDialogSystem->Reset(false);
 		}
 		if (gEnv->pGameFramework->GetIMaterialEffects())
 		{

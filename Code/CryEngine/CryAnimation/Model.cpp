@@ -440,12 +440,7 @@ bool CDefaultSkeleton::SetupPhysicalProxiesChrCgf(const char* filename, int nLod
 		for (uint32 i = 0; i < numJoints; i++)
 		{
 			mapJoints.insert(std::pair<uint32, int>(CCrc32::ComputeLowercase(m_arrModelJoints[i].m_strJointName), i));
-			CryBonePhysics& phys = m_arrModelJoints[i].m_PhysInfoRef(nLod);
-			if (phys.pPhysGeom)
-			{
-				gEnv->pPhysicalWorld->GetGeomManager()->UnregisterGeometry(phys.pPhysGeom);
-				phys.pPhysGeom = nullptr;
-			}
+			m_arrModelJoints[i].m_PhysInfoRef(nLod).pPhysGeom = nullptr;
 		}
 		for (int i = 0; i < pSkelCGF->GetSubObjectCount(); i++)
 		{

@@ -694,6 +694,9 @@ public:
 		return m_linkStats.GetLinkedVehicle();
 	}
 
+	virtual bool GetValidPositionNearby(const Vec3& proposedPosition, Vec3& adjustedPosition) const override;
+	virtual void SetExpectedPhysicsPos(const Vec3& expectedPosition) override;
+
 	float GetLookFOV(const SActorParams &actorParams) const
 	{
 		return GetLinkedVehicle() ? actorParams.lookInVehicleFOVRadians : actorParams.lookFOVRadians;

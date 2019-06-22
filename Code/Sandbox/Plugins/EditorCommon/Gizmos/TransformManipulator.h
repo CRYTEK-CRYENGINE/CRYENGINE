@@ -96,8 +96,6 @@ private:
 	CPoint              m_cMouseDownPos;
 	Vec3                m_initPos;
 
-	int                 m_highlightAxis;
-
 	Matrix34            m_matrix;
 	Matrix33            m_initMatrix;
 	Matrix33            m_initMatrixInverse;

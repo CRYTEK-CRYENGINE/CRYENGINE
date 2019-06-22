@@ -513,7 +513,7 @@ template<bool TBlocking> bool CFlowNode_AIBase<TBlocking >::ExecuteOnAI(SActivat
 	if (!pAI)
 		return false;
 
-	const EntityId senderId = pSender ? pSender->GetAIObjectID() : 0;
+	const EntityId senderId = pSender ? pSender->GetId() : INVALID_ENTITYID;
 
 	switch (pAI->GetAIType())
 	{
@@ -673,7 +673,7 @@ template<bool TBlocking> void CFlowNode_AIBase<TBlocking >::SetStance(IAIObject*
 		AISignals::IAISignalExtraData* pData = gEnv->pAISystem->CreateSignalExtraData();
 		pData->iValue = stance;
 		
-		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnChangeStance_DEPRECATED(), pAI->GetAIObjectID(), pData);
+		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnChangeStance_DEPRECATED(), pAI->GetEntityID(), pData);
 		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_FORMATION_EXCEPT, pSignal);
 	}
 }
@@ -836,7 +836,7 @@ void CFlowNode_AISignalBase<TDerivedFromSignalBase >::DoProcessEvent(IFlowNode::
 	//	pAI->Event( AIEVENT_ENABLE, NULL );
 
 	AISignals::IAISignalExtraData* pExtraData = GetExtraData(pActInfo);
-	pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, *m_pSignalDescription, pEntity->GetAIObjectID(), pExtraData));
+	pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, *m_pSignalDescription, pEntity->GetId(), pExtraData));
 
 	// allow using the node more than once
 	this->m_bExecuted = false;
@@ -1509,7 +1509,7 @@ void CFlowNode_AIStance::DoProcessEvent(EFlowEvent event, SActivationInfo* pActI
 	{
 		AISignals::IAISignalExtraData* pData = gEnv->pAISystem->CreateSignalExtraData();
 		pData->iValue = stance;
-		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnChangeStance_DEPRECATED(), pAI->GetAIObjectID(), pData);
+		const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnChangeStance_DEPRECATED(), pAI->GetEntityID(), pData);
 		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_FORMATION_EXCEPT, pSignal);
 	}
 

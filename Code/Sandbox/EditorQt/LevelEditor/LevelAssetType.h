@@ -39,7 +39,7 @@ public:
 	virtual bool                RenameAsset(CAsset* pAsset, const char* szNewName) const override                     { return false; }
 	virtual bool                MoveAsset(CAsset* pAsset, const char* szNewPath, bool bMoveSourcefile) const override { return false; }
 	virtual CAssetEditor*       Edit(CAsset* pAsset) const override;
-	virtual std::vector<string> GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute, bool includeThumbnail = true) const override;
+	virtual std::vector<string> GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute, bool includeThumbnail = true, bool includeDerived = false) const override;
 	virtual bool                OnValidateAssetPath(const char* szFilepath, /*out*/ string& reasonToReject) const override;
 
 	static const char*          GetFileExtensionStatic() { return "level"; }

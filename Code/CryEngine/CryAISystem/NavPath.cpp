@@ -280,7 +280,7 @@ bool CNavPath::Empty() const
 void CNavPath::Clear(const char* dbgString)
 {
 	++m_version.v;
-	if (gAIEnv.CVars.DebugPathFinding && !m_pathPoints.empty())
+	if (gAIEnv.CVars.LegacyDebugPathFinding && !m_pathPoints.empty())
 	{
 		const PathPointDescriptor& ppd = m_pathPoints.back();
 		AILogAlways("CNavPath::Clear old path end is (%5.2f, %5.2f, %5.2f) %s",

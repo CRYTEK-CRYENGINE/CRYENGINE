@@ -650,7 +650,7 @@ void CAIActionManager::ExecuteAIAction(const IAIAction* pAction, IEntity* pUser,
 	}
 
 	// Tell entity about action start
-	GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActionStart(), pAI->GetAIObjectID()));
+	GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActionStart(), pAI->GetEntityID()));
 
 	if (pFlowGraph)
 	{
@@ -875,7 +875,7 @@ void CAIActionManager::ActionDone(CActiveAction& action, bool bRemoveAction /*= 
 	//		ResumeActionsOnEntity( copy.m_pObjectEntity );
 
 	// Tell entity about action end
-	GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActionEnd(), pAI->GetAIObjectID()));
+	GetAISystem()->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnActionEnd(), pAI->GetEntityID()));
 
 }
 

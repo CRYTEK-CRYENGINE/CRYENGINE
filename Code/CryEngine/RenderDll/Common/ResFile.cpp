@@ -110,7 +110,7 @@ bool CResFile::mfActivate(bool bFirstTime)
 			}
 		}
 
-		LOADING_TIME_PROFILE_SECTION(iSystem);
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(iSystem);
 		SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD();
 
 		int nFlags = !m_pLookupDataMan || m_pLookupDataMan->IsReadOnly() ? 0 : ICryPak::FLAGS_NEVER_IN_PAK | ICryPak::FLAGS_PATH_REAL | ICryPak::FOPEN_ONDISK;
@@ -123,10 +123,10 @@ bool CResFile::mfActivate(bool bFirstTime)
 				char szAcc[16];
 				cry_strcpy(szAcc, m_szAccess);
 				szAcc[0] = 'r';
-				m_handle = gEnv->pCryPak->FOpen(m_name.c_str(), szAcc, nFlags | ICryPak::FOPEN_HINT_DIRECT_OPERATION);
+				m_handle = gEnv->pCryPak->FOpen(m_name.c_str(), szAcc, nFlags);
 			}
 			else
-				m_handle = gEnv->pCryPak->FOpen(m_name.c_str(), m_szAccess, nFlags | ICryPak::FOPEN_HINT_DIRECT_OPERATION);
+				m_handle = gEnv->pCryPak->FOpen(m_name.c_str(), m_szAccess, nFlags);
 			if (!m_handle)
 			{
 				mfSetError("CResFile::Activate - Can't open resource file <%s>", m_name.c_str());
@@ -230,13 +230,13 @@ void CResFile::StoreLookupData(uint32 CRC, float fVersion)
 {
 	if (m_pLookupDataMan)
 	{
-		CCryNameTSCRC name = m_pLookupDataMan->AdjustName(m_name.c_str());
-
 		m_pLookupDataMan->AddData(this, CRC);
+#if defined(USE_CRY_ASSERT)
+		CCryNameTSCRC name = m_pLookupDataMan->AdjustName(m_name.c_str());
 		SResFileLookupData* pData = m_pLookupDataMan->GetData(name);
-		m_pLookupDataMan->MarkDirty(true);
-
 		CRY_ASSERT(pData);
+#endif
+		m_pLookupDataMan->MarkDirty(true);
 	}
 }
 
@@ -443,7 +443,7 @@ bool CResFile::mfPrepareDir()
 		{
 			SizeT size = sizeof(CDirEntry) * m_nNumFilesUnique;
 			SizeT inSize = m_nComprDirSize;
-			int res = Lzma86_Decode((byte*)pFileDir, &size, m_pCompressedDir, &inSize);
+			Lzma86_Decode((byte*)pFileDir, &size, m_pCompressedDir, &inSize);
 		}
 		else if (m_version == RESVERSION_DEBUG)
 		{
@@ -470,8 +470,7 @@ bool CResFile::mfPrepareDir()
 	}
 	else
 	{
-		int nRes = mfLoadDir(m_pStreamInfo);
-		assert(nRes);
+		CRY_VERIFY(mfLoadDir(m_pStreamInfo) != 0);
 	}
 
 	return true;
@@ -551,8 +550,8 @@ int CResFile::mfOpen(int type, CResFileLookupDataMan* pMan, SResStreamInfo* pStr
 	{
 		if (type & (RA_WRITE | RA_CREATE))
 		{
-			char name[256];
-			gEnv->pCryPak->AdjustFileName(m_name.c_str(), name, 0);
+			CryPathString name;
+			gEnv->pCryPak->AdjustFileName(m_name, name, 0);
 			FILE* statusdst = fopen(name, "rb");
 			if (statusdst)
 			{
@@ -1146,7 +1145,7 @@ byte* CResFile::mfFileReadCompressed(CDirEntry* de, uint32& nSizeDecomp, uint32&
 	if (!mfActivate(false))
 		return nullptr;
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Shader, 0, "Shaders File Read Compressed");
+	MEMSTAT_CONTEXT(EMemStatContextType::Shader, "Shaders File Read Compressed");
 
 	if (!m_handle)
 	{
@@ -1725,8 +1724,7 @@ int CResFile::mfFlush()
 	if (updateCount > 0)
 	{
 		m_bDirCompressed = false;
-		int sizeDir = mfFlushDir(nSeek);
-		CRY_ASSERT(sizeDir == nSizeDir);
+		CRY_VERIFY(mfFlushDir(nSeek) == nSizeDir);
 
 		SFileResHeader frh;
 		frh.hid = IDRESHEADER;

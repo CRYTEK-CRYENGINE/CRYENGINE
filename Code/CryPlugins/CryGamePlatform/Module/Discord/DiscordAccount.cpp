@@ -48,23 +48,21 @@ namespace Cry
 
 				DiscordRichPresence discordPresence = {};
 
-				// For some obscure reason they named 'details' for the first presence line
-				// and 'state' the second one...
+				// NOTE: Field names can be a bit misleading:
+				// * 'details' is the first, and shortest, presence line
+				// * 'state' is optional and provides additional information 
  				discordPresence.details = m_presence.headline.c_str();
  				discordPresence.state = m_presence.activity.c_str();
 				discordPresence.partySize = m_presence.partySize;
 				discordPresence.partyMax = m_presence.partyMax;
 
-				if (m_presence.seconds > 0)
+				if (m_presence.countdownTimer == SRichPresence::ETimer::Remaining && m_presence.seconds > 0)
 				{
-					if (m_presence.countdownTimer == SRichPresence::ETimer::Remaining)
-					{
-						discordPresence.endTimestamp = time(0) + m_presence.seconds;
-					}
-					else if (m_presence.countdownTimer == SRichPresence::ETimer::Elapsed)
-					{
-						discordPresence.startTimestamp = time(0) + m_presence.seconds;
-					}
+					discordPresence.endTimestamp = time(0) + m_presence.seconds;
+				}
+				else if (m_presence.countdownTimer == SRichPresence::ETimer::Elapsed)
+				{
+					discordPresence.startTimestamp = time(0) + m_presence.seconds;
 				}
 
 				CryComment("[Discord] Setting rich presence (first line): %s", m_presence.headline.c_str());
@@ -97,10 +95,10 @@ namespace Cry
 				return true;
 			}
 
-			ITexture* CAccount::GetAvatar(EAvatarSize size) const
+			TextureId CAccount::GetAvatar(EAvatarSize size) const
 			{
 				// luca 7/3/2018: Need a web request to get the avatar https://discordapp.com/developers/docs/reference#image-formatting
-				return nullptr;
+				return NullTextureID;
 			}
 
 			void CAccount::SetDiscordUser(const DiscordUser& user)

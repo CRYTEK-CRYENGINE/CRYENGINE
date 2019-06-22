@@ -119,8 +119,8 @@ CXmlNode::CXmlNode(const char* tag, bool bReuseStrings)
 	, m_pAttributes(NULL)
 	, m_line(0)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "XML");
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "New node (constructor)");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "XML");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "New node (constructor)");
 	m_nRefCount = 0; //TODO: move initialization to IXmlNode constructor
 
 	m_pStringPool = new CXmlStringPool(bReuseStrings);
@@ -148,12 +148,12 @@ void CXmlNode::GetMemoryUsage(ICrySizer* pSizer) const
 //////////////////////////////////////////////////////////////////////////
 XmlNodeRef CXmlNode::createNode(const char* tag)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "XML");
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "New node (createNode)");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "XML");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "New node (createNode)");
 
 	CXmlNode* pNewNode;
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Node construction");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Node construction");
 		pNewNode = new CXmlNode;
 	}
 	pNewNode->m_pStringPool = m_pStringPool;
@@ -239,8 +239,8 @@ void CXmlNode::removeAllAttributes()
 
 void CXmlNode::setAttr(const char* key, const char* value)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "XML");
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "setAttr");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "XML");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "setAttr");
 
 	if (!m_pAttributes)
 	{
@@ -697,7 +697,7 @@ void CXmlNode::deleteChildAt(int nIndex)
 //! Adds new child node.
 void CXmlNode::addChild(const XmlNodeRef& node)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "addChild");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "addChild");
 	if (!m_pChilds)
 	{
 		m_pChilds = new XmlNodes;
@@ -873,8 +873,8 @@ bool CXmlNode::getAttributeByIndex(int index, XmlString& key, XmlString& value)
 //////////////////////////////////////////////////////////////////////////
 XmlNodeRef CXmlNode::clone()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "XML");
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "clone");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "XML");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "clone");
 	CXmlNode* node = new CXmlNode;
 	XmlNodeRef result(node);
 	node->m_pStringPool = m_pStringPool;
@@ -885,7 +885,7 @@ XmlNodeRef CXmlNode::clone()
 	CXmlNode* n = (CXmlNode*)(IXmlNode*)node;
 	n->copyAttributes(this);
 	// Clone sub nodes.
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Clone children");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Clone children");
 
 	if (m_pChilds)
 	{
@@ -1629,7 +1629,7 @@ XmlNodeRef XmlParserImp::ParseBuffer(const char* buffer, size_t bufLen, XmlStrin
 //////////////////////////////////////////////////////////////////////////
 XmlNodeRef XmlParserImp::ParseFile(const char* filename, XmlString& errorString, bool bCleanPools)
 {
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (!filename)
 		return 0;
@@ -1728,7 +1728,7 @@ XmlNodeRef XmlParserImp::ParseFile(const char* filename, XmlString& errorString,
 
 	if (g_bEnableBinaryXmlLoading)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("XMLBinaryReader::Parse");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "XMLBinaryReader::Parse");
 
 		XMLBinary::XMLBinaryReader reader;
 		XMLBinary::XMLBinaryReader::EResult result;

@@ -1,14 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-//
-//	File:ChunkFile.h
-//  Declaration of class CChunkFile
-//
-//	History:
-//
-//////////////////////////////////////////////////////////////////////
-#ifndef _CHUNK_FILE_READER_HDR_
-#define _CHUNK_FILE_READER_HDR_
+#pragma once
 
 #include <Cry3DEngine/CGF/CryHeaders.h>
 #include <CryCore/smartptr.h>
@@ -86,5 +78,3 @@ private:
 };
 
 TYPEDEF_AUTOPTR(CChunkFile);
-
-#endif

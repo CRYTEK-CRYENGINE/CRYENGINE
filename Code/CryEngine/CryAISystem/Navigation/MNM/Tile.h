@@ -7,8 +7,6 @@
 
 #include <CryAISystem/NavigationSystem/MNMTile.h>
 
-#include "MNM.h"
-
 namespace MNM
 {
 struct STile

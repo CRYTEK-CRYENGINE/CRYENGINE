@@ -92,9 +92,12 @@ int CPhysicalPlaceholder::SetParams(pe_params *_params, int bThreadSafe)
 			return GetEntity()->SetParams(params);
 		if (!is_unused(params->iSimClass)) {
 			int wasAreaTrigger = IsAreaTrigger(this);
+			CPhysicalWorld *pWorld = (CPhysicalWorld*)GetWorld();
 			m_iSimClass = params->iSimClass;
 			if (IsAreaTrigger(this) ^ wasAreaTrigger)
-				((CPhysicalWorld*)GetWorld())->m_numAreaTriggers += 1-wasAreaTrigger*2;
+				pWorld->m_numAreaTriggers += 1-wasAreaTrigger*2;
+			for(int ithunk=m_iGThunk0; ithunk; ithunk=pWorld->m_gthunks[ithunk].inextOwned)
+				pWorld->m_gthunks[ithunk].iSimClass = m_iSimClass;
 		}
 		return 1;
 	}

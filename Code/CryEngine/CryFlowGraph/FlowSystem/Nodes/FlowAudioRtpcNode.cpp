@@ -28,8 +28,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	enum INPUTS
 	{
-		eIn_RtpcName,
-		eIn_RtpcValue,
+		eIn_ParameterName,
+		eIn_ParameterValue,
 	};
 
 	enum OUTPUTS
@@ -40,21 +40,19 @@ public:
 	{
 		static const SInputPortConfig inputs[] =
 		{
-			InputPortConfig<string>("audioRTPC_Name", _HELP("RTPC name"),  "Name"),
-			InputPortConfig<float>("value",           _HELP("RTPC value"), "Value"),
-			{ 0 }
-		};
+			InputPortConfig<string>("audioRTPC_Name", _HELP("Parameter name"),  "Name"),
+			InputPortConfig<float>("value",           _HELP("Parameter value"), "Value"),
+			{ 0 } };
 
 		static const SOutputPortConfig outputs[] =
 		{
-			{ 0 }
-		};
+			{ 0 } };
 
 		config.pInputPorts = inputs;
 		config.pOutputPorts = outputs;
-		config.sDescription = _HELP("This node sets RTPC values.");
+		config.sDescription = _HELP("This node sets parameter values.");
 		config.nFlags |= EFLN_TARGET_ENTITY;
-		config.SetCategory(EFLN_APPROVED);
+		config.SetCategory(EFLN_OBSOLETE);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -67,7 +65,8 @@ public:
 
 		if (ser.IsReading())
 		{
-			SetValue(pActInfo->pEntity, fValue);
+			Init(pActInfo);
+			m_value = fValue;
 		}
 	}
 
@@ -84,16 +83,20 @@ public:
 			}
 		case eFE_Activate:
 			{
-				if (IsPortActive(pActInfo, eIn_RtpcValue))
+				if (IsPortActive(pActInfo, eIn_ParameterName))
 				{
-					SetValue(pActInfo->pEntity, GetPortFloat(pActInfo, eIn_RtpcValue));
+					GetParameterId(pActInfo);
 				}
 
-				if (IsPortActive(pActInfo, eIn_RtpcName))
+				if ((IsPortActive(pActInfo, eIn_ParameterValue)) && (m_parameterId != CryAudio::InvalidControlId))
 				{
-					GetRtpcId(pActInfo);
+					SetValue(pActInfo->pEntity, GetPortFloat(pActInfo, eIn_ParameterValue));
 				}
 
+				break;
+			}
+		default:
+			{
 				break;
 			}
 		}
@@ -108,9 +111,9 @@ public:
 private:
 
 	//////////////////////////////////////////////////////////////////////////
-	void GetRtpcId(SActivationInfo* const pActInfo)
+	void GetParameterId(SActivationInfo* const pActInfo)
 	{
-		string const& parameterName = GetPortString(pActInfo, eIn_RtpcName);
+		string const& parameterName = GetPortString(pActInfo, eIn_ParameterName);
 
 		if (!parameterName.empty())
 		{
@@ -145,14 +148,12 @@ private:
 	{
 		if (gEnv->pAudioSystem != nullptr)
 		{
-			GetRtpcId(pActInfo);
-			SetValue(pActInfo->pEntity, 0.0f);
+			GetParameterId(pActInfo);
 		}
 	}
 
-	CryAudio::ControlId        m_parameterId;
-	float                      m_value;
-	CryAudio::SRequestUserData m_requestUserData;
+	CryAudio::ControlId m_parameterId;
+	float               m_value;
 };
 
 REGISTER_FLOW_NODE("Audio:Rtpc", CFlowNode_AudioRtpc);

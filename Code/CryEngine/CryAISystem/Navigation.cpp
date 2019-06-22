@@ -48,7 +48,7 @@ void CNavigation::ShutDown()
 //-----------------------------------------------------------------------------------------------------------
 void CNavigation::LoadNavigationData(const char* szLevel, const char* szMission)
 {
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	CTimeValue startTime = gEnv->pTimer->GetAsyncCurTime();
 	

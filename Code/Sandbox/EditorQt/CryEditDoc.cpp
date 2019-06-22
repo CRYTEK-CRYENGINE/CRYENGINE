@@ -50,6 +50,7 @@
 
 #include <CryCore/Platform/CryLibrary.h>
 #include <CryMovie/IMovieSystem.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 //#define PROFILE_LOADING_WITH_VTUNE
 
@@ -108,7 +109,7 @@ void DisablePhysicsAndAISimulation()
 
 void LoadTerrain(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Load Terrain");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load Terrain");
 	CAutoLogTime logtime("Load Terrain");
 	if (!GetIEditorImpl()->GetTerrainManager()->Load())
 		GetIEditorImpl()->GetTerrainManager()->SerializeTerrain(arrXmlAr); // load old version
@@ -123,7 +124,7 @@ void LoadTerrain(TDocMultiArchive& arrXmlAr)
 void LoadGameEngineLevel(const string& filename, string currentMissionName)
 {
 	HEAP_CHECK
-	  LOADING_TIME_PROFILE_SECTION_NAMED("Game Engine level load");
+	  CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Game Engine level load");
 	CAutoLogTime logtime("Game Engine level load");
 	string szLevelPath = PathUtil::GetPathWithoutFilename(filename);
 	GetIEditorImpl()->GetGameEngine()->LoadLevel(szLevelPath, currentMissionName, true, true);
@@ -131,28 +132,28 @@ void LoadGameEngineLevel(const string& filename, string currentMissionName)
 
 void LoadMaterials(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Load MaterialManager");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load MaterialManager");
 	CAutoLogTime logtime("Load MaterialManager");
 	GetIEditorImpl()->GetMaterialManager()->Serialize((*arrXmlAr[DMAS_GENERAL]).root, (*arrXmlAr[DMAS_GENERAL]).bLoading);
 }
 
 void LoadParticles(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Load Particles");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load Particles");
 	CAutoLogTime logtime("Load Particles");
 	GetIEditorImpl()->GetParticleManager()->Serialize((*arrXmlAr[DMAS_GENERAL]).root, (*arrXmlAr[DMAS_GENERAL]).bLoading);
 }
 
 void LoadLensFlares(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Load Flares");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load Flares");
 	CAutoLogTime logtime("Load Flares");
 	GetIEditorImpl()->GetLensFlareManager()->Serialize((*arrXmlAr[DMAS_GENERAL]).root, (*arrXmlAr[DMAS_GENERAL]).bLoading);
 }
 
 void LoadGameTokens(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Load GameTokens");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load GameTokens");
 	CAutoLogTime logtime("Load GameTokens");
 	if (!GetIEditorImpl()->GetGameTokenManager()->Load())
 	{
@@ -166,7 +167,7 @@ void LoadVegetation(TDocMultiArchive& arrXmlAr)
 
 	if (pVegetationMap)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("Load Vegetation");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load Vegetation");
 		CAutoLogTime logtime("Load Vegetation");
 		if (!pVegetationMap->Load())
 			pVegetationMap->Serialize((*arrXmlAr[DMAS_VEGETATION])); // old version
@@ -176,28 +177,28 @@ void LoadVegetation(TDocMultiArchive& arrXmlAr)
 void UpdateSurfaceTypes()
 {
 	// update surf types because layers info only now is available in vegetation groups
-	LOADING_TIME_PROFILE_SECTION_NAMED("Updating Surface Types");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Updating Surface Types");
 	CAutoLogTime logtime("Updating Surface Types");
 	GetIEditorImpl()->GetTerrainManager()->ReloadSurfaceTypes(false);
 }
 
 void LoadEntityPrototypeDatabase(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Load Entity Archetypes Database");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load Entity Archetypes Database");
 	CAutoLogTime logtime("Load Entity Archetypes Database");
 	GetIEditorImpl()->GetEntityProtManager()->Serialize((*arrXmlAr[DMAS_GENERAL]).root, (*arrXmlAr[DMAS_GENERAL]).bLoading);
 }
 
 void LoadPrefabDatabase(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Importing Prefabs");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Importing Prefabs");
 	CAutoLogTime logtime("Importing Prefabs");
 	GetIEditorImpl()->GetPrefabManager()->importAssetsFromLevel((*arrXmlAr[DMAS_GENERAL]).root);
 }
 
 void CreateMovieSystemSequenceObjects()
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Movie System Compatibility Conversion");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Movie System Compatibility Conversion");
 	// support old version of sequences
 	IMovieSystem* pMs = GetIEditorImpl()->GetMovieSystem();
 
@@ -223,7 +224,7 @@ void CreateLevelIfNeeded()
 	auto* pObjectLayerManager = GetIEditorImpl()->GetObjectManager()->GetLayersManager();
 	if (!pObjectLayerManager->HasLayers())
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("Creating Empty Layer");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Creating Empty Layer");
 		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_ERROR, "The level doesn't have any layers. Creating a new layer as fallback. This is a critical error and may be a sign of data corruption.");
 
 		pObjectLayerManager->CreateLayer("Main");
@@ -322,14 +323,14 @@ void CCryEditDoc::ChangeMission()
 
 void CCryEditDoc::DeleteContents()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	m_bIsClosing = true;
 
 	SetDocumentReady(false);
 
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("Notify Clear Level Contents")
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Notify Clear Level Contents")
 		GetIEditorImpl()->Notify(eNotify_OnClearLevelContents);
 	}
 
@@ -372,7 +373,7 @@ void CCryEditDoc::Save(CXmlArchive& xmlAr)
 
 void CCryEditDoc::Save(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	m_pTmpXmlArchHack = arrXmlAr[DMAS_GENERAL];
 	CAutoDocNotReady autoDocNotReady;
 	string currentMissionName;
@@ -419,7 +420,7 @@ void CCryEditDoc::Load(TDocMultiArchive& arrXmlAr, const string& filename)
 	using namespace Private_CryEditDoc;
 
 	// Register a unique load event
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 	m_pTmpXmlArchHack = arrXmlAr[DMAS_GENERAL];
 	CAutoDocNotReady autoDocNotReady;
 
@@ -490,14 +491,14 @@ void CCryEditDoc::Load(TDocMultiArchive& arrXmlAr, const string& filename)
 
 void CCryEditDoc::LoadShaderCache(TDocMultiArchive& arrXmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED("Load Level Shader Cache");
+	CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Load Level Shader Cache");
 	CAutoLogTime logtime("Load Level Shader Cache");
 	SerializeShaderCache((*arrXmlAr[DMAS_GENERAL_NAMED_DATA]));
 }
 
 void CCryEditDoc::ActivateMission(const string& currentMissionName)
 {
-	LOADING_TIME_PROFILE_SECTION_NAMED_ARGS("Activating Mission", currentMissionName.c_str());
+	CRY_PROFILE_SECTION_ARG(PROFILE_LOADING_ONLY, "Activating Mission", currentMissionName.c_str());
 	string str;
 	str.Format("Activating Mission %s", (const char*)currentMissionName);
 	CAutoLogTime logtime(str);
@@ -715,7 +716,7 @@ void CCryEditDoc::SerializeMissions(TDocMultiArchive& arrXmlAr, string& currentM
 
 void CCryEditDoc::SerializeShaderCache(CXmlArchive& xmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (xmlAr.bLoading)
 	{
 		void* pData = 0;
@@ -823,7 +824,7 @@ BOOL CCryEditDoc::BeforeOpenDocument(LPCTSTR lpszPathName, TOpenDocContext& cont
 BOOL CCryEditDoc::DoOpenDocument(LPCTSTR lpszPathName, TOpenDocContext& context)
 {
 	LOADING_TIME_PROFILE_AUTO_SESSION("sandbox_level_load");
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	CTimeValue& loading_start_time = context.loading_start_time;
 	string& relativeLevelName = context.relativeLevelName;
@@ -889,7 +890,7 @@ BOOL CCryEditDoc::BeforeSaveDocument(LPCTSTR lpszPathName, TSaveDocContext& cont
 	}
 #endif
 
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	// Restore directory to root.
 	SetCurrentDirectory(GetIEditorImpl()->GetMasterCDFolder());
@@ -909,7 +910,7 @@ BOOL CCryEditDoc::BeforeSaveDocument(LPCTSTR lpszPathName, TSaveDocContext& cont
 
 BOOL CCryEditDoc::DoSaveDocument(LPCTSTR filename, TSaveDocContext& context)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	bool& bSaved = context.bSaved;
 
@@ -926,7 +927,7 @@ BOOL CCryEditDoc::DoSaveDocument(LPCTSTR filename, TSaveDocContext& context)
 
 BOOL CCryEditDoc::AfterSaveDocument(LPCTSTR lpszPathName, TSaveDocContext& context, bool bShowPrompt)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	bool& bSaved = context.bSaved;
 
@@ -961,7 +962,7 @@ static void GetUserSettingsFile(const string& levelFolder, string& userSettings)
 bool CCryEditDoc::SaveLevel(const string& filename)
 {
 	using namespace Private_CryEditDoc;
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	CWaitCursor wait;
 
 	CAutoCheckOutDialogEnableForAll enableForAll;
@@ -1003,7 +1004,7 @@ void CCryEditDoc::CopyFilesIfSavedToNewLocation(const string& levelFolder)
 
 	if (oldLevelFolder != levelFolder)
 	{
-		LOADING_TIME_PROFILE_SECTION_NAMED("CCryEditDoc::SaveLevel() level folder changed");
+		CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CCryEditDoc::SaveLevel() level folder changed");
 
 		// make sure we stop streaming from level.pak
 		gEnv->p3DEngine->CloseTerrainTextureFile();
@@ -1045,7 +1046,7 @@ void CCryEditDoc::CopyFilesIfSavedToNewLocation(const string& levelFolder)
 
 bool CCryEditDoc::LoadLevel(TDocMultiArchive& arrXmlAr, const string& filename)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	GetISystem()->SetSystemGlobalState(ESYSTEM_GLOBAL_STATE_LEVEL_LOAD_START_PREPARE);
 
 	ICryPak* pIPak = GetIEditorImpl()->GetSystem()->GetIPak();
@@ -1208,7 +1209,7 @@ void CCryEditDoc::SaveAutoBackup(bool bForce)
 
 CMission* CCryEditDoc::GetCurrentMission(bool bSkipLoadingAIWhenSyncingContent /* = false */)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (m_mission)
 	{
 		return m_mission;
@@ -1380,7 +1381,7 @@ void CCryEditDoc::OnStartLevelResourceList()
 
 void CCryEditDoc::ForceSkyUpdate()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	ITimeOfDay* pTimeOfDay = gEnv->p3DEngine->GetTimeOfDay();
 	CMission* pCurMission = GetIEditorImpl()->GetDocument()->GetCurrentMission();
 
@@ -1461,13 +1462,9 @@ void CCryEditDoc::InitEmptyLevel(int resolution, float unitSize, bool bUseTerrai
 		GetIEditorImpl()->GetGameEngine()->SetLevelCreated(false);
 
 		// Default time of day.
-		XmlNodeRef root = GetISystem()->LoadXmlFromFile("%EDITOR%/default_time_of_day.xml");
-		if (root)
-		{
-			ITimeOfDay* pTimeOfDay = gEnv->p3DEngine->GetTimeOfDay();
-			pTimeOfDay->Serialize(root, true);
-			pTimeOfDay->SetTime(12.0f, true);  // Set to 12:00.
-		}
+		ITimeOfDay* const pTimeOfDay = gEnv->p3DEngine->GetTimeOfDay();
+		pTimeOfDay->LoadPreset(ITimeOfDay::GetDefaultPresetFilepath());
+		pTimeOfDay->SetTime(12.0f, true);
 	}
 
 	auto* pObjectLayerManager = GetIEditorImpl()->GetObjectManager()->GetLayersManager();

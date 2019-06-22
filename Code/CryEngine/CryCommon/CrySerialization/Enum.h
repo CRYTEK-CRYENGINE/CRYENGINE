@@ -64,7 +64,7 @@ public:
 			string str;
 			if (ar(str, name, label))
 			{
-				auto it = nameToValue_.find(str);
+				auto it = nameToValue_.find(str.c_str());
 				if (it != nameToValue_.end())
 				{
 					value = it->second;

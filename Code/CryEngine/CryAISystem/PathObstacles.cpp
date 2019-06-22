@@ -22,7 +22,6 @@
 
 #include <Cry3DEngine/I3DEngine.h>
 
-#include "Navigation/MNM/MNM.h"
 #include "Navigation/NavigationSystem/NavigationSystem.h"
 
 #include <numeric>
@@ -150,7 +149,7 @@ static bool ObstacleDrawingIsOnForActor(const CAIActor* pAIActor)
 {
 	if (gAIEnv.CVars.DebugDraw > 0)
 	{
-		const char* pathName = gAIEnv.CVars.DrawPathAdjustment;
+		const char* pathName = gAIEnv.CVars.legacyDebugDraw.DrawPathAdjustment;
 		if (*pathName && (!strcmp(pathName, "all") || (pAIActor && !strcmp(pAIActor->GetName(), pathName))))
 			return true;
 	}
@@ -786,10 +785,10 @@ void CPathObstacles::GetPathObstacles_PhysicalEntity(IPhysicalEntity* pPhysicalE
 				const float distToPath = pathObstaclesInfo.pNavPath->GetDistToPath(pathPos, distAlongPath, testPosition, pathObstaclesInfo.maxDistToCheckAhead, true);
 				if (distToPath >= 0.0f && distToPath <= pathObstaclesInfo.maxPathDeviation)
 				{
-					const bool obstacleIsSmall = boxRadius < gAIEnv.CVars.ObstacleSizeThreshold;
+					const bool obstacleIsSmall = boxRadius < gAIEnv.CVars.legacyPathObstacles.ObstacleSizeThreshold;
 					const int actorType = pathObstaclesInfo.pAIActor ? pathObstaclesInfo.pAIActor->GetType() : AIOBJECT_ACTOR;
 
-					float extraRadius = (actorType == AIOBJECT_VEHICLE && obstacleIsSmall ? gAIEnv.CVars.ExtraVehicleAvoidanceRadiusSmall : pathObstaclesInfo.minAvRadius);
+					float extraRadius = (actorType == AIOBJECT_VEHICLE && obstacleIsSmall ? gAIEnv.CVars.legacyPathObstacles.ExtraVehicleAvoidanceRadiusSmall : pathObstaclesInfo.minAvRadius);
 					if (bIsPushable && pathObstaclesInfo.movementAbility.pushableObstacleWeakAvoidance)
 					{
 						// Partial avoidance - scale down radius
@@ -935,7 +934,7 @@ void CPathObstacles::GetPathObstacles(TPathObstacles& obstacles, const AgentMove
 
 	ClearObstacles(obstacles);
 
-	if (gAIEnv.CVars.AdjustPathsAroundDynamicObstacles == 0)
+	if (gAIEnv.CVars.LegacyAdjustPathsAroundDynamicObstacles == 0)
 		return;
 
 	if (pNavPath->Empty())
@@ -958,8 +957,8 @@ void CPathObstacles::GetPathObstacles(TPathObstacles& obstacles, const AgentMove
 		m_debugPathAdjustmentBoxes.resize(0);
 #endif
 
-	const float minActorAvRadius = gAIEnv.CVars.MinActorDynamicObstacleAvoidanceRadius;
-	const float minVehicleAvRadius = gAIEnv.CVars.ExtraVehicleAvoidanceRadiusBig;
+	const float minActorAvRadius = gAIEnv.CVars.legacyPathObstacles.MinActorDynamicObstacleAvoidanceRadius;
+	const float minVehicleAvRadius = gAIEnv.CVars.legacyPathObstacles.ExtraVehicleAvoidanceRadiusBig;
 
 	const int actorType = pAIActor ? pAIActor->GetType() : AIOBJECT_ACTOR;
 	pathObstaclesInfo.minAvRadius = 0.125f + max((actorType != AIOBJECT_ACTOR ? minVehicleAvRadius : minActorAvRadius), movementAbility.pathRadius);

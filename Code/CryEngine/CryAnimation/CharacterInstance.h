@@ -82,12 +82,16 @@ public:
 	virtual float GetUniformScale() const override                                              { return m_location.s; }
 	virtual void CopyPoseFrom(const ICharacterInstance &instance) override;
 	virtual void FinishAnimationComputations() override { m_SkeletonAnim.FinishAnimationComputations(); }
-	virtual void SetParentRenderNode(const ICharacterRenderNode* pRenderNode) override         { m_pParentRenderNode = pRenderNode; }
+	virtual void SetParentRenderNode(ICharacterRenderNode* pRenderNode) override;
+	virtual ICharacterRenderNode* GetParentRenderNode() const override { return m_pParentRenderNode; }
 	virtual void SetAttachmentLocation_DEPRECATED(const QuatTS& newCharacterLocation) override { m_location = newCharacterLocation; } // TODO: Resolve this issue (has been described as "This is a hack to keep entity attachments in sync.").
+	virtual void SetCharacterOffset(const QuatTS& offs) override                               { m_SkeletonPose.m_physics.SetOffset(offs); }
 	virtual void OnDetach() override;
 	virtual void HideMaster(uint32 h) override                                                 { m_bHideMaster = (h > 0); };
 	virtual void GetMemoryUsage(ICrySizer * pSizer) const override;
 	virtual void Serialize(TSerialize ser) override;
+	virtual Cry::Anim::ECharacterStaticity GetStaticity() const override { return m_staticity; }
+	virtual void SetStaticity(Cry::Anim::ECharacterStaticity staticity) override { m_staticity = staticity; }
 #ifdef EDITOR_PCDEBUGCODE
 	virtual uint32 GetResetMode() const override        { return m_ResetMode; }
 	virtual void   SetResetMode(uint32 rm) override     { m_ResetMode = rm > 0; }
@@ -121,8 +125,6 @@ public:
 
 	int32 GetAnimationLOD() const        { return m_nAnimationLOD; }
 
-	const ICharacterRenderNode* GetParentRenderNode() { return m_pParentRenderNode;  }
-
 	bool  FacialAnimationEnabled() const { return m_bFacialAnimationEnabled; }
 
 	void SkeletonPostProcess();
@@ -144,6 +146,53 @@ public:
 	void BeginSkinningTransformationsComputation(SSkinningData * pSkinningData);
 
 	void PerFrameUpdate();
+
+	void ResetQuasiStaticSleepTimer()
+	{
+		if (m_staticity != Cry::Anim::ECharacterStaticity::Dynamic
+			&& Console::GetInst().ca_CullQuasiStaticAnimationUpdates)
+		{
+			m_quasiStaticSleepTimer = Console::GetInst().ca_QuasiStaticAnimationSleepTimeoutMs / 1000.f;
+		}
+		else
+		{
+			m_quasiStaticSleepTimer = -1.f;
+		}
+	}
+
+	bool IsQuasiStaticSleeping()
+	{
+		const bool bIsQuasiStaticCullingActive = Console::GetInst().ca_CullQuasiStaticAnimationUpdates == 1;
+		const bool bHasTimerExpired = m_quasiStaticSleepTimer <= 0.f;
+		const bool bWasUpdateForced = m_SkeletonPose.m_nForceSkeletonUpdate > 0;
+
+		const bool bPartialResult = bIsQuasiStaticCullingActive && bHasTimerExpired && !bWasUpdateForced;
+
+		const bool bIsVisible = m_SkeletonPose.m_bInstanceVisible;
+		const bool bHasJustEnteredView = m_SkeletonPose.m_bInstanceVisible && !m_SkeletonPose.m_bVisibleLastFrame;
+
+		switch (m_staticity)
+		{
+		case Cry::Anim::ECharacterStaticity::QuasiStaticFixed:
+			return bPartialResult && !bHasJustEnteredView;
+		case Cry::Anim::ECharacterStaticity::QuasiStaticLooping:
+			return bPartialResult && !bIsVisible;
+		default: // Dynamic
+			return false;
+		}
+	}
+
+	void AdvanceQuasiStaticSleepTimer()
+	{
+		if (m_staticity != Cry::Anim::ECharacterStaticity::Dynamic
+			&& Console::GetInst().ca_CullQuasiStaticAnimationUpdates)
+		{
+			if (m_quasiStaticSleepTimer >= 0.f)
+			{
+				m_quasiStaticSleepTimer -= m_fDeltaTime;
+			}
+		}
+	}
 
 private:
 	// Functions that are called from Character Instance Processing
@@ -199,7 +248,7 @@ public:
 
 private:
 
-	const ICharacterRenderNode* m_pParentRenderNode;
+	ICharacterRenderNode* m_pParentRenderNode;
 
 	_smart_ptr<IMaterial> m_pInstanceMaterial;
 
@@ -228,6 +277,10 @@ private:
 	bool m_bHideMaster;
 
 	bool m_bFacialAnimationEnabled;
+
+	Cry::Anim::ECharacterStaticity m_staticity = Cry::Anim::ECharacterStaticity::Dynamic;
+	
+	float m_quasiStaticSleepTimer = 0.f;
 
 	int m_processingContext;
 

@@ -8,7 +8,7 @@
 //#include "BaseEnv/Utils/BaseEnv_EntityMap.h"
 #include "BaseEnv/Utils/BaseEnv_SpatialIndex.h"
 
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace SchematycBaseEnv
 {
@@ -72,7 +72,7 @@ namespace SchematycBaseEnv
 	{
 		if (IConsole* pConsole = gEnv->pConsole)
 		{
-			pConsole->UnregisterVariable("sc_Update");
+			pConsole->UnregisterVariable("sc2_Update");
 		}
 	}
 

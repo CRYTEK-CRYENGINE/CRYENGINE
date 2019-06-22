@@ -111,7 +111,7 @@ private:
 			{
 				if (IsPortActive(pActInfo, eIP_Set))
 				{
-					CRY_PROFILE_REGION(PROFILE_GAME, __FUNCTION__);
+					CRY_PROFILE_FUNCTION(PROFILE_GAME);
 
 					bool bSuccess = false;
 					const string& layerSetName = GetPortString(pActInfo, eIP_LayerSetName);

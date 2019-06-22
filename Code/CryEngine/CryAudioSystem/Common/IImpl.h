@@ -25,6 +25,8 @@ struct ITriggerConnection;
 struct ITriggerInfo;
 struct SFileInfo;
 
+using IListeners = DynArray<IListener*>;
+
 struct IImpl
 {
 	/** @cond */
@@ -77,11 +79,11 @@ struct IImpl
 	/**
 	 * Pass an implementation specific XML node that contains information about the current parsed library.
 	 * Is called for each library that contains the node, before calling Init.
-	 * @param pNode - an XML node containing information about the current parsed library
-	 * @param isLevelSpecific - false: the library is global. true: the library is level specific.
+	 * @param node - an XML node containing information about the current parsed library
+	 * @param contextId - context id of the library.
 	 * @return void
 	 */
-	virtual void SetLibraryData(XmlNodeRef const pNode, bool const isLevelSpecific) = 0;
+	virtual void SetLibraryData(XmlNodeRef const& node, ContextId const contextId) = 0;
 
 	/**
 	 * Called before parsing all libraries for impl data.
@@ -92,10 +94,11 @@ struct IImpl
 
 	/**
 	 * Called when parsing all libraries for impl data is finished.
+	 * @param poolAllocationMode - if 0: Accumulate pool sizes of all contexts. If 1: Accumulate pool sizes of the global context and the largest pool size for each control in any other context.
 	 * @see OnBeforeLibraryDataChanged, SetLibraryData
 	 * @return void
 	 */
-	virtual void OnAfterLibraryDataChanged() = 0;
+	virtual void OnAfterLibraryDataChanged(int const poolAllocationMode) = 0;
 
 	/**
 	 * This method is called every time the main Game (or Editor) window loses focus.
@@ -166,12 +169,12 @@ struct IImpl
 	 * Parse the implementation-specific XML node that represents an audio file, fill the fields of the struct
 	 * referenced by pFileInfo with the data necessary to correctly access and store the file's contents in memory.
 	 * Create an object implementing IFile to hold implementation-specific data about the file and store a pointer to it in a member of pFileInfo
-	 * @param pRootNode - an XML node containing the necessary information about the file
+	 * @param rootNode - an XML node containing the necessary information about the file
 	 * @param pFileInfo - a pointer to the struct containing the data used by the audio system to load the file into memory
 	 * @return ERequestStatus::Success if the XML node was parsed successfully, ERequestStatus::Failure otherwise
 	 * @see DestructFile
 	 */
-	virtual ERequestStatus ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo) = 0;
+	virtual ERequestStatus ConstructFile(XmlNodeRef const& rootNode, SFileInfo* const pFileInfo) = 0;
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied IFile instance.
@@ -192,13 +195,13 @@ struct IImpl
 	/**
 	 * Parse the implementation-specific XML node that represents an ITriggerConnection, return a pointer to the data needed for identifying
 	 * and using this trigger connection instance inside the AudioImplementation
-	 * @param pRootNode - an XML node corresponding to the new ITriggerConnection to be created
+	 * @param rootNode - an XML node corresponding to the new ITriggerConnection to be created
 	 * @param radius - the max attenuation radius of the trigger. Set to 0.0f for 2D sounds. Used for debug draw.
 	 * @return ITrigger pointer to the audio implementation-specific data needed by the audio middleware and the
 	 * @return AudioImplementation code to use the corresponding ITriggerConnection; nullptr if the new AudioTriggerImplData instance was not created
 	 * @see DestructTrigger
 	 */
-	virtual ITriggerConnection* ConstructTriggerConnection(XmlNodeRef const pRootNode, float& radius) = 0;
+	virtual ITriggerConnection* ConstructTriggerConnection(XmlNodeRef const& rootNode, float& radius) = 0;
 
 	/**
 	 * Construct a trigger with the given info struct, return a pointer to the data needed for identifying
@@ -216,17 +219,17 @@ struct IImpl
 	 * @return void
 	 * @see ConstructTrigger
 	 */
-	virtual void DestructTriggerConnection(ITriggerConnection const* const pITriggerConnection) = 0;
+	virtual void DestructTriggerConnection(ITriggerConnection* const pITriggerConnection) = 0;
 
 	/**
 	 * Parse the implementation-specific XML node that represents an IParameterConnection, return a pointer to the data needed for identifying
 	 * and using this IParameterConnection instance inside the AudioImplementation
-	 * @param pRootNode - an XML node corresponding to the new IParameterConnection to be created
+	 * @param rootNode - an XML node corresponding to the new IParameterConnection to be created
 	 * @return IParameter pointer to the audio implementation-specific data needed by the audio middleware and the
 	 * @return AudioImplementation code to use the corresponding IParameterConnection; nullptr if the new IParameterConnection instance was not created
 	 * @see DestructParameter
 	 */
-	virtual IParameterConnection* ConstructParameterConnection(XmlNodeRef const pRootNode) = 0;
+	virtual IParameterConnection* ConstructParameterConnection(XmlNodeRef const& rootNode) = 0;
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied IParameterConnection instance
@@ -239,12 +242,12 @@ struct IImpl
 	/**
 	 * Parse the implementation-specific XML node that represents an ISwitchStateConnection, return a pointer to the data needed for identifying
 	 * and using this ISwitchStateConnection instance inside the AudioImplementation
-	 * @param pRootNode - an XML node corresponding to the new ISwitchStateConnection to be created
+	 * @param rootNode - an XML node corresponding to the new ISwitchStateConnection to be created
 	 * @return ISwitchState pointer to the audio implementation-specific data needed by the audio middleware and the
 	 * @return AudioImplementation code to use the corresponding ISwitchStateConnection; nullptr if the new ISwitchStateConnection instance was not created
 	 * @see DestructSwitchState
 	 */
-	virtual ISwitchStateConnection* ConstructSwitchStateConnection(XmlNodeRef const pRootNode) = 0;
+	virtual ISwitchStateConnection* ConstructSwitchStateConnection(XmlNodeRef const& rootNode) = 0;
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied ISwitchStateConnection instance
@@ -257,12 +260,12 @@ struct IImpl
 	/**
 	 * Parse the implementation-specific XML node that represents an IEnvironmentConnection, return a pointer to the data needed for identifying
 	 * and using this IEnvironmentConnection instance inside the AudioImplementation
-	 * @param pRootNode - an XML node corresponding to the new IEnvironmentConnection to be created
+	 * @param rootNode - an XML node corresponding to the new IEnvironmentConnection to be created
 	 * @return IEnvironment pointer to the audio implementation-specific data needed by the audio middleware and the
 	 * @return AudioImplementation code to use the corresponding IEnvironmentConnection; nullptr if the new IEnvironmentConnection instance was not created
 	 * @see DestructEnvironment
 	 */
-	virtual IEnvironmentConnection* ConstructEnvironmentConnection(XmlNodeRef const pRootNode) = 0;
+	virtual IEnvironmentConnection* ConstructEnvironmentConnection(XmlNodeRef const& rootNode) = 0;
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied IEnvironmentConnection instance
@@ -275,12 +278,12 @@ struct IImpl
 	/**
 	 * Parse the implementation-specific XML node that represents an ISettingConnection, return a pointer to the data needed for identifying
 	 * and using this ISettingConnection instance inside the AudioImplementation
-	 * @param pRootNode - an XML node corresponding to the new ISettingConnection to be created
+	 * @param rootNode - an XML node corresponding to the new ISettingConnection to be created
 	 * @return ISetting pointer to the audio implementation-specific data needed by the audio middleware and the
 	 * @return AudioImplementation code to use the corresponding ISettingConnection; nullptr if the new ISettingConnection instance was not created
 	 * @see DestructSetting
 	 */
-	virtual ISettingConnection* ConstructSettingConnection(XmlNodeRef const pRootNode) = 0;
+	virtual ISettingConnection* ConstructSettingConnection(XmlNodeRef const& rootNode) = 0;
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied ISettingConnection instance
@@ -292,29 +295,21 @@ struct IImpl
 
 	/**
 	 * Create an object implementing IObject that stores all of the data needed by the AudioImplementation
-	 * to identify and use the GlobalAudioObject.
-	 * @return IObject pointer to the audio implementation-specific data needed by the audio middleware and the
-	 * @return AudioImplementation code to use the corresponding GlobalAudioObject; nullptr if the new IObject instance was not created
-	 * @see DestructObject
-	 */
-	virtual IObject* ConstructGlobalObject() = 0;
-
-	/**
-	 * Create an object implementing IObject that stores all of the data needed by the AudioImplementation
 	 * to identify and use the AudioObject. Return a pointer to that object.
 	 * @param transformation - transformation of the object to construct
+	 * @param listeners - listeners which listen to all sounds emmitted from the object
 	 * @param szName - optional name of the object to construct (not used in release builds)
 	 * @return IObject pointer to the audio implementation-specific data needed by the audio middleware and the
 	 * @return AudioImplementation code to use the corresponding GlobalAudioObject; nullptr if the new IObject instance was not created
 	 * @see DestructObject
 	 */
-	virtual IObject* ConstructObject(CTransformation const& transformation, char const* const szName = nullptr) = 0;
+	virtual IObject* ConstructObject(CTransformation const& transformation, IListeners const& listeners, char const* const szName = nullptr) = 0;
 
 	/**
 	 * Free the memory and potentially other resources used by the supplied IObject instance
 	 * @param pIObject - pointer to the object implementing IObject to be discarded
 	 * @return void
-	 * @see ConstructObject, ConstructGlobalObject
+	 * @see ConstructObject
 	 */
 	virtual void DestructObject(IObject const* const pIObject) = 0;
 
@@ -322,12 +317,12 @@ struct IImpl
 	 * Construct an object implementing IListener that stores all of the data needed by the AudioImplementation
 	 * to identify and use an AudioListener. Return a pointer to that object.
 	 * @param transformation - transformation of the listener to construct
-	 * @param szName - optional name of the listener to construct (not used in release builds)
+	 * @param szName - name of the listener to construct (not used in release builds)
 	 * @return CryAudio::Impl::IListener pointer to the audio implementation-specific data needed by the audio middleware and the
 	 * @return AudioImplementation code to use the corresponding AudioListener; nullptr if the new CryAudio::Impl::IListener instance was not created.
 	 * @see DestructListener
 	 */
-	virtual IListener* ConstructListener(CTransformation const& transformation, char const* const szName = nullptr) = 0;
+	virtual IListener* ConstructListener(CTransformation const& transformation, char const* const szName) = 0;
 
 	/**
 	 * Destruct the supplied CryAudio::Impl::IListener instance.
@@ -381,21 +376,22 @@ struct IImpl
 	 * @param[out] auxGeom - a reference to the IRenderAuxGeom that draws the debug info.
 	 * @param[in] posX - x-axis position of the auxGeom.
 	 * @param[out] posY - y-axis position of the auxGeom.
-	 * @param[in] showDetailedInfo - should detailed memory info be shown or not.
+	 * @param[in] drawDetailedInfo - should detailed memory info be drawn or not.
 	 * @return void
 	 */
-	virtual void DrawDebugMemoryInfo(IRenderAuxGeom& auxGeom, float const posX, float& posY, bool const showDetailedInfo) = 0;
+	virtual void DrawDebugMemoryInfo(IRenderAuxGeom& auxGeom, float const posX, float& posY, bool const drawDetailedInfo) = 0;
 
 	/**
 	 * Informs the audio middlware that it can draw debug information below the debug header in form of a list or multiple lists, e.g events.
 	 * @param[out] auxGeom - a reference to the IRenderAuxGeom that draws the debug info.
 	 * @param[out] posX - x-axis position of the auxGeom. Has to be increased by the width of the list(s) to avoid overlapping with other debug info.
 	 * @param[in] posY - y-axis position of the auxGeom.
+	 * @param[in] camPos - position of the camera. Useful for distance filtering.
 	 * @param[in] debugDistance - distance from the listener to where object debug is drawn. Is <= 0 if filtering is disabled.
 	 * @param[in] szTextFilter - current set text filter. Is nullptr if filtering is disabled.
 	 * @return void
 	 */
-	virtual void DrawDebugInfoList(IRenderAuxGeom& auxGeom, float& posX, float posY, float const debugDistance, char const* const szTextFilter) const = 0;
+	virtual void DrawDebugInfoList(IRenderAuxGeom& auxGeom, float& posX, float posY, Vec3 const& camPos, float const debugDistance, char const* const szTextFilter) const = 0;
 };
 } // namespace Impl
 } // namespace CryAudio

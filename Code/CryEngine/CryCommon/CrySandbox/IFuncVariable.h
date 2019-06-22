@@ -8,7 +8,7 @@
 #include <CryCore/Containers/CryArray.h>
 #include <CryString/StringUtils.h>
 
-class ITexture;
+struct ITexture;
 
 enum FuncParamType
 {

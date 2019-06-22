@@ -45,7 +45,7 @@ void CRenderPassScheduler::AddPass(CPrimitiveRenderPass* pPass)
 void CRenderPassScheduler::InsertResourceTransitions(CPrimitiveRenderPass* pPass)
 {
 	// TODO: Function is just a pure POF at the moment
-	
+
 	uint32 curRenderPassId = (int)m_renderPasses.size() - 1;
 
 	for (uint32 i = 0; i < CDeviceRenderPassDesc::MaxRendertargetCount; i++)
@@ -89,18 +89,17 @@ void CRenderPassScheduler::InsertResourceTransitions(CPrimitiveRenderPass* pPass
 	}
 }
 
-
-void CRenderPassScheduler::Execute()
+void CRenderPassScheduler::Execute(CGraphicsPipeline* pGraphicsPipeline)
 {
 	if (m_renderPasses.empty())
 		return;
-	
+
 	PROFILE_LABEL_SCOPE("PASS_SCHEDULER");
-	
+
 	assert(m_bEnabled == false);
 
 	stack_string prevLabel;
-	
+
 	// Submit passes
 	for (auto& pass : m_renderPasses)
 	{
@@ -108,7 +107,7 @@ void CRenderPassScheduler::Execute()
 		//{
 		//	PROFILE_LABEL_SCOPE(pass.transitions[i].pRenderTarget->GetName());
 		//}
-		
+
 		if (pass.passType == ePassType_Primitive)
 		{
 			if (pass.pPrimitivePass->GetLabel()[0] != '\0')
@@ -130,12 +129,12 @@ void CRenderPassScheduler::Execute()
 				PROFILE_LABEL_POP(prevLabel.c_str());
 				prevLabel = "";
 			}
-			
-			PROFILE_LABEL_SCOPE(pass.pPrimitivePass->GetLabel());
-			gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView()->GetDrawer().InitDrawSubmission();
+
+			PROFILE_LABEL_SCOPE_DYNAMIC(pass.pPrimitivePass->GetLabel(), "PASS");
+			pGraphicsPipeline->GetCurrentRenderView()->GetDrawer().InitDrawSubmission();
 			pass.pScenePass->Execute();
-			gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView()->GetDrawer().JobifyDrawSubmission();
-			gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView()->GetDrawer().WaitForDrawSubmission();
+			pGraphicsPipeline->GetCurrentRenderView()->GetDrawer().JobifyDrawSubmission();
+			pGraphicsPipeline->GetCurrentRenderView()->GetDrawer().WaitForDrawSubmission();
 			pass.pScenePass->m_passContexts.resize(0);
 		}
 		else if (pass.passType == ePassType_Compute)
@@ -145,7 +144,7 @@ void CRenderPassScheduler::Execute()
 			//CDeviceGraphicsCommandInterface* pCommandInterface = commandList.GetGraphicsInterface();
 			//pCommandInterface->SetRenderTargets(0, nullptr, nullptr, nullptr);
 			GetDeviceObjectFactory().GetCoreCommandList().GetGraphicsInterface()->ClearState(true);
-			
+
 			pass.pComputePass->Execute(GetDeviceObjectFactory().GetCoreCommandList());
 		}
 	}

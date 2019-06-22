@@ -16,6 +16,7 @@
 
 	#include <CrySystem/ITextModeConsole.h>
 	#include <CryRenderer/IRenderAuxGeom.h>
+	#include <CrySystem/ConsoleRegistration.h>
 
 CNetDebug::CNetDebug()
 {

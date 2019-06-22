@@ -8,6 +8,13 @@
 class CToneMappingStage : public CGraphicsPipelineStage
 {
 public:
+	static const EGraphicsPipelineStage StageID = eStage_ToneMapping;
+
+	CToneMappingStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+		, m_passToneMapping(&graphicsPipeline)
+		, m_passFixedExposureToneMapping(&graphicsPipeline) {}
+
 	void Execute();
 	void ExecuteDebug();
 	void ExecuteFixedExposure(CTexture* pColorTex, CTexture* pDepthTex);

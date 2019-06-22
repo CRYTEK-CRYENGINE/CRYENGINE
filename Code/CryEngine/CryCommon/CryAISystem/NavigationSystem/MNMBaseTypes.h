@@ -73,6 +73,28 @@ typedef TNavigationID<TileIDTag>         TileID;
 typedef TNavigationID<TileTriangleIDTag> TriangleID;
 typedef TNavigationID<OffMeshLinkIDTag>  OffMeshLinkID;
 
+struct SPointOnNavMesh
+{
+	SPointOnNavMesh() {}
+	
+	SPointOnNavMesh(const TriangleID triangleId, const Vec3& worldPos)
+		: triangleId(triangleId)
+		, worldPos(worldPos)
+	{}
+
+	bool IsValid() const 
+	{ 
+		return triangleId.IsValid();
+	}
+
+	TriangleID GetTriangleID() const { return triangleId; }
+	const Vec3& GetWorldPosition() const { return worldPos; }
+
+private:
+	TriangleID triangleId;
+	Vec3 worldPos;
+};
+
 //! TileTriangleIndex identifies the index of each triangle within a tile
 typedef uint16 TileTriangleIndex;
 

@@ -67,6 +67,8 @@ protected:
 	CVariable<float>        mv_waterCausticTiling;
 	CVariable<float>        mv_waterCausticHeight;
 
+	CVariable<float>        mv_waterDensity;
+	CVariable<float>        mv_waterResistance;
 	CSmartVariableArray     mv_GroupAdv;
 	CVariable<float>        mv_waterVolume;
 	CVariable<float>        mv_accVolume;

@@ -18,6 +18,7 @@
 
 	#include <CryInput/IInput.h>
 	#include <CryMemory/STLGlobalAllocator.h>
+	#include <CrySystem/ConsoleRegistration.h>
 	#include "MiniGUI/MiniInfoBox.h"
 	#include "MiniGUI/MiniTable.h"
 

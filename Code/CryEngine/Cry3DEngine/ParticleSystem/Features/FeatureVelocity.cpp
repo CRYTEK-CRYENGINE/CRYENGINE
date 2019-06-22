@@ -92,11 +92,11 @@ public:
 	}
 
 private:
-	Vec3                                  m_axis {0, 0, 1};
-	CParamMod<EDD_PerParticle, UAngle180> m_angle;
-	UUnitFloat                            m_innerFraction = 1;
-	CParamMod<EDD_PerParticle, UFloat10>  m_velocity = 1;
-	SDistribution<2>                      m_distribution;
+	Vec3                               m_axis {0, 0, 1};
+	CParamMod<EDD_Particle, UAngle180> m_angle;
+	UUnitFloat                         m_innerFraction = 1;
+	CParamMod<EDD_Particle, UFloat10>  m_velocity = 1;
+	SDistribution<2>                   m_distribution;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureVelocityCone, "Velocity", "Cone", colorVelocity);
@@ -154,8 +154,8 @@ public:
 	}
 
 private:
-	Vec3                                 m_velocity {0,0,1};
-	CParamMod<EDD_PerParticle, UFloat10> m_scale;
+	Vec3                              m_velocity {0,0,1};
+	CParamMod<EDD_Particle, UFloat10> m_scale = 1;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureVelocityDirectional, "Velocity", "Directional", colorVelocity);
@@ -208,8 +208,8 @@ public:
 	}
 
 private:
-	CParamMod<EDD_PerParticle, UFloat10> m_velocity = 1;
-	SDistribution<2>                     m_distribution;
+	CParamMod<EDD_Particle, UFloat10> m_velocity = 1;
+	SDistribution<2>                  m_distribution;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureVelocityOmniDirectional, "Velocity", "OmniDirectional", colorVelocity);
@@ -284,7 +284,7 @@ public:
 	}
 
 private:
-	CParamMod<EDD_PerParticle, SFloat> m_scale = 1;
+	CParamMod<EDD_Particle, SFloat> m_scale = 1;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureVelocityInherit, "Velocity", "Inherit", colorVelocity);
@@ -342,9 +342,9 @@ public:
 	}
 
 private:
-	CParamMod<EDD_PerParticle, SAngle360> m_azimuth;
-	CParamMod<EDD_PerParticle, UAngle180> m_angle;
-	CParamMod<EDD_PerParticle, SFloat10>  m_velocity;
+	CParamMod<EDD_Particle, SAngle360> m_azimuth;
+	CParamMod<EDD_Particle, UAngle180> m_angle;
+	CParamMod<EDD_Particle, SFloat10>  m_velocity;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureVelocityCompass, "Velocity", "Compass", colorVelocity);

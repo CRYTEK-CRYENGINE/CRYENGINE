@@ -134,7 +134,7 @@ EAITargetThreat GetSoundStimulusThreatForNonPuppetEntities(const int soundType)
 //////////////////////////////////////////////////////////////////////////
 bool ShouldVisualStimulusBeHandled(tAIObjectID objectID, const Vec3 eventPosition)
 {
-	if (gAIEnv.CVars.IgnoreVisualStimulus != 0)
+	if (gAIEnv.CVars.legacyPerception.IgnoreVisualStimulus != 0)
 		return false;
 
 	CWeakRef<CAIObject> refObject = gAIEnv.pObjectContainer->GetWeakRef(objectID);
@@ -159,7 +159,7 @@ bool ShouldVisualStimulusBeHandled(tAIObjectID objectID, const Vec3 eventPositio
 
 bool ShouldSoundStimulusBeHandled(tAIObjectID objectID, const Vec3 eventPosition, const float maxSoundDistanceAllowed)
 {
-	if (gAIEnv.CVars.IgnoreSoundStimulus != 0)
+	if (gAIEnv.CVars.legacyPerception.IgnoreSoundStimulus != 0)
 		return false;
 
 	CWeakRef<CAIObject> refObject = gAIEnv.pObjectContainer->GetWeakRef(objectID);
@@ -188,7 +188,7 @@ bool ShouldSoundStimulusBeHandled(tAIObjectID objectID, const Vec3 eventPosition
 
 bool ShouldBulletRainStimulusBeHandled(tAIObjectID objectID)
 {
-	if (gAIEnv.CVars.IgnoreBulletRainStimulus != 0)
+	if (gAIEnv.CVars.legacyPerception.IgnoreBulletRainStimulus != 0)
 		return false;
 
 	CWeakRef<CAIObject> refObject = gAIEnv.pObjectContainer->GetWeakRef(objectID);
@@ -282,7 +282,7 @@ void CTargetTrackManager::PrepareModifiers()
 bool CTargetTrackManager::IsEnabled() const
 {
 	// Currently based on cvar
-	return (gAIEnv.CVars.TargetTracking != 0);
+	return (gAIEnv.CVars.legacyTargetTracking.TargetTracking != 0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -621,7 +621,7 @@ int CTargetTrackManager::GetTargetLimit(tAIObjectID aiObjectId) const
 {
 	assert(aiObjectId > 0);
 
-	int nResult = gAIEnv.CVars.TargetTracks_GlobalTargetLimit;
+	int nResult = gAIEnv.CVars.legacyTargetTracking.TargetTracks_GlobalTargetLimit;
 
 	TAgentContainer::const_iterator itAgent = m_Agents.find(aiObjectId);
 	if (itAgent != m_Agents.end())
@@ -2026,9 +2026,9 @@ uint32 CTargetTrackManager::GetPulseNameHash(const char* sPulseName)
 void CTargetTrackManager::DebugDraw()
 {
 #ifdef TARGET_TRACK_DEBUG
-	const int nConfigMode = gAIEnv.CVars.TargetTracks_ConfigDebugDraw;
-	const int nTargetMode = gAIEnv.CVars.TargetTracks_TargetDebugDraw;
-	const char* szAgentName = gAIEnv.CVars.TargetTracks_AgentDebugDraw;
+	const int nConfigMode = gAIEnv.CVars.legacyTargetTracking.TargetTracks_ConfigDebugDraw;
+	const int nTargetMode = gAIEnv.CVars.legacyTargetTracking.TargetTracks_TargetDebugDraw;
+	const char* szAgentName = gAIEnv.CVars.legacyTargetTracking.TargetTracks_AgentDebugDraw;
 
 	if (szAgentName && szAgentName[0] && (
 	      stricmp(szAgentName, "0") == 0 ||
@@ -2062,7 +2062,7 @@ void CTargetTrackManager::DebugDrawConfig(int nMode)
 	dc->Draw2dLabel(fColumnX, fColumnY, 1.5f, textCol, false, "Target Track Configs: (%" PRISIZE_T ")", m_Configs.size());
 	fColumnY += 20.0f;
 
-	const string sFilterName = gAIEnv.CVars.TargetTracks_ConfigDebugFilter;
+	const string sFilterName = gAIEnv.CVars.legacyTargetTracking.TargetTracks_ConfigDebugFilter;
 
 	TConfigContainer::const_iterator itConfig = m_Configs.begin();
 	TConfigContainer::const_iterator itConfigEnd = m_Configs.end();

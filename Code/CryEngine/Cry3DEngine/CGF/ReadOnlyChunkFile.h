@@ -1,13 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   ReadOnlyChunkFile.h
-//  Created:     2004/11/15 by Timur
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __ReadOnlyChunkFile_h__
-#define __ReadOnlyChunkFile_h__
+#pragma once
 
 #include <Cry3DEngine/CGF/CryHeaders.h>
 #include <CryCore/smartptr.h>
@@ -87,5 +80,3 @@ private:
 };
 
 TYPEDEF_AUTOPTR(CReadOnlyChunkFile);
-
-#endif

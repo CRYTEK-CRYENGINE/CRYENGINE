@@ -636,16 +636,16 @@ void CFlowNode_SkyMaterialSwitch::GetMemoryUsage(ICrySizer* s) const
 void CFlowNode_SkyMaterialSwitch::GetConfiguration(SFlowNodeConfig& config)
 {
 	static const SInputPortConfig in_config[] = {
-		InputPortConfig<string>("hdr_mat_Material", _HELP("HDR Skybox material name")),
-		InputPortConfig<string>("mat_Material", _HELP("Skybox material name")),
-		InputPortConfig<bool>("Start",          false,                         _HELP("Trigger to start the loading")),
-		InputPortConfig<float>("Angle",         1.f,                           _HELP("Sky box rotation")),
-		InputPortConfig<float>("Stretching",    1.f,                           _HELP("Sky box stretching")),
+		InputPortConfig<string>("hdr_mat_Material",    _HELP("Skybox material name (default-spec)")),
+		InputPortConfig<string>("mat_Material",        _HELP("Skybox material name (low-spec)")),
+		InputPortConfig<bool>("Start",          false, _HELP("Trigger to start the loading")),
+		InputPortConfig<float>("Angle",         1.f,   _HELP("Sky box rotation")),
+		InputPortConfig<float>("Stretching",    1.f,   _HELP("Sky box stretching")),
 		{ 0 }
 	};
 
 	config.pInputPorts = in_config;
-	config.sDescription = _HELP("Node for sky box switching");
+	config.sDescription = _HELP("Node for sky material switching");
 	config.SetCategory(EFLN_ADVANCED);
 }
 
@@ -665,7 +665,7 @@ void CFlowNode_SkyMaterialSwitch::ProcessEvent(EFlowEvent event, SActivationInfo
 				GetPortString(pActInfo, 0)  // eSkyType_HDRSky
 			};
 
-			for (int skyTypeIdx = 0; skyTypeIdx < eSkyType_NumSkyTypes; ++skyTypeIdx)
+			for (int skyTypeIdx = 0; skyTypeIdx < eSkySpec_NumSkySpecs; ++skyTypeIdx)
 			{
 				const string matName = matNames[skyTypeIdx];
 				IMaterial *const pSkyMtl = gEnv->p3DEngine->GetMaterialManager()->LoadMaterial(matNames[skyTypeIdx], false, false, IMaterialManager::ELoadingFlagsPreviewMode);

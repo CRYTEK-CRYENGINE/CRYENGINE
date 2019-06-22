@@ -7,6 +7,7 @@
 #include <IUIDraw.h>
 #include <CryFont/IFont.h>
 #include <CrySystem/ILocalizationManager.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CPersistantDebug::CPersistantDebug()
 	: m_pETLog(nullptr)
@@ -217,7 +218,7 @@ void CPersistantDebug::Add2DLine(float x1, float y1, float x2, float y2, ColorF 
 bool CPersistantDebug::Init()
 {
 	// Init CVars
-	m_pETLog = REGISTER_INT("cl_ETLog", 0, VF_DUMPTODISK, "Logging (0=off, 1=editor.log, 2=editor.log + AIlog.log)");
+	m_pETLog = REGISTER_INT("cl_ETLog", 0, VF_DUMPTODISK, "Logging (0=off, 1=editor.log");
 	m_pETHideAll = REGISTER_INT("cl_ETHideAll", 0, VF_DUMPTODISK, "Hide all tags (overrides all other options)");
 	m_pETHideBehaviour = REGISTER_INT("cl_ETHideBehaviour", 0, VF_DUMPTODISK, "Hide AI behavior tags");
 	m_pETHideReadability = REGISTER_INT("cl_ETHideReadability", 0, VF_DUMPTODISK, "Hide AI readability tags");

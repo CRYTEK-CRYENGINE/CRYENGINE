@@ -1202,7 +1202,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CScriptFile::Load()
 	{
-		LOADING_TIME_PROFILE_SECTION_ARGS(m_fileName.c_str());
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, m_fileName.c_str());
 
 		if(!m_fileName.empty())
 		{
@@ -1285,7 +1285,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CScriptFile::Refresh(const SScriptRefreshParams& params)
 	{
-		LOADING_TIME_PROFILE_SECTION_ARGS(m_fileName.c_str());
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, m_fileName.c_str());
 		for(Elements::value_type& element : m_elements)
 		{
 			element.second->Refresh(params);
@@ -1587,23 +1587,23 @@ namespace Schematyc2
 				inputBlock.SortElementsByDependency();
 
 				{
-					MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Load And Insert Elements");
+					MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Load And Insert Elements");
 
 					// Copy elements to file.
 					for(DocSerializationUtils::CInputBlock::SElement& element : elements)
 					{
-						MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Insert Elements");
+						MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Insert Elements");
 						Serialization::LoadBlackBox(element, element.blackBox);
 						m_elements.insert(Elements::value_type(element.ptr->GetGUID(), element.ptr));
 					}
 					for(DocSerializationUtils::CInputBlock::SElement& element : elements)
 					{
-						MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Load Elements");
+						MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Load Elements");
 						Serialization::LoadBlackBox(element, element.blackBox);
 					}
 					
 					{
-						MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Schematyc: Validate Elements");
+						MEMSTAT_CONTEXT(EMemStatContextType::Other, "Schematyc: Validate Elements");
 
 						// Validate elements.
 						CValidatorArchive     validatorArchive(EValidatorArchiveFlags::ForwardWarningsToLog | EValidatorArchiveFlags::ForwardErrorsToLog);
@@ -1633,7 +1633,7 @@ namespace Schematyc2
 			const IScriptElementPtr& pElement = element.second;
 			if(pElement->GetElementType() == type)
 			{
-				if ((CVars::sc_DiscardOnSave == 0) || ((pElement->GetElementFlags() & EScriptElementFlags::Discard) == 0))
+				if ((CVars::sc2_DiscardOnSave == 0) || ((pElement->GetElementFlags() & EScriptElementFlags::Discard) == 0))
 				{
 					elementsToSave[string(pElement->GetName())].insert( ElementsScopeGuidMap::value_type(pElement->GetScopeGUID(), pElement.get()) );
 				}

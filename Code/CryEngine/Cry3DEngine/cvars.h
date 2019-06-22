@@ -1,24 +1,10 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   cvars.h
-//  Version:     v1.00
-//  Created:     28/5/2001 by Vladimir Kajalin
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
+#pragma once
 
-#ifndef _3DENGINE_CVARS_H_
-#define _3DENGINE_CVARS_H_
+#include <CrySystem/ConsoleRegistration.h>
 
-#if defined(CONSOLE_CONST_CVAR_MODE)
-	#define GetFloatCVar(name) name ## Default
-#else
-	#define GetFloatCVar(name) (Cry3DEngineBase::GetCVars())->name
-#endif
+#define GetFloatCVar(name) (Cry3DEngineBase::GetCVars())->name
 
 // console variables
 struct CVars : public Cry3DEngineBase
@@ -286,7 +272,6 @@ struct CVars : public Cry3DEngineBase
 	DeclareConstFloatCVar(e_DecalsPlacementTestMinDepth);
 	DeclareConstFloatCVar(e_CameraRotationSpeed);
 	float  e_ScreenShotMapSizeY;
-	int    e_GI;
 	DeclareConstIntCVar(e_PortalsBigEntitiesFix, 0);
 	int    e_SQTestBegin;
 	int    e_VegetationSprites;
@@ -419,6 +404,7 @@ struct CVars : public Cry3DEngineBase
 	int   e_ShadowsCacheMaxNodesPerFrame;
 	int   e_ShadowsCacheObjectLod;
 	int   e_ShadowsCacheRenderCharacters;
+	int   e_ShadowsCacheJobs;
 	int   e_ShadowsPerObject;
 	int   e_DynamicDistanceShadows;
 	float e_ShadowsPerObjectResolutionScale;
@@ -442,7 +428,7 @@ struct CVars : public Cry3DEngineBase
 	float e_ShadowsCastViewDistRatioLights;
 	int   e_ShadowsUpdateViewDistRatio;
 	int   e_Lods;
-	DeclareConstIntCVar(e_LodFaceArea, 1);
+	int   e_LodFaceArea;
 	float e_ShadowsConstBias;
 	int   e_ParticlesCollisions;
 	int   e_ParticlesObjectCollisions;
@@ -548,5 +534,3 @@ struct CVars : public Cry3DEngineBase
 	#include "SVO/SceneTreeCVars.inl" // include SVO related variables
 #endif
 };
-
-#endif // _3DENGINE_CVARS_H_

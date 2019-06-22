@@ -83,10 +83,10 @@ void CDeviceResource::AllocatePredefinedResourceViews()
 	const bool bDefaultAvailable     = (bIsStructured || (eFormatD != DXGI_FORMAT_UNKNOWN)) && (bIsShaderResource);
 	const bool bAlternativeAvailable = (bIsStructured || (eFormatS != DXGI_FORMAT_UNKNOWN)) && (bIsShaderResource) && (bIsDepthStencil || bAllowSrgb) && (Default != Alternative);
 
-	ResourceViewHandle a = bDefaultAvailable     ? GetOrCreateResourceViewHandle(Default         ) : ReserveResourceViewHandle(Default         ); assert(a == EDefaultResourceViews::Default         );
-	ResourceViewHandle b = bAlternativeAvailable ? GetOrCreateResourceViewHandle(Alternative     ) : ReserveResourceViewHandle(Alternative     ); assert(b == EDefaultResourceViews::Alternative     );
-	ResourceViewHandle c = bIsRasterizerTarget   ? GetOrCreateResourceViewHandle(RasterizerTarget) : ReserveResourceViewHandle(RasterizerTarget); assert(c == EDefaultResourceViews::RasterizerTarget);
-	ResourceViewHandle e = bIsUnordered          ? GetOrCreateResourceViewHandle(UnorderedAccess ) : ReserveResourceViewHandle(UnorderedAccess ); assert(e == EDefaultResourceViews::UnorderedAccess );
+	CRY_VERIFY((bDefaultAvailable     ? GetOrCreateResourceViewHandle(Default         ) : ReserveResourceViewHandle(Default         )) == EDefaultResourceViews::Default         );
+	CRY_VERIFY((bAlternativeAvailable ? GetOrCreateResourceViewHandle(Alternative     ) : ReserveResourceViewHandle(Alternative     )) == EDefaultResourceViews::Alternative     );
+	CRY_VERIFY((bIsRasterizerTarget   ? GetOrCreateResourceViewHandle(RasterizerTarget) : ReserveResourceViewHandle(RasterizerTarget)) == EDefaultResourceViews::RasterizerTarget);
+	CRY_VERIFY((bIsUnordered          ? GetOrCreateResourceViewHandle(UnorderedAccess ) : ReserveResourceViewHandle(UnorderedAccess )) == EDefaultResourceViews::UnorderedAccess );
 
 	// Alias Default to Alternative if it's not suppose to be read in an alternative way
 	if (bDefaultAvailable && !bAlternativeAvailable)
@@ -105,7 +105,7 @@ int32 CDeviceResource::Cleanup()
 	// Gracefully deal with NULL-resources which are nullptr
 	int32 nRef = m_resourceElements ? -1 : 0; // -!!bool
 
-	if (m_pNativeResource)
+	if (m_pNativeResource && m_resourceElements)
 	{
 		// Figure out current ref-count
 		nRef = m_pNativeResource->AddRef();
@@ -118,7 +118,7 @@ int32 CDeviceResource::Cleanup()
 			GetDeviceObjectFactory().ReleaseResource(m_pNativeResource);
 
 		// NOTE: CDeviceResource might be shared, take care the texture-pointer stays valid for the other aliases
-		if (nRef == 1)
+		if (nRef > 0)
 		{
 			nRef = 0;
 
@@ -143,11 +143,6 @@ CDeviceBuffer* CDeviceBuffer::Create(const SBufferLayout& pLayout, const void* p
 {
 	CDeviceBuffer* pDevBuffer = nullptr;
 	D3DBuffer* pBuffer = nullptr;
-
-	int32 nESRAMOffset = SKIP_ESRAM;
-#if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
-	nESRAMOffset = pLayout.m_eSRAMOffset;
-#endif
 
 	buffer_size_t elementSize = pLayout.m_elementSize;
 	buffer_size_t elementCount = pLayout.m_elementCount;
@@ -252,7 +247,9 @@ CDeviceTexture* CDeviceTexture::Create(const STextureLayout& pLayout, const STex
 		bIsSRGB = true;
 #endif
 
+#if defined(SUPPORT_DEVICE_INFO)
 	CD3D9Renderer* r = gcpRendD3D;
+#endif //defined(SUPPORT_DEVICE_INFO)
 	uint32 nWdt = pLayout.m_nWidth;
 	uint32 nHgt = pLayout.m_nHeight;
 	uint32 nDepth = pLayout.m_nDepth;
@@ -496,9 +493,8 @@ CDeviceTexture* CDeviceTexture::Associate(const STextureLayout& pLayout, D3DReso
 	CDeviceTexture* pDevTexture = new CDeviceTexture();
 	RenderTargetData* pRenderTargetData = nullptr;
 
-	int32 nESRAMOffset = SKIP_ESRAM;
 #if CRY_PLATFORM_DURANGO && DURANGO_USE_ESRAM
-	nESRAMOffset = pLayout.m_nESRAMOffset;
+	int32 nESRAMOffset = pLayout.m_nESRAMOffset;
 #endif
 
 	bool bIsSRGB = pLayout.m_bIsSRGB;
@@ -507,7 +503,10 @@ CDeviceTexture* CDeviceTexture::Associate(const STextureLayout& pLayout, D3DReso
 		bIsSRGB = true;
 #endif
 
+#if defined(SUPPORT_DEVICE_INFO)
 	CD3D9Renderer* r = gcpRendD3D;
+#endif //defined(SUPPORT_DEVICE_INFO)
+	
 	uint32 nWdt = pLayout.m_nWidth;
 	uint32 nHgt = pLayout.m_nHeight;
 	uint32 nDepth = pLayout.m_nDepth;

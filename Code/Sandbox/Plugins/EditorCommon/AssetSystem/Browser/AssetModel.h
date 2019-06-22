@@ -74,8 +74,8 @@ public:
 		CAutoRegisterColumn(const CItemModelAttribute* pAttribute, std::function<QVariant(const CAsset* pAsset, const CItemModelAttribute* pAttribute, int role)> getValueFn);
 	};
 
-	CAsset*                           ToAsset(const QModelIndex& index);
-	const CAsset*                     ToAsset(const QModelIndex& index) const;
+	static bool                       IsAsset(const QModelIndex& index);
+	static CAsset*                    ToAsset(const QModelIndex& index);
 
 	QModelIndex                       ToIndex(const CAsset& asset, int col = 0) const;
 
@@ -109,6 +109,10 @@ public:
 	static QStringList GetAssetTypesStrList();
 	static QStringList GetStatusesList();
 
+	//! Finds a subset of the columns that are relevant for the specified asset types.
+	//! \return Returns a vector of column indices.
+	static std::vector<int> GetColumnsByAssetTypes(const std::vector<CAssetType*>& assetTypes);
+
 private:
 	//! \see CAssetManager::Init()
 	void Init();
@@ -118,21 +122,24 @@ private:
 	//! Example: Assume MeshType returns a detail with name "vertexCount", and CItemModelAttribute vertexCountAttribute. Also, SkinType returns a detail with
 	//! name "numVertices" but same attribute vertexCountAttribute.
 	//! Then m_detailAttributes contains an element with A = vertexCountAttribute and M = { { MeshType, "vertexCount" }, { SkinType, "numVertices" } };
-	void BuildDetailAttributes();
+	void          BuildDetailAttributes();
 
-	void AddPredefinedComputedColumns();
+	void          AddPredefinedComputedColumns();
 
-	void PreReset();
-	void PostReset();
+	void          PreReset();
+	void          PostReset();
 
-	void PreInsert(const std::vector<CAsset*>& assets);
-	void PostInsert(const std::vector<CAsset*>& assets);
+	void          PreInsert(const std::vector<CAsset*>& assets);
+	void          PostInsert(const std::vector<CAsset*>& assets);
 
-	void PreRemove(const std::vector<CAsset*>& assets);
-	void PostRemove();
+	void          PreRemove(const std::vector<CAsset*>& assets);
+	void          PostRemove();
 
-	void OnAssetChanged(CAsset& asset);
-	void OnAssetThumbnailLoaded(CAsset& asset);
+	void          OnAssetChanged(CAsset& asset);
+	void          OnAssetThumbnailLoaded(CAsset& asset);
+
+	CAsset*       ToAssetInternal(const QModelIndex& index);
+	const CAsset* ToAssetInternal(const QModelIndex& index) const;
 
 	FavoritesHelper               m_favHelper;
 

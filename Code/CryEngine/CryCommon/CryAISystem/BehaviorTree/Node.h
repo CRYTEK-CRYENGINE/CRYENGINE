@@ -149,7 +149,7 @@ public:
 	#endif
 
 	#ifdef USING_BEHAVIOR_TREE_SERIALIZATION
-	//! Serialize node data to be shown in the Interim Editor
+	//! Serialize node data to be shown in the Behavior Tree Editor
 	//! All properties that are saved/loaded in the xml should be accessible (somehow) from the Editor
 	virtual void Serialize(Serialization::IArchive& archive) override
 	{

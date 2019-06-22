@@ -45,7 +45,7 @@ public:
 	}
 
 private:
-	static void ComputedSidesToCheckMasks(Edge* pEdges, const size_t edgesCount, const Tile::Vertex* pVertices, const vector3_t& tileSize);
+	static void ComputeSidesToCheckMasks(Edge* pEdges, const size_t edgesCount, const Tile::Vertex* pVertices, const vector3_t& tileSize);
 
 	std::vector<Edge> m_edges;
 	std::vector<uint16> m_adjacency; // array of indices to m_edges, use GetAdjancencyIdx function to get correct index from triangle and edge indices.

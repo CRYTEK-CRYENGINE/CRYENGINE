@@ -238,7 +238,7 @@ void VExampleInit::Init(const CSkinningInfo* pModelSkeleton,DynArray<SJointsAimI
 
 	Quatd qDefaultMidAimPose= !m_arrAbsPose[nWeaponBoneIdx].q;
 	Quatd arrOriginalAimPoses[27]; 
-	uint32 numRotJoints =rRot.size();
+
 	for (uint32 ap=0; ap<numAimPoses; ap++)
 	{
 		ComputeAimPose( rAIM, rRot,rPos, m_arrAbsPose, ap );
@@ -553,8 +553,6 @@ void VExampleInit::Init(const CSkinningInfo* pModelSkeleton,DynArray<SJointsAimI
 				q0=q1;
 				x0=x1;
 			}
-
-			uint32 ddd=0;
 		}
 
 		CHUNK_GAHAIM_INFO::VirtualExampleInit2 ve;
@@ -713,9 +711,6 @@ void VExampleInit::RecursiveTest( const Vec2d& ControlPoint, GlobalAnimationHead
 				break;
 		}
 
-		uint32 sum=o0+o1+o2+o3;
-//		assert(sum);
-
 		m_nIterations++;
 		if (m_nIterations>50)
 			return;
@@ -738,14 +733,16 @@ void VExampleInit::RecursiveTest( const Vec2d& ControlPoint, GlobalAnimationHead
 #pragma warning(disable : 6262) // this is only run in RC which has enough stack space
 uint32 VExampleInit::PointInQuat( const Vec2d& ControlPoint, GlobalAnimationHeaderAIM& rAIM, DynArray<SJointsAimIK_Rot>& rRot,DynArray<SJointsAimIK_Pos>& rPos,int nWBone,	int i0,int i1,int i2,int i3, const Vec4d& w0,const Vec4d& w1,const Vec4d& w2,const Vec4d& w3)
 {
+#if !defined(_RELEASE)
 	f64 sum0 = w0.x + w0.y + w0.z + w0.w;
-	assert( fabs(sum0-1.0f)<0.00001 );
+	assert(fabs(sum0 - 1.0f) < 0.00001);
 	f64 sum1 = w1.x + w1.y + w1.z + w1.w;
-	assert( fabs(sum1-1.0f)<0.00001 );
+	assert(fabs(sum1 - 1.0f) < 0.00001);
 	f64 sum2 = w2.x + w2.y + w2.z + w2.w;
-	assert( fabs(sum2-1.0f)<0.00001 );
+	assert(fabs(sum2 - 1.0f) < 0.00001);
 	f64 sum3 = w3.x + w3.y + w3.z + w3.w;
-	assert( fabs(sum3-1.0f)<0.00001 );
+	assert(fabs(sum3 - 1.0f) < 0.00001);
+#endif
 
 	Quatd mid;
 	mid.w		= f32(rAIM.m_MiddleAimPose.w);
@@ -836,7 +833,7 @@ uint32 VExampleInit::PointInQuat( const Vec2d& ControlPoint, GlobalAnimationHead
 	}
 	assert(c);
 	assert(c<1000);
-	f64 length = (polar[c]-polar[0]).GetLength();
+	//f64 length = (polar[c]-polar[0]).GetLength();
 	// we should either add a warning here or remove this assertion, 
 	// it makes debugging impossible
 	// assert(length<0.0001);

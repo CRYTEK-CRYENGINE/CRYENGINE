@@ -59,9 +59,9 @@ namespace Cry
 
 				if (ISteamUserStats* pUserStats = SteamUserStats())
 				{
-					int numAchievements = pUserStats->GetNumAchievements();
+					uint32 numAchievements = pUserStats->GetNumAchievements();
 
-					for (int i = 0; i < numAchievements; i++)
+					for (uint32 i = 0; i < numAchievements; i++)
 					{
 						pUserStats->ClearAchievement(pUserStats->GetAchievementName(i));
 					}
@@ -139,34 +139,99 @@ namespace Cry
 				return false;
 			}
 
-			IAchievement* CStatistics::GetAchievement(const char* szName)
+			IAchievement* CStatistics::GetAchievement(const char* szName, const SAchievementDetails* pDetails)
 			{
 				CRY_ASSERT(m_bInitialized);
 
 				if (ISteamUserStats* pUserStats = SteamUserStats())
 				{
-					bool bAchieved;
-					if (pUserStats->GetAchievement(szName, &bAchieved))
+					return GetOrCreateAchievement(szName, pDetails);
+				}
+
+				return nullptr;
+			}
+
+			IAchievement* CStatistics::GetAchievement(int id, const SAchievementDetails* pDetails)
+			{
+				CRY_ASSERT(m_bInitialized);
+
+				if (ISteamUserStats* pUserStats = SteamUserStats())
+				{
+					const char* szName = pUserStats->GetAchievementName(static_cast<uint32>(id));
+					if (szName && *szName)
 					{
-						return TryGetAchievement(szName, bAchieved);
+						return GetOrCreateAchievement(szName, pDetails);
 					}
 				}
 
 				return nullptr;
 			}
 
-			IAchievement* CStatistics::TryGetAchievement(const char* name, bool bAchieved)
+			IAchievement* CStatistics::GetAchievementInternal(const char* szName)
 			{
 				for (const std::unique_ptr<IAchievement>& pAchievement : m_achievements)
 				{
-					if (!strcmp(pAchievement->GetName(), name))
+					if (strcmp(pAchievement->GetName(), szName) == 0)
 					{
 						return pAchievement.get();
 					}
 				}
 
-				m_achievements.emplace_back(stl::make_unique<CAchievement>(*this, name, bAchieved));
-				return m_achievements.back().get();
+				return nullptr;
+			}
+
+			IAchievement* CStatistics::GetOrCreateAchievement(const char* szName, const SAchievementDetails* pDetails)
+			{
+				// Check if steam achievement was already created
+				if (IAchievement* pAchievement = GetAchievementInternal(szName))
+				{
+					return pAchievement;
+				}
+
+				ISteamUserStats* pUserStats = SteamUserStats();
+				CRY_ASSERT(pUserStats != nullptr);
+
+				// Check if steam achievement exists
+				CAchievement::Type achievementType;
+				int32 minProgress = 0;
+				int32 maxProgress = 1;
+				int32 curProgress;
+				bool hasAchievement = false;
+				bool achieved;
+				if (pUserStats->GetAchievement(szName, &achieved))
+				{
+					achievementType = CAchievement::Type::Regular;
+					hasAchievement = true;
+					curProgress = achieved ? maxProgress : minProgress;
+				}
+				else
+				{
+					// Steam achievement was not found with given name
+					// Check if steam stat exists for the given name which may be linked to a steam achievement as progress stat
+					if (pUserStats->GetStat(szName, &curProgress))
+					{
+						if (pDetails == nullptr)
+						{
+							stack_string str;
+							str.Format("[Steam] Achievement details for stat '%s' are missing", szName);
+							CRY_ASSERT_MESSAGE(false, str.c_str());
+							CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, str.c_str());
+							return nullptr;
+						}
+						achievementType = CAchievement::Type::Stat;
+						hasAchievement = true;
+						minProgress = pDetails->minProgress;
+						maxProgress = pDetails->maxProgress;
+					}
+				}
+
+				if (hasAchievement)
+				{
+					m_achievements.emplace_back(stl::make_unique<CAchievement>(*this, szName, achievementType, minProgress, maxProgress, curProgress));
+					return m_achievements.back().get();
+				}
+
+				return nullptr;
 			}
 
 			// Steam API callbacks
@@ -208,7 +273,7 @@ namespace Cry
 				// Check if the achievement was fully unlocked
 				if (pCallback->m_nCurProgress == 0 && pCallback->m_nMaxProgress == 0)
 				{
-					IAchievement* pAchievement = TryGetAchievement(pCallback->m_rgchAchievementName, true);
+					IAchievement* pAchievement = GetAchievementInternal(pCallback->m_rgchAchievementName);
 					CRY_ASSERT(pAchievement != nullptr);
 
 					if (pAchievement != nullptr)

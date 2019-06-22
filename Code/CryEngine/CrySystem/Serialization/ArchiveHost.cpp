@@ -10,6 +10,7 @@
 #include <CrySerialization/BlackBox.h>
 #include <CrySerialization/ClassFactory.h>
 #include <CrySystem/File/ICryPak.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 namespace Serialization
 {
@@ -53,12 +54,12 @@ public:
 
 	bool SaveJsonFile(const char* gameFilename, const SStruct& obj) override
 	{
-		char buffer[ICryPak::g_nMaxPath];
-		const char* filename = gEnv->pCryPak->AdjustFileName(gameFilename, buffer, ICryPak::FLAGS_FOR_WRITING);
+		CryPathString adjustedName;
+		gEnv->pCryPak->AdjustFileName(gameFilename, adjustedName, ICryPak::FLAGS_FOR_WRITING);
 		yasli::JSONOArchive oa;
 		if (!oa(obj))
 			return false;
-		return oa.save(filename);
+		return oa.save(adjustedName);
 	}
 
 	bool LoadJsonBuffer(const SStruct& obj, const char* buffer, size_t bufferLength) override
@@ -93,11 +94,11 @@ public:
 
 	bool SaveBinaryFile(const char* gameFilename, const SStruct& obj) override
 	{
-		char buffer[ICryPak::g_nMaxPath];
-		const char* filename = gEnv->pCryPak->AdjustFileName(gameFilename, buffer, ICryPak::FLAGS_FOR_WRITING);
+		CryPathString adjustedName;
+		gEnv->pCryPak->AdjustFileName(gameFilename, adjustedName, ICryPak::FLAGS_FOR_WRITING);
 		yasli::BinOArchive oa;
 		obj(oa);
-		return oa.save(filename);
+		return oa.save(adjustedName);
 	}
 
 	bool LoadBinaryBuffer(const SStruct& obj, const char* buffer, size_t bufferLength) override

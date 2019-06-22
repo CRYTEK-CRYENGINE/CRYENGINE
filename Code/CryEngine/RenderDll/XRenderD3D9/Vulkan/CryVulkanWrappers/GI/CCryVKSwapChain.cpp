@@ -163,7 +163,7 @@ HRESULT STDMETHODCALLTYPE CCryVKSwapChain::ResizeBuffers(
 		Desc.BufferCount, Desc.BufferDesc.Width, Desc.BufferDesc.Height, m_pVKSwapChain->GetKHRSurface(), NCryVulkan::DXGIFormatToVKFormat(Desc.BufferDesc.Format),
 		presentMode, NCryVulkan::DXGIUsagetoVkUsage((DXGI_USAGE)Desc.BufferUsage));
 
-	m_pDevice->FlushAndWaitForGPU();
+	m_pVKSwapChain->FlushAndWaitForBuffers();
 
 	if (pVKSwapChain)
 	{

@@ -73,14 +73,14 @@ namespace AISignals
 	public:
 		virtual const int                      GetNSignal() const override;
 		virtual const ISignalDescription&      GetSignalDescription() const override;
-		virtual const tAIObjectID              GetSenderID() const override;
+		virtual const EntityId                 GetSenderID() const override;
 		virtual IAISignalExtraData*            GetExtraData() override;
 
 		virtual void                           SetExtraData(IAISignalExtraData* val) override;
 		virtual bool                           HasSameDescription(const ISignal* pOther) const override;
 		virtual void                           Serialize(TSerialize ser) override;
 	private:
-		CSignal(const int nSignal, const ISignalDescription& signalDescription, const tAIObjectID senderID = 0, IAISignalExtraData* pEData = nullptr);
+		CSignal(const int nSignal, const ISignalDescription& signalDescription, const EntityId senderID = INVALID_ENTITYID, IAISignalExtraData* pEData = nullptr);
 
 		// AISIGNAL_INCLUDE_DISABLED     0
 		// AISIGNAL_DEFAULT              1
@@ -91,7 +91,7 @@ namespace AISignals
 		// AISIGNAL_INITIALIZATION       -100
 		int                                    m_nSignal;
 		const ISignalDescription*              m_pSignalDescription;
-		tAIObjectID                            m_senderID;
+		EntityId                               m_senderID;
 		IAISignalExtraData*                    m_pExtraData;
 	};
 
@@ -131,12 +131,12 @@ namespace AISignals
 		virtual void                               DeregisterGameSignalDescription(const ISignalDescription& signalDescription) override;
 
 #ifdef SIGNAL_MANAGER_DEBUG
-		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const tAIObjectID senderID = 0, IAISignalExtraData* pEData = nullptr) override;
+		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const EntityId senderID = INVALID_ENTITYID, IAISignalExtraData* pEData = nullptr) override;
 #else
-		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const tAIObjectID senderID = 0, IAISignalExtraData* pEData = nullptr) const override;
+		virtual SignalSharedPtr                    CreateSignal(const int nSignal, const ISignalDescription& signalDescription, const EntityId senderID = INVALID_ENTITYID, IAISignalExtraData* pEData = nullptr) const override;
 #endif //SIGNAL_MANAGER_DEBUG
 
-		virtual SignalSharedPtr                    CreateSignal_DEPRECATED(const int nSignal, const char* szCustomSignalTypeName, const tAIObjectID senderID = 0, IAISignalExtraData* pEData = nullptr) override;
+		virtual SignalSharedPtr                    CreateSignal_DEPRECATED(const int nSignal, const char* szCustomSignalTypeName, const EntityId senderID = INVALID_ENTITYID, IAISignalExtraData* pEData = nullptr) override;
 
 #ifdef SIGNAL_MANAGER_DEBUG
 		virtual void                               DebugDrawSignalsHistory() const override;

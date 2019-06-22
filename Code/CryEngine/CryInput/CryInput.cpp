@@ -43,21 +43,19 @@ class CEngineModule_CryInput : public IInputEngineModule
 	//////////////////////////////////////////////////////////////////////////
 	virtual bool Initialize(SSystemGlobalEnvironment& env, const SSystemInitParams& initParams) override
 	{
-		ISystem* pSystem = env.pSystem;
-
-		IInput* pInput = 0;
+		IInput* pInput = nullptr;
 
 		//Specific input systems only make sense in 'normal' mode when renderer is on
 		if (gEnv->pRenderer)
 		{
 #if defined(USE_DXINPUT)
-			pInput = new CDXInput(pSystem, (HWND) initParams.hWnd);
+			pInput = new CDXInput(env.pSystem, (HWND) initParams.hWnd);
 #elif defined(USE_DURANGOINPUT)
-			pInput = new CDurangoInput(pSystem);
+			pInput = new CDurangoInput(env.pSystem);
 #elif defined(USE_LINUXINPUT)
-			pInput = new CLinuxInput(pSystem);
+			pInput = new CLinuxInput(env.pSystem);
 #elif defined(USE_ORBIS_INPUT)
-			pInput = new COrbisInput(pSystem);
+			pInput = new COrbisInput(env.pSystem);
 #else
 			pInput = new CBaseInput();
 #endif

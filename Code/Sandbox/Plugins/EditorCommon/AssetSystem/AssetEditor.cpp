@@ -6,6 +6,8 @@
 #include "AssetManager.h"
 #include "AssetType.h"
 #include "Browser/AssetBrowserDialog.h"
+#include "Browser/AssetBrowserWidget.h"
+#include "Commands/QCommandAction.h"
 #include "Controls/QuestionDialog.h"
 #include "Controls/SingleSelectionDialog.h"
 #include "CryExtension/CryGUID.h"
@@ -15,6 +17,7 @@
 #include "FileOperationsExecutor.h"
 #include "FileUtils.h"
 #include "Loader/AssetLoaderHelpers.h"
+#include "Notifications/NotificationCenter.h"
 #include "PathUtils.h"
 #include "QtUtil.h"
 #include "ThreadingUtils.h"
@@ -28,6 +31,8 @@
 namespace Private_AssetEditor
 {
 
+static const char* const s_szAssetBrowserPanelName = "Asset Browser";
+
 //! Makes a temporary copy of files in construct time
 //!	and moves them back in the destructor.
 class CAutoFileRecovery
@@ -40,7 +45,7 @@ public:
 			return;
 		}
 
-		static const string tempPrefix = GetTemporaryDirectoryPath();
+		static const CryPathString tempPrefix(GetTemporaryDirectoryPath());
 
 		m_files.reserve(files.size());
 
@@ -85,10 +90,11 @@ public:
 		}
 	}
 private:
-	static string GetTemporaryDirectoryPath()
+	static CryPathString GetTemporaryDirectoryPath()
 	{
-		char path[ICryPak::g_nMaxPath] = {};
-		return GetISystem()->GetIPak()->AdjustFileName("%USER%/temp", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_ADD_TRAILING_SLASH);
+		CryPathString path;
+		GetISystem()->GetIPak()->AdjustFileName("%USER%/temp", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_ADD_TRAILING_SLASH);
+		return path;
 	}
 
 private:
@@ -140,10 +146,7 @@ CAssetEditor::CAssetEditor(const char* assetType, QWidget* pParent /*= nullptr*/
 	auto type = CAssetManager::GetInstance()->FindAssetType(assetType);
 	CRY_ASSERT(type);//type must exist
 	m_supportedAssetTypes.push_back(type);
-
-	m_pLockAction = GetIEditor()->GetICommandManager()->CreateNewAction("asset.toggle_instant_editing");
-
-	Init();
+	RegisterActions();
 }
 
 CAssetEditor::CAssetEditor(const QStringList& assetTypes, QWidget* pParent /*= nullptr*/)
@@ -157,17 +160,7 @@ CAssetEditor::CAssetEditor(const QStringList& assetTypes, QWidget* pParent /*= n
 		CRY_ASSERT(type);//type must exist
 		m_supportedAssetTypes.push_back(type);
 	}
-
-	m_pLockAction = GetIEditor()->GetICommandManager()->CreateNewAction("asset.toggle_instant_editing");
-
-	Init();
-}
-
-void CAssetEditor::Init()
-{
-	InitGenericMenu();
-
-	setAcceptDrops(true);
+	RegisterActions();
 }
 
 bool CAssetEditor::OpenAsset(CAsset* pAsset)
@@ -178,6 +171,13 @@ bool CAssetEditor::OpenAsset(CAsset* pAsset)
 
 	if (pAsset == m_assetBeingEdited)
 		return true;
+
+	string errorMsg;
+	if (!pAsset->GetType()->IsAssetValid(pAsset, errorMsg))
+	{
+		GetIEditor()->GetNotificationCenter()->ShowInfo("Cant open the asset for edit", QtUtil::ToQString(errorMsg));
+		return false;
+	}
 
 	if (!Close())
 	{
@@ -210,6 +210,15 @@ bool CAssetEditor::CanOpenAsset(const CAssetType* pType)
 		return false;
 
 	return std::find(m_supportedAssetTypes.begin(), m_supportedAssetTypes.end(), pType) != m_supportedAssetTypes.end();
+}
+
+void CAssetEditor::RegisterActions()
+{
+	RegisterAction("general.new", &CAssetEditor::OnNew);
+	RegisterAction("general.open", &CAssetEditor::OnOpen);
+	RegisterAction("general.save", &CAssetEditor::OnSave);
+	RegisterAction("general.save_as", &CAssetEditor::OnSaveAs);
+	RegisterAction("general.close", &CAssetEditor::OnClose);
 }
 
 void CAssetEditor::InitGenericMenu()
@@ -517,30 +526,6 @@ void CAssetEditor::closeEvent(QCloseEvent* pEvent)
 	{
 		pEvent->ignore();
 	}
-
-	for (CAssetType* pAssetType : m_supportedAssetTypes)
-	{
-		if (pAssetType->GetInstantEditor() == this)
-		{
-			pAssetType->SetInstantEditor(nullptr);
-		}
-	}
-}
-
-void CAssetEditor::customEvent(QEvent* pEvent)
-{
-	CDockableEditor::customEvent(pEvent);
-
-	if (!pEvent->isAccepted() && pEvent->type() == SandboxEvent::Command)
-	{
-		CommandEvent* pCommandEvent = static_cast<CommandEvent*>(pEvent);
-		const string& command = pCommandEvent->GetCommand();
-
-		if (command == "asset.toggle_instant_editing")
-		{
-			SetInstantEditingMode(m_pLockAction->isChecked());
-		}
-	}
 }
 
 void CAssetEditor::dragEnterEvent(QDragEnterEvent* pEvent)
@@ -659,28 +644,12 @@ void CAssetEditor::dropEvent(QDropEvent* pEvent)
 	}
 }
 
-QWidget* CAssetEditor::CreateInstantEditorToolbar()
+void CAssetEditor::CreateDefaultLayout(CDockableContainer* pSender)
 {
-	QToolBar* pToolbar = new QToolBar(this);
-	pToolbar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-	pToolbar->addAction(m_pLockAction);
+	using namespace Private_AssetEditor;
 
-	InitInstantEditing();
-
-	return pToolbar;
-}
-
-void CAssetEditor::InitInstantEditing()
-{
-	const bool foundInstantEditor = std::any_of(m_supportedAssetTypes.cbegin(), m_supportedAssetTypes.cend(), [](const CAssetType* pType)
-	{
-		return pType->GetInstantEditor() != nullptr;
-	});
-
-	if (!foundInstantEditor)
-	{
-		SetInstantEditingMode(true);
-	}
+	QWidget* const pAssetBrowser = pSender->SpawnWidget(s_szAssetBrowserPanelName);
+	OnCreateDefaultLayout(pSender, pAssetBrowser);
 }
 
 void CAssetEditor::DiscardAssetChanges()
@@ -738,31 +707,58 @@ bool CAssetEditor::OnSaveAs()
 	CAsset* pAsset = pAssetManager->FindAssetForMetadata(newAssetPath);
 	if (pAsset)
 	{
-		// Cancel if unable to delete.
-		pAssetManager->DeleteAssetsWithFiles({ pAsset });
-		pAsset = pAssetManager->FindAssetForMetadata(newAssetPath);
-		if (pAsset)
+		pAsset->signalAfterRemoved.Connect([this](const CAsset* pAsset)
 		{
-			return true;
-		}
+			CreateAssetCopyAndOpen(pAsset->GetMetadataFile());
+		});
+
+		pAssetManager->DeleteAssetsWithFiles({ pAsset });
+		return true;
+	}
+
+	// Create a copy.
+	if (!CreateAssetCopyAndOpen(newAssetPath))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool CAssetEditor::CreateAssetCopy(const string& path)
+{
+	if (!m_assetBeingEdited)
+	{
+		return false;
 	}
 
 	// Create a copy.
 	CAssetType::SCreateParams createParams;
 	createParams.pSourceAsset = m_assetBeingEdited;
-	if (!m_assetBeingEdited->GetType()->Create(newAssetPath, &createParams))
+
+	return m_assetBeingEdited->GetType()->Create(path, &createParams);
+}
+
+bool CAssetEditor::CreateAssetCopyAndOpen(const string& path)
+{
+	if (!CreateAssetCopy(path))
 	{
-		return true;
+		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "Unable to create asset copy: %s - from: %s", path, m_assetBeingEdited->GetMetadataFile());
+		return false;
 	}
 
-	pAsset = pAssetManager->FindAssetForMetadata(newAssetPath);
-	if (pAsset)
+	CAsset* pAsset = CAssetManager::GetInstance()->FindAssetForMetadata(path);
+	if (!pAsset)
 	{
-		// Close previous asset and unconditionally discard all changes.
-		DiscardAssetChanges();
-		CloseAsset();
-		OpenAsset(pAsset);
+		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "Unable to create asset copy: %s - from: %s", path, m_assetBeingEdited->GetMetadataFile());
+		return false;
 	}
+
+	// Close and discard all changes
+	DiscardAssetChanges();
+	CloseAsset();
+	OpenAsset(pAsset);
+
 	return true;
 }
 
@@ -787,7 +783,7 @@ bool CAssetEditor::SaveBackup(const string& backupFolder)
 	// 4. Restore old files from the temp copy.
 
 	CAutoAssetRecovery tempCopy(*m_assetBeingEdited);
-	
+
 	if (!tempCopy.IsValid() || !OnSave())
 	{
 		return false;
@@ -805,42 +801,35 @@ bool CAssetEditor::SaveBackup(const string& backupFolder)
 		pCryPak->MakeDir(PathUtil::GetDirectory(destFile.c_str()));
 		FileUtils::MoveFileAllowOverwrite(file.c_str(), destFile.c_str());
 	}
-	
+
 	// tempCopy restores asset files.
 	return true;
 }
 
-void CAssetEditor::SetInstantEditingMode(bool isActive)
+bool CAssetEditor::OnSaveAsset(CEditableAsset& editAsset)
 {
-	if (isActive)
-	{
-		for (CAssetType* pAssetType : m_supportedAssetTypes)
-		{
-			if (pAssetType->GetInstantEditor() == this)
-			{
-				continue;
-			}
+	return GetAssetBeingEdited()->GetEditingSession()->OnSaveAsset(editAsset);
+}
 
-			if (pAssetType->GetInstantEditor())
-			{
-				pAssetType->GetInstantEditor()->SetInstantEditingMode(false);
-			}
-			pAssetType->SetInstantEditor(this);
-		}
-	}
-	else
-	{
-		for (CAssetType* pAssetType : m_supportedAssetTypes)
-		{
-			if (pAssetType->GetInstantEditor() == this)
-			{
-				pAssetType->SetInstantEditor(nullptr);
-			}
-		}
-	}
+void CAssetEditor::Initialize()
+{
+	using namespace Private_AssetEditor;
 
-	if (m_pLockAction && m_pLockAction->isChecked() != isActive)
+	CDockableEditor::Initialize();
+
+	InitGenericMenu();
+
+	setAcceptDrops(true);
+
+	if (IsDockingSystemEnabled())
 	{
-		m_pLockAction->setChecked(isActive);
+		EnableDockingSystem();
+		RegisterDockableWidget(s_szAssetBrowserPanelName, [this]()
+		{
+			CAssetBrowserWidget* const pAssetBrowser = new CAssetBrowserWidget(this);
+			pAssetBrowser->Initialize();
+			return pAssetBrowser;
+		}, true, false);
 	}
+	OnInitialize();
 }

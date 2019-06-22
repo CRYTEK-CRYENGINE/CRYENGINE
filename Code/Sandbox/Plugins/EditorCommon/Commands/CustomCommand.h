@@ -13,6 +13,7 @@ public:
 	// Only want to be able to set name on custom commands
 	void           SetName(const char* name);
 	void           SetCommandString(const char* commandStr);
+	virtual bool   CanBeUICommand() const override { return GetUiInfo() != nullptr; }
 
 	virtual bool   IsCustomCommand() const override  { return true; }
 	virtual string GetCommandString() const override { return m_command; }

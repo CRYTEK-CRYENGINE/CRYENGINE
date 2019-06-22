@@ -179,7 +179,7 @@ static inline void InlineInitializationProcessing(const char *sDescription)
 
 IGameRef CGameStartup::Init(SSystemInitParams &startupParams)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Game startup initialisation");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Game startup initialisation");
 
 	IGameRef pOut = Reset(startupParams.pSystem);
 	CRY_ASSERT(gEnv && GetISystem());
@@ -188,7 +188,7 @@ IGameRef CGameStartup::Init(SSystemInitParams &startupParams)
 
 	InlineInitializationProcessing("CGameStartup::Init");
 
-  LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	// Load thread config
 	gEnv->pThreadManager->GetThreadConfigManager()->LoadConfig("%engine%/config/game.thread_config");

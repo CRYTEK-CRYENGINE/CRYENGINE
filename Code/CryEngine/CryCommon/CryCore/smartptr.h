@@ -56,12 +56,15 @@ public:
 	_I*         get() const { return p; }
 	_smart_ptr& operator=(_I* newp)
 	{
-		_I* oldp = p;
-		p = newp;
-		if (p)
-			p->AddRef();
-		if (oldp)
-			oldp->Release();
+		if (newp != this->p)
+		{
+			_I* oldp = p;
+			p = newp;
+			if (p)
+				p->AddRef();
+			if (oldp)
+				oldp->Release();
+		}
 		return *this;
 	}
 
@@ -80,11 +83,14 @@ public:
 
 	_smart_ptr& operator=(const _smart_ptr& newp)
 	{
-		if (newp.p)
-			newp.p->AddRef();
-		if (p)
-			p->Release();
-		p = newp.p;
+		if (newp.p != this->p)
+		{
+			if (newp.p)
+				newp.p->AddRef();
+			if (p)
+				p->Release();
+			p = newp.p;
+		}
 		return *this;
 	}
 
@@ -104,11 +110,14 @@ public:
 	_smart_ptr& operator=(const _smart_ptr<_Y>& newp)
 	{
 		_I* const p2 = newp.get();
-		if (p2)
-			p2->AddRef();
-		if (p)
-			p->Release();
-		p = p2;
+		if (p2 != this->p)
+		{
+			if (p2)
+				p2->AddRef();
+			if (p)
+				p->Release();
+			p = p2;
+		}
 		return *this;
 	}
 

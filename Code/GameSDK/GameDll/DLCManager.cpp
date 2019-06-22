@@ -230,7 +230,7 @@ void CDLCManager::OnDLCMounted(const XmlNodeRef &rootNode, const char* sDLCRootF
 							DoDLCUnlocks( unlocksXml, dlcId);
 						}						
 
-						CryFixedStringT<ICryPak::g_nMaxPath> path;
+						CryPathString path;
 
 						//Level Extras pak contains things which need to be accessed relative to the Level Path
 						//eg. Level meta data, icons and mini maps
@@ -373,7 +373,7 @@ void CDLCManager::OnDLCRemoved(const char* sDLCRootFolder)
 				m_allowedDLCs &= ~BIT(iDLC);
 
 				//close the paks
-				CryFixedStringT<ICryPak::g_nMaxPath> path;
+				CryPathString path;
 
 				path.Format("%s/dlcLevelExtras.pak", sDLCRootFolder);
 				CryLog( "DLC: Closing %s", path.c_str() );
@@ -391,7 +391,7 @@ void CDLCManager::OnDLCRemoved(const char* sDLCRootFolder)
 bool CDLCManager::VerifyCRCs(const XmlNodeRef &crcNode, const char* sDLCRootFolder)
 {
 	bool success = true;
-	CryFixedStringT<ICryPak::g_nMaxPath> path;
+	CryPathString path;
 	int numFiles = crcNode->getChildCount();
 	XmlString fileName;
 	uint32 storedCrc;

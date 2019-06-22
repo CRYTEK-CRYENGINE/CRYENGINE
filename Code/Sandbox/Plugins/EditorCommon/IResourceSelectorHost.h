@@ -114,7 +114,7 @@ struct SResourceSelectorContext
 	}
 };
 
-//The result of a resource relection operation
+//The result of a resource selection operation
 struct SResourceSelectionResult
 {
 	//!If the selection is accepted
@@ -123,14 +123,21 @@ struct SResourceSelectionResult
 	dll_string selectedResource;
 };
 
-// TResourceSelecitonFunction is used to declare handlers for specific types.
-//
-// For canceled dialogs previousValue should be returned.
-typedef SResourceSelectionResult (* TResourceSelectionFunction)(const SResourceSelectorContext& selectorContext, const char* previousValue);
-typedef void (*                     TResourceEditFunction)(const SResourceSelectorContext& selectorContext, const char* previousValue);
-typedef SResourceSelectionResult (* TResourceSelectionFunctionWithContext)(const SResourceSelectorContext& selectorContext, const char* previousValue, void* contextObject);
-typedef dll_string (*               TResourceValidationFunction)(const SResourceSelectorContext& selectorContext, const char* newValue, const char* previousValue);
-typedef dll_string (*               TResourceValidationFunctionWithContext)(const SResourceSelectorContext& selectorContext, const char* newValue, const char* previousValue, void* contextObject);
+//The result of a resource validation operation
+struct SResourceValidationResult
+{
+	//!If the validation is accepted
+	bool       isValid;
+	//!The validated resource
+	dll_string validatedResource;
+};
+
+//!Selection and validation functions used to declare handlers for specific types.
+typedef SResourceSelectionResult (*  TResourceSelectionFunction)(const SResourceSelectorContext& selectorContext, const char* previousValue);
+typedef void (*                      TResourceEditFunction)(const SResourceSelectorContext& selectorContext, const char* previousValue);
+typedef SResourceSelectionResult (*  TResourceSelectionFunctionWithContext)(const SResourceSelectorContext& selectorContext, const char* previousValue, void* contextObject);
+typedef SResourceValidationResult (* TResourceValidationFunction)(const SResourceSelectorContext& selectorContext, const char* newValue, const char* previousValue);
+typedef SResourceValidationResult (* TResourceValidationFunctionWithContext)(const SResourceSelectorContext& selectorContext, const char* newValue, const char* previousValue, void* contextObject);
 
 // See note at the beginning of the file.
 struct IResourceSelectorHost
@@ -198,13 +205,13 @@ public:
 	Serialization::TypeID GetContextType() const { return contextType; }
 
 	//! The field can only have free-form input if validators were specified, otherwise only the picker allows to choose a new value
-	bool                     UsesInputField() const;
+	bool                      UsesInputField() const;
 
-	bool                     HasLegacyPicker() const { return addLegacyPicker; }
-	bool                     CanEdit() const         { return edit != nullptr; }
-	void                     EditResource(const SResourceSelectorContext& context, const char* value) const;
-	dll_string               ValidateValue(const SResourceSelectorContext& context, const char* newValue, const char* previousValue) const;
-	SResourceSelectionResult SelectResource(const SResourceSelectorContext& context, const char* previousValue) const;
+	bool                      HasLegacyPicker() const { return addLegacyPicker; }
+	bool                      CanEdit() const         { return edit != nullptr; }
+	void                      EditResource(const SResourceSelectorContext& context, const char* value) const;
+	SResourceValidationResult ValidateValue(const SResourceSelectorContext& context, const char* newValue, const char* previousValue) const;
+	SResourceSelectionResult  SelectResource(const SResourceSelectorContext& context, const char* previousValue) const;
 
 	virtual ~SStaticResourceSelectorEntry() {}
 	virtual bool ShowTooltip(const SResourceSelectorContext& context, const char* value) const;
@@ -273,7 +280,7 @@ public:
 	template<class T>
 	SStaticResourceSelectorEntry(const char* typeName
 	                             , SResourceSelectionResult (*function)(const SResourceSelectorContext&, const char* previousValue, T * context)
-	                             , dll_string (*validation)(const SResourceSelectorContext&, const char* newValue, const char* previousValue, T * context)
+	                             , SResourceValidationResult (*validation)(const SResourceSelectorContext&, const char* newValue, const char* previousValue, T * context)
 	                             , const char* icon
 	                             , const bool addLegacyPicker = false)
 		: typeName(typeName)

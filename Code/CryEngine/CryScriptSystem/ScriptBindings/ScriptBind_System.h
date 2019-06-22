@@ -694,6 +694,8 @@ private:
 
 	SmartScriptTable m_pScriptTimeTable;
 	SmartScriptTable m_pGetEntitiesCacheTable;
+
+	std::set<string> m_registeredCommands;
 };
 
 #endif // __ScriptBind_System_h__

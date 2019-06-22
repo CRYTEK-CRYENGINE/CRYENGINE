@@ -4,6 +4,7 @@
 
 constexpr CVarWhitelistEntry g_cvarWhitelist[] =
 {
+	"sys_project",
 	"sys_game_folder",
 
 	"map",

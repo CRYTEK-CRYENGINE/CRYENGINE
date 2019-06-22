@@ -8,9 +8,9 @@
 #include <CrySystem/IEngineModule.h>
 #include <CryExtension/ClassWeaver.h>
 
-#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE)
 	#include <Logger.h>
-#endif        // CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE
+#endif        // CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -43,11 +43,11 @@ class CEngineModule_CryAudioImplPortAudio : public IImplModule
 		gEnv->pAudioSystem->AddRequestListener(&CEngineModule_CryAudioImplPortAudio::OnEvent, nullptr, ESystemEvents::ImplSet);
 		SRequestUserData const data(ERequestFlags::ExecuteBlocking | ERequestFlags::CallbackOnExternalOrCallingThread);
 
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioImpl, 0, "CryAudio::Impl::PortAudio::CImpl");
+		MEMSTAT_CONTEXT(EMemStatContextType::AudioImpl, "CryAudio::Impl::PortAudio::CImpl");
 		gEnv->pAudioSystem->SetImpl(new CImpl, data);
 		gEnv->pAudioSystem->RemoveRequestListener(&CEngineModule_CryAudioImplPortAudio::OnEvent, nullptr);
 
-#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE)
 		if (m_bSuccess)
 		{
 			Cry::Audio::Log(ELogType::Always, "CryAudioImplPortAudio loaded");
@@ -56,7 +56,7 @@ class CEngineModule_CryAudioImplPortAudio : public IImplModule
 		{
 			Cry::Audio::Log(ELogType::Error, "CryAudioImplPortAudio failed to load");
 		}
-#endif        // CRY_AUDIO_IMPL_PORTAUDIO_USE_PRODUCTION_CODE
+#endif        // CRY_AUDIO_IMPL_PORTAUDIO_USE_DEBUG_CODE
 
 		return m_bSuccess;
 	}

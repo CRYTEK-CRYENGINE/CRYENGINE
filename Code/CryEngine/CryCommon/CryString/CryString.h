@@ -5,8 +5,9 @@
 #if !defined(NOT_USE_CRY_STRING)
 
 	#include "CryStringUtils.h" // cry_vsprintf(), CryStringUtils_Internal::compute_length_formatted_va
+	#include "CryThreading/CryAtomics.h"
 
-	#include <string.h>
+	#include <cstring>
 	#include <wchar.h>
 	#include <limits.h>
 	#include <stdarg.h>
@@ -419,8 +420,8 @@ protected:
 		int             nAllocSize; //!< Size of memory allocated at the end of this class.
 
 		value_type*     GetChars() { return (value_type*)(this + 1); }
-		void            AddRef()   { nRefCount++; /*InterlockedIncrement(&_header()->nRefCount);*/ }
-		int             Release()  { return --nRefCount; }
+		void            AddRef()   { CryInterlockedIncrement(&nRefCount); }
+		int             Release()  { return CryInterlockedDecrement(&nRefCount); }
 	};
 	//! \endcond
 
@@ -460,7 +461,7 @@ public:
 	// Passing *this is safe since the char pointer is already set and therefore is the this-ptr constructed complete enough.
 #pragma warning (push)
 #pragma warning (disable : 4355) //'this' : used in base member initializer list
-	CConstCharWrapper(const char* const cpString) : cpChar(cpString), str(*this){ assert(cpString); }//!< Create stack string.
+	CConstCharWrapper(const char* const cpString) : cpChar(cpString), str(*this){ CRY_ASSERT(cpString); }//!< Create stack string.
 #pragma warning (pop)
 	~CConstCharWrapper(){ str.m_str = CryStringT<char>::_emptyHeader()->GetChars(); }  //!< Reset string.
 	operator const CryStringT<char> &() const { return str; }                          //!< Cast operator to const string reference.
@@ -484,7 +485,7 @@ private:
 template<class T>
 inline typename CryStringT<T>::StrHeader * CryStringT<T>::_header() const
 {
-	assert(m_str != NULL);
+	CRY_ASSERT(m_str != NULL);
 	return ((StrHeader*)m_str) - 1;
 }
 
@@ -692,8 +693,8 @@ inline void CryStringT<T >::_Initialize()
 template<class T>
 inline void CryStringT<T >::_AllocData(size_type nLen)
 {
-	assert(nLen >= 0);
-	assert(nLen <= INT_MAX - 1);    // max size (enough room for 1 extra)
+	CRY_ASSERT(nLen >= 0);
+	CRY_ASSERT(nLen <= INT_MAX - 1);    // max size (enough room for 1 extra)
 
 	if (nLen == 0)
 		_Initialize();
@@ -727,17 +728,16 @@ inline void CryStringT<T >::_Free()
 template<class T>
 inline void CryStringT<T >::_FreeData(StrHeader* pData)
 {
-	if (pData->nRefCount >= 0) // Not empty string.
+	if (pData->nRefCount != -1) // -1 is the default empty string
 	{
-		assert(pData->nRefCount != 0);
-		if (pData->Release() <= 0)
+		const int count = pData->Release();
+		CRY_ASSERT_MESSAGE(count > -1, "If this is -1 then most likely a double release happened because of a race condition");
+
+		if (count == 0)
 		{
 			size_t allocLen = sizeof(StrHeader) + (pData->nAllocSize + 1) * sizeof(value_type);
 			_usedMemory(-check_cast<int>(allocLen));   // For statistics.
-
 			CryModuleFree((void*)pData);
-			//int allocLen = sizeof(StrHeader) + (pData->nAllocSize+1)*sizeof(value_type);
-			//string_alloc::deallocate( (value_type*)pData,allocLen );
 		}
 	}
 }
@@ -753,7 +753,7 @@ inline CryStringT<T>::CryStringT()
 template<class T>
 inline CryStringT<T>::CryStringT(const CryStringT<T>& str)
 {
-	assert(str._header()->nRefCount != 0);
+	CRY_ASSERT(str._header()->nRefCount != 0);
 	if (str._header()->nRefCount >= 0)
 	{
 		m_str = str.m_str;
@@ -893,8 +893,8 @@ inline void CryStringT<T >::clear()
 		_Free();
 	else
 		resize(0);
-	assert(length() == 0);
-	assert(_header()->nRefCount < 0 || capacity() == 0);
+	CRY_ASSERT(length() == 0);
+	CRY_ASSERT(_header()->nRefCount < 0 || capacity() == 0);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1064,7 +1064,7 @@ inline CryStringT<T>& CryStringT<T >::assign(const_iterator _First, const_iterat
 template<class T>
 inline typename CryStringT<T>::value_type CryStringT<T >::at(size_type index) const
 {
-	assert(index >= 0 && index < length());
+	CRY_ASSERT(index >= 0 && index < length());
 	return m_str[index];
 }
 
@@ -1072,7 +1072,7 @@ inline typename CryStringT<T>::value_type CryStringT<T >::at(size_type index) co
    inline value_type& CryStringT<T>::at( size_type index )
    {
    // same as GetAt
-   assert( index >= 0 && index < length() );
+   CRY_ASSERT( index >= 0 && index < length() );
    return m_str[index];
    }
  */
@@ -1080,7 +1080,7 @@ inline typename CryStringT<T>::value_type CryStringT<T >::at(size_type index) co
 /*
    inline CryStringT<T>::value_type CryStringT<T>::operator[]( size_type index ) const
    {
-   assert( index >= 0 && index < length() );
+   CRY_ASSERT( index >= 0 && index < length() );
    return m_str[index];
    }
  */
@@ -1089,7 +1089,7 @@ inline typename CryStringT<T>::value_type CryStringT<T >::at(size_type index) co
    inline value_type& CryStringT<T>::operator[]( size_type index )
    {
    // same as GetAt
-   assert( index >= 0 && index < length() );
+   CRY_ASSERT( index >= 0 && index < length() );
    return m_str[index];
    }
  */
@@ -1110,7 +1110,7 @@ inline int CryStringT<T >::compare(size_type _Pos1, size_type _Num1, const CrySt
 template<class T>
 inline int CryStringT<T >::compare(size_type _Pos1, size_type _Num1, const CryStringT<T>& _Str, size_type nOff, size_type nCount) const
 {
-	assert(nOff < _Str.length());
+	CRY_ASSERT(nOff < _Str.length());
 	return compare(_Pos1, _Num1, _Str.m_str + nOff, nCount);
 }
 
@@ -1129,7 +1129,7 @@ inline int CryStringT<T >::compare(const wchar_t* _Ptr) const
 template<class T>
 inline int CryStringT<T >::compare(size_type _Pos1, size_type _Num1, const value_type* _Ptr, size_type _Num2) const
 {
-	assert(_Pos1 < length());
+	CRY_ASSERT(_Pos1 < length());
 	if (length() - _Pos1 < _Num1)
 		_Num1 = length() - _Pos1; // trim to size
 
@@ -1153,7 +1153,7 @@ inline int CryStringT<T >::compareNoCase(size_type _Pos1, size_type _Num1, const
 template<class T>
 inline int CryStringT<T >::compareNoCase(size_type _Pos1, size_type _Num1, const CryStringT<T>& _Str, size_type nOff, size_type nCount) const
 {
-	assert(nOff < _Str.length());
+	CRY_ASSERT(nOff < _Str.length());
 	return compareNoCase(_Pos1, _Num1, _Str.m_str + nOff, nCount);
 }
 
@@ -1166,7 +1166,7 @@ inline int CryStringT<T >::compareNoCase(const value_type* _Ptr) const
 template<class T>
 inline int CryStringT<T >::compareNoCase(size_type _Pos1, size_type _Num1, const value_type* _Ptr, size_type _Num2) const
 {
-	assert(_Pos1 < length());
+	CRY_ASSERT(_Pos1 < length());
 	if (length() - _Pos1 < _Num1)
 		_Num1 = length() - _Pos1; // trim to size
 
@@ -1178,7 +1178,7 @@ inline int CryStringT<T >::compareNoCase(size_type _Pos1, size_type _Num1, const
 template<class T>
 inline typename CryStringT<T>::size_type CryStringT<T >::copy(value_type* _Ptr, size_type nCount, size_type nOff) const
 {
-	assert(nOff < length());
+	CRY_ASSERT(nOff < length());
 	if (nOff + nCount > length()) // trim to offset.
 		nCount = length() - nOff;
 
@@ -1293,7 +1293,7 @@ inline CryStringT<T> operator+(const CryStringT<T>& str1, const typename CryStri
 template<class T>
 inline CryStringT<T> operator+(const typename CryStringT<T>::value_type* str1, const CryStringT<T>& str2)
 {
-	assert(str1 == NULL || CryStringT<T>::_IsValidString(str1));
+	CRY_ASSERT(str1 == NULL || CryStringT<T>::_IsValidString(str1));
 	CryStringT<T> s;
 	s.reserve(CryStringT<T>::_strlen(str1) + str2.size());
 	s.append(str1);
@@ -1338,7 +1338,7 @@ inline CryStringT<T>& CryStringT<T >::operator=(const CryStringT<T>& str)
 template<class T>
 inline CryStringT<T>& CryStringT<T >::operator=(const_str str)
 {
-	assert(str == NULL || _IsValidString(str));
+	CRY_ASSERT(str == NULL || _IsValidString(str));
 	_Assign(str, _strlen(str));
 	return *this;
 }
@@ -1346,7 +1346,7 @@ inline CryStringT<T>& CryStringT<T >::operator=(const_str str)
 template<class T>
 inline CryStringT<T>& CryStringT<T >::operator+=(const_str str)
 {
-	assert(str == NULL || _IsValidString(str));
+	CRY_ASSERT(str == NULL || _IsValidString(str));
 	_ConcatenateInPlace(str, _strlen(str));
 	return *this;
 }
@@ -1382,7 +1382,7 @@ inline typename CryStringT<T>::size_type CryStringT<T >::find(value_type ch, siz
 template<class T>
 inline typename CryStringT<T>::size_type CryStringT<T >::find(const_str subs, size_type pos) const
 {
-	assert(_IsValidString(subs));
+	CRY_ASSERT(_IsValidString(subs));
 	if (pos > length())
 	{
 		return npos;
@@ -1464,7 +1464,7 @@ inline typename CryStringT<T>::size_type CryStringT<T >::find_first_of(value_typ
 template<class T>
 inline typename CryStringT<T>::size_type CryStringT<T >::find_first_of(const_str charSet, size_type nOff) const
 {
-	assert(_IsValidString(charSet));
+	CRY_ASSERT(_IsValidString(charSet));
 	if (nOff > length())
 	{
 		return npos;
@@ -1476,7 +1476,7 @@ inline typename CryStringT<T>::size_type CryStringT<T >::find_first_of(const_str
 template<>
 inline CryStringT<wchar_t>::size_type CryStringT<wchar_t >::find_first_of(const_str charSet, size_type nOff) const
 {
-	assert(_IsValidString(charSet));
+	CRY_ASSERT(_IsValidString(charSet));
 	if (nOff > length())
 	{
 		return npos;
@@ -2061,7 +2061,7 @@ template<class T>
 inline CryStringT<T>& CryStringT<T >::FormatV(const T* format, va_list args)
 {
 	static_assert(std::is_same<T, char>::value, "This function supports 'char' only");
-	assert(_IsValidString(format));
+	CRY_ASSERT(_IsValidString(format));
 
 	#if CRY_COMPILER_MSVC && CRY_COMPILER_VERSION <= 1700
 	// Visual Studio 2012 and older don't have va_copy()
@@ -2282,7 +2282,7 @@ inline CryStringT<T> CryStringT<T >::Left(size_type count) const
 template<class T>
 inline CryStringT<T> CryStringT<T >::SpanIncluding(const_str charSet) const
 {
-	assert(_IsValidString(charSet));
+	CRY_ASSERT(_IsValidString(charSet));
 	return Left((size_type)strspn(m_str, charSet));
 }
 
@@ -2290,7 +2290,7 @@ inline CryStringT<T> CryStringT<T >::SpanIncluding(const_str charSet) const
 template<class T>
 inline CryStringT<T> CryStringT<T >::SpanExcluding(const_str charSet) const
 {
-	assert(_IsValidString(charSet));
+	CRY_ASSERT(_IsValidString(charSet));
 	return Left((size_type)strcspn(m_str, charSet));
 }
 
@@ -2516,7 +2516,7 @@ inline CryStringLocalT<T> operator+(const CryStringLocalT<T>& str1, const typena
 template<class T>
 inline CryStringLocalT<T> operator+(const typename CryStringLocalT<T>::value_type* str1, const CryStringLocalT<T>& str2)
 {
-	assert(str1 == NULL || CryStringLocalT<T>::_IsValidString(str1));
+	CRY_ASSERT(str1 == NULL || CryStringLocalT<T>::_IsValidString(str1));
 	CryStringLocalT<T> s;
 	s.reserve(CryStringLocalT<T>::_strlen(str1) + str2.size());
 	s.append(str1);

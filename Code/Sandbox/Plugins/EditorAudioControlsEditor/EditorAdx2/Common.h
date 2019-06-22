@@ -12,8 +12,8 @@ namespace Impl
 {
 namespace Adx2
 {
-extern CryAudio::Impl::Adx2::SPoolSizes g_connections;
-extern Platforms g_platforms;
+using ConnectionsByContext = std::map<CryAudio::ContextId, CryAudio::Impl::Adx2::SPoolSizes>;
+extern ConnectionsByContext g_connections;
 
 static CryIcon s_errorIcon;
 static CryIcon s_aisacControlIcon;
@@ -77,56 +77,73 @@ inline CryIcon const& GetTypeIcon(EItemType const type)
 	switch (type)
 	{
 	case EItemType::AisacControl:
-		return s_aisacControlIcon;
-		break;
+		{
+			return s_aisacControlIcon;
+		}
 	case EItemType::Binary:
-		return s_binaryIcon;
-		break;
+		{
+			return s_binaryIcon;
+		}
 	case EItemType::Bus:
-		return s_busIcon;
-		break;
+		{
+			return s_busIcon;
+		}
 	case EItemType::Category:
-		return s_categoryIcon;
-		break;
+		{
+			return s_categoryIcon;
+		}
 	case EItemType::CategoryGroup:
-		return s_categoryGroupIcon;
-		break;
+		{
+			return s_categoryGroupIcon;
+		}
 	case EItemType::Cue:
-		return s_cueIcon;
-		break;
+		{
+			return s_cueIcon;
+		}
 	case EItemType::CueSheet:
-		return s_cueSheetIcon;
-		break;
+		{
+			return s_cueSheetIcon;
+		}
 	case EItemType::DspBusSetting:
-		return s_dspBusSettingIcon;
-		break;
+		{
+			return s_dspBusSettingIcon;
+		}
 	case EItemType::FolderCue:
-		return s_folderGreyIcon;
-		break;
+		{
+			return s_folderGreyIcon;
+		}
 	case EItemType::FolderGlobal:
-		return s_folderRedIcon;
-		break;
+		{
+			return s_folderRedIcon;
+		}
 	case EItemType::FolderCueSheet:
-		return s_folderYellowIcon;
-		break;
+		{
+			return s_folderYellowIcon;
+		}
 	case EItemType::GameVariable:
-		return s_gameVariableIcon;
-		break;
+		{
+			return s_gameVariableIcon;
+		}
 	case EItemType::Selector:
-		return s_selectorIcon;
-		break;
+		{
+			return s_selectorIcon;
+		}
 	case EItemType::SelectorLabel:
-		return s_selectorLabelIcon;
-		break;
+		{
+			return s_selectorLabelIcon;
+		}
 	case EItemType::Snapshot:
-		return s_snapshotIcon;
-		break;
+		{
+			return s_snapshotIcon;
+		}
 	case EItemType::WorkUnit:
-		return s_workUnitIcon;
-		break;
+		{
+			return s_workUnitIcon;
+		}
 	default:
-		return s_errorIcon;
-		break;
+		{
+			return s_errorIcon;
+		}
 	}
 }
 
@@ -136,52 +153,67 @@ inline QString const& TypeToString(EItemType const type)
 	switch (type)
 	{
 	case EItemType::AisacControl:
-		return s_aiscacControlTypeName;
-		break;
+		{
+			return s_aiscacControlTypeName;
+		}
 	case EItemType::Binary:
-		return s_binaryTypeName;
-		break;
+		{
+			return s_binaryTypeName;
+		}
 	case EItemType::Bus:
-		return s_busTypeName;
-		break;
+		{
+			return s_busTypeName;
+		}
 	case EItemType::Category:
-		return s_categoryTypeName;
-		break;
+		{
+			return s_categoryTypeName;
+		}
 	case EItemType::CategoryGroup:
-		return s_categoryGroupTypeName;
-		break;
+		{
+			return s_categoryGroupTypeName;
+		}
 	case EItemType::Cue:
-		return s_cueTypeName;
-		break;
+		{
+			return s_cueTypeName;
+		}
 	case EItemType::CueSheet:
-		return s_cueSheetTypeName;
-		break;
+		{
+			return s_cueSheetTypeName;
+		}
 	case EItemType::DspBusSetting:
-		return s_dspBusSettingTypeName;
-		break;
-	case EItemType::FolderCue:
-	case EItemType::FolderGlobal:
+		{
+			return s_dspBusSettingTypeName;
+		}
+	case EItemType::FolderCue:    // Intentional fall-through.
+	case EItemType::FolderGlobal: // Intentional fall-through.
 	case EItemType::FolderCueSheet:
-		return s_folderTypeName;
-		break;
+		{
+			return s_folderTypeName;
+		}
 	case EItemType::GameVariable:
-		return s_gameVariableTypeName;
-		break;
+		{
+			return s_gameVariableTypeName;
+		}
 	case EItemType::Selector:
-		return s_selectorTypeName;
-		break;
+		{
+			return s_selectorTypeName;
+		}
 	case EItemType::SelectorLabel:
-		return s_selectorLabelTypeName;
-		break;
+		{
+			return s_selectorLabelTypeName;
+		}
 	case EItemType::Snapshot:
-		return s_snapshotTypeName;
-		break;
+		{
+			return s_snapshotTypeName;
+		}
 	case EItemType::WorkUnit:
-		return s_workUnitTypeName;
-		break;
+		{
+			return s_workUnitTypeName;
+		}
 	default:
-		return s_emptyTypeName;
-		break;
+		{
+			return s_emptyTypeName;
+		}
 	}
 }
 } // namespace Adx2

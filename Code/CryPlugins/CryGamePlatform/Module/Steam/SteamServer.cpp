@@ -35,8 +35,8 @@ namespace Cry
 				{
 					pGameServer->SetKeyValue("version", gameVersionString.c_str());
 
-					char str[CRYFILE_MAX_PATH];
-					CryGetCurrentDirectory(CRYFILE_MAX_PATH, str);
+					char str[_MAX_PATH];
+					CryGetCurrentDirectory(_MAX_PATH, str);
 
 					pGameServer->SetProduct(gEnv->pSystem->GetIProjectManager()->GetCurrentProjectName());
 					pGameServer->SetGameDescription(gEnv->pSystem->GetIProjectManager()->GetCurrentProjectName());

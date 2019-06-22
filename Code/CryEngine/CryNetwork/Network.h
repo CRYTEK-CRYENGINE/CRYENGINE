@@ -59,6 +59,10 @@ class CServiceManager;
 class CDistributedLogger;
 #endif
 
+#if CRY_PLATFORM_DURANGO
+class CDurangoAssociationTemplate;
+#endif
+
 #if defined(ENABLE_LW_PROFILERS)
 	#define NET_THREAD_TIMING
 #endif
@@ -488,6 +492,10 @@ private:
 	bool                         m_bDelayedExternalWork;
 
 	SNetGameInfo                 m_gameInfo;
+
+#if CRY_PLATFORM_DURANGO
+	std::unique_ptr<CDurangoAssociationTemplate> m_pAssociationTemplate;
+#endif
 
 	bool UpdateTick(bool mt);
 

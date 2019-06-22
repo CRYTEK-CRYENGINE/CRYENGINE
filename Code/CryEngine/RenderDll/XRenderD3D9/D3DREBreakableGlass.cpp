@@ -333,8 +333,8 @@ void CREBreakableGlass::UpdateImpactShaderConstants()
 //--------------------------------------------------------------------------------------------------
 void CREBreakableGlass::SetImpactShaderConstants(CShader* pShader)
 {
-	const uint numDecalElems = 2;
-//	pShader->FXSetPSFloat(s_ImpactDecalParamName, (Vec4*)m_decalPSConsts, GLASSCFG_MAX_NUM_IMPACT_DECALS * numDecalElems);
+	//const uint numDecalElems = 2;
+	//pShader->FXSetPSFloat(s_ImpactDecalParamName, (Vec4*)m_decalPSConsts, GLASSCFG_MAX_NUM_IMPACT_DECALS * numDecalElems);
 }//-------------------------------------------------------------------------------------------------
 
 #ifdef GLASS_DEBUG_MODE

@@ -17,13 +17,13 @@ public:
 	{
 		if (bLoading)
 		{
-			const char* pSelection = keyNode->getAttr("node");
-			cry_strcpy(key.m_selection, pSelection);
+			const char* pCameraDesc = keyNode->getAttr("node");
+			cry_strcpy(key.m_cameraDesc, pCameraDesc);
 			keyNode->getAttr("BlendTime", key.m_blendTime);
 		}
 		else
 		{
-			keyNode->setAttr("node", key.m_selection);
+			keyNode->setAttr("node", key.m_cameraDesc);
 			keyNode->setAttr("BlendTime", key.m_blendTime);
 		}
 	}
@@ -172,7 +172,7 @@ public:
 
 	virtual void           Serialize(Serialization::IArchive& ar) override
 	{
-		ar(Serialization::AudioRTPC(m_audioParameterName), "AudioParameterName", "Parameter Name");
+		ar(Serialization::AudioParameter(m_audioParameterName), "AudioParameterName", "Parameter Name");
 
 		if (ar.isInput())
 		{
@@ -453,13 +453,14 @@ public:
 			key.m_captureFormat = SCaptureFormatInfo::GetCaptureFormatByExtension(desc);
 
 			desc = keyNode->getAttr("folder");
-			cry_strcpy(key.m_folder, desc);
-			keyNode->getAttr("once", key.m_bOnce);
-			desc = keyNode->getAttr("prefix");
+			key.m_folder = desc;
 
+			keyNode->getAttr("once", key.m_bOnce);
+
+			desc = keyNode->getAttr("prefix");
 			if (desc)
 			{
-				cry_strcpy(key.m_prefix, desc);
+				key.m_prefix = desc;
 			}
 
 			keyNode->getAttr("bufferToCapture", reinterpret_cast<int&>(key.m_bufferToCapture));

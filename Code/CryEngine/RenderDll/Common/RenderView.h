@@ -2,24 +2,23 @@
 
 #pragma once
 
-#include <CryThreading/CryThreadSafeRendererContainer.h>
-#include <CryThreading/CryThreadSafeWorkerContainer.h>
+#include "LockFreeAddVector.h"
+#include "RendererResources.h"
+#include "RenderItemDrawer.h"
+#include "RenderOutput.h"
+#include "RenderPipeline.h"
+
+#include <CryThreading/CryThreadSafePushContainer.h>
 #include <CryThreading/IJobManager.h>
 #include <CryMath/Range.h>
 
-#include <Common/RendererResources.h>
-
-#include "RenderPipeline.h"
-#include "RenderItemDrawer.h"
-
-#include "LockFreeAddVector.h"
-#include "RenderOutput.h"
-
-class CSceneRenderPass;
 class CPermanentRenderObject;
-struct SGraphicsPipelinePassContext;
-class CRenderPolygonDataPool;
 class CREClientPoly;
+class CRenderPolygonDataPool;
+class CSceneRenderPass;
+
+struct SGraphicsPipelinePassContext;
+
 enum EObjectCompilationOptions : uint8;
 
 //////////////////////////////////////////////////////////////////////////
@@ -113,11 +112,9 @@ public:
 	};
 	using STransparentSegments = std::vector<STransparentSegment>;
 
-	//typedef CThreadSafeWorkerContainer<SRendItem> RenderItems;
 	typedef lockfree_add_vector<SRendItem>       RenderItems;
 	typedef std::vector<SShadowFrustumToRender>  ShadowFrustums;
 	typedef std::vector<SShadowFrustumToRender*> ShadowFrustumsPtr;
-	typedef lockfree_add_vector<CRenderObject*>  ModifiedObjects;
 
 	static const int32 MaxFogVolumeNum = 64;
 
@@ -130,39 +127,38 @@ public:
 	// IRenderView
 	//////////////////////////////////////////////////////////////////////////
 	virtual void       SetFrameId(int frameId) override;
-	virtual int        GetFrameId() const final                        { return m_frameId; };
+	virtual int        GetFrameId() const final                        { return m_frameId; }
 
-	virtual void       SetFrameTime(CTimeValue frameTime) final        { m_frameTime = frameTime; };
-	virtual CTimeValue GetFrameTime() const final                      { return m_frameTime; };
+	virtual void       SetFrameTime(CTimeValue frameTime) final        { m_frameTime = frameTime; }
+	virtual CTimeValue GetFrameTime() const final                      { return m_frameTime; }
 
 	virtual void       SetSkipRenderingFlags(uint32 nFlags) override   { m_skipRenderingFlags = nFlags; }
-	virtual uint32     GetSkipRenderingFlags() const final             { return m_skipRenderingFlags; };
+	virtual uint32     GetSkipRenderingFlags() const final             { return m_skipRenderingFlags; }
 
 	virtual void       SetShaderRenderingFlags(uint32 nFlags) override { m_shaderRenderingFlags = nFlags; }
-	virtual uint32     GetShaderRenderingFlags() const final           { return m_shaderRenderingFlags; };
+	virtual uint32     GetShaderRenderingFlags() const final           { return m_shaderRenderingFlags; }
 
 	virtual void       SetZoomFactor(float zFactor) override           { m_zFactor = zFactor; }
-	virtual float      GetZoomFactor() const final                     { return m_zFactor; };
-	
+	virtual float      GetZoomFactor() const final                     { return m_zFactor; }
+
 	virtual void       SetCameras(const CCamera* pCameras, int cameraCount) final;
 	virtual void       SetPreviousFrameCameras(const CCamera* pCameras, int cameraCount) final;
+
 
 	// Begin/End writing items to the view from 3d engine traversal.
 	virtual void                 SwitchUsageMode(EUsageMode mode) override;
 
-	virtual CryJobState*         GetWriteMutex() override { return &m_jobstate_Write; }
-
 	virtual void                 AddRenderObject(CRenderElement* pRenderElement, SShaderItem& pShaderItem, CRenderObject* pRenderObject, const SRenderingPassInfo& passInfo, int list, int afterWater) threadsafe final;
 	virtual void                 AddPermanentObject(CRenderObject* pObject, const SRenderingPassInfo& passInfo) final;
 
-	virtual void                 SetGlobalFog(const SRenderGlobalFogDescription& fogDescription) final { m_globalFogDescription = fogDescription; };
+	virtual void                 SetGlobalFog(const SRenderGlobalFogDescription& fogDescription) final { m_globalFogDescription = fogDescription; }
 
 	virtual void                 SetTargetClearColor(const ColorF& color, bool bEnableClear) override;
 
 	virtual CRenderObject*       AllocateTemporaryRenderObject() final;
 
-	void                         SetSkinningDataPools(const SSkinningDataPoolInfo& skinningData) { m_SkinningData = skinningData;   }
-	const SSkinningDataPoolInfo& GetSkinningDataPools() const                                    { return m_SkinningData;           }
+	void                         SetSkinningDataPools(const SSkinningDataPoolInfo& skinningData) { m_SkinningData = skinningData; }
+	const SSkinningDataPoolInfo& GetSkinningDataPools() const                                    { return m_SkinningData; }
 	virtual uint32               GetSkinningPoolIndex() const final                              { return m_SkinningData.poolIndex; }
 
 	//! HDR and Z Depth render target
@@ -176,26 +172,29 @@ public:
 	CRenderOutput*       GetRenderOutput()       { return m_pRenderOutput.get(); }
 
 	//! Retrieve rendering viewport for this Render View
-	virtual void                   SetViewport(const SRenderViewport& viewport) final;
-	virtual const SRenderViewport& GetViewport() const final;
+	virtual void                                      SetViewport(const SRenderViewport& viewport) final;
+	virtual const SRenderViewport&                    GetViewport() const final;
+
+	virtual void                                      SetGraphicsPipeline(std::shared_ptr<CGraphicsPipeline> pipeline) final;
+	virtual const std::shared_ptr<CGraphicsPipeline>& GetGraphicsPipeline() const final                                      { return m_pGraphicsPipeline; }
 
 	//! Get resolution of the render target surface(s)
 	//! Note that Viewport can be smaller then this.
-	Vec2_tpl<uint32_t> GetRenderResolution() const { return { m_RenderWidth, m_RenderHeight }; }
+	Vec2_tpl<uint32_t> GetRenderResolution() const  { return { m_RenderWidth, m_RenderHeight }; }
 	Vec2_tpl<uint32_t> GetOutputResolution() const  { return m_pRenderOutput ? m_pRenderOutput->GetOutputResolution() : GetRenderResolution(); }
 	Vec2_tpl<uint32_t> GetDisplayResolution() const { return m_pRenderOutput ? m_pRenderOutput->GetDisplayResolution() : GetRenderResolution(); }
 
-	void  ChangeRenderResolution(uint32_t  renderWidth, uint32_t  renderHeight, bool bForce);
+	void               ChangeRenderResolution(uint32_t renderWidth, uint32_t renderHeight, bool bForce);
 	//////////////////////////////////////////////////////////////////////////
 
 public:
 	CRenderView(const char* name, EViewType type, CRenderView* pParentView = nullptr, ShadowMapFrustum* pShadowFrustumOwner = nullptr);
 	~CRenderView();
 
-	EViewType    GetType() const                         { return m_viewType;  }
+	EViewType    GetType() const                         { return m_viewType; }
 
-	void         SetParentView(CRenderView* pParentView) { m_pParentView = pParentView; };
-	CRenderView* GetParentView() const                   { return m_pParentView;  };
+	void         SetParentView(CRenderView* pParentView) { m_pParentView = pParentView; }
+	CRenderView* GetParentView() const                   { return m_pParentView; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// View flags
@@ -209,24 +208,25 @@ public:
 	const CCamera& GetCamera(CCamera::EEye eye)         const { CRY_ASSERT(eye == CCamera::eEye_Left || eye == CCamera::eEye_Right); return m_camera[eye]; }
 	const CCamera& GetPreviousCamera(CCamera::EEye eye) const { CRY_ASSERT(eye == CCamera::eEye_Left || eye == CCamera::eEye_Right); return m_previousCamera[eye]; }
 
-	CCamera::EEye  GetCurrentEye() const;
+	CCamera::EEye  GetCurrentEye() const                      { return m_currentEye; }
+	void           SetCurrentEye(CCamera::EEye eye)           { m_currentEye = eye; }
 
-	RenderItems&  GetRenderItems(ERenderListID renderList)
+	RenderItems&   GetRenderItems(ERenderListID renderList)
 	{
 		CRY_ASSERT(m_usageMode != eUsageModeWriting || renderList == EFSLIST_PREPROCESS); // While writing we must not read back items.
 		return m_renderItems[renderList];
 	}
 
-	bool          HasRenderItems(ERenderListID renderList, uint32 includeFilter)
+	bool HasRenderItems(ERenderListID renderList, uint32 includeFilter)
 	{
 		return SRendItem::TestCombinedBatchFlags(GetBatchFlags(renderList), includeFilter);
 	}
 
-	uint32        GetBatchFlags(ERenderListID renderList) const { return m_batchFlags[renderList]; }
+	uint32        GetBatchFlags(ERenderListID renderList) const                 { return m_batchFlags[renderList]; }
 	ERenderListID GetRecordingRenderList(ERenderListID nRenderListOrSide) const { return IsShadowGenView() ? EFSLIST_SHADOW_GEN : nRenderListOrSide; }
 
-	void         AddRenderItem(CRenderElement* pElem, CRenderObject* RESTRICT_POINTER pObj, const SShaderItem& shaderItem, ERenderListID renderList, uint32 nBatchFlags, const SRenderingPassInfo& passInfo,
-							   SRendItemSorter sorter) threadsafe;
+	void          AddRenderItem(CRenderElement* pElem, CRenderObject* RESTRICT_POINTER pObj, const SShaderItem& shaderItem, ERenderListID renderList, uint32 nBatchFlags, const SRenderingPassInfo& passInfo,
+	                            SRendItemSorter sorter) threadsafe;
 
 	bool       CheckPermanentRenderObjects() const { return !m_permanentObjects.empty(); }
 	void       AddPermanentObjectImpl(CPermanentRenderObject* pObject, const SRenderingPassInfo& passInfo);
@@ -240,12 +240,11 @@ public:
 	void       PrepareForRendering();
 	void       PrepareForWriting();
 
-	bool       AllowsHDRRendering() const;
-	bool       IsPostProcessingEnabled() const;
-	bool       IsRecursive() const        { return m_viewType == eViewType_Recursive; }
-	bool       IsShadowGenView() const    { return m_viewType == eViewType_Shadow; }
-	bool       IsBillboardGenView() const { return m_viewType == eViewType_BillboardGen; }
-	EUsageMode GetUsageMode() const       { return m_usageMode; }
+	bool                           IsRecursive()        const { return m_viewType == eViewType_Recursive; }
+	bool                           IsShadowGenView()    const { return m_viewType == eViewType_Shadow; }
+	bool                           IsBillboardGenView() const { return m_viewType == eViewType_BillboardGen; }
+	EUsageMode                     GetUsageMode()       const { return m_usageMode; }
+	CRenderObject::ERenderPassType GetPassType()        const { return IsShadowGenView() ? CRenderObject::eRenderPass_Shadows : CRenderObject::eRenderPass_General; }
 	//////////////////////////////////////////////////////////////////////////
 	// Shadows related
 	void AddShadowFrustumToRender(const SShadowFrustumToRender& frustum);
@@ -255,10 +254,10 @@ public:
 
 	ItemsRange                           GetShadowItemsRange(ShadowMapFrustum* pFrustum, int nFrustumSide);
 	RenderItems&                         GetShadowItems(ShadowMapFrustum* pFrustum, int nFrustumSide);
-	std::vector<SShadowFrustumToRender>& GetFrustumsToRender() { return m_shadows.m_renderFrustums; };
+	std::vector<SShadowFrustumToRender>& GetFrustumsToRender() { return m_shadows.m_renderFrustums; }
 
-	ShadowFrustumsPtr& GetShadowFrustumsForLight(int lightId);
-	ShadowFrustumsPtr& GetShadowFrustumsByType(eShadowFrustumRenderType type)             { return m_shadows.m_frustumsByType[type]; }
+	ShadowFrustumsPtr&                   GetShadowFrustumsForLight(int lightId);
+	ShadowFrustumsPtr&       GetShadowFrustumsByType(eShadowFrustumRenderType type)       { return m_shadows.m_frustumsByType[type]; }
 	const ShadowFrustumsPtr& GetShadowFrustumsByType(eShadowFrustumRenderType type) const { return m_shadows.m_frustumsByType[type]; }
 
 	// Can start executing post write jobs on shadow views
@@ -268,7 +267,7 @@ public:
 	virtual ShadowMapFrustum* GetShadowFrustumOwner() const final                   { return m_shadows.m_pShadowFrustumOwner; }
 
 	//////////////////////////////////////////////////////////////////////////
-	const SRenderGlobalFogDescription& GetGlobalFog() const        { return m_globalFogDescription; };
+	const SRenderGlobalFogDescription& GetGlobalFog() const        { return m_globalFogDescription; }
 	bool                               IsGlobalFogEnabled() const  { return m_globalFogDescription.bEnable; }
 
 	ColorF                             GetTargetClearColor() const { return m_targetClearColor; }
@@ -286,14 +285,19 @@ public:
 
 	virtual RenderLightIndex AddLight(eDeferredLightType lightType, const SRenderLight& light) final;
 	virtual RenderLightIndex GetLightsCount(eDeferredLightType lightType) const final;
-	virtual SRenderLight&    GetLight(eDeferredLightType lightType, RenderLightIndex nLightId) final;
+	virtual SRenderLight& GetLight(eDeferredLightType lightType, RenderLightIndex nLightId) final;
 
-	RenderLightsList&        GetLightsArray(eDeferredLightType lightType);
-	SRenderLight*            AddLightAtIndex(eDeferredLightType lightType, const SRenderLight& light, RenderLightIndex index = -1);
+	RenderLightsList&     GetLightsArray(eDeferredLightType lightType);
+	SRenderLight*         AddLightAtIndex(eDeferredLightType lightType, const SRenderLight& light, RenderLightIndex index = -1);
 
-	bool                     HaveSunLight() { return GetSunLight() != nullptr; }
-	const SRenderLight*      GetSunLight() const;
+	bool                  HasSunLight() { return GetSunLight() != nullptr; }
+	const SRenderLight*   GetSunLight() const;
+	const Vec4            GetSunLightColor();
+	const Vec3            GetSunLightDirection();
 	//////////////////////////////////////////////////////////////////////////
+
+	virtual const SRendererData& GetRendererData() const override { return m_rendererData; }
+	virtual SRendererData&       GetRendererData() override       { return m_rendererData; }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Clip Volumes
@@ -327,14 +331,14 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// Polygons.
 	virtual void            AddPolygon(const SRenderPolygonDescription& poly, const SRenderingPassInfo& passInfo) final;
-	CRenderPolygonDataPool* GetPolygonDataPool() { return m_polygonDataPool.get(); };
+	CRenderPolygonDataPool* GetPolygonDataPool() { return m_polygonDataPool.get(); }
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
 	SDeferredDecal*              AddDeferredDecal(const SDeferredDecal& source);
 	std::vector<SDeferredDecal>& GetDeferredDecals();
 	size_t                       GetDeferredDecalsCount() const       { return m_deferredDecals.size(); }
-	void                         SetDeferredNormalDecals(bool bValue) { m_bDeferrredNormalDecals = bValue; };
+	void                         SetDeferredNormalDecals(bool bValue) { m_bDeferrredNormalDecals = bValue; }
 	bool                         GetDeferredNormalDecals() const      { return m_bDeferrredNormalDecals; }
 	//////////////////////////////////////////////////////////////////////////
 
@@ -351,13 +355,14 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	void                   Clear();
 
-	const SRenderViewInfo& GetViewInfo(CCamera::EEye eye) const { return m_viewInfo[eye]; };
-	size_t                 GetViewInfoCount() const             { return m_viewInfoCount; };
+	const SRenderViewInfo& GetViewInfo(CCamera::EEye eye) const { return m_viewInfo[eye]; }
+	size_t                 GetViewInfoCount() const             { return m_viewInfoCount; }
 
 	void                   CompileModifiedRenderObjects();
 	void                   CalculateViewInfo();
 
 	void                   StartOptimizeTransparentRenderItemsResolvesJob();
+	void                   OptimizeTransparentRenderItemsResolvesJob();
 	void                   WaitForOptimizeTransparentRenderItemsResolvesJob() const;
 	bool                   HasResolveForList(ERenderListID list) const
 	{
@@ -365,7 +370,7 @@ public:
 		const auto refractionMask = FB_REFRACTION | FB_RESOLVE_FULL;
 		const auto flags = GetBatchFlags(list);
 		return (list == EFSLIST_TRANSP_BW || list == EFSLIST_TRANSP_AW || list == EFSLIST_TRANSP_NEAREST) &&
-			 !!(flags & refractionMask) && CRendererCVars::CV_r_Refraction && !bSecondaryViewport;
+		       !!(flags & refractionMask) && CRendererCVars::CV_r_Refraction && !bSecondaryViewport;
 	}
 	const STransparentSegments& GetTransparentSegments(ERenderListID list) const
 	{
@@ -379,8 +384,9 @@ private:
 
 	void                   Job_PostWrite();
 	void                   Job_SortRenderItemsInList(ERenderListID list);
-	SRendItem              PrepareRenderItemForRenderList(const SRendItem& ri, uint32 nBatchFlags, uint64 objFlags, CRenderObject* pObj, float objDistance, ERenderListID list);
+	SRendItem              PrepareRenderItemForRenderList(const SRendItem& ri, uint32 nBatchFlags, uint64 objFlags, CRenderObject* pObj, float objDistance, ERenderListID list, const SShaderItem& shaderItem);
 	void                   SortLights();
+	void                   PreparePermanentRenderObjectsForCompile();
 	void                   ExpandPermanentRenderObjects();
 	void                   UpdateModifiedShaderItems();
 	void                   ClearTemporaryCompiledObjects();
@@ -390,50 +396,43 @@ private:
 
 	CCompiledRenderObject* AllocCompiledObject(CRenderObject* pObj, CRenderElement* pElem, const SShaderItem& shaderItem);
 
-	std::size_t            OptimizeTransparentRenderItemsResolves(STransparentSegments &segments, RenderItems &renderItems, std::size_t total_resolve_count) const;
-	TRect_tpl<uint16>      ComputeResolveViewport(const AABB &aabb, bool forceFullscreenUpdate) const;
+	std::size_t            OptimizeTransparentRenderItemsResolves(STransparentSegments& segments, RenderItems& renderItems, std::size_t total_resolve_count) const;
+	TRect_tpl<uint16>      ComputeResolveViewport(const AABB& aabb, bool forceFullscreenUpdate) const;
 	STransparentSegments&  GetTransparentSegments(ERenderListID list)
 	{
 		CRY_ASSERT_MESSAGE(list == EFSLIST_TRANSP_BW || list == EFSLIST_TRANSP_AW || list == EFSLIST_TRANSP_NEAREST, "'list' does not name a transparent list");
 		const int idx = static_cast<int>(list - EFSLIST_TRANSP_BW);
 		return m_transparentSegments[idx];
 	}
-	
-private:
-	EUsageMode       m_usageMode;
-	const EViewType  m_viewType;
-	string           m_name;
-	/// @See SRenderingPassInfo::ESkipRenderingFlags
-	uint32           m_skipRenderingFlags;
-	/// @see EShaderRenderingFlags
-	uint32           m_shaderRenderingFlags;
-	float            m_zFactor = 1.0f;
 
-	int              m_frameId;
-	CTimeValue       m_frameTime;
+private:
+	EUsageMode      m_usageMode;
+	const EViewType m_viewType;
+	string          m_name;
+	/// @See SRenderingPassInfo::ESkipRenderingFlags
+	uint32          m_skipRenderingFlags;
+	uint32          m_shaderRenderingFlags;
+	float           m_zFactor = 1.0f;
+
+	int             m_frameId;
+	CTimeValue      m_frameTime;
 
 	// For shadows or recursive view parent will be main rendering view
-	CRenderView*     m_pParentView;
+	CRenderView*    m_pParentView;
 
-	RenderItems      m_renderItems[EFSLIST_NUM];
-	volatile uint32  m_batchFlags[EFSLIST_NUM];
+	RenderItems     m_renderItems[EFSLIST_NUM];
+	volatile uint32 m_batchFlags[EFSLIST_NUM];
 
 	// Resolve passes information
 	STransparentSegments m_transparentSegments[3];
 	mutable CryJobState  m_optimizeTransparentRenderItemsResolvesJobStatus;
 
-	// Temporary render objects storage
-	struct STempObjects
-	{
-		CThreadSafeWorkerContainer<CRenderObject*> tempObjects;
-		CRenderObject*                             pRenderObjectsPool = nullptr;
-		uint32                                     numObjectsInPool = 0;
-		CryCriticalSection                         accessLock;
-	};
-	STempObjects m_tempRenderObjects;
+	CryMT::CThreadSafePushContainer<CRenderObject> m_tempRenderObjects;
 
 	// Light sources affecting the view.
 	RenderLightsList m_lights[eDLT_NumLightTypes];
+
+	SRendererData    m_rendererData;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Clip Volumes
@@ -443,7 +442,8 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// Fog Volumes
 	std::vector<SFogVolumeInfo> m_fogVolumes[IFogVolumeRenderNode::eFogVolumeType_Count];
-	lockfree_add_vector<ColorF> m_fogVolumeContributions;
+	CryMT::CThreadSafePushContainer<ColorF> m_fogVolumeContributions;
+	volatile int m_numFogVolumes;
 	//////////////////////////////////////////////////////////////////////////
 
 	//////////////////////////////////////////////////////////////////////////
@@ -480,27 +480,33 @@ private:
 	SSkinningDataPoolInfo m_SkinningData;
 	//////////////////////////////////////////////////////////////////////////
 
-	uint32           m_RenderWidth = -1;
-	uint32           m_RenderHeight = -1;
+	std::shared_ptr<CGraphicsPipeline> m_pGraphicsPipeline;
 
-	CRenderOutputPtr m_pRenderOutput; // Output render target (currently used for recursive pass and secondary viewport)
-	TexSmartPtr      m_pColorTarget = nullptr;
-	TexSmartPtr      m_pDepthTarget = nullptr;
+	uint32                             m_RenderWidth = -1;
+	uint32                             m_RenderHeight = -1;
 
-	SRenderViewport  m_viewport;
+	CRenderOutputPtr                   m_pRenderOutput; // Output render target (currently used for recursive pass and secondary viewport)
+	TexSmartPtr                        m_pColorTarget = nullptr;
+	TexSmartPtr                        m_pDepthTarget = nullptr;
 
-	bool             m_bTrackUncompiledItems;
-	bool             m_bAddingClientPolys;
+	SRenderViewport                    m_viewport;
 
-	uint32           m_skinningPoolIndex = 0;
+	bool                               m_bTrackUncompiledItems;
+	bool                               m_bAddingClientPolys;
+
+	uint32                             m_skinningPoolIndex = 0;
+
+	struct SPermanentObjectRecord;
 
 	// Render objects modified by this view.
 	struct SPermanentRenderObjectCompilationData
 	{
-		CPermanentRenderObject*    pObject;
-		EObjectCompilationOptions  compilationFlags;
+		const SPermanentObjectRecord*   pPermanentRenderObjectRecord;
+		uint32                          subObjectIdx;
+		CPermanentRenderObject*         pObject;
+		EObjectCompilationOptions       recompilationFlags;
 	};
-	lockfree_add_vector<SPermanentRenderObjectCompilationData> m_permanentRenderObjectsToCompile;
+	CryMT::CThreadSafePushContainer<SPermanentRenderObjectCompilationData> m_permanentRenderObjectsToCompile;
 
 	// Temporary compiled objects for this frame
 	struct STemporaryRenderObjectCompilationData
@@ -510,33 +516,54 @@ private:
 		ERenderObjectFlags     objFlags;
 		ERenderElementFlags    elmFlags;
 	};
-	lockfree_add_vector<STemporaryRenderObjectCompilationData> m_temporaryCompiledObjects;
+	CryMT::CThreadSafePushContainer<STemporaryRenderObjectCompilationData> m_temporaryCompiledObjects;
 
 	// shader items that need to be updated
-	lockfree_add_vector<std::pair<CShaderResources*, CShader*>> m_shaderItemsToUpdate;
+	CryMT::CThreadSafePushContainer<std::pair<CShaderResources*, CShader*>> m_shaderItemsToUpdate;
 
 	// Persistent objects added to the view.
 	struct SPermanentObjectRecord
 	{
-		CPermanentRenderObject* pRenderObject;
-		uint32                  itemSorter;
-		int                     shadowFrustumSide;
-		bool                    requiresInstanceDataUpdate;
+		CPermanentRenderObject*                    pRenderObject;
+		uint32                                     itemSorter;
+		int                                        shadowFrustumSide;
+		bool                                       requiresInstanceDataUpdate;
+
+		bool                                       passPreparedMask[CRenderObject::eRenderPass_NumTypes];
+		CRenderObject::SInstanceInfo               instanceInfo;
+		std::vector<CRenderObject::SInstanceInfo>  subObjectInstanceInfo;
+
+		void prepareForCompilation();
+
+		const CRenderObject::SInstanceInfo& getSubObjectInstanceInfo(const uint32 idx) const
+		{
+			if (idx == 0)
+				return instanceInfo;
+			return subObjectInstanceInfo[idx - 1];
+		}
+
+		bool IsPreparedForPass(CRenderObject::ERenderPassType passType) const
+		{
+			return passPreparedMask[passType];
+		}
 	};
-	lockfree_add_vector<SPermanentObjectRecord> m_permanentObjects;
+	CryMT::CThreadSafePushContainer<SPermanentObjectRecord> m_permanentObjects;
 
 	//////////////////////////////////////////////////////////////////////////
+	CCamera::EEye m_currentEye = CCamera::eEye_Left;
+
 	// Camera and view information required to render this RenderView
 	CCamera         m_camera[CCamera::eEye_eCount];           // Current camera
 	CCamera         m_previousCamera[CCamera::eEye_eCount];   // Previous frame render camera
 
 	SRenderViewInfo m_viewInfo[CCamera::eEye_eCount];         // Calculated View Information
+															  // Index 0 belongs to the current eye, other eye come after that.
+
 	size_t          m_viewInfoCount;                          // Number of current m_viewInfo structures.
 
 	// Internal job states to control when view job processing is done.
 	CryJobState                    m_jobstate_Sort;
 	CryJobState                    m_jobstate_PostWrite;
-	CryJobState                    m_jobstate_Write;
 	CryJobState                    m_jobstate_ShadowGen;
 
 	CryCriticalSectionNonRecursive m_lock_UsageMode;
@@ -552,7 +579,7 @@ private:
 
 	struct SShadows
 	{
-		using TiledShadingFrustumCoveragePair =    std::pair<SShadowFrustumToRender*, Vec4>;
+		using TiledShadingFrustumCoveragePair = std::pair<SShadowFrustumToRender*, Vec4>;
 		using TiledShadingFrustumListByMaskSlice = std::vector<std::vector<TiledShadingFrustumCoveragePair>>;
 
 		// Shadow frustums needed for a view.
@@ -563,7 +590,7 @@ private:
 		std::array<ShadowFrustumsPtr, eShadowFrustumRenderType_Count> m_frustumsByType;
 		TiledShadingFrustumListByMaskSlice                            m_frustumsPerTiledShadingSlice;
 
-		CThreadSafeRendererContainer<AABB>                            m_nearestCasterBoxes;
+		CryMT::CThreadSafePushContainer<AABB>                         m_nearestCasterBoxes;
 
 		void Clear();
 		void AddNearestCaster(CRenderObject* pObj, const SRenderingPassInfo& passInfo);
@@ -584,13 +611,13 @@ private:
 	CRenderItemDrawer m_RenderItemDrawer;
 
 public:
-	void                     DrawCompiledRenderItems(const SGraphicsPipelinePassContext& passContext) const;
+	void                                                  DrawCompiledRenderItems(const SGraphicsPipelinePassContext& passContext) const;
 
-	CRenderItemDrawer&       GetDrawer()       { return m_RenderItemDrawer; }
-	const CRenderItemDrawer& GetDrawer() const { return m_RenderItemDrawer; }
+	CRenderItemDrawer&                                    GetDrawer()                                                            { return m_RenderItemDrawer; }
+	const CRenderItemDrawer&                              GetDrawer() const                                                      { return m_RenderItemDrawer; }
 
 	void                                                  InjectAuxiliaryStatObject(SRendParams rp, IStatObj* pStatObj) override { m_auxiliaryStatObjects.emplace_back(std::make_pair(rp, pStatObj)); }
-	const std::vector<std::pair<SRendParams, IStatObj*>> &GetAuxiliaryStatObjects() const override                               { return m_auxiliaryStatObjects; }
+	const std::vector<std::pair<SRendParams, IStatObj*>>& GetAuxiliaryStatObjects() const override                               { return m_auxiliaryStatObjects; }
 };
 
 template<typename T>
@@ -602,7 +629,7 @@ inline int CRenderView::FindRenderListSplit(T predicate, ERenderListID renderLis
 	auto& renderItems = GetRenderItems(renderList);
 	int size = renderItems.size();
 
-	end   = std::min<int>(end,  size);
+	end = std::min<int>(end, size);
 	first = std::min<int>(first, end);
 
 	int last = end - 1;

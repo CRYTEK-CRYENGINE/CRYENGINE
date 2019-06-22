@@ -8,7 +8,12 @@
 class COmniCameraStage : public CGraphicsPipelineStage
 {
 public:
-	COmniCameraStage() = default;
+	static const EGraphicsPipelineStage StageID = eStage_OmniCamera;
+
+	COmniCameraStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+		, m_cubemapToScreenPass(&graphicsPipeline)
+		, m_downsamplePass(&graphicsPipeline) {};
 
 	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
@@ -18,8 +23,8 @@ public:
 	void Execute();
 
 protected:
-	CTexture* m_pOmniCameraTexture = nullptr;
-	CTexture* m_pOmniCameraCubeFaceStagingTexture = nullptr;
+	CTexture*       m_pOmniCameraTexture = nullptr;
+	CTexture*       m_pOmniCameraCubeFaceStagingTexture = nullptr;
 
 	CFullscreenPass m_cubemapToScreenPass;
 	CDownsamplePass m_downsamplePass;

@@ -217,7 +217,7 @@ struct SBindCB : public SJob
 			CRY_ASSERT(0);
 			break;
 		}
-		;
+
 		return sizeof(*this) + sizeof(Buffers[0]) * count;
 	}
 };
@@ -262,7 +262,7 @@ struct SBindOffsetCB : public SJob
 			CRY_ASSERT(0);
 			break;
 		}
-		;
+
 	#else
 		CryFatalError("D3D11.1 API functions are not supported on this platform");
 	#endif
@@ -307,7 +307,7 @@ struct SBindSampler : public SJob
 			CRY_ASSERT(0);
 			break;
 		}
-		;
+
 		return sizeof(*this) + sizeof(Samplers[0]) * count;
 	}
 };
@@ -349,7 +349,7 @@ struct SBindSRV : public SJob
 			CRY_ASSERT(0);
 			break;
 		}
-		;
+
 		return sizeof(*this) + sizeof(SRVs[0]) * count;
 	}
 };
@@ -392,7 +392,7 @@ struct SBindUAV : public SJob
 			CRY_ASSERT(0);
 			break;
 		}
-		;
+
 		return sizeof(*this) + sizeof(UAVs[0]) * count + sizeof(counts[0]) * count;
 	}
 };
@@ -638,7 +638,6 @@ static void ExecuteAsyncDIPJob(char* iter, char* end, volatile int* finished)
 			CRY_ASSERT(0);
 			break;
 		}
-		;
 	}
 	CryInterlockedDecrement(finished);
 }

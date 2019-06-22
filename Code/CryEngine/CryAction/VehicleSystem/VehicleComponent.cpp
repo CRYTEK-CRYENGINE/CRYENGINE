@@ -19,7 +19,6 @@
 #include "IViewSystem.h"
 #include "CryAction.h"
 #include "IGameObject.h"
-#include <CryAISystem/IAgent.h>
 
 #include "Vehicle.h"
 #include "VehicleComponent.h"

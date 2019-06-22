@@ -17,7 +17,7 @@
 #include <QlineEdit>
 #include <QLabel>
 #include <QSpacerItem>
-#include <QAdvancedPropertyTree.h>
+#include <QAdvancedPropertyTreeLegacy.h>
 #include <QControls.h>
 
 namespace CryParticleEditor
@@ -100,7 +100,7 @@ CItemProperties::CItemProperties(CryGraphEditor::GraphItemSet& selectedItems)
 			feature.name = QtUtil::ToString(QString("%1: %2").arg(pFeatureItem->GetGroupName()).arg(pFeatureItem->GetName()));
 		}
 
-		m_pPropertyTree = new QAdvancedPropertyTree(node.pNodeItem->GetName());
+		m_pPropertyTree = new QAdvancedPropertyTreeLegacy(node.pNodeItem->GetName());
 		// WORKAROUND: Serialization of features doesn't work with the default style.
 		//						 We either need to fix serialization or property tree. As soon as it's
 		//						 done use the commented out code below.
@@ -120,9 +120,9 @@ CItemProperties::CItemProperties(CryGraphEditor::GraphItemSet& selectedItems)
 
 		m_pNodeItem->SignalInvalidated.Connect(this, &CItemProperties::OnItemsChanged);
 		m_pNodeItem->SignalDeletion.Connect(this, &CItemProperties::OnItemsDeletion);
-		QObject::connect(m_pPropertyTree, &QPropertyTree::signalBeginUndo, this, &CItemProperties::OnBeginUndo);
-		QObject::connect(m_pPropertyTree, &QPropertyTree::signalChanged, this, &CItemProperties::OnItemsChanged);
-		QObject::connect(m_pPropertyTree, &QPropertyTree::signalEndUndo, this, &CItemProperties::OnEndUndo);
+		QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalBeginUndo, this, &CItemProperties::OnBeginUndo);
+		QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalChanged, this, &CItemProperties::OnItemsChanged);
+		QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalEndUndo, this, &CItemProperties::OnEndUndo);
 
 		QVBoxLayout* pMainLayout = new QVBoxLayout(this);
 		pMainLayout->addWidget(m_pPropertyTree);

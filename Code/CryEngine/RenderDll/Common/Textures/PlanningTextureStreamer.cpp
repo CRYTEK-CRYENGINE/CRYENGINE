@@ -193,7 +193,6 @@ void CPlanningTextureStreamer::ApplySchedule(EApplyScheduleFlags asf)
 		ptrdiff_t nMemFreeUpper = schedule.memState.nMemFreeUpper;
 		ptrdiff_t nMemFreeLower = schedule.memState.nMemFreeLower;
 		int nBalancePoint = schedule.nBalancePoint;
-		int nOnScreenPoint = schedule.nOnScreenPoint;
 
 		// Everything < nBalancePoint can only be trimmed (trimmable list), everything >= nBalancePoint can be kicked
 		// We should be able to load everything in the requested list
@@ -215,7 +214,6 @@ void CPlanningTextureStreamer::ApplySchedule(EApplyScheduleFlags asf)
 
 			const int posponeThresholdKB = (CRenderer::CV_r_texturesstreamingPostponeMips && !CTexture::s_bStreamingFromHDD) ? (CRenderer::CV_r_texturesstreamingPostponeThresholdKB * 1024) : INT_MAX;
 			const int posponeThresholdMip = (CRenderer::CV_r_texturesstreamingPostponeMips) ? CRenderer::CV_r_texturesstreamingPostponeThresholdMip : 0;
-			const int nMinimumMip = max(posponeThresholdMip, (int)(CRenderer::CV_r_TexturesStreamingMipBias + gRenDev->m_fTexturesStreamingGlobalMipFactor));
 
 			if (gRenDev->m_nFlushAllPendingTextureStreamingJobs && nMaxRequestedBytes && nMaxRequestedJobs)
 			{
@@ -334,11 +332,6 @@ bool CPlanningTextureStreamer::TryBegin_FromDisk(CTexture* pTex, uint32 nTexPers
 		// Caching additional mips - no need to request urgently.
 		++estp;
 	}
-
-	uint32 nWantedWidth  = max(1, pTex->m_nWidth  >> nTexWantedMip);
-	uint32 nWantedHeight = max(1, pTex->m_nHeight >> nTexWantedMip);
-	uint32 nAvailWidth   = max(1, pTex->m_nWidth  >> nTexAvailMip);
-	uint32 nAvailHeight  = max(1, pTex->m_nHeight >> nTexAvailMip);
 
 	ptrdiff_t nRequired = pTex->StreamComputeSysDataSize(nTexWantedMip) - pTex->StreamComputeSysDataSize(nTexAvailMip);
 
@@ -476,7 +469,7 @@ void CPlanningTextureStreamer::Precache(CTexture* pTexture)
 	}
 }
 
-void CPlanningTextureStreamer::UpdateMip(CTexture* pTexture, const float fMipFactor, const int nFlags, const int nUpdateId, const int nCounter)
+void CPlanningTextureStreamer::UpdateMip(CTexture* pTexture, const float fMipFactor, const int nFlags, const int nUpdateId)
 {
 	CHK_RENDTH;
 
@@ -643,8 +636,6 @@ bool CPlanningTextureStreamer::TrimTexture(int nBias, TStreamerTextureVec& trimm
 	{
 		CTexture* pTrimTex = trimmable[i];
 
-		bool bRemove = false;
-
 		if (pTrimTex->m_bStreamPrepared)
 		{
 			STexPool* pTrimItemPool = pTrimTex->GetStreamingInfo()->m_pPoolItem->m_pOwner;
@@ -718,9 +709,6 @@ ptrdiff_t CPlanningTextureStreamer::KickTextures(CTexture** pTextures, ptrdiff_t
 
 	ptrdiff_t nKicked = 0;
 
-	const int nCurrentFarZoneRoundId = gRenDev->GetStreamZoneRoundId(MAX_PREDICTION_ZONES - 1);
-	const int nCurrentNearZoneRoundId = gRenDev->GetStreamZoneRoundId(0);
-
 	// If we're still lacking space, begin kicking old textures
 	for (; nKicked < nRequired && nKickIdx >= nBalancePoint; --nKickIdx)
 	{
@@ -734,11 +722,6 @@ ptrdiff_t CPlanningTextureStreamer::KickTextures(CTexture** pTextures, ptrdiff_t
 			// unload textures that are older than 4 update cycles
 			if (nKillPersMip > nKillMip)
 			{
-				uint32 nKillWidth = pKillTex->m_nWidth >> nKillMip;
-				uint32 nKillHeight = pKillTex->m_nHeight >> nKillMip;
-				int8 nKillMips = nKillPersMip - nKillMip;
-				ETEX_Format nKillFormat = pKillTex->m_eSrcFormat;
-
 				// How much is available?
 				ptrdiff_t nProfit = pKillTex->StreamComputeSysDataSize(nKillMip) - pKillTex->StreamComputeSysDataSize(nKillPersMip);
 

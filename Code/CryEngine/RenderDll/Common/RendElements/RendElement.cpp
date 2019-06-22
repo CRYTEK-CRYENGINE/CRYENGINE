@@ -213,7 +213,7 @@ void CRenderElement::mfCenter(Vec3& Pos, CRenderObject* pObj, const SRenderingPa
 
 	Pos = bb.GetCenter();
 	if (pObj)
-		Pos += pObj->GetMatrix(passInfo).GetTranslation();
+		Pos += pObj->GetMatrix().GetTranslation();
 }
 
 void CRenderElement::mfGetPlane(Plane& pl)

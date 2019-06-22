@@ -107,6 +107,7 @@ end_sources()
 #END-FILE-LIST
 
 macro(setup_CryPhysics)
+	target_link_libraries(${THIS_PROJECT} PRIVATE qpOASES)
 	if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		target_compile_options(${THIS_PROJECT} PRIVATE
 			-Wno-shift-negative-value
@@ -129,6 +130,7 @@ macro(setup_CryPhysics)
 			-Wno-undefined-var-template
 			-Wno-empty-body
 			-Wno-stringop-overflow
+			-Wno-overloaded-virtual
 		)
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		target_compile_options(${THIS_PROJECT} PRIVATE

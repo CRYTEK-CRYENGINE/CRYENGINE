@@ -76,7 +76,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CScriptVariable::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		
 		CScriptElementBase::Serialize(archive);
 

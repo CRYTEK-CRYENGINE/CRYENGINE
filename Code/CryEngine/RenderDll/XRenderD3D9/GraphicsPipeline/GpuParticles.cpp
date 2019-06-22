@@ -4,8 +4,9 @@
 #include "Gpu/Particles/GpuParticleManager.h"
 #include "GpuParticles.h"
 
-CComputeParticlesStage::CComputeParticlesStage()
-	: m_oldFrameIdExecute(-1)
+CComputeParticlesStage::CComputeParticlesStage(CGraphicsPipeline& graphicsPipeline)
+	: CGraphicsPipelineStage(graphicsPipeline)
+	, m_oldFrameIdExecute(-1)
 	, m_oldFrameIdPreDraw(-1)
 	, m_oldFrameIdPostDraw(-1)
 {
@@ -13,14 +14,10 @@ CComputeParticlesStage::CComputeParticlesStage()
 
 CComputeParticlesStage::~CComputeParticlesStage()
 {
-	if (m_pGpuParticleManager)
-		m_pGpuParticleManager->CleanupResources();
 }
 
 void CComputeParticlesStage::Init()
 {
-	if (!m_pGpuParticleManager)
-		m_pGpuParticleManager = std::unique_ptr<gpu_pfx2::CManager>(new gpu_pfx2::CManager());
 }
 
 void CComputeParticlesStage::Update()
@@ -29,7 +26,7 @@ void CComputeParticlesStage::Update()
 	int CurrentFrameID = pRenderView->GetFrameId();
 	if (CurrentFrameID != m_oldFrameIdExecute)
 	{
-		m_pGpuParticleManager->RenderThreadUpdate(pRenderView);
+		static_cast<gpu_pfx2::CManager*>(gcpRendD3D->GetGpuParticleManager())->RenderThreadUpdate(pRenderView);
 		m_oldFrameIdExecute = CurrentFrameID;
 	}
 }
@@ -40,7 +37,7 @@ void CComputeParticlesStage::PreDraw()
 	int CurrentFrameID = pRenderView->GetFrameId();
 	if (CurrentFrameID != m_oldFrameIdPreDraw)
 	{
-		m_pGpuParticleManager->RenderThreadPreUpdate(pRenderView);
+		static_cast<gpu_pfx2::CManager*>(gcpRendD3D->GetGpuParticleManager())->RenderThreadPreUpdate(pRenderView);
 		m_oldFrameIdPreDraw = CurrentFrameID;
 	}
 }
@@ -51,15 +48,7 @@ void CComputeParticlesStage::PostDraw()
 	int CurrentFrameID = pRenderView->GetFrameId();
 	if (CurrentFrameID != m_oldFrameIdPostDraw)
 	{
-		m_pGpuParticleManager->RenderThreadPostUpdate(pRenderView);
+		static_cast<gpu_pfx2::CManager*>(gcpRendD3D->GetGpuParticleManager())->RenderThreadPostUpdate(pRenderView);
 		m_oldFrameIdPostDraw = CurrentFrameID;
 	}
-}
-
-gpu_pfx2::IManager* CD3D9Renderer::GetGpuParticleManager()
-{
-	if (auto pComputeParticlesStage = GetGraphicsPipeline().GetComputeParticlesStage())
-		return pComputeParticlesStage->GetGpuParticleManager();
-
-	return nullptr;
 }

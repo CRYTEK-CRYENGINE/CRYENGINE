@@ -301,7 +301,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	bool handled = false;
 
 	{
-		CRY_PROFILE_REGION(PROFILE_GAME, "New Action Processing");
+		CRY_PROFILE_SECTION(PROFILE_GAME, "New Action Processing");
 
 		handled = m_actionHandler.Dispatch(this, m_pPlayer->GetEntityId(), actionId, activationMode, value, filterOut);
 	}
@@ -309,7 +309,7 @@ void CPlayerInput::OnAction( const ActionId& actionId, int activationMode, float
 	//------------------------------------
 
 	{
-		CRY_PROFILE_REGION(PROFILE_GAME, "Regular Action Processing");
+		CRY_PROFILE_SECTION(PROFILE_GAME, "Regular Action Processing");
 		bool inKillCam = g_pGame->GetRecordingSystem() && (g_pGame->GetRecordingSystem()->IsPlayingBack() || g_pGame->GetRecordingSystem()->IsPlaybackQueued());
 		if (!handled)
 		{

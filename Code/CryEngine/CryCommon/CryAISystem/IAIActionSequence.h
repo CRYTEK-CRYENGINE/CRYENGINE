@@ -87,6 +87,21 @@ struct SequenceProperties
 
 //////////////////////////////////////////////////////////////////////////
 
+//! Sequence agent adapter interface that can be set in Sequence Manager. 
+//! Since there is only one instance of agent adapter, before it is used in a scope, it is initialized by calling InitLocalAgent.
+//! Is is guaranteed that the agent adapter isn't used for more than one entity at the same time. 
+struct IAgentAdapter
+{
+	// Init agent from entityID before other functions are called. Returns true if the agent is successfully initialized.
+	virtual bool InitLocalAgent(EntityId entityID) { return false; }
+
+	// Returns true if the sequence behavior is ready, false otherwise.
+	virtual bool OnSequenceStarted(bool interruptible) { return true; }
+
+	virtual void OnSequenceCanceled() {}
+	virtual void OnActionCompleted() {}
+};
+
 struct ISequenceManager
 {
 	virtual ~ISequenceManager() {}
@@ -106,6 +121,8 @@ struct ISequenceManager
 	virtual void RequestActionStart(SequenceId sequenceId, TFlowNodeId actionNodeId) = 0;
 	virtual void ActionCompleted(SequenceId sequenceId) = 0;
 	virtual void SetBookmark(SequenceId sequenceId, TFlowNodeId bookmarkNodeId) = 0;
+
+	virtual void SetAgentAdapter(IAgentAdapter* pAgentAdapter) = 0;
 };
 
 } // namespace AIActionSequence

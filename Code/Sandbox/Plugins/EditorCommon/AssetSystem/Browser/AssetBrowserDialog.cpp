@@ -2,13 +2,16 @@
 
 #include "StdAfx.h"
 #include "AssetBrowserDialog.h"
+
 #include "AssetBrowser.h"
 #include "AssetModel.h"
 #include "AssetSystem/Asset.h"
 #include "AssetSystem/AssetManager.h"
+#include "AssetSystem/AssetManagerHelpers.h"
 #include "AssetSystem/Loader/AssetLoaderHelpers.h"
 
 #include "Controls/QuestionDialog.h"
+#include "EditorFramework/PersonalizationManager.h"
 #include "FileDialogs/FileNameLineEdit.h"
 #include "PathUtils.h"
 #include "ProxyModels/AttributeFilterProxyModel.h"
@@ -28,22 +31,6 @@
 
 namespace Private_AssetBrowserDialog
 {
-
-QStringList GetUiNamesFromAssetTypeNames(const std::vector<string>& typeNames)
-{
-	CAssetManager* const pManager = CAssetManager::GetInstance();
-	QStringList uiNames;
-	uiNames.reserve(typeNames.size());
-	for (const string& typeName : typeNames)
-	{
-		CAssetType* const pType = pManager->FindAssetType(typeName.c_str());
-		if (pType)
-		{
-			uiNames.push_back(pType->GetUiTypeName());
-		}
-	}
-	return uiNames;
-}
 
 void SetButtonsEnabled(QDialogButtonBox* pButtons, QDialogButtonBox::ButtonRole role, bool bValue)
 {
@@ -85,8 +72,8 @@ static bool ShowConfirmOverwriteDialog()
 class CAssetBrowserDialog::CBrowser : public CAssetBrowser
 {
 public:
-	CBrowser(CAssetBrowserDialog* pOwner, bool bAllowMultipleAssets, QWidget* pParent)
-		: CAssetBrowser(!pOwner->IsReadOnlyMode(), pParent)
+	CBrowser(const std::vector<CAssetType*>& assetTypes, CAssetBrowserDialog* pOwner, bool bAllowMultipleAssets, QWidget* pParent)
+		: CAssetBrowser(assetTypes, !pOwner->IsReadOnlyMode(), pParent)
 		, m_pOwner(pOwner)
 	{
 		if (!bAllowMultipleAssets)
@@ -131,12 +118,21 @@ CAssetBrowserDialog::CAssetBrowserDialog(const std::vector<string>& assetTypeNam
 	: CEditorDialog(QStringLiteral("CAssetPicker"), pParent)
 	, m_mode(mode)
 	, m_overwriteMode(OverwriteMode::AllowOverwrite)
-	, m_pBrowser(new CBrowser(this, mode == Mode::OpenMultipleAssets, nullptr))
+	, m_pBrowser(new CBrowser(AssetManagerHelpers::GetAssetTypesFromTypeNames(assetTypeNames), this, mode == Mode::OpenMultipleAssets, nullptr))
 	, m_pAssetType(nullptr)
 {
 	using namespace Private_AssetBrowserDialog;
 
+	m_pBrowser->Initialize();
 	const QString propertyName = QtUtil::ToQString(std::accumulate(assetTypeNames.begin(), assetTypeNames.end(), "Layout"));
+
+	// Load generic asset browser layout valid for all asset types. Some things might be later overwritten by asset type specific personalization
+	const QVariantMap& personalization = GetIEditor()->GetPersonalizationManager()->GetState(GetDialogName());
+	QVariant layout = personalization.value("layout");
+	if (layout.isValid())
+	{
+		m_pBrowser->SetLayout(layout.toMap());
+	}
 
 	AddPersonalizedProjectProperty(propertyName, [this]()
 	{
@@ -147,13 +143,11 @@ CAssetBrowserDialog::CAssetBrowserDialog(const std::vector<string>& assetTypeNam
 		{
 			QVariantMap map = variant.value<QVariantMap>();
 			map.remove("filters");
+			// No need to have editor content differing between asset types
+			map.remove("editorContent");
 			m_pBrowser->SetLayout(map);
 		}
 	});
-
-	m_pAssetTypeFilter = std::make_shared<CAttributeFilter>(&AssetModelAttributes::s_AssetTypeAttribute);
-	m_pAssetTypeFilter->SetFilterValue(GetUiNamesFromAssetTypeNames(assetTypeNames));
-	m_pBrowser->AddFilter(m_pAssetTypeFilter);
 
 	QDialogButtonBox* pButtons = new QDialogButtonBox();
 	pButtons->setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);

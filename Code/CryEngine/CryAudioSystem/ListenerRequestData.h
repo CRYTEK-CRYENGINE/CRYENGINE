@@ -14,9 +14,9 @@ enum class EListenerRequestType : EnumFlagsType
 {
 	None,
 	SetTransformation,
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	SetName,
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -71,7 +71,7 @@ struct SListenerRequestData<EListenerRequestType::SetTransformation> final : pub
 	CListener* const      pListener;
 };
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 //////////////////////////////////////////////////////////////////////////
 template<>
 struct SListenerRequestData<EListenerRequestType::SetName> final : public SListenerRequestDataBase
@@ -93,5 +93,5 @@ struct SListenerRequestData<EListenerRequestType::SetName> final : public SListe
 	CListener* const                           pListener;
 	CryFixedStringT<MaxObjectNameLength> const name;
 };
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 }      // namespace CryAudio

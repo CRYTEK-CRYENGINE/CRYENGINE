@@ -479,7 +479,7 @@ void COcean::Render(const SRenderingPassInfo& passInfo)
 	CRenderObject* pObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObject)
 		return;
-	pObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
+	pObject->SetMatrix(Matrix34::CreateIdentity());
 	pObject->m_pRenderNode = this;
 
 	m_fLastFov = passInfo.GetCamera().GetFov();
@@ -616,7 +616,7 @@ void COcean::RenderBottomCap(const SRenderingPassInfo& passInfo)
 	CRenderObject* pObject = passInfo.GetIRenderView()->AllocateTemporaryRenderObject();
 	if (!pObject)
 		return;
-	pObject->SetMatrix(Matrix34::CreateIdentity(), passInfo);
+	pObject->SetMatrix(Matrix34::CreateIdentity());
 	pObject->m_pRenderNode = this;
 
 	// make distance to water level near to zero
@@ -735,7 +735,7 @@ void COcean::RenderFog(const SRenderingPassInfo& passInfo)
 			}
 
 			// fill in data for render object
-			pROVol->SetMatrix(Matrix34::CreateIdentity(), passInfo);
+			pROVol->SetMatrix(Matrix34::CreateIdentity());
 			pROVol->m_fSort = 0;
 
 			auto pMaterial =

@@ -2264,7 +2264,7 @@ protected:
 		}
 
 		const AISignals::ISignalDescription& signalDesc = GetAISystem()->GetSignalManager()->GetSignalDescription(m_signalName.c_str());
-		const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, signalDesc, pPipeUser->GetAIObjectID());
+		const AISignals::SignalSharedPtr pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, signalDesc, pPipeUser->GetEntityID());
 
 		GetAISystem()->SendSignal(m_filter, pSignal);
 	}
@@ -5255,27 +5255,27 @@ void RegisterBehaviorTreeNodes_AI()
 #endif
 
 	// Keep alphabetically sorted for better readability
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, AdjustCoverStance, "GameSDK\\Adjust cover stance", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, AdjustCoverStance, "GameSDK\\Adjust Cover Stance", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Aim, "GameSDK\\Aim", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Animate, "GameSDK\\Animate", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, AssertLua, "GameSDK\\Assert Lua", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Bubble, "GameSDK\\Bubble", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, ClearTargets, "GameSDK\\Clear targets", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, ClearTargets, "GameSDK\\Clear Targets", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Communicate, "GameSDK\\Communicate", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, ExecuteLua, "GameSDK\\Execute Lua", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, GroupScope, "GameSDK\\Group scope", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, GroupScope, "GameSDK\\Group Scope", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Look, "GameSDK\\Look", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, LuaBehavior, "GameSDK\\Lua behavior (DEPRECATED)", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, LuaGate, "GameSDK\\Lua gate", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, LuaBehavior, "GameSDK\\Lua Behavior (DEPRECATED)", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, LuaGate, "GameSDK\\Lua Gate", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Move, "GameSDK\\Move", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, PullDownThreatLevel, "GameSDK\\Pull down threat level", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, PullDownThreatLevel, "GameSDK\\Pull Down Threat Level", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, QueryTPS, "GameSDK\\Query TPS", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SendTransitionSignal, "GameSDK\\Send transition signal", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SetAlertness, "GameSDK\\Set alertness", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SendTransitionSignal, "GameSDK\\Send Transition Signal", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SetAlertness, "GameSDK\\Set Alertness", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Shoot, "GameSDK\\Shoot", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, ShootFromCover, "GameSDK\\Shoot from cover", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Signal, "GameSDK\\Send signal", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, ShootFromCover, "GameSDK\\Shoot From Cover", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Signal, "GameSDK\\Send Signal", COLOR_SDK);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Stance, "GameSDK\\Stance", COLOR_SDK);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, StopMovement, "GameSDK\\Stop movement", COLOR_SDK);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, StopMovement, "GameSDK\\Stop Movement", COLOR_SDK);
 }
 }

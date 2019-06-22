@@ -18,7 +18,6 @@
 #include "EditorFramework/Editor.h"
 #include "EditorFramework/Events.h"
 #include "EditorFramework/BroadcastManager.h"
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
 
 CInspectorLegacy::CInspectorLegacy(QWidget* pParent)
 	: CDockableWidget(pParent)
@@ -200,12 +199,12 @@ void CInspectorLegacy::Lock()
 {
 	m_locked = true;
 	m_pLockButton->setToolTip("Unlock Inspector");
-	m_pLockButton->setIcon(CryIcon("icons:General/Lock_True.ico"));
+	m_pLockButton->setIcon(CryIcon("icons:general_lock_true.ico"));
 }
 
 void CInspectorLegacy::Unlock()
 {
 	m_locked = false;
 	m_pLockButton->setToolTip("Lock Inspector");
-	m_pLockButton->setIcon(CryIcon("icons:General/Lock_False.ico"));
+	m_pLockButton->setIcon(CryIcon("icons:general_lock_false.ico"));
 }

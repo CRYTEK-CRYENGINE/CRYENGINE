@@ -113,7 +113,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	bool CScriptEnumerationValue::Serialize(Serialization::IArchive& archive, const char* name, const char* label)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		if(m_pEnumeration)
 		{
 			if(archive.caps(archive.INPLACE))
@@ -300,7 +300,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////	
 	void CScriptStructureValue::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		if(archive.isOutput()) // Ensure we don't refresh immediately after output and invalidate strings.
 		{
 			Refresh();
@@ -409,7 +409,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	IAnyPtr MakeScriptVariableValueShared(const IScriptFile& file, const CAggregateTypeId& typeId)
 	{
-		LOADING_TIME_PROFILE_SECTION
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 
 		switch(typeId.GetDomain())
 		{
@@ -507,7 +507,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CScriptVariableDeclaration::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		switch(SerializationContext::GetPass(archive))
 		{
 		case ESerializationPass::PreLoad:

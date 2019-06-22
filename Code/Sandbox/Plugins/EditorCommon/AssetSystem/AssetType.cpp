@@ -37,10 +37,14 @@ static bool TryReplaceFilename(const string& oldNamePrefix, const string& newNam
 }
 
 // Rename asset file. Expects paths relative to the assets root directory.
-static bool RenameAssetFile(const string& oldFilename, const string& newFilename)
+static bool RenameAssetFile(const string& oldFilename, const string& newFilename, string rootFolder = "")
 {
-	const string oldFilepath = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), oldFilename);
-	const string newFilepath = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), newFilename);
+	if (rootFolder.empty())
+	{
+		rootFolder = PathUtil::GetGameProjectAssetsPath();
+	}
+	const string oldFilepath = PathUtil::Make(rootFolder, oldFilename);
+	const string newFilepath = PathUtil::Make(rootFolder, newFilename);
 
 	if (!QFileInfo(QtUtil::ToQString(oldFilepath)).exists())
 	{
@@ -57,14 +61,15 @@ static bool RenameAssetFile(const string& oldFilename, const string& newFilename
 }
 
 // Copy asset file. Expects paths relative to the assets root directory.
-static bool CopyAssetFile(const string& oldFilename, const string& newFilename)
+static bool CopyAssetFile(const string& oldFilename, const string& newFilename, const string& destRoot = "")
 {
 	if (oldFilename.empty() || newFilename.empty() || oldFilename.CompareNoCase(newFilename) == 0)
 	{
 		return true;
 	}
 
-	const string newFilepath = PathUtil::ToUnixPath(PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), newFilename));
+	const string newFilepath = PathUtil::ToUnixPath(PathUtil::Make(
+		destRoot.empty() ? PathUtil::GetGameProjectAssetsPath() : destRoot, newFilename));
 	if (FileUtils::Pak::CopyFileAllowOverwrite(oldFilename.c_str(), newFilepath.c_str()))
 	{
 		return true;
@@ -288,14 +293,12 @@ std::vector<CAsset*> CAssetType::Import(const string& sourceFilePath, const stri
 	return pAssetImporter->Import({ GetTypeName() }, ctx);
 }
 
-std::vector<string> CAssetType::GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute /* = false*/, bool includeThumbnail /*= true*/) const
+std::vector<string> CAssetType::GetAssetFiles(const CAsset& asset, bool includeSourceFile, bool makeAbsolute /* = false*/
+	, bool includeThumbnail /*= true*/, bool includeDerived /*= false*/) const
 {
+	const bool includeDataFiles = !HasDerivedFiles() || includeDerived;
 	std::vector<string> files;
-	files.reserve(asset.GetFilesCount() + 3);
-	for (size_t i = 0, N = asset.GetFilesCount(); i < N; ++i)
-	{
-		files.emplace_back(asset.GetFile(i));
-	}
+	files.reserve(3 + (includeDataFiles ? 0 : asset.GetFilesCount()));
 	files.emplace_back(asset.GetMetadataFile());
 	if (includeThumbnail && HasThumbnail())
 	{
@@ -313,10 +316,26 @@ std::vector<string> CAssetType::GetAssetFiles(const CAsset& asset, bool includeS
 
 	if (makeAbsolute)
 	{
-		const string assetsPath(PathUtil::GetGameProjectAssetsPath());
+		const string assetsPath = PathUtil::GetGameProjectAssetsPath();
 		for (string& filename : files)
 		{
 			filename = PathUtil::Make(assetsPath, filename);
+		}
+	}
+
+	if (includeDataFiles)
+	{
+		for (size_t i = 0, N = asset.GetFilesCount(); i < N; ++i)
+		{
+			if (makeAbsolute)
+			{
+				files.emplace_back(PathUtil::Make(HasDerivedFiles() ? 
+					PathUtil::GetEditorCachePath() : PathUtil::GetGameProjectAssetsPath(), asset.GetFile(i)));
+			}
+			else
+			{
+				files.emplace_back(asset.GetFile(i));
+			}
 		}
 	}
 
@@ -334,11 +353,6 @@ bool CAssetType::IsInPakOnly(const CAsset& asset) const
 		}
 	}
 	return false;
-}
-
-void CAssetType::SetInstantEditor(CAssetEditor* pEditor)
-{
-	m_pInstantEditor = pEditor;
 }
 
 bool CAssetType::IsValidAssetPath(const char* szFilepath, /*out*/string& reasonToReject)
@@ -430,7 +444,8 @@ bool CAssetType::OnCopy(INewAsset& asset, CAsset& assetToCopy) const
 		if (Private_AssetType::TryReplaceFilename(assetToCopy.GetName(), asset.GetName(), file, newFile))
 		{
 			newFile = PathUtil::AdjustCasing(PathUtil::Make(destinationFolder, PathUtil::GetFile(newFile)));
-			Private_AssetType::CopyAssetFile(file, newFile);
+			Private_AssetType::CopyAssetFile(file, newFile, 
+				assetToCopy.GetType()->HasDerivedFiles() ? PathUtil::GetEditorCachePath() : "");
 			file = newFile;
 		}
 	}
@@ -523,7 +538,8 @@ bool CAssetType::RenameAsset(CAsset* pAsset, const char* szNewName) const
 		string newFile;
 		if (Private_AssetType::TryReplaceFilename(oldName, newName, file, newFile))
 		{
-			if (Private_AssetType::RenameAssetFile(file, newFile))
+			if (Private_AssetType::RenameAssetFile(file, newFile, 
+				pAsset->GetType()->HasDerivedFiles() ? PathUtil::GetEditorCachePath() : ""))
 			{
 				file = newFile;
 			}
@@ -546,7 +562,7 @@ bool CAssetType::MoveAsset(CAsset* pAsset, const char* szDestinationFolder, bool
 
 	bool bReadOnly = false;
 	{
-		std::vector<string> filepaths(GetAssetFiles(*pAsset, bMoveSourcefile, true));
+		std::vector<string> filepaths(GetAssetFiles(*pAsset, bMoveSourcefile, true, true, true));
 		for (string& path : filepaths)
 		{
 			QFileInfo fileInfo(QtUtil::ToQString(path));
@@ -617,7 +633,8 @@ bool CAssetType::MoveAsset(CAsset* pAsset, const char* szDestinationFolder, bool
 	for (string& file : files)
 	{
 		string newFile = PathUtil::Make(szDestinationFolder, PathUtil::GetFile(file));
-		if (Private_AssetType::RenameAssetFile(file, newFile))
+		if (Private_AssetType::RenameAssetFile(file, newFile,
+			pAsset->GetType()->HasDerivedFiles() ? PathUtil::GetEditorCachePath() : ""))
 		{
 			file = newFile;
 		}

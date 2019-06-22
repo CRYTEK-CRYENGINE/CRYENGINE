@@ -1,19 +1,10 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   PostEffects.h : Post process effects
-
-   Revision history:
-* 18/06/2005: Re-organized (to minimize code dependencies/less annoying compiling times)
-* Created by Tiago Sousa
-   =============================================================================*/
-
-#ifndef _POSTEFFECTS_H_
-#define _POSTEFFECTS_H_
+#pragma once
 
 #include "PostProcessUtils.h"
+#include <CryThreading/CryThreadSafePushContainer.h>
 
-struct SColorGradingMergeParams;
 class CSoundEventsListener;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,23 +80,23 @@ public:
 		Release();
 	}
 
-	virtual int             Initialize();
-	virtual int             CreateResources();
-	virtual void            Release();
+	virtual int         Initialize();
+	virtual int         CreateResources();
+	virtual void        Release();
 
-	virtual void            Render();
-	void                    RenderObjectsVelocity();
+	virtual void        Render();
+	void                RenderObjectsVelocity();
 
-	virtual void            Reset(bool bOnSpecChange = false);
-	virtual bool            Preprocess(const SRenderViewInfo& viewInfo);
-	virtual void            OnBeginFrame(const SRenderingPassInfo& passInfo);
+	virtual void        Reset(bool bOnSpecChange = false);
+	virtual bool        Preprocess(const SRenderViewInfo& viewInfo);
+	virtual void        OnBeginFrame(const SRenderingPassInfo& passInfo);
 
-	static void             SetupObject(CRenderObject* pObj, const SRenderingPassInfo& passInfo);
-	static bool             GetPrevObjToWorldMat(CRenderObject* pObj, uint64 objFlags, Matrix44A& res);
-	static void             InsertNewElements();
-	static void             FreeData();
+	static void         SetupObject(CRenderObject* pObj, const SRenderingPassInfo& passInfo);
+	static bool         GetPrevObjToWorldMat(CRenderObject* pObj, uint64 objFlags, Matrix44A& res);
+	static void         InsertNewElements();
+	static void         FreeData();
 
-	virtual const char*     GetName() const
+	virtual const char* GetName() const
 	{
 		return "MotionBlur";
 	}
@@ -143,7 +134,8 @@ private:
 	typedef VectorMap<uintptr_t, SObjMotionBlurParams> OMBParamsMap;
 	typedef OMBParamsMap::iterator                     OMBParamsMapItor;
 	static OMBParamsMap m_pOMBData[3]; // triple buffering: t0: being written, t-1: current render frame, t-2: previous render frame
-	static CThreadSafeRendererContainer<OMBParamsMap::value_type> m_FillData[RT_COMMAND_BUF_COUNT];
+
+	static CryMT::CThreadSafePushContainer<OMBParamsMap::value_type> m_FillData[RT_COMMAND_BUF_COUNT];
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -462,6 +454,15 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct SColorGradingMergeParams
+{
+	Vec4   pColorMatrix[3];
+	Vec4   pLevels[2];
+	Vec4   pFilterColor;
+	Vec4   pSelectiveColor[2];
+	uint64 nFlagsShaderRT;
+};
+
 class CColorGrading : public CPostEffect
 {
 public:
@@ -507,7 +508,7 @@ public:
 	virtual bool        Preprocess(const SRenderViewInfo& viewInfo);
 	virtual void        Render();
 	virtual void        Reset(bool bOnSpecChange = false);
-	bool                UpdateParams(SColorGradingMergeParams& pMergeParams, bool bUpdateChart = true);
+	void                UpdateParams(SColorGradingMergeParams& pMergeParams);
 
 	virtual const char* GetName() const
 	{
@@ -1170,11 +1171,11 @@ public:
 		m_nID = EPostEffectID::PostAA;
 	}
 
-	virtual int         CreateResources() { return 1; }
-	virtual void        Release() {}
+	virtual int         CreateResources()                                                                                        { return 1; }
+	virtual void        Release()                                                                                                {}
 	virtual bool        Preprocess(const SRenderViewInfo& viewInfo) { return true; }
 	virtual void        Render();
-	virtual void        Reset(bool bOnSpecChange = false) {}
+	virtual void        Reset(bool bOnSpecChange = false)                                                                        {}
 
 	virtual const char* GetName() const
 	{
@@ -1292,7 +1293,7 @@ class CHud3D : public CPostEffect
 
 public:
 
-	typedef CThreadSafeRendererContainer<SHudData> SHudDataVec;
+	typedef CryMT::CThreadSafePushContainer<SHudData> SHudDataVec;
 
 public:
 
@@ -1511,7 +1512,7 @@ public:
 		}
 
 		const CRenderElement* pRenderElement;
-		const CRenderObject*    pRenderObject;
+		const CRenderObject*  pRenderObject;
 	};
 
 	CNanoGlass()
@@ -1630,7 +1631,7 @@ public:
 
 private:
 
-	CEffectParam * m_pAmount;
+	CEffectParam* m_pAmount;
 	CEffectParam* m_pBorder;
 };
 
@@ -1657,7 +1658,7 @@ public:
 
 private:
 
-	CEffectParam * m_pColor;
+	CEffectParam* m_pColor;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1726,19 +1727,17 @@ public:
 	}
 
 private:
-	bool HasModelsToRender() const;
+	void   ClearFlashRT();
 
-	void ClearFlashRT();
-
-	void RenderGroup(uint8 groupId);
-	void RenderMeshes(uint8 groupId, float screenRect[4], ERenderMeshMode renderMeshMode = eRMM_Default);
-	void RenderDepth(uint8 groupId, float screenRect[4], bool bCustomRender = false);
-	void AlphaCorrection();
-	void GammaCorrection(float screenRect[4]);
-	void RenderSilhouettes(uint8 groupId, float screenRect[4]);
-	void SilhouetteOutlines(CTexture* pOutlineTex, CTexture* pGlowTex);
-	void SilhouetteGlow(CTexture* pOutlineTex, CTexture* pGlowTex);
-	void SilhouetteCombineBlurAndOutline(CTexture* pOutlineTex, CTexture* pGlowTex);
+	void   RenderGroup(uint8 groupId);
+	void   RenderMeshes(uint8 groupId, float screenRect[4], ERenderMeshMode renderMeshMode = eRMM_Default);
+	void   RenderDepth(uint8 groupId, float screenRect[4], bool bCustomRender = false);
+	void   AlphaCorrection();
+	void   GammaCorrection(float screenRect[4]);
+	void   RenderSilhouettes(uint8 groupId, float screenRect[4]);
+	void   SilhouetteOutlines(CTexture* pOutlineTex, CTexture* pGlowTex);
+	void   SilhouetteGlow(CTexture* pOutlineTex, CTexture* pGlowTex);
+	void   SilhouetteCombineBlurAndOutline(CTexture* pOutlineTex, CTexture* pGlowTex);
 	uint64 ApplyShaderQuality(EShaderType shaderType = eST_General);
 
 	CCryNameTSCRC m_gammaCorrectionTechName;
@@ -1767,8 +1766,3 @@ private:
 	uint8         m_post3DRendererflags;
 	uint8         m_deferDisableFrameCountDown;
 };
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#endif

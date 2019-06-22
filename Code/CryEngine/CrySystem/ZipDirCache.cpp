@@ -69,7 +69,7 @@ void ZipDir::Cache::Delete()
 
 void ZipDir::Cache::PreloadToMemory(IMemoryBlock* pMemoryBlock)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "In-Memory Pak %s", GetFilePath());
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "In-Memory Pak %s", GetFilePath());
 
 	// Make sure that fseek/fread by LoadToMemory is atomic (and reads from other threads don't conflict)
 	CryAutoCriticalSection lock(m_pCacheData->m_csCacheIOLock);
@@ -219,7 +219,7 @@ ZipDir::ErrorEnum ZipDir::Cache::ReadFile(FileEntry* pFileEntry, void* pCompress
 
 	{
 		CryAutoCriticalSection lock(m_pCacheData->m_csCacheIOLock); // guarantees that fseek() and fread() will be executed together
-		CRY_PROFILE_REGION(PROFILE_SYSTEM, "ZipDir_Cache_ReadFile");
+		CRY_PROFILE_SECTION(PROFILE_SYSTEM, "ZipDir_Cache_ReadFile");
 
 		{
 			int64 nSeekRes = ZipDir::FSeek(&m_zipFile, nFileOffset + pFileEntry->nFileDataOffset, SEEK_SET);
@@ -385,7 +385,7 @@ ZipDir::ErrorEnum ZipDir::Cache::ReadFileStreaming(FileEntry* pFileEntry, void* 
 	if (!m_zipFile.IsInMemory() && g_cvars.pakVars.nUncachedStreamReads)
 	{
 		CryAutoCriticalSection lock(m_pCacheData->m_csCacheIOLock); // guarantees that fseek() and fread() will be executed together
-		CRY_PROFILE_REGION(PROFILE_SYSTEM, "ZipDir_Cache_ReadFile");
+		CRY_PROFILE_SECTION(PROFILE_SYSTEM, "ZipDir_Cache_ReadFile");
 
 		if (m_zipFile.m_unbufferedFile != INVALID_HANDLE_VALUE)
 		{

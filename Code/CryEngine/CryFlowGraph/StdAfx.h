@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <CryCore/Project/CryModuleDefs.h>
 #define eCryModule eCryM_FlowGraph
 
 #include <CryCore/Platform/platform.h>

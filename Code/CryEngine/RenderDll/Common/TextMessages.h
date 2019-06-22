@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _TEXTMESSAGES_H_
-#define _TEXTMESSAGES_H_
+#pragma once
 
 // compact buffer to store text messages for a frame and render them each frame
 // (replacement for the former PodArray<text_info_struct> m_listMessages[2], cleaner/more cache friendly,less memory,faster,typesafe)
@@ -87,5 +86,3 @@ private: // ------------------------------------------------------
 
 	CryCriticalSection m_TextMessageLock;
 };
-
-#endif // #ifndef _TEXTMESSAGES_H_

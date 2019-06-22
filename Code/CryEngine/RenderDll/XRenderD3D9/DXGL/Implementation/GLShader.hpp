@@ -1,17 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   GLShader.hpp
-//  Version:     v1.00
-//  Created:     15/05/2013 by Valerio Guagliumi.
-//  Description: Declares the shader types and related functions
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __GLSHADER__
-#define __GLSHADER__
+#pragma once
 
 #include "GLCommon.hpp"
 #if !DXGL_INPUT_GLSL && DXGL_GLSL_FROM_HLSLCROSSCOMPILER
@@ -235,8 +224,8 @@ struct SIndexPartition
 {
 	SIndexPartitionRange  m_akStages[eST_NUM];
 
-	SIndexPartitionRange& operator[](EShaderType eType)       { return m_akStages[eType]; };
-	SIndexPartitionRange  operator[](EShaderType eType) const { return m_akStages[eType]; };
+	SIndexPartitionRange& operator[](EShaderType eType)       { return m_akStages[eType]; }
+	SIndexPartitionRange  operator[](EShaderType eType) const { return m_akStages[eType]; }
 };
 
 DXGL_DECLARE_REF_COUNTED(struct, SUnitMap)
@@ -356,5 +345,3 @@ bool            VerifyProgramStatus(GLuint uProgram, GLenum eStatus);
 bool            VerifyProgramPipelineStatus(GLuint uPipeline, GLenum eStatus);
 
 }
-
-#endif //__GLSHADER__

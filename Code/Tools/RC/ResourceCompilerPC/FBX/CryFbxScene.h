@@ -33,6 +33,8 @@ public:
 	virtual int GetAnimationStackCount() const override;
 	virtual const Scene::SAnimation* GetAnimationStack(int idx) const override;
 	virtual bool SetCurrentAnimationStack(int idx) override;
+
+	virtual float EvaluateMorphTargetWeight(int meshIdx, const char* szMorphTarget, int animationFrameIndex) override;
 	// -----------------------------------------------------------------------
 
 	void Reset();

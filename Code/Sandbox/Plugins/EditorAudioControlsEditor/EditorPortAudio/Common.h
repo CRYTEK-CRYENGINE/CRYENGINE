@@ -13,7 +13,8 @@ namespace Impl
 {
 namespace PortAudio
 {
-extern uint32 g_triggerConnections;
+using ConnectionsByContext = std::map<CryAudio::ContextId, uint32>;
+extern ConnectionsByContext g_connections;
 
 static CryIcon s_errorIcon;
 static CryIcon s_eventIcon;
@@ -44,14 +45,17 @@ inline CryIcon const& GetTypeIcon(EItemType const type)
 	switch (type)
 	{
 	case EItemType::Event:
-		return s_eventIcon;
-		break;
+		{
+			return s_eventIcon;
+		}
 	case EItemType::Folder:
-		return s_folderIcon;
-		break;
+		{
+			return s_folderIcon;
+		}
 	default:
-		return s_errorIcon;
-		break;
+		{
+			return s_errorIcon;
+		}
 	}
 }
 
@@ -61,14 +65,17 @@ inline QString const& TypeToString(EItemType const type)
 	switch (type)
 	{
 	case EItemType::Event:
-		return s_eventTypeName;
-		break;
+		{
+			return s_eventTypeName;
+		}
 	case EItemType::Folder:
-		return s_folderTypeName;
-		break;
+		{
+			return s_folderTypeName;
+		}
 	default:
-		return s_emptyTypeName;
-		break;
+		{
+			return s_emptyTypeName;
+		}
 	}
 }
 } // namespace PortAudio

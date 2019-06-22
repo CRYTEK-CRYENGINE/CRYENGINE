@@ -598,13 +598,13 @@ bool CGameExporter::ExportSvogiData()
 
 	CLogFile::WriteLine("Exporting SVO...");
 
-	I3DEngine* p3DEngine = GetIEditorImpl()->Get3DEngine();
-
-	if (p3DEngine->GetSvoCompiledData(m_SvogiDataPak.m_pakFile.GetArchive()))
+#if defined(FEATURE_SVO_GI)
+	if (GetIEditorImpl()->Get3DEngine()->GetSvoCompiledData(m_SvogiDataPak.m_pakFile.GetArchive()))
 	{
 		CLogFile::WriteLine("SVO exported successfully");
 	}
 	else
+#endif
 	{
 		CLogFile::WriteLine("SVO export disabled or nothing to export");
 	}

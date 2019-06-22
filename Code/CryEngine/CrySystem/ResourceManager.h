@@ -82,29 +82,29 @@ private:
 
 	struct SOpenedPak
 	{
-		CryFixedStringT<ICryPak::g_nMaxPath> filename;
+		CryPathString filename;
 		bool bOnlyDuringLevelLoading;
 	};
-	std::vector<SOpenedPak>                           m_openedPaks;
+	std::vector<SOpenedPak>    m_openedPaks;
 
-	CAsyncPakManager                                  m_AsyncPakManager;
+	CAsyncPakManager           m_AsyncPakManager;
 
-	string                                            m_sLevelFolder;
-	string                                            m_sLevelName;
-	bool                                              m_bLevelTransitioning;
+	string                     m_sLevelFolder;
+	string                     m_sLevelName;
+	bool                       m_bLevelTransitioning;
 
-	bool                                              m_bRegisteredFileOpenSink;
-	bool                                              m_bOwnResourceList;
+	bool                       m_bRegisteredFileOpenSink;
+	bool                       m_bOwnResourceList;
 
-	CTimeValue                                        m_beginLevelLoadTime;
-	CTimeValue                                        m_lastLevelLoadTime;
+	CTimeValue                 m_beginLevelLoadTime;
+	CTimeValue                 m_lastLevelLoadTime;
 
-	_smart_ptr<IResourceList>                         m_pSequenceResourceList;
+	_smart_ptr<IResourceList>  m_pSequenceResourceList;
 
-	CryCriticalSection                                recordedFilesLock;
-	std::vector<string>                               m_recordedFiles;
+	CryCriticalSection         recordedFilesLock;
+	std::vector<string>        m_recordedFiles;
 
-	std::vector<CryFixedStringT<ICryPak::g_nMaxPath>> m_fastLoadPakPaths;
+	std::vector<CryPathString> m_fastLoadPakPaths;
 };
 
 #endif //_CRY_RESOURCE_MANAGER_H_

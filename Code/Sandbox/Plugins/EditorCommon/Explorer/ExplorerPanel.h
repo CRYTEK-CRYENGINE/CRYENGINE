@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Serialization/QPropertyTree/QPropertyTree.h"
+#include "Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h"
 #include "Explorer.h"
 
 #include <CrySerialization/IArchive.h>
@@ -132,7 +132,7 @@ private:
 	int                       m_explorerRootIndex;
 	bool                      m_filterMode;
 	uint                      m_batchChangesRunning;
-	QPropertyTree*            m_filterOptionsTree;
+	QPropertyTreeLegacy*            m_filterOptionsTree;
 };
 
 }

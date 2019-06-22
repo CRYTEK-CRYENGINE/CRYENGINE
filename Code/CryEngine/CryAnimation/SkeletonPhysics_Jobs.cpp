@@ -173,7 +173,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromEntityPrepare(Memory::CPool& m
 	CDefaultSkeleton::SJoint* pModelJoints = &rDefaultSkeleton.m_arrModelJoints[0];
 	pe_status_pos partpos;
 	partpos.flags = status_local;
-	float rscale = 1 / m_fScale;
+	float rscale = 1 / m_offset.s;
 	for (uint32 i = 0; i < jointCount; ++i)
 	{
 		m_pPhysBuffer[i].bSet = false;
@@ -448,7 +448,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromAux(Skeleton::CPoseData& poseD
 	if (m_pPhysBuffer)
 	{
 		for (uint32 i = 0; i < jointCount; ++i)
-			(m_pPhysBuffer[i].location = pJointRelative[i]).t *= m_fScale;
+			(m_pPhysBuffer[i].location = pJointRelative[i]).t *= m_offset.s;
 		m_bPhysBufferFilled = true;
 	}
 
@@ -613,7 +613,7 @@ void CSkeletonPhysics::Job_Physics_SynchronizeFromImpact(Skeleton::CPoseData& po
 		m_pPhysImpactBuffer[i].angles = animationAngles;
 		m_pPhysImpactBuffer[i].pivot =
 		  (poseData.GetJointAbsolute(parentIndex).GetInverted() *
-		  poseData.GetJointAbsolute(i).t) * m_fScale;
+		  poseData.GetJointAbsolute(i).t) * m_offset.s;
 		if (bUpdateParent)
 			m_pPhysImpactBuffer[i].q0 = updateParentMatrix * physicsJointFrame;
 		else

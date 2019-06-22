@@ -199,7 +199,7 @@ public:
 	virtual void AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) override
 	{
 		CFeatureProjectBase::AddToComponent(pComponent, pParams);
-		pComponent->GetEffect()->AddEnvironFlags(ENV_WATER);
+		pComponent->AddEnvironFlags(ENV_WATER);
 	}
 
 private:

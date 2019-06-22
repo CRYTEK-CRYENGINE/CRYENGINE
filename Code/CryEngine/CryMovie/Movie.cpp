@@ -28,7 +28,7 @@
 
 #include <CrySystem/ISystem.h>
 #include <CrySystem/ILog.h>
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CrySystem/ITimer.h>
 #include <CryRenderer/IRenderer.h>
 #include <CryGame/IGameFramework.h>
@@ -275,7 +275,7 @@ void CMovieSystem::DoNodeStaticInitialisation()
 bool CMovieSystem::Load(const char* pszFile, const char* pszMission)
 {
 	INDENT_LOG_DURING_SCOPE(true, "Movie system is loading the file '%s' (mission='%s')", pszFile, pszMission);
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	XmlNodeRef rootNode = m_pSystem->LoadXmlFromFile(pszFile);
 

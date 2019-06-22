@@ -4,8 +4,22 @@
 #include "QueryListProvider.h"
 
 #include <Explorer/Explorer.h>
+#include <QMessageBox>
 
 #include "Document.h"
+
+
+static bool AskForDeletionOfQueryDocument(const CUqsQueryDocument& queryDocToDelete)
+{
+	const QMessageBox::StandardButton answer = QMessageBox::warning(
+		nullptr,
+		"Delete document",
+		QString::asprintf("Do you really want to to delete the document '%s' from disk?", queryDocToDelete.GetName().c_str()),
+		QMessageBox::Yes | QMessageBox::No,
+		QMessageBox::No);
+
+	return (answer == QMessageBox::Yes);
+}
 
 //////////////////////////////////////////////////////////////////////////
 // CUqsQueryEntry
@@ -364,9 +378,13 @@ void CQueryListProvider::RemoveAllNeverSavedQueries()
 			{
 				if (pDoc->IsNeverSaved())
 				{
-					DocumentAboutToBeRemoved(pDoc);
-					pDoc->Delete();
-					// TODO pavloi 2016.07.01: no signal about deletion, fine for now
+					if (AskForDeletionOfQueryDocument(*pDoc))
+					{
+						// user clicked "Yes"
+						DocumentAboutToBeRemoved(pDoc);
+						pDoc->Delete();
+						// TODO pavloi 2016.07.01: no signal about deletion, fine for now
+					}
 				}
 			}
 		}
@@ -379,6 +397,9 @@ void CQueryListProvider::DeleteQueryByEntryId(uint id)
 	{
 		if (pEntry->content.GetDocument())
 		{
+			if (!AskForDeletionOfQueryDocument(*pEntry->content.GetDocument()))
+				return;	// user clicked "No"
+
 			DocumentAboutToBeRemoved(pEntry->content.GetDocument());
 		}
 

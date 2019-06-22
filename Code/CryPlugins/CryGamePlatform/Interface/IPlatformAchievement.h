@@ -19,6 +19,10 @@ namespace Cry
 			virtual bool Reset() = 0;
 			//! Unlocks the achievement
 			virtual bool Achieve() = 0;
+			//! Sets the progress of the achievement and unlocks it when the current progress meets the maximum progress
+			virtual bool SetProgress(int32 progress) = 0;
+			//! Gets the current progress of the achievement
+			virtual int32 GetProgress() const = 0;
 		};
 	}
 }

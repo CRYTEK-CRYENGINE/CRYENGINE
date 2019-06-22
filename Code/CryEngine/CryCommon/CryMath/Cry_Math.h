@@ -640,7 +640,7 @@ template<typename T> ILINE void SmoothCD(
 	else
 	{
 		val = to;
-		valRate -= valRate; // zero it...
+		valRate = (T)(valRate - valRate); // zero it...
 	}
 }
 
@@ -680,7 +680,7 @@ template<typename T> ILINE void SmoothCDWithMaxRate(
 	else
 	{
 		val = to;
-		valRate -= valRate; // zero it...
+		valRate = (T)(valRate - valRate); // zero it...
 	}
 }
 #pragma warning(pop)

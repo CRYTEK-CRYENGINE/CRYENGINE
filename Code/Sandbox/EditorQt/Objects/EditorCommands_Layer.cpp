@@ -53,7 +53,7 @@ void DeleteLayer(const char* szName)
 	}
 }
 
-void MakeLayerUneditable(const char* szName)
+void LockLayer(const char* szName)
 {
 
 	CObjectLayerManager* pLayerManager = GetIEditorImpl()->GetObjectManager()->GetLayersManager();
@@ -61,24 +61,24 @@ void MakeLayerUneditable(const char* szName)
 
 	if (CObjectLayer* pLayer = pLayerManager->FindLayerByName(szName))
 	{
-		CUndo undo("Make Layer Uneditable");
+		CUndo undo("Lock Layer");
 		pLayer->SetFrozen(true);
 	}
 }
 
-void MakeLayerEditable(const char* szName)
+void UnlockLayer(const char* szName)
 {
 	CObjectLayerManager* pLayerManager = GetIEditorImpl()->GetObjectManager()->GetLayersManager();
 	CRY_ASSERT(pLayerManager);
 
 	if (CObjectLayer* pLayer = pLayerManager->FindLayerByName(szName))
 	{
-		CUndo undo("Make Layer Editable");
+		CUndo undo("Unlock Layer");
 		pLayer->SetFrozen(false);
 	}
 }
 
-bool MakeReadOnlyLayersUneditable()
+bool LockReadOnlyLayers()
 {
 	CObjectLayerManager* pLayerManager = GetIEditorImpl()->GetObjectManager()->GetLayersManager();
 	if (pLayerManager)
@@ -178,12 +178,12 @@ std::vector<std::string> GetAllLayerNames()
 	return result;
 }
 
-void MakeAllLayersUneditable()
+void MakeAllLayersLocked()
 {
 	GetIEditor()->GetObjectManager()->GetLayersManager()->SetAllFrozen(true);
 }
 
-void MakeAllLayersEditable()
+void UnlockAllLayers()
 {
 	GetIEditor()->GetObjectManager()->GetLayersManager()->SetAllFrozen(false);
 }
@@ -216,55 +216,88 @@ REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::NewFolder, layer, new
 REGISTER_EDITOR_UI_COMMAND_DESC(layer, new_folder, "New Folder", "", "", false)
 REGISTER_COMMAND_REMAPPING(level, new_folder, layer, new_folder)
 
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, make_active,
+                                   CCommandDescription("Makes the last selected layer the active layer"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, make_active, "Set as Active Layer", "", "", false)
+
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::DeleteLayer, layer, delete,
                                    CCommandDescription("Delete layer with specific name").Param("layerName", "Name of layer"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, delete, "Delete Layer", "", "", false)
 REGISTER_COMMAND_REMAPPING(level, delete_layer, layer, delete)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::MakeLayerUneditable, layer, make_uneditable,
-                                   CCommandDescription("Makes the layer of a specific name uneditable").Param("layerName", "Name of layer"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, make_uneditable, "Make Layer Uneditable", "", "", false)
-REGISTER_COMMAND_REMAPPING(level, freeze_layer, layer, make_uneditable)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::LockLayer, layer, lock,
+                                   CCommandDescription("Locks the layer of a specific name").Param("layerName", "Name of layer"))
+REGISTER_COMMAND_REMAPPING(level, freeze_layer, layer, lock)
+REGISTER_COMMAND_REMAPPING(layer, make_uneditable, layer, lock)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::MakeLayerEditable, layer, make_editable,
-                                   CCommandDescription("Makes the layer of a specific name editable").Param("layerName", "Name of layer"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, make_editable, "Make Layer Editable", "", "", false)
-REGISTER_COMMAND_REMAPPING(level, unfreeze_layer, layer, make_editable)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::UnlockLayer, layer, unlock,
+                                   CCommandDescription("Unlocks the layer of a specific name").Param("layerName", "Name of layer"))
+REGISTER_COMMAND_REMAPPING(level, unfreeze_layer, layer, unlock)
+REGISTER_COMMAND_REMAPPING(layer, make_editable, layer, unlock)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::MakeAllLayersUneditable, layer, make_all_uneditable,
-                                   CCommandDescription("Make all layers uneditable"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, make_all_uneditable, "Make All Layers Uneditable", "", "", false)
-REGISTER_COMMAND_REMAPPING(level, freeze_all_layers, layer, make_all_uneditable)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::MakeAllLayersLocked, layer, lock_all,
+                                   CCommandDescription("Locks all layers"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, lock_all, "Lock All Layers", "", "", false)
+REGISTER_COMMAND_REMAPPING(level, freeze_all_layers, layer, lock_all)
+REGISTER_COMMAND_REMAPPING(layer, make_all_uneditable, layer, lock_all)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::MakeAllLayersEditable, layer, make_all_editable,
-                                   CCommandDescription("Make all layers editable"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, make_all_editable, "Make All Layers Editable", "", "", false)
-REGISTER_COMMAND_REMAPPING(level, unfreeze_all_layers, layer, make_all_editable)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::UnlockAllLayers, layer, unlock_all,
+                                   CCommandDescription("Unlocks all layers"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, unlock_all, "Unlock All Layers", "", "", false)
+REGISTER_COMMAND_REMAPPING(level, unfreeze_all_layers, layer, unlock_all)
+REGISTER_COMMAND_REMAPPING(layer, make_all_editable, layer, unlock_all)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::MakeReadOnlyLayersUneditable, layer, make_read_only_layers_uneditable,
-                                   CCommandDescription("Makes read only layers uneditable"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, make_read_only_layers_uneditable, "Make Read-Only Layers Uneditable", "", "", false)
-REGISTER_COMMAND_REMAPPING(level, freeze_read_only_layers, layer, make_read_only_layers_uneditable)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::LockReadOnlyLayers, layer, lock_read_only_layers,
+                                   CCommandDescription("Makes read only layers locked"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, lock_read_only_layers, "Lock Read-Only Layers", "", "", false)
+REGISTER_COMMAND_REMAPPING(level, freeze_read_only_layers, layer, lock_read_only_layers)
+REGISTER_COMMAND_REMAPPING(layer, make_read_only_layers_uneditable, layer, lock_read_only_layers)
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::HideLayer, layer, hide,
                                    CCommandDescription("Hides layer with specific name").Param("layerName", "Name of layer"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, hide, "Hide Layer", "", "", false)
 REGISTER_COMMAND_REMAPPING(level, hide_layer, layer, hide)
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::ShowLayer, layer, show,
                                    CCommandDescription("Show layer with specific name").Param("layerName", "Name of layer"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, show, "Show Layer", "", "", false)
 REGISTER_COMMAND_REMAPPING(level, unhide_layer, layer, show)
 
-REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::ShowAllLayers, layer, show_all,
-                                   CCommandDescription("Show all layers"))
-REGISTER_EDITOR_UI_COMMAND_DESC(layer, show_all, "Show All Layers", "Alt+Shift+H", "", false)
-REGISTER_COMMAND_REMAPPING(level, show_all_layers, layer, show_all)
+REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::ShowAllLayers, layer, unhide_all,
+                                   CCommandDescription("Unhide all layers"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, unhide_all, "Unhide All Layers", "Alt+Shift+H", "", false)
+REGISTER_COMMAND_REMAPPING(level, show_all_layers, layer, unhide_all)
+REGISTER_COMMAND_REMAPPING(layer, show_all, layer, unhide_all)
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::HideAllLayers, layer, hide_all,
                                    CCommandDescription("Hide all layers"))
 REGISTER_EDITOR_UI_COMMAND_DESC(layer, hide_all, "Hide All Layers", "Alt+H", "", false)
 REGISTER_COMMAND_REMAPPING(level, hide_all_layers, layer, hide_all)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, toggle_exportable,
+                                                  CCommandDescription("Toggle selected layers' exportable state. If in a multi selection with multiple state, items will be marked exportable"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, toggle_exportable, "Exportable", "", "", true)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, toggle_exportable_to_pak,
+                                                  CCommandDescription("Toggle selected layers' exportable to pak. If in a multi selection with multiple state, items will be marked exportable to pak"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, toggle_exportable_to_pak, "Exportable (Pak)", "", "", true)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, toggle_auto_load,
+                                                  CCommandDescription("Toggle selected layers' to be loaded on level load. If in a multi selection with multiple state, items will be marked to be loaded"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, toggle_auto_load, "Auto-Load", "", "", true)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, toggle_physics,
+                                                  CCommandDescription("Toggle selected layers' physics support. If in a multi selection with multiple state, physics will be enabled for all items"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, toggle_physics, "Physics", "", "", true)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, toggle_pc,
+                                                  CCommandDescription("Toggle selected layers' to load on PC. If in a multi selection with multiple state, all items will be marked to load on PC"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, toggle_pc, "PC", "", "", true)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, toggle_xbox_one,
+                                                  CCommandDescription("Toggle selected layers' to load on XBox One. If in a multi selection with multiple state, all items will be marked to load on XBox One"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, toggle_xbox_one, "XBox One", "", "", true)
+
+REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(layer, toggle_ps4,
+                                                  CCommandDescription("Toggle selected layers' to load on PS4. If in a multi selection with multiple state, all items will be marked to load on PS4"))
+REGISTER_EDITOR_UI_COMMAND_DESC(layer, toggle_ps4, "PS4", "", "", true)
 
 REGISTER_EDITOR_AND_SCRIPT_COMMAND(Private_EditorCommands::RenameLayer, layer, rename,
                                    CCommandDescription("Renames layer with specific name.").Param("layerName", "Current layer name").Param("newLayerName", "New layer name"))

@@ -27,12 +27,12 @@ namespace Cry
 
 		inline CRecursiveSyncObjectAutoLock::CRecursiveSyncObjectAutoLock()
 		{
-			gEnv->pUDR->GetHub().GetRecursiveSyncObject().Lock();
+			gEnv->pUDR->GetRecursiveSyncObject().Lock();
 		}
 
 		inline CRecursiveSyncObjectAutoLock::~CRecursiveSyncObjectAutoLock()
 		{
-			gEnv->pUDR->GetHub().GetRecursiveSyncObject().Unlock();
+			gEnv->pUDR->GetRecursiveSyncObject().Unlock();
 		}
 
 	}

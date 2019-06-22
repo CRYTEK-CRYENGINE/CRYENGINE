@@ -15,6 +15,7 @@
 
 #include "MannequinUtils.h"
 #include "MannequinDebug.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 const uint32 MAX_ALLOWED_QUEUE_SIZE = 10;
 
@@ -103,8 +104,7 @@ void CActionController::RegisterCVars()
 		REGISTER_CVAR3("mn_fatalerroroninvalidcharinst", s_mnFatalErrorOnInvalidCharInst, 1, VF_CHEAT, "Throw a fatal error when an invalid character instance is detected");
 #endif //!CRYMANNEQUIN_WARN_ABOUT_VALIDITY()
 
-		char channelName[10];
-		cry_strcpy(channelName, "channel0");
+		char channelName[] = "channel0";
 		for (uint32 i = 0; i < MANN_NUMBER_BLEND_CHANNELS; i++)
 		{
 			channelName[7] = '0' + i;

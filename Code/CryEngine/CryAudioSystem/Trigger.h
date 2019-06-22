@@ -20,26 +20,26 @@ public:
 	CTrigger& operator=(CTrigger const&) = delete;
 	CTrigger& operator=(CTrigger&&) = delete;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	explicit CTrigger(
 		ControlId const id,
-		EDataScope const dataScope,
+		ContextId const contextId,
 		TriggerConnections const& connections,
 		float const radius,
 		char const* const szName)
-		: Control(id, dataScope, szName)
+		: Control(id, contextId, szName)
 		, m_connections(connections)
 		, m_radius(radius)
 	{}
 #else
 	explicit CTrigger(
 		ControlId const id,
-		EDataScope const dataScope,
+		ContextId const contextId,
 		TriggerConnections const& connections)
-		: Control(id, dataScope)
+		: Control(id, contextId)
 		, m_connections(connections)
 	{}
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 	~CTrigger();
 
@@ -48,10 +48,10 @@ public:
 		void* const pOwner = nullptr,
 		void* const pUserData = nullptr,
 		void* const pUserDataOwner = nullptr,
-		ERequestFlags const flags = ERequestFlags::None) const;
+		ERequestFlags const flags = ERequestFlags::None,
+		EntityId const entityId = INVALID_ENTITYID) const;
 
 	void Execute(
-		CGlobalObject& globalObject,
 		void* const pOwner = nullptr,
 		void* const pUserData = nullptr,
 		void* const pUserDataOwner = nullptr,
@@ -59,7 +59,7 @@ public:
 
 	void Stop(Impl::IObject* const pIObject) const;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	void Execute(
 		CObject& object,
 		TriggerInstanceId const triggerInstanceId,
@@ -67,20 +67,19 @@ public:
 		uint16 const triggerCounter) const;
 
 	void Execute(
-		CGlobalObject& globalObject,
 		TriggerInstanceId const triggerInstanceId,
 		CTriggerInstance* const pTriggerInstance,
 		uint16 const triggerCounter) const;
 
 	float GetRadius() const { return m_radius; }
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 private:
 
 	TriggerConnections const m_connections;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	float const m_radius;
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 };
 } // namespace CryAudio

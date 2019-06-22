@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ToolFactory.h"
-#include "Serialization/QPropertyTree/QPropertyTree.h"
+#include "Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h"
 #include "Controls/QMenuComboBox.h"
 
 #include <QWidget>
@@ -25,8 +25,8 @@ public:
 	void CreatePropertyTree(SerializationClass* serialization, ChangeCallback changeCallback)
 	{
 		CreatePropertyTree(serialization);
-		QObject::connect(m_pPropertyTree, &QPropertyTree::signalChanged, this, [ = ] { changeCallback(false); });
-		QObject::connect(m_pPropertyTree, &QPropertyTree::signalContinuousChange, this, [ = ] { changeCallback(true); });
+		QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalChanged, this, [ = ] { changeCallback(false); });
+		QObject::connect(m_pPropertyTree, &QPropertyTreeLegacy::signalContinuousChange, this, [ = ] { changeCallback(true); });
 	}
 
 	template<class SerializationClass>
@@ -34,11 +34,11 @@ public:
 	{
 		QBoxLayout* pBoxLayout = new QBoxLayout(QBoxLayout::TopToBottom);
 		pBoxLayout->setContentsMargins(0, 0, 0, 0);
-		m_pPropertyTree = new QPropertyTree(this);
+		m_pPropertyTree = new QPropertyTreeLegacy(this);
 		m_pPropertyTree->setExpandLevels(1);
 		m_pPropertyTree->setCompact(false);
 		m_pPropertyTree->setSizeToContent(true);
-		auto style = QPropertyTree::defaultTreeStyle();
+		auto style = QPropertyTreeLegacy::defaultTreeStyle();
 		style.propertySplitter = false;
 		m_pPropertyTree->setTreeStyle(style);
 		m_pPropertyTree->attach(Serialization::SStruct(*serialization));
@@ -51,7 +51,7 @@ public:
 	QSize        contentSize() const                    { return m_pPropertyTree->contentSize(); }
 
 protected:
-	QPropertyTree* m_pPropertyTree;
+	QPropertyTreeLegacy* m_pPropertyTree;
 };
 
 class QMaterialComboBox : public QWidget

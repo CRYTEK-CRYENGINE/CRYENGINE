@@ -8,19 +8,15 @@
 
 class QAdvancedTreeView;
 
-class CCommandListModel : public CommandModel
+class CCommandListModel : public CCommandModel
 {
-	friend CommandModelFactory;
-
 public:
 	enum Roles
 	{
-		SortRole = static_cast<int>(CommandModel::Roles::Max),
+		SortRole = static_cast<int>(CCommandModel::Roles::Max),
 	};
 
-	virtual ~CCommandListModel();
-
-	virtual void          Initialize() override;
+	CCommandListModel();
 
 	virtual int           columnCount(const QModelIndex& parent) const override { return s_ColumnCount; }
 	virtual QVariant      data(const QModelIndex& index, int role) const override;
@@ -32,9 +28,8 @@ public:
 	virtual int           rowCount(const QModelIndex& parent) const override;
 
 protected:
-	CCommandListModel();
-
-	virtual void Rebuild() override;
+	void Initialize();
+	void Rebuild();
 
 	static const int                     s_ColumnCount = 2;
 	static const char*                   s_ColumnNames[s_ColumnCount];
@@ -56,6 +51,6 @@ public:
 	//////////////////////////////////////////////////////////
 
 private:
-	std::unique_ptr<CommandModel> m_pModel;
-	QAdvancedTreeView*            m_pTreeView;
+	std::unique_ptr<CCommandModel> m_pModel;
+	QAdvancedTreeView*             m_pTreeView;
 };

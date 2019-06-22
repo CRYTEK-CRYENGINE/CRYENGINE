@@ -18,6 +18,7 @@
 
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryPhysics/IPhysics.h>
+#include <CryCore/ScopeGuard.h>
 
 const float CMannequinModelViewport::s_maxTweenTime = 0.5f;
 
@@ -152,6 +153,9 @@ bool CMannequinModelViewport::UseAnimationDrivenMotionForEntity(const IEntity* p
 void CMannequinModelViewport::Update()
 {
 	if (IsLevelLoading()) return; // avoid update during level loading time, since QT-MFC-coupling might crash in rare cases
+
+	CCamera cameraStoreRestore = gEnv->pSystem->GetViewCamera();
+	ScopeGuard cameraRestore{ [&cameraStoreRestore]() {gEnv->pSystem->SetViewCamera(cameraStoreRestore); } };
 
 	__super::Update();
 
@@ -441,6 +445,9 @@ bool CMannequinModelViewport::HitTest(HitContext& hc, const bool bIsClick)
 void CMannequinModelViewport::OnRender(SDisplayContext& context)
 {
 	if (IsLevelLoading()) return; // avoid render-update during level loading time, since QT-MFC-coupling might crash in rare cases
+
+	CCamera cameraStoreRestore = gEnv->pSystem->GetViewCamera();
+	ScopeGuard cameraRestore{ [&cameraStoreRestore]() {gEnv->pSystem->SetViewCamera(cameraStoreRestore); } };
 
 	if (CMannequinDialog::GetCurrentInstance())
 	{
@@ -849,7 +856,7 @@ void CMannequinModelViewport::UpdateCharacter(IEntity* pEntity, ICharacterInstan
 	ISkeletonAnim& skeletonAnimation = *pInstance->GetISkeletonAnim();
 	ISkeletonPose& skeletonPose = *pInstance->GetISkeletonPose();
 
-	pInstance->SetCharEditMode(CA_CharacterTool);
+	pInstance->SetCharEditMode(CA_CharacterAuxEditor);
 	skeletonPose.SetForceSkeletonUpdate(1);
 
 	//int AnimEventCallback(ICharacterInstance* pInstance,void* pPlayer);

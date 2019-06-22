@@ -71,7 +71,7 @@ static uint64 GetModificationTime(const string& filePath)
 {
 	uint64 timestamp = 0;
 	ICryPak* const pPak = GetISystem()->GetIPak();
-	FILE* pFile = pPak->FOpen(filePath.c_str(), "rbx");
+	FILE* pFile = pPak->FOpen(filePath.c_str(), "rb");
 	if (pFile)
 	{
 		timestamp = pPak->GetModificationTime(pFile);
@@ -209,19 +209,6 @@ void CAsset::Edit(CAssetEditor* pEditor)
 	if (!CanBeEdited())
 		return;
 
-	string errorMsg;
-	if (!IsBeingEdited() && !m_type->IsAssetValid(this, errorMsg))
-	{
-		GetIEditor()->GetNotificationCenter()->ShowInfo("Cant open the asset for edit", QtUtil::ToQString(errorMsg));
-		return;
-	}
-
-	// Special handling for switching from a shared instant editor to a dedicated one.
-	if (!pEditor && m_pEditor && m_pEditor == GetType()->GetInstantEditor())
-	{
-		m_pEditor->Close();
-	}
-
 	if (m_pEditor)
 	{
 		m_pEditor->Raise();
@@ -229,6 +216,8 @@ void CAsset::Edit(CAssetEditor* pEditor)
 	}
 	else if (pEditor != nullptr)
 	{
+		pEditor->Raise();
+		pEditor->Highlight();
 		pEditor->OpenAsset(this);
 	}
 	else
@@ -289,7 +278,7 @@ void CAsset::Save()
 		return;
 	}
 
-	if (!IsWritable(false))
+	if (IsImmutable() || !IsWritable(false))
 	{
 		CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "Unable to save \"%s\". The asset is read-only.", m_name.c_str());
 		return;

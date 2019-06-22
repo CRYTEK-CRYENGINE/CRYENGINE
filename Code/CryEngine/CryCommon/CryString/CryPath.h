@@ -851,7 +851,7 @@ inline string GetProjectFolder()
 		}
 		checkedForCmdLineProjectArg = true;
 	}
-	return cmdLineProjectPath;
+	return PathUtil::ToUnixPath(cmdLineProjectPath);
 }
 
 inline string GetLocalizationFolder()
@@ -877,6 +877,25 @@ inline /*TString*/ MakeGamePath(const TString& path)
 inline string MakeGamePath(const char* szPath)
 {
 	return MakeGamePath(string(szPath));
+}
+
+//! Make a project correct path out of any input path.
+template<typename TString>
+typename std::enable_if<detail::IsValidStringType<TString>::value, TString>::type
+inline /*TString*/ MakeProjectPath(const TString& path)
+{
+	const auto fullpath = ToUnixPath(path);
+	const auto rootDataFolder = ToUnixPath(AddSlash(PathUtil::GetProjectFolder()));
+	if (fullpath.length() > rootDataFolder.length() && strnicmp(fullpath.c_str(), rootDataFolder.c_str(), rootDataFolder.length()) == 0)
+	{
+		return fullpath.substr(rootDataFolder.length(), fullpath.length() - rootDataFolder.length());
+	}
+	return fullpath;
+}
+
+inline string MakeProjectPath(const char* szPath)
+{
+	return MakeProjectPath(string(szPath));
 }
 }
 #endif

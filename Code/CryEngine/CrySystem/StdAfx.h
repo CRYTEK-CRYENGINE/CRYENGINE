@@ -94,7 +94,7 @@
 // CRT
 //////////////////////////////////////////////////////////////////////////
 
-#include <string.h>
+#include <cstring>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -176,9 +176,6 @@
 #include <CryExtension/ClassWeaver.h>
 #include <CryExtension/Conversion.h>
 #include <CryExtension/RegFactoryNode.h>
-
-#include <CryThreading/CryThreadSafeRendererContainer.h>
-#include <CryThreading/IJobManager.h> //TODO ideally don't include it, but it defines flags such as JOBMANAGER_SUPPORT_FRAMEPROFILER
 
 #include <CryRenderer/IScaleform.h> // expensive header
 #include <CryRenderer/IRenderer.h> // expensive header

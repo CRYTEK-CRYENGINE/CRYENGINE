@@ -79,7 +79,7 @@ EEntityType GetEntityType(EntityId id)
 				const char* className = pClass->GetName();
 
 				// Check AI
-				if (pEntity->GetAI())
+				if (pEntity->HasAI())
 				{
 					type |= eET_AI;
 				}

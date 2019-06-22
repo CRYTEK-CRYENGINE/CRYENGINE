@@ -17,7 +17,7 @@ namespace CryEngine
 		{
 			get
 			{
-				return NativeHandle.GetFinalColor(Color.White);
+				return NativeHandle.GetFinalColor();
 			}
 		}
 

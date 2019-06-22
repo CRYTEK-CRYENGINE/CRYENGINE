@@ -4,10 +4,15 @@
 #include "LightVolumeManager.h"
 #include "ClipVolumeManager.h"
 
+CLightVolumesMgr::CLightVolumesMgr()
+	: m_lightVolsInfoCount(0)
+{
+	Init();
+}
+
 void CLightVolumesMgr::Init()
 {
 	m_bUpdateLightVolumes = false;
-	m_pLightVolsInfo.reserve(LV_MAX_COUNT);
 	for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 		m_pLightVolumes[i].reserve(LV_MAX_COUNT);
 	memset(m_nWorldCells, 0, sizeof(m_nWorldCells));
@@ -26,7 +31,7 @@ void CLightVolumesMgr::Reset()
 
 uint16 CLightVolumesMgr::RegisterVolume(const Vec3& vPos, f32 fRadius, uint8 nClipVolumeRef, const SRenderingPassInfo& passInfo)
 {
-	IF ((m_bUpdateLightVolumes & (m_pLightVolsInfo.size() < LV_MAX_COUNT)) && fRadius < 256.0f, 1)
+	IF (m_bUpdateLightVolumes && fRadius < 256.0f, 1)
 	{
 		FUNCTION_PROFILER_3DENGINE;
 
@@ -47,22 +52,25 @@ uint16 CLightVolumesMgr::RegisterVolume(const Vec3& vPos, f32 fRadius, uint8 nCl
 			int32 nVolumePosz = (int32)(floorf(sVolInfo.vVolume.z * LV_CELL_RSIZEZ));
 
 			if (nPosx == nVolumePosx &&
-			    nPosy == nVolumePosy &&
-			    nPosz == nVolumePosz &&
-			    nClipVolumeRef == sVolInfo.nClipVolumeID)
+				nPosy == nVolumePosy &&
+				nPosz == nVolumePosz &&
+				nClipVolumeRef == sVolInfo.nClipVolumeID)
 			{
-				return (uint16) * pCurrentVolumeID;
+				return (uint16)* pCurrentVolumeID;
 			}
 
 			pCurrentVolumeID = &sVolInfo.nNextVolume;
 		}
 
-		// create new volume
-		size_t nIndex = ~0;
-		::new(m_pLightVolsInfo.push_back_new(nIndex))SLightVolInfo(vPos, fRadius, nClipVolumeRef);
-		*pCurrentVolumeID = static_cast<uint16>(nIndex + 1);
+		//we only increment m_lightVolsInfoCount here and clamp it to the max value later
+		const int newSize = CryInterlockedIncrement(&m_lightVolsInfoCount);
+		if (newSize <= LV_MAX_COUNT)
+		{
+			m_pLightVolsInfo[newSize - 1] = SLightVolInfo(vPos, fRadius, nClipVolumeRef);
+			*pCurrentVolumeID = static_cast<uint16>(newSize);
 
-		return *pCurrentVolumeID;
+			return *pCurrentVolumeID;
+		}
 	}
 
 	return 0;
@@ -110,7 +118,7 @@ void CLightVolumesMgr::AddLight(const SRenderLight& pLight, const SLightVolInfo*
 			Vec3 lightColor = pLight.m_Color.toVec3();
 
 			// Adjust light intensity so that the intended brightness is reached 1 meter from the light's surface
-			IF (!(pLight.m_Flags & (DLF_AREA_LIGHT | DLF_AMBIENT)), 1)
+			IF (!(pLight.m_Flags & DLF_AMBIENT), 1)
 			{
 				fAttenuationBulbSize = max(fAttenuationBulbSize, 0.001f);
 
@@ -142,17 +150,15 @@ void CLightVolumesMgr::AddLight(const SRenderLight& pLight, const SLightVolInfo*
 
 void CLightVolumesMgr::Update(const SRenderingPassInfo& passInfo)
 {
-	if (!m_bUpdateLightVolumes || m_pLightVolsInfo.empty() || !passInfo.IsGeneralPass())
+	if (!m_bUpdateLightVolumes || m_lightVolsInfoCount == 0 || !passInfo.IsGeneralPass())
 		return;
 
 	FUNCTION_PROFILER_3DENGINE;
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CLightVolumesMgr::Update");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CLightVolumesMgr::Update");
 
-
-	m_pLightVolsInfo.CoalesceMemory();
 	const uint32 nLightCount = passInfo.GetIRenderView()->GetLightsCount(eDLT_DeferredLight);
 
-	uint32 nLightVols = m_pLightVolsInfo.size();
+	const uint32 nLightVols = min(m_lightVolsInfoCount, LV_MAX_COUNT);
 	LightVolumeVector& lightVols = m_pLightVolumes[passInfo.ThreadID()];
 	lightVols.resize(nLightVols);
 
@@ -214,7 +220,7 @@ void CLightVolumesMgr::Clear(const SRenderingPassInfo& passInfo)
 	{
 		memset(m_nWorldCells, 0, sizeof(m_nWorldCells));
 		memset(m_pWorldLightCells, 0, sizeof(m_pWorldLightCells));
-		m_pLightVolsInfo.clear();
+		m_lightVolsInfoCount = 0;
 		m_bUpdateLightVolumes = (GetCVars()->e_LightVolumes == 1) ? true : false;
 	}
 }
@@ -247,7 +253,7 @@ void CLightVolumesMgr::DrawDebug(const SRenderingPassInfo& passInfo)
 	ColorF cWarning = ColorF(1.0f, 1.0, 0.0f, 1.0f);
 	ColorF cGood = ColorF(0.0f, 0.5, 1.0f, 1.0f);
 
-	const uint32 nLightVols = m_pLightVolsInfo.size();
+	const uint32 nLightVols = min(m_lightVolsInfoCount, LV_MAX_COUNT);
 	LightVolumeVector& lightVols = m_pLightVolumes[passInfo.ThreadID()];
 	const Vec3 vCamPos = passInfo.GetCamera().GetPosition();
 

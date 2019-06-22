@@ -195,16 +195,15 @@ void CTestExcelReporter::OnFinishTesting(const SRunContext& context, bool openRe
 			if (context.failedTestCount > 0)
 			{
 				m_log.Log("%d Tests failed, opening report...", context.failedTestCount);
-				int nAdjustFlags = 0;
-				char path[_MAX_PATH];
-				const char* szAdjustedPath = gEnv->pCryPak->AdjustFileName(kOutputFileName, path, nAdjustFlags);
-				if (szAdjustedPath != nullptr)
+				CryPathString path;
+				gEnv->pCryPak->AdjustFileName(kOutputFileName, path, /*nAdjustFlags=*/ 0);
+				if (!path.empty())
 				{
 					//should open it with Excel
-					int err = (int)::ShellExecute(NULL, "open", szAdjustedPath, NULL, NULL, SW_SHOW);
+					int err = (int)::ShellExecute(NULL, "open", path.c_str(), NULL, NULL, SW_SHOW);
 					if (err <= 32)  //returns a value greater than 32 if succeeds.
 					{
-						m_log.Log("Failed to open report %s, error code: %d", szAdjustedPath, err);
+						m_log.Log("Failed to open report %s, error code: %d", path.c_str(), err);
 					}
 				}
 			}

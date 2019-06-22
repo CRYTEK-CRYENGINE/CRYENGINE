@@ -55,6 +55,8 @@ bool CSkeletonAnim::StartAnimationById(int32 id, const struct CryCharAnimationPa
 	if (RootName == 0)
 		return 0;
 
+	m_pInstance->ResetQuasiStaticSleepTimer();
+
 	CryCharAnimationParams AnimPrams = Params;
 	if (AnimPrams.m_nLayerID > 0)
 	{
@@ -322,7 +324,7 @@ uint32 CSkeletonAnim::AnimationToQueue(const ModelAnimationHeader* pAnim, int nA
 		}
 	}
 
-	if (AnimParams.m_nFlags & CA_REMOVE_FROM_FIFO)
+	if (AnimParams.m_nFlags & CA_REMOVE_FROM_FIFO || m_pInstance->IsQuasiStaticSleeping())
 	{
 		RemoveAnimFromFIFO(AnimParams.m_nLayerID, 0, true);
 	}

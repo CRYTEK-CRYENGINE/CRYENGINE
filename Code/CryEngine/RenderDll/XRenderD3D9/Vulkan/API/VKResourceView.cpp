@@ -12,7 +12,7 @@ static void MapComponents(VkImageViewCreateInfo& info, EImageSwizzle swizzle)
 	switch (swizzle)
 	{
 	default:
-		VK_ASSERT(false && "Unknown swizzle, using identity");
+		VK_ASSERT(false, "Unknown swizzle, using identity");
 	// Fall through
 	case kImageSwizzleRGBA:
 		info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -54,9 +54,9 @@ CBufferView::CBufferView(CBufferResource* pBuffer, uint32_t offset, uint32_t byt
 	, m_bytes(bytes)
 	, m_texelFormat(format)
 {
-	VK_ASSERT(bytes != 0 && "Attempt to create empty view");
-	VK_ASSERT(offset % pBuffer->GetStride() == 0 && "Buffer access not aligned to stride");
-	VK_ASSERT(offset + bytes <= pBuffer->GetStride() * pBuffer->GetElementCount() && "Buffer access out of bounds");
+	VK_ASSERT(bytes != 0, "Attempt to create empty view");
+	VK_ASSERT(offset % pBuffer->GetStride() == 0, "Buffer access not aligned to stride");
+	VK_ASSERT(offset + bytes <= pBuffer->GetStride() * pBuffer->GetElementCount(), "Buffer access out of bounds");
 
 	if (!IsStructured())
 	{
@@ -69,7 +69,7 @@ CBufferView::CBufferView(CBufferResource* pBuffer, uint32_t offset, uint32_t byt
 		info.offset = m_offset;
 		info.range = m_bytes;
 		const VkResult result = vkCreateBufferView(GetDevice()->GetVkDevice(), &info, nullptr, &m_texelView);
-		VK_ASSERT(result == VK_SUCCESS && "Invalid format specified for texel-buffer-view");
+		CRY_VULKAN_VERIFY(result == VK_SUCCESS, "Invalid format specified for texel-buffer-view");
 	}
 }
 
@@ -107,15 +107,16 @@ CImageView::CImageView(CImageResource* pImage, VkFormat format, VkImageViewType 
 		}
 	}
 
+#if !_RELEASE
 	const bool bIsCubeLike = (viewType == VK_IMAGE_VIEW_TYPE_CUBE) || (viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY);
 	const bool bIsArrayLike = (viewType == VK_IMAGE_VIEW_TYPE_1D_ARRAY) || (viewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY) || (viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY);	
-	VK_ASSERT(firstMip + actualNumMips <= pImage->GetMipCount() && "Image mips out of range");
-	VK_ASSERT(firstSlice + actualNumSlices <= pImage->GetSliceCount() && "Image slices out of range");
-	VK_ASSERT(actualNumMips * actualNumSlices >= 1 && "No subresources selected");
-	VK_ASSERT((!bIsCubeLike || (actualNumSlices % 6 == 0)) && "Cannot create cubes when number of slices is not a multiple of 6");
-	VK_ASSERT((bIsArrayLike || (actualNumSlices == (bIsCubeLike ? 6 : 1))) && "Cannot create non-array view when slice count is not 1");
-	VK_ASSERT((viewType != VK_IMAGE_VIEW_TYPE_3D || actualNumSlices == 1) && "Cannot create array view on volume textures");
-
+	VK_ASSERT(firstMip + actualNumMips <= pImage->GetMipCount(), "Image mips out of range");
+	VK_ASSERT(firstSlice + actualNumSlices <= pImage->GetSliceCount(), "Image slices out of range");
+	VK_ASSERT(actualNumMips * actualNumSlices >= 1, "No subresources selected");
+	VK_ASSERT((!bIsCubeLike || (actualNumSlices % 6 == 0)), "Cannot create cubes when number of slices is not a multiple of 6");
+	VK_ASSERT((bIsArrayLike || (actualNumSlices == (bIsCubeLike ? 6 : 1))), "Cannot create non-array view when slice count is not 1");
+	VK_ASSERT((viewType != VK_IMAGE_VIEW_TYPE_3D || actualNumSlices == 1), "Cannot create array view on volume textures");
+#endif
 	VkImageViewCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	info.pNext = nullptr;
@@ -147,7 +148,7 @@ CImageView::CImageView(CImageResource* pImage, VkFormat format, VkImageViewType 
 
 			bHasDepth &= swizzle != kImageSwizzleSS00;
 			bHasStencil &= swizzle != kImageSwizzleDD00;
-			VK_ASSERT((bHasDepth || bHasStencil) && "Invalid swizzle for depth/stencil format");
+			VK_ASSERT((bHasDepth || bHasStencil), "Invalid swizzle for depth/stencil format");
 			
 			info.format = pImage->GetFormat(); // Views can never re-interpret depth/stencil formats
 			info.subresourceRange.aspectMask = bHasDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : 0;
@@ -159,7 +160,7 @@ CImageView::CImageView(CImageResource* pImage, VkFormat format, VkImageViewType 
 	}
 
 	const VkResult result = vkCreateImageView(GetDevice()->GetVkDevice(), &info, nullptr, &m_imageView);
-	VK_ASSERT(result == VK_SUCCESS && "Failed to create image view, check parameters");
+	CRY_VULKAN_VERIFY(result == VK_SUCCESS, "Failed to create image view, check parameters");
 
 	// These are only needed for GetDesc() / debugging. TODO: Remove?
 	m_firstMip = firstMip;

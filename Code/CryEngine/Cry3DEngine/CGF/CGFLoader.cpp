@@ -1466,8 +1466,7 @@ bool SplitIntoRBatches(
 				if (vmax < i1) vmax = i1;
 				if (vmax < i2) vmax = i2;
 			}
-			uint32 a = pMesh->m_subsets[m].nFirstVertId;
-			uint32 b = pMesh->m_subsets[m].nNumVerts;
+
 			if (pMesh->m_subsets[m].nFirstVertId != vmin ||
 			    pMesh->m_subsets[m].nNumVerts != vmax - vmin + 1)
 			{
@@ -2154,7 +2153,9 @@ bool CLoaderCGF::ProcessSkinning()
 		//init internal morph-targets
 		MorphTargets* pMorphtarget = pSkinningInfo->m_arrMorphTargets[it];
 		uint32 numMorphVerts = pMorphtarget->m_arrIntMorph.size();
+#if !defined(_RELEASE)
 		uint32 intVertexCount = pSkinningInfo->m_arrIntVertices.size();
+#endif
 		for (uint32 i = 0; i < numMorphVerts; i++)
 		{
 			uint32 idx = pMorphtarget->m_arrIntMorph[i].nVertexId;

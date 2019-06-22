@@ -7,6 +7,12 @@
 #include "Gpu/GpuComputeBackend.h"
 #include "GraphicsPipeline/Common/ComputeRenderPass.h"
 
+// Fwd
+namespace gpu_pfx2
+{
+	struct SUpdateContext;
+}
+
 namespace gpu_physics
 {
 const int kThreadsInBlock = 1024u;
@@ -55,7 +61,7 @@ class CParticleFluidSimulation : public ISimulationInstance
 public:
 	enum { simulationType = eSimulationType_ParticleFluid };
 
-	CParticleFluidSimulation(const int maxBodies);
+	CParticleFluidSimulation(CGraphicsPipeline* pGraphicsPipeline, const int maxBodies);
 	~CParticleFluidSimulation();
 
 	// most of the simulation runs in the render thread
@@ -63,7 +69,7 @@ public:
 
 	void CreateResources();
 	void EvolveParticles(CDeviceCommandListRef RESTRICT_REFERENCE commandList, CGpuBuffer& defaultParticleBuffer, int numParticles);
-	void FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList, CConstantBufferPtr parameterBuffer, int constantBufferSlot);
+	void FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const gpu_pfx2::SUpdateContext& context, CConstantBufferPtr parameterBuffer, int constantBufferSlot);
 protected:
 	void InternalInjectBodies(const EBodyType type, const SBodyBase* b, const int numBodies);
 	void InternalSetParameters(const EParameterType type, const SParameterBase* p);

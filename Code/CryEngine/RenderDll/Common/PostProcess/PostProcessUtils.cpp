@@ -86,9 +86,9 @@ void SPostEffectsUtils::GetFullScreenQuad(SVF_P3F_C4B_T2F pResult[4], int nTexWi
 	if (pSrcRegion)
 	{
 		const Vec4 vTexCoordsRegion(float(pSrcRegion->left) / nTexWidth,
-			float(pSrcRegion->right) / nTexWidth,
-			float(pSrcRegion->top) / nTexHeight,
-			float(pSrcRegion->bottom) / nTexHeight);
+		                            float(pSrcRegion->right) / nTexWidth,
+		                            float(pSrcRegion->top) / nTexHeight,
+		                            float(pSrcRegion->bottom) / nTexHeight);
 		pResult[0].st = Vec2(vTexCoordsRegion.x, vTexCoordsRegion.z);
 		pResult[1].st = Vec2(vTexCoordsRegion.x, vTexCoordsRegion.w);
 		pResult[2].st = Vec2(vTexCoordsRegion.y, vTexCoordsRegion.z);
@@ -154,7 +154,7 @@ void SPostEffectsUtils::DrawQuad(int nTexWidth, int nTexHeight,
 {
 	//OLD PIPELINE
 	ASSERT_LEGACY_PIPELINE
-	
+
 	const float z = 1.0f;
 	CryStackAllocWithSizeVector(SVF_P3F_C4B_T2F, 4, pScreenQuad, CDeviceBufferManager::AlignBufferSizeForStreaming);
 
@@ -187,81 +187,6 @@ void SPostEffectsUtils::DrawQuad(int nTexWidth, int nTexHeight,
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPostEffectsUtils::GetFullScreenTriWPOS(SVF_P3F_T2F_T3F pResult[3], int nTexWidth, int nTexHeight, float z, const RECT* pSrcRegion)
-{
-	UpdateFrustumCorners();
-
-	z = 1.0f - z;
-
-	pResult[0].p = Vec3(-0.0f, -0.0f, z);
-	pResult[0].st0 = Vec2(0, 0);
-	pResult[0].st1 = m_vLT;
-	pResult[1].p = Vec3(-0.0f, 2.0f, z);
-	pResult[1].st0 = Vec2(0, 2);
-	pResult[1].st1 = m_vLB * 2.0f - m_vLT;
-	pResult[2].p = Vec3(2.0f, -0.0f, z);
-	pResult[2].st0 = Vec2(2, 0);
-	pResult[2].st1 = m_vRT * 2.0f - m_vLT;
-
-	if (pSrcRegion)
-	{
-		const Vec4 vTexCoordsRegion(2.0f * float(pSrcRegion->left) / nTexWidth,
-		                            2.0f * float(pSrcRegion->right) / nTexWidth,
-		                            2.0f * float(pSrcRegion->top) / nTexHeight,
-		                            2.0f * float(pSrcRegion->bottom) / nTexHeight);
-		pResult[0].st0 = Vec2(vTexCoordsRegion.x, vTexCoordsRegion.z);
-		pResult[1].st0 = Vec2(vTexCoordsRegion.x, vTexCoordsRegion.w);
-		pResult[2].st0 = Vec2(vTexCoordsRegion.y, vTexCoordsRegion.z);
-	}
-}
-
-void SPostEffectsUtils::GetFullScreenQuadWPOS(SVF_P3F_T2F_T3F pResult[4], int nTexWidth, int nTexHeight, float z, const RECT* pSrcRegion)
-{
-	UpdateFrustumCorners();
-
-	z = 1.0f - z;
-
-	pResult[0].p = Vec3(-0.0f, -0.0f, z);
-	pResult[0].st0 = Vec2(0, 0);
-	pResult[0].st1 = m_vLT;
-	pResult[1].p = Vec3(-0.0f, 1.0f, z);
-	pResult[1].st0 = Vec2(0, 1);
-	pResult[1].st1 = m_vLB;
-	pResult[2].p = Vec3(1.0f, -0.0f, z);
-	pResult[2].st0 = Vec2(1, 0);
-	pResult[2].st1 = m_vRT;
-	pResult[3].p = Vec3(1.0f, 1.0f, z);
-	pResult[3].st0 = Vec2(1, 1);
-	pResult[3].st1 = m_vRB;
-
-	if (pSrcRegion)
-	{
-		const Vec4 vTexCoordsRegion(float(pSrcRegion->left) / nTexWidth,
-			float(pSrcRegion->right) / nTexWidth,
-			float(pSrcRegion->top) / nTexHeight,
-			float(pSrcRegion->bottom) / nTexHeight);
-		pResult[0].st0 = Vec2(vTexCoordsRegion.x, vTexCoordsRegion.z);
-		pResult[1].st0 = Vec2(vTexCoordsRegion.x, vTexCoordsRegion.w);
-		pResult[2].st0 = Vec2(vTexCoordsRegion.y, vTexCoordsRegion.z);
-		pResult[3].st0 = Vec2(vTexCoordsRegion.y, vTexCoordsRegion.w);
-	}
-}
-
-void SPostEffectsUtils::DrawFullScreenTriWPOS(int nTexWidth, int nTexHeight, float z, const RECT* pSrcRegion)
-{
-	//OLD PIPELINE
-	ASSERT_LEGACY_PIPELINE
-
-	//CryStackAllocWithSizeVector(SVF_P3F_T2F_T3F, 4, screenQuad, CDeviceBufferManager::AlignBufferSizeForStreaming);
-	//GetFullScreenQuadWPOS(screenQuad, nTexWidth, nTexHeight, z, pSrcRegion);
-
-	//CVertexBuffer strip(screenQuad, EDefaultInputLayouts::P3F_T2F_T3F);
-	//gRenDev->DrawPrimitivesInternal(&strip, 4, eptTriangleStrip);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void SPostEffectsUtils::SetTexture(CTexture* pTex, int nStage, int nFilter, ESamplerAddressMode eMode, bool bSRGBLookup, DWORD dwBorderColor)
 {
 	ASSERT_LEGACY_PIPELINE;
@@ -272,7 +197,7 @@ void SPostEffectsUtils::SetTexture(CTexture* pTex, int nStage, int nFilter, ESam
 
 bool SPostEffectsUtils::GetOrCreateRenderTarget(const char* szTexName, CTexture*& pTex, int nWidth, int nHeight, const ColorF& cClear, bool bUseAlpha, bool bMipMaps, ETEX_Format eTF, int nCustomID, int nFlags)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "PostEffects CreateRenderTarget: %s", szTexName);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Texture, "PostEffects CreateRenderTarget: %s", szTexName);
 
 	// check if parameters are valid
 	if (!nWidth || !nHeight)
@@ -306,7 +231,7 @@ bool SPostEffectsUtils::GetOrCreateRenderTarget(const char* szTexName, CTexture*
 
 bool SPostEffectsUtils::GetOrCreateDepthStencil(const char* szTexName, CTexture*& pTex, int nWidth, int nHeight, const ColorF& cClear, bool bUseAlpha, bool bMipMaps, ETEX_Format eTF, int nCustomID, int nFlags)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Texture, 0, "PostEffects CreateRenderTarget: %s", szTexName);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Texture, "PostEffects CreateRenderTarget: %s", szTexName);
 
 	// check if parameters are valid
 	if (!nWidth || !nHeight)
@@ -407,14 +332,14 @@ void SPostEffectsUtils::GetFrustumCorners(Vec3& vRT, Vec3& vLT, Vec3& vLB, Vec3&
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SPostEffectsUtils::UpdateFrustumCorners()
+void SPostEffectsUtils::UpdateFrustumCorners(const CGraphicsPipeline& graphicsPipeline)
 {
 	int64 nFrameID = gRenDev->GetRenderFrameID();
-	const CCamera& camera = gcpRendD3D.GetGraphicsPipeline().GetCurrentRenderView()->GetCamera(CCamera::eEye_Left);
+	const CCamera& camera = graphicsPipeline.GetCurrentRenderView()->GetCamera(CCamera::eEye_Left);
 
 	if (m_nFrustrumFrameID != nFrameID || gcpRendD3D->GetS3DRend().GetStereoMode() == EStereoMode::STEREO_MODE_DUAL_RENDERING || !CompareRenderCamera(camera, m_cachedRenderCamera))
 	{
-		bool bMirrorCull = gcpRendD3D.GetGraphicsPipeline().GetCurrentRenderView()->IsViewFlag(SRenderViewInfo::eFlags_MirrorCull);
+		bool bMirrorCull = graphicsPipeline.GetCurrentRenderView()->IsViewFlag(SRenderViewInfo::eFlags_MirrorCull);
 		GetFrustumCorners(m_vRT, m_vLT, m_vLB, m_vRB, camera, bMirrorCull);
 
 		m_nFrustrumFrameID = nFrameID;

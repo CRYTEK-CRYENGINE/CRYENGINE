@@ -13,7 +13,13 @@ class CSelectProjectDialog : public CEditorDialog
 {
 	Q_OBJECT
 public:
-	CSelectProjectDialog(QWidget* pParent, bool runOnSandboxInit);
+	enum class Tab
+	{
+		Open,
+		Create,
+	};
+
+	CSelectProjectDialog(QWidget* pParent, bool runOnSandboxInit, Tab tabToShow);
 	~CSelectProjectDialog();
 
 	CProjectManager&  GetProjectManager();

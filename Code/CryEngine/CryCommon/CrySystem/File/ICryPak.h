@@ -248,9 +248,6 @@ struct ICryPak
 	//! Used for widening FOpen functionality. They're ignored for the regular File System files.
 	enum EFOpenFlags : uint32
 	{
-		//! If possible, will prevent the file from being read from memory.
-		FOPEN_HINT_DIRECT_OPERATION = BIT32(0),
-
 		//! Will prevent a "missing file" warnings to be created.
 		FOPEN_HINT_QUIET = BIT32(1),
 
@@ -271,10 +268,7 @@ struct ICryPak
 		RFOM_Level,                 //!< During level loading till export2game -> resourcelist.txt, used to generate the list for level2level loading.
 		RFOM_NextLevel              //!< Used for level2level loading.
 	};
-
-	//! The size of the buffer that receives the full path to the file.
-	enum {g_nMaxPath = 0x800};
-
+	
 	//! File location enum used in isFileExist to control where the pak system looks for the file.
 	enum EFileSearchLocation
 	{
@@ -318,8 +312,7 @@ struct ICryPak
 	virtual ~ICryPak(){}
 
 	//! Given the source relative path, constructs the full path to the file according to the flags.
-	//! \return Pointer to the constructed path (can be either szSourcePath, or szDestPath, or NULL in case of error.
-	virtual const char* AdjustFileName(const char* src, char dst[g_nMaxPath], unsigned nFlags) = 0;
+	virtual void        AdjustFileName(const char* src, CryPathString& dst, unsigned nFlags) = 0;
 
 	virtual bool        Init(const char* szBasePath) = 0;
 	virtual void        Release() = 0;
@@ -330,19 +323,19 @@ struct ICryPak
 
 	//! After this call, the pak file will be searched for files when they aren't on the OS file system.
 	//! \param pName Must not be 0.
-	virtual bool OpenPack(const char* pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock* pData = 0, CryFixedStringT<ICryPak::g_nMaxPath>* pFullPath = 0) = 0;
+	virtual bool OpenPack(const char* pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock* pData = 0, CryPathString* pFullPath = 0) = 0;
 
 	//! After this call, the pak file will be searched for files when they aren't on the OS file system.
-	virtual bool OpenPack(const char* pBindingRoot, const char* pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock* pData = 0, CryFixedStringT<ICryPak::g_nMaxPath>* pFullPath = 0) = 0;
+	virtual bool OpenPack(const char* pBindingRoot, const char* pName, unsigned nFlags = FLAGS_PATH_REAL, IMemoryBlock* pData = 0, CryPathString* pFullPath = 0) = 0;
 
 	//! After this call, the file will be unlocked and closed, and its contents won't be used to search for files.
 	virtual bool ClosePack(const char* pName, unsigned nFlags = FLAGS_PATH_REAL) = 0;
 
 	//! Opens pack files by the path and wildcard.
-	virtual bool OpenPacks(const char* pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryFixedStringT<ICryPak::g_nMaxPath>>* pFullPaths = NULL) = 0;
+	virtual bool OpenPacks(const char* pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryPathString>* pFullPaths = NULL) = 0;
 
 	//! Opens pack files by the path and wildcard.
-	virtual bool OpenPacks(const char* pBindingRoot, const char* pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryFixedStringT<ICryPak::g_nMaxPath>>* pFullPaths = NULL) = 0;
+	virtual bool OpenPacks(const char* pBindingRoot, const char* pWildcard, unsigned nFlags = FLAGS_PATH_REAL, std::vector<CryPathString>* pFullPaths = NULL) = 0;
 
 	//! Closes pack files by the path and wildcard.
 	virtual bool ClosePacks(const char* pWildcard, unsigned nFlags = FLAGS_PATH_REAL) = 0;
@@ -408,10 +401,9 @@ struct ICryPak
 	virtual void              FreePakInfo(PakInfo*) = 0;
 
 	//! Open file handle, file can be on disk or in PAK file.
-	//! Possible mode is r,b,x.
+	//! Possible mode is r,b.
 	//! Example:
-	//! FILE *f = FOpen( "test.txt","rbx" );.
-	//! Mode x is a direct access mode, when used file reads will go directly into the low level file system without any internal data caching.
+	//! FILE *f = FOpen( "test.txt","rb" );
 	//! Text mode is not supported for files in PAKs.
 	//! \see ICryPak::EFOpenFlags.
 	virtual FILE* FOpen(const char* pName, const char* mode, unsigned nFlags = 0) = 0;
@@ -692,14 +684,15 @@ inline FILE* fxopen(const char* file, const char* mode, bool bGameRelativePath =
 		{
 			nAdjustFlags |= ICryPak::FLAGS_FOR_WRITING;
 		}
-		char path[_MAX_PATH];
-		const char* szAdjustedPath = gEnv->pCryPak->AdjustFileName(file, path, nAdjustFlags);
+		
+		CryPathString adjustedPath;
+		gEnv->pCryPak->AdjustFileName(file, adjustedPath, nAdjustFlags);
 
 #if !CRY_PLATFORM_LINUX && !CRY_PLATFORM_ANDROID && !CRY_PLATFORM_APPLE
 		if (hasWriteAccess)
 		{
 			// Make sure folder is created.
-			gEnv->pCryPak->MakeDir(PathUtil::GetParentDirectory(szAdjustedPath).c_str());
+			gEnv->pCryPak->MakeDir(PathUtil::GetParentDirectory(adjustedPath).c_str());
 		}
 #endif
 
@@ -739,7 +732,7 @@ inline FILE* fxopen(const char* file, const char* mode, bool bGameRelativePath =
 			cOpenFlags |= O_APPEND;
 		}
 
-		HANDLE winFile = CreateFile(szAdjustedPath, winAccessFlags, FILE_SHARE_READ, 0, winCreationMode, FILE_ATTRIBUTE_NORMAL, 0);
+		HANDLE winFile = CreateFile(adjustedPath, winAccessFlags, FILE_SHARE_READ, 0, winCreationMode, FILE_ATTRIBUTE_NORMAL, 0);
 		if (winFile == INVALID_HANDLE_VALUE)
 		{
 			return 0;
@@ -752,7 +745,7 @@ inline FILE* fxopen(const char* file, const char* mode, bool bGameRelativePath =
 		}
 		return _fdopen(cHandle, mode);
 #else
-		return fopen(szAdjustedPath, mode);
+		return fopen(adjustedPath, mode);
 #endif
 	}
 	else
@@ -802,166 +795,6 @@ protected:
 #else
 	#define SCOPED_ALLOW_FILE_ACCESS_FROM_THIS_THREAD() CScopedAllowFileAccessFromThisThread allowFileAccess
 #endif
-
-//////////////////////////////////////////////////////////////////////////
-
-class CInMemoryFileLoader
-{
-public:
-	CInMemoryFileLoader(ICryPak* pCryPak) : m_pFile(0), m_pBuffer(0), m_pPak(pCryPak), m_pCursor(0), m_nFileSize(0) {}
-	~CInMemoryFileLoader()
-	{
-		Close();
-	}
-
-	bool IsFileExists() const
-	{
-		return m_pFile != 0;
-	}
-
-	FILE* GetFileHandle() const
-	{
-		return m_pFile;
-	}
-
-	bool FOpen(const char* name, const char* mode, bool bImmediateCloseFile = false)
-	{
-		if (m_pPak)
-		{
-			assert(!m_pFile);
-			m_pFile = m_pPak->FOpen(name, mode);
-			if (!m_pFile)
-				return false;
-
-			m_nFileSize = m_pPak->FGetSize(m_pFile);
-			if (m_nFileSize == 0)
-			{
-				Close();
-				return false;
-			}
-
-			m_pCursor = m_pBuffer = (char*)m_pPak->PoolMalloc(m_nFileSize);
-
-			size_t nReaded = m_pPak->FReadRawAll(m_pBuffer, m_nFileSize, m_pFile);
-			if (nReaded != m_nFileSize)
-			{
-				Close();
-				return false;
-			}
-
-			if (bImmediateCloseFile)
-			{
-				m_pPak->FClose(m_pFile);
-				m_pFile = 0;
-			}
-
-			return true;
-		}
-
-		return false;
-	}
-
-	void FClose()
-	{
-		Close();
-	}
-
-	size_t FReadRaw(void* data, size_t length, size_t elems)
-	{
-		ptrdiff_t dist = m_pCursor - m_pBuffer;
-
-		size_t count = length;
-		if (dist + count * elems > m_nFileSize)
-			count = (m_nFileSize - dist) / elems;
-
-		memmove(data, m_pCursor, count * elems);
-		m_pCursor += count * elems;
-
-		return count;
-	}
-
-	template<class T>
-	size_t FRead(T* data, size_t elems, bool bSwapEndian = eLittleEndian)
-	{
-		ptrdiff_t dist = m_pCursor - m_pBuffer;
-
-		size_t count = elems;
-		if (dist + count * sizeof(T) > m_nFileSize)
-			count = (m_nFileSize - dist) / sizeof(T);
-
-		memmove(data, m_pCursor, count * sizeof(T));
-		m_pCursor += count * sizeof(T);
-
-		SwapEndian(data, count, bSwapEndian);
-		return count;
-	}
-
-	size_t FTell()
-	{
-		ptrdiff_t dist = m_pCursor - m_pBuffer;
-		return dist;
-	}
-
-	int FSeek(int64 origin, int command)
-	{
-		int retCode = -1;
-		int64 newPos;
-		char* newPosBuf;
-		switch (command)
-		{
-		case SEEK_SET:
-			newPos = origin;
-			if (newPos <= (int64)m_nFileSize)
-			{
-				m_pCursor = m_pBuffer + newPos;
-				retCode = 0;
-			}
-			break;
-		case SEEK_CUR:
-			newPosBuf = m_pCursor + origin;
-			if (newPosBuf <= m_pBuffer + m_nFileSize)
-			{
-				m_pCursor = newPosBuf;
-				retCode = 0;
-			}
-			break;
-		case SEEK_END:
-			newPos = m_nFileSize - origin;
-			if (newPos <= (int64)m_nFileSize)
-			{
-				m_pCursor = m_pBuffer + newPos;
-				retCode = 0;
-			}
-			break;
-		default:
-			// Not valid disk operation!
-			assert(0);
-		}
-		return retCode;
-	}
-
-private:
-
-	void Close()
-	{
-		if (m_pFile)
-			m_pPak->FClose(m_pFile);
-
-		if (m_pBuffer)
-			m_pPak->PoolFree(m_pBuffer);
-
-		m_pBuffer = m_pCursor = 0;
-		m_nFileSize = 0;
-		m_pFile = 0;
-	}
-
-private:
-	FILE*    m_pFile;
-	char*    m_pBuffer;
-	ICryPak* m_pPak;
-	char*    m_pCursor;
-	size_t   m_nFileSize;
-};
 
 //////////////////////////////////////////////////////////////////////////
 

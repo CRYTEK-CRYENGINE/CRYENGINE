@@ -9,12 +9,8 @@
 //////////////////////////////////////////////////////////////////////////
 uint32 GlobalAnimationHeaderCAF::LoadCAF()
 {
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
-
-#if INCLUDE_MEMSTAT_CONTEXTS
-	const char* pname = m_FilePath.c_str();
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "CAF Animation %s", pname);
-#endif
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "CAF Animation %s", m_FilePath.c_str());
 
 	m_nFlags = 0;
 	OnAssetNotFound();
@@ -79,7 +75,7 @@ void GlobalAnimationHeaderCAF::LoadControllersCAF()
 
 void GlobalAnimationHeaderCAF::LoadDBA()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Animation DBA");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Animation DBA");
 
 	if (m_nControllers == 0 && m_FilePathDBACRC32)
 	{
@@ -209,7 +205,7 @@ void* GlobalAnimationHeaderCAFStreamContent::StreamOnNeedStorage(IReadStream* pS
 
 	if (static_cast<int>(nSize) >= Console::GetInst().ca_MinInPlaceCAFStreamSize)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_CAF, 0, m_pPath);
+		MEMSTAT_CONTEXT(EMemStatContextType::CAF, m_pPath);
 
 		m_hControllerData = g_controllerHeap.AllocPinned(nSize, NULL);
 		if (m_hControllerData.IsValid())
@@ -221,7 +217,7 @@ void* GlobalAnimationHeaderCAFStreamContent::StreamOnNeedStorage(IReadStream* pS
 
 void GlobalAnimationHeaderCAFStreamContent::StreamAsyncOnComplete(IReadStream* pStream, unsigned nError)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_CAF, 0, m_pPath);
+	MEMSTAT_CONTEXT(EMemStatContextType::CAF, m_pPath);
 
 	if (pStream->IsError())
 	{
@@ -267,7 +263,7 @@ void GlobalAnimationHeaderCAFStreamContent::StreamAsyncOnComplete(IReadStream* p
 void GlobalAnimationHeaderCAFStreamContent::StreamOnComplete(IReadStream* pStream, unsigned nError)
 {
 	DEFINE_PROFILER_FUNCTION();
-	//LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	//CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	GlobalAnimationHeaderCAF& caf = g_AnimationManager.m_arrGlobalCAF[m_id];
 
@@ -373,7 +369,7 @@ bool GlobalAnimationHeaderCAFStreamContent::ParseChunkRange(IChunkFile* pChunkFi
 
 uint32 GlobalAnimationHeaderCAF::DoesExistCAF()
 {
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	_smart_ptr<IChunkFile> pChunkFile = g_pI3DEngine->CreateChunkFile(true);
 	if (!pChunkFile->Read(m_FilePath))
 		return 0;

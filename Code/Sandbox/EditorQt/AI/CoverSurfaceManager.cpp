@@ -12,6 +12,9 @@ const uint32 BAI_COVER_FILE_VERSION_WRITE = 2;
 
 void CCoverSurfaceManager::ClearGameSurfaces()
 {
+	if (!gEnv->pAISystem->GetCoverSystem())
+		return;
+
 	gEnv->pAISystem->GetCoverSystem()->Clear();
 
 	SurfaceObjects::iterator it = m_surfaceObjects.begin();

@@ -17,15 +17,15 @@ public:
 	CLoseFocusTrigger& operator=(CLoseFocusTrigger const&) = delete;
 	CLoseFocusTrigger& operator=(CLoseFocusTrigger&&) = delete;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	CLoseFocusTrigger()
-		: Control(g_loseFocusTriggerId, EDataScope::Global, g_szLoseFocusTriggerName)
+		: Control(g_loseFocusTriggerId, GlobalContextId, g_szLoseFocusTriggerName)
 	{}
 #else
 	CLoseFocusTrigger()
-		: Control(g_loseFocusTriggerId, EDataScope::Global)
+		: Control(g_loseFocusTriggerId, GlobalContextId)
 	{}
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 	~CLoseFocusTrigger();
 

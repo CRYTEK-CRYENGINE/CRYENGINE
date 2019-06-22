@@ -1,4 +1,4 @@
-// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "EnvironmentAssetType.h"
@@ -123,6 +123,19 @@ void CEnvironmentAssetType::OnInit()
 {
 	using namespace Private_EnvironmentAssetType;
 	static CXmlPresetsImporter importer;
+
+	CAssetManager::GetInstance()->signalBeforeAssetsRemoved.Connect([this](const std::vector<CAsset*>& assets)
+	{
+		for (const CAsset* pAsset : assets)
+		{
+			if (pAsset->GetType() != this)
+			{
+				continue;
+			}
+			ITimeOfDay* const pTimeOfDay = GetISystem()->GetI3DEngine()->GetTimeOfDay();
+			pTimeOfDay->RemovePreset(pAsset->GetFile(0));
+		}
+	});
 }
 
 bool CEnvironmentAssetType::OnCreate(INewAsset& asset, const SCreateParams* pCreateParams) const
@@ -130,7 +143,15 @@ bool CEnvironmentAssetType::OnCreate(INewAsset& asset, const SCreateParams* pCre
 	const string dataFilename = PathUtil::RemoveExtension(asset.GetMetadataFile());
 	asset.SetFiles({ dataFilename });
 	ITimeOfDay* const pTimeOfDay = GetISystem()->GetI3DEngine()->GetTimeOfDay();
-	return (pTimeOfDay->ResetPreset(dataFilename) || pTimeOfDay->AddNewPreset(dataFilename)) && pTimeOfDay->SavePreset(dataFilename);
+	if (!pTimeOfDay->ResetPreset(dataFilename) && !pTimeOfDay->AddNewPreset(dataFilename))
+	{
+		return false;
+	}
+
+	// Try to apply the default time of day settings.
+	pTimeOfDay->ImportPreset(dataFilename, ITimeOfDay::GetDefaultPresetFilepath());
+
+	return pTimeOfDay->SavePreset(dataFilename);
 }
 
 CAssetEditor* CEnvironmentAssetType::Edit(CAsset* pAsset) const

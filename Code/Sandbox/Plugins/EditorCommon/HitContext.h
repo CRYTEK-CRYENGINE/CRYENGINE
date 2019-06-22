@@ -59,6 +59,8 @@ struct HitContext
 
 	//! Ignores groups/prefabs being locked
 	bool         ignoreHierarchyLocks;
+	//! Ignores frozen objects
+	bool         ignoreFrozenObjects;
 	//! Testing performed in 2D viewport.
 	bool         b2DViewport;
 	//! Hit test only gizmo objects
@@ -108,6 +110,7 @@ struct HitContext
 		, bounds{nullptr}
 		, camera{nullptr}
 		, ignoreHierarchyLocks{false}
+		, ignoreFrozenObjects{true}
 		, b2DViewport{false}
 		, bSkipIfGizmoHighlighted{false}
 		, bUseSelectionHelpers{false}

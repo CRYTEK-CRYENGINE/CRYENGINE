@@ -227,7 +227,7 @@ void CVehiclePrototype::Display(CObjectRenderHelper& objRenderHelper)
 			//rp.nDLightMask = GetIEditor()->Get3DEngine()->GetLightMaskFromPosition(wtm.GetTranslation(),1.f) & 0xFFFF;
 			//rp.pMaterial = GetIEditor()->GetIconManager()->GetHelperMaterial();
 
-			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(GetIEditor()->GetSystem()->GetViewCamera(), SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextKey());
+			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(objRenderHelper.GetPassInfo().GetGraphicsPipelineKey(), GetIEditor()->GetSystem()->GetViewCamera(), SRenderingPassInfo::DEFAULT_FLAGS, true, dc.GetDisplayContextKey());
 			pRenderNode->Render(rp, passInfo);
 		}
 

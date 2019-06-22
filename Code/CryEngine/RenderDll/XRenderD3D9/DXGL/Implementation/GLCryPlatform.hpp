@@ -14,6 +14,8 @@
 #ifndef __GLCRYPLATFORM__
 #define __GLCRYPLATFORM__
 
+#include <CrySystem/ConsoleRegistration.h>
+
 namespace NCryOpenGL
 {
 

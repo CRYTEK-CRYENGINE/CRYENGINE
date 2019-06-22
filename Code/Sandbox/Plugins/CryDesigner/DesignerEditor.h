@@ -53,8 +53,6 @@ public:
 
 	bool      IsDisplayGrid() override;
 	bool      IsNeedMoveTool() override  { return true; }
-	bool      IsAllowTabKey() override   { return true; }
-	bool      IsExclusiveMode() override { return gDesignerSettings.bExclusiveMode; }
 	void      OnEditorNotifyEvent(EEditorNotifyEvent event);
 
 	void      SelectAllElements();

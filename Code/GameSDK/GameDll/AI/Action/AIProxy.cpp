@@ -979,16 +979,16 @@ void CAIProxy::UpdateShooting(const SOBJECTSTATE& state, bool isAlive)
 				switch (returnedGrenadeType)
 				{
 				case eRGT_SMOKE_GRENADE:
-					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnSmokeGrenadeThrown(), pEnt->GetAIObjectID()));
+					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnSmokeGrenadeThrown(), pEnt->GetId()));
 					break;
 				case eRGT_FLASHBANG_GRENADE:
-					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnFlashbangGrenadeThrown(), pEnt->GetAIObjectID()));
+					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnFlashbangGrenadeThrown(), pEnt->GetId()));
 					break;
 				case eRGT_FRAG_GRENADE:
-					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnFragGrenadeThrown(), pEnt->GetAIObjectID()));
+					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnFragGrenadeThrown(), pEnt->GetId()));
 					break;
 				case eRGT_EMP_GRENADE:
-					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnEMPGrenadeThrown(), pEnt->GetAIObjectID()));
+					SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnEMPGrenadeThrown(), pEnt->GetId()));
 					break;
 				}
 
@@ -999,7 +999,7 @@ void CAIProxy::UpdateShooting(const SOBJECTSTATE& state, bool isAlive)
 				pData->fValue = state.projectileInfo.fSpeedScale;
 				pData->point = state.vShootTargetPos;
 
-				SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrenadeThrown(), pEnt->GetAIObjectID(), pData));
+				SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrenadeThrown(), pEnt->GetId(), pData));
 				gEnv->pAISystem->FreeSignalExtraData(pData);
 			}
 		}
@@ -1182,7 +1182,7 @@ void CAIProxy::OnShoot(IWeapon* pWeapon, EntityId shooterId, EntityId ammoId, IE
 	if (!m_NeedsShootSignal)
 		return;
 
-	SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnWeaponShoot(), pEntity->GetAIObjectID()));
+	SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnWeaponShoot(), pEntity->GetId()));
 }
 
 //
@@ -1200,7 +1200,7 @@ void CAIProxy::OnMelee(IWeapon* pWeapon, EntityId shooterId)
 	IEntity* pEntity = m_pGameObject->GetEntity();
 	assert(pEntity);
 	if (pEntity)
-		SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnWeaponMelee(), pEntity->GetAIObjectID()));
+		SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnWeaponMelee(), pEntity->GetId()));
 }
 
 //
@@ -1223,7 +1223,7 @@ void CAIProxy::OnEndBurst(IWeapon* pWeapon, EntityId actorId)
 		gEnv->pAISystem->Warning(">> ", "CAIProxy::OnEndBurst null entity");
 		return;
 	}
-	SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnWeaponEndBurst(), pEntity->GetAIObjectID()));
+	SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnWeaponEndBurst(), pEntity->GetId()));
 }
 
 //
@@ -1405,9 +1405,9 @@ void CAIProxy::SetForcedExecute(bool forced)
 		if (pAIActor)
 		{
 			if (forced)
-				pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnForcedExecute_DEPRECATED(), pEntity->GetAIObjectID()));
+				pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnForcedExecute_DEPRECATED(), pEntity->GetId()));
 			else if (m_forcedExecute <= 0)
-				pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnForcedExecuteComplete_DEPRECATED(), pEntity->GetAIObjectID()));
+				pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnForcedExecuteComplete_DEPRECATED(), pEntity->GetId()));
 		}
 	}
 }
@@ -1569,8 +1569,9 @@ void CAIProxy::UpdateMind(SOBJECTSTATE& state)
 			}
 			else
 			{
-				const IAIObject* pSender = gEnv->pAISystem->GetAIObjectManager()->GetAIObject(pSignalFront->GetSenderID());
-				const tAIObjectID senderId = pSender ? pSender->GetAIObjectID() : 0;
+				const IEntity* pSenderEntity = gEnv->pEntitySystem->GetEntity(pSignalFront->GetSenderID());
+				const EntityId senderId = pSenderEntity ? pSenderEntity->GetId() : INVALID_ENTITYID;
+				
 				SendSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(nSignal, pSignalFront->GetSignalDescription(), senderId, pSignalFront->GetExtraData()));
 
 				if (pSignalFront->GetExtraData())
@@ -1578,7 +1579,6 @@ void CAIProxy::UpdateMind(SOBJECTSTATE& state)
 					gEnv->pAISystem->FreeSignalExtraData(pSignalFront->GetExtraData());
 					pSignalFront->SetExtraData(nullptr);
 				}
-
 			}
 		}
 

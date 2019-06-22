@@ -37,7 +37,6 @@ private:
 	void         StartCreation();
 	void         FinishCreation(bool restart);
 	void         CancelCreation(bool clear = true);
-	void         RestartCreation();
 	bool         IsCreating() const { return m_createdObject != nullptr; }
 
 	bool         IsValidDragData(const QMimeData* data, bool acceptValue);

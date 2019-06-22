@@ -23,6 +23,7 @@ public:
 	CUndoRemoveComponent(IEntityComponent* pAddedComponent)
 		: m_owningEntityGUID(pAddedComponent->GetEntity()->GetGuid())
 		, m_classDescription(pAddedComponent->GetClassDesc())
+		, m_componentInstanceGUID(pAddedComponent->GetGUID())
 		, m_flags(pAddedComponent->GetComponentFlags())
 		, m_name(pAddedComponent->GetName())
 		, m_transform(pAddedComponent->GetTransform())
@@ -30,6 +31,11 @@ public:
 	{
 		// Serialize component properties to buffer
 		gEnv->pSystem->GetArchiveHost()->SaveBinaryBuffer(m_propertyBuffer, Serialization::SStruct(IEntityComponent::SPropertySerializer { pAddedComponent }));
+
+		if (CEntityObject* pEntityObject = static_cast<CEntityObject*>(GetIEditor()->GetObjectManager()->FindObject(m_owningEntityGUID)))
+		{
+			pEntityObject->SetLayerModified();
+		}
 	}
 
 	virtual void Undo(bool bUndo) override
@@ -59,6 +65,8 @@ public:
 		{
 			m_componentInstanceGUID = CryGUID::Null();
 		}
+
+		pEntityObject->SetLayerModified();
 	}
 
 	virtual void Redo() override
@@ -77,6 +85,8 @@ public:
 
 			GetIEditor()->GetObjectManager()->EmitPopulateInspectorEvent();
 		}
+
+		pEntityObject->SetLayerModified();
 	}
 
 private:

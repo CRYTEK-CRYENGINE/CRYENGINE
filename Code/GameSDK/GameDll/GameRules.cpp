@@ -51,6 +51,7 @@
 
 #include <CryCore/StlUtils.h>
 #include <CryString/StringUtils.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <algorithm>
 
 #include "Network/Lobby/GameBrowser.h"
@@ -2192,7 +2193,7 @@ void CGameRules::PrecacheList(XmlNodeRef precacheListNode)
 //------------------------------------------------------------------------
 void CGameRules::PrecacheLevel()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	CallScript(m_script, "PrecacheLevel");
 	XmlNodeRef root = gEnv->pSystem->LoadXmlFromFile( PRECACHE_LIST_XML );
@@ -2315,7 +2316,7 @@ void CGameRules::PrecacheLevel()
 
 void CGameRules::PrecacheLevelResource(const char* resourceName, EGameResourceType resourceType)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	INDENT_LOG_DURING_SCOPE(true, "While %s is precaching level resource '%s' (resourceType=%d)...", GetEntity()->GetEntityTextDescription().c_str(), resourceName, resourceType);
 
@@ -3074,6 +3075,49 @@ bool CGameRules::CanEnterVehicle( EntityId playerId )
 	return bResult;
 }
 
+void CGameRules::OnVehicleEvent(IVehicle* pVehicle, EVehicleEvent event, const SVehicleEventParams& params)
+{
+	IAISystem* pAISystem = gEnv->pAISystem;
+	if (!pAISystem || !pAISystem->IsEnabled())
+		return;
+	
+	switch (event)
+	{
+	case eVE_Destroyed:
+	{
+		gEnv->pAISystem->GetSmartObjectManager()->SetSmartObjectState(pVehicle->GetEntity(), "Dead");
+		
+		for (int i = 0; i < pVehicle->GetWeaponCount(); ++i)
+		{
+			const EntityId weaponId = pVehicle->GetWeaponId(i);
+			if (IEntity* pWeaponEntity = gEnv->pEntitySystem->GetEntity(weaponId))
+			{
+				pAISystem->GetSmartObjectManager()->SetSmartObjectState(pWeaponEntity, "Busy");
+			}
+		}
+		break;
+	}
+	case eVE_PassengerEnter:
+	{
+		IEntity* pActorEntity = gEnv->pEntitySystem->GetEntity(params.entityId);
+		if (pActorEntity)
+		{
+			pAISystem->GetSmartObjectManager()->AddSmartObjectState(pActorEntity, "InVehicle");
+		}
+		break;
+	}
+	case eVE_PassengerExit:
+	{
+		IEntity* pActorEntity = gEnv->pEntitySystem->GetEntity(params.entityId);
+		if (pActorEntity)
+		{
+			pAISystem->GetSmartObjectManager()->RemoveSmartObjectState(pActorEntity, "InVehicle");
+		}
+		break;
+	}
+	}
+}
+
 //------------------------------------------------------------------------
 bool CGameRules::IsGamemodeScoringEvent(EGameRulesScoreType pointsType) const
 {
@@ -3725,7 +3769,7 @@ void CGameRules::KillPlayer(IActor* pActor, const bool inDropItem, const bool in
 	bool foundProjectileClassName = m_pGameFramework->GetNetworkSafeClassName(projectileClassName, sizeof(projectileClassName), hitInfo.projectileClassId);
 	if (!foundProjectileClassName)
 	{
-		cry_strcpy(projectileClassName, "unknown projectile");
+		cry_fixed_size_strcpy(projectileClassName, "unknown projectile");
 	}
 
 	IGameRulesAssistScoringModule *assistScoringModule = GetAssistScoringModule();
@@ -3853,7 +3897,7 @@ void CGameRules::KillPlayer(IActor* pActor, const bool inDropItem, const bool in
 		char weaponClassName[128];
 		if (!m_pGameFramework->GetNetworkSafeClassName(weaponClassName, sizeof(weaponClassName), hitInfo.weaponClassId))
 		{
-			cry_strcpy(weaponClassName, "unknown weapon");
+			cry_fixed_size_strcpy(weaponClassName, "unknown weapon");
 		}
 
 		if(sr->ShouldRecordEvent(eSE_Death, pActor))
@@ -8989,7 +9033,7 @@ void CGameRules::OnSystemEvent( ESystemEvent event,UINT_PTR wparam,UINT_PTR lpar
 	{
 		case	ESYSTEM_EVENT_LEVEL_LOAD_END:
 			{
-				LOADING_TIME_PROFILE_SECTION_NAMED("CGameRules::OnSystemEvent() ESYSTEM_EVENT_LEVEL_LOAD_END");
+				CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "CGameRules::OnSystemEvent() ESYSTEM_EVENT_LEVEL_LOAD_END");
 				if(IGameRulesSpectatorModule * pSpectatorModule = GetSpectatorModule())
 				{
 					EntityId spectatorPositionId = pSpectatorModule->GetSpectatorLocation(0);

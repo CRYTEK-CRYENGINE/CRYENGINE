@@ -9,6 +9,7 @@
 #include "Material/MaterialManager.h"
 #include "Objects/EntityObject.h"
 
+#include <IAIManager.h>
 #include <IObjectManager.h>
 #include <LevelEditor/Tools/SubObjectSelectionReferenceFrameCalculator.h>
 #include <Objects/ObjectLoader.h>
@@ -144,7 +145,7 @@ CBrushObject::CBrushObject()
 	static string sVarName_HideableSecondary = "HideableSecondary";
 	static string sVarName_LodRatio = "LodRatio";
 	static string sVarName_ViewDistRatio = "ViewDistRatio";
-	static string sVarName_NotTriangulate = "NotTriangulate";
+	static string sVarName_ExcludeFromNavigation = "ExcludeFromNavigation";
 	static string sVarName_NoDynWater = "NoDynamicWater";
 	static string sVarName_AIRadius = "AIRadius";
 	static string sVarName_LightmapQuality = "RAMmapQuality";
@@ -179,7 +180,7 @@ CBrushObject::CBrushObject()
 	m_pVarObject->AddVariable(mv_hideable, sVarName_Hideable, functor(*this, &CBrushObject::OnRenderVarChange));
 	m_pVarObject->AddVariable(mv_ratioLOD, sVarName_LodRatio, functor(*this, &CBrushObject::OnRenderVarChange));
 	m_pVarObject->AddVariable(mv_ratioViewDist, sVarName_ViewDistRatio, functor(*this, &CBrushObject::OnRenderVarChange));
-	m_pVarObject->AddVariable(mv_excludeFromTriangulation, sVarName_NotTriangulate, functor(*this, &CBrushObject::OnRenderVarChange));
+	m_pVarObject->AddVariable(mv_excludeFromTriangulation, sVarName_ExcludeFromNavigation, functor(*this, &CBrushObject::OnExludeFromNavigationVarChange));
 	m_pVarObject->AddVariable(mv_noDynWater, sVarName_NoDynWater, functor(*this, &CBrushObject::OnRenderVarChange));
 	m_pVarObject->AddVariable(mv_aiRadius, sVarName_AIRadius, functor(*this, &CBrushObject::OnAIRadiusVarChange));
 	m_pVarObject->AddVariable(mv_noDecals, sVarName_NoDecals, functor(*this, &CBrushObject::OnRenderVarChange));
@@ -201,7 +202,7 @@ CBrushObject::CBrushObject()
 
 void CBrushObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 	FreeGameData();
 
 	CBaseObject::Done();
@@ -214,7 +215,7 @@ bool CBrushObject::IncludeForGI()
 
 void CBrushObject::FreeGameData()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (m_pRenderNode)
 	{
 		GetIEditorImpl()->Get3DEngine()->DeleteRenderNode(m_pRenderNode);
@@ -333,7 +334,7 @@ void CBrushObject::SetSelected(bool bSelect)
 		else
 			m_renderFlags &= ~ERF_SELECTED;
 
-		m_pRenderNode->SetRndFlags(m_renderFlags);
+		m_pRenderNode->SetRndFlags(ERF_SELECTED, bSelect);
 	}
 }
 
@@ -683,6 +684,27 @@ void CBrushObject::ReloadGeometry()
 	}
 }
 
+void CBrushObject::OnExludeFromNavigationVarChange(IVariable* var)
+{
+	if (m_bIgnoreNodeUpdate)
+		return;
+
+	UpdateEngineNode();
+	UpdatePrefab();
+
+	if (IPhysicalEntity* pent = GetCollisionEntity())
+	{
+		pe_params_foreign_data pfd;
+		pfd.iForeignFlagsAND = ~PFF_EXCLUDE_FROM_STATIC;
+		pfd.iForeignFlagsOR = (m_renderFlags & ERF_EXCLUDE_FROM_TRIANGULATION) ? PFF_EXCLUDE_FROM_STATIC : 0;
+		pent->SetParams(&pfd);
+	}
+
+	AABB bbox;
+	GetBoundBox(bbox);
+	GetIEditorImpl()->GetAIManager()->OnAreaModified(bbox);
+}
+
 void CBrushObject::OnAIRadiusVarChange(IVariable* var)
 {
 	if (m_bIgnoreNodeUpdate)
@@ -838,63 +860,63 @@ void CBrushObject::UpdateEngineNode(bool bOnlyTransform)
 	//////////////////////////////////////////////////////////////////////////
 	// Set brush render flags.
 	//////////////////////////////////////////////////////////////////////////
-	m_renderFlags = 0;
+	IRenderNode::RenderFlagsType renderFlags = 0;
 	if (mv_outdoor)
-		m_renderFlags |= ERF_OUTDOORONLY;
+		renderFlags |= ERF_OUTDOORONLY;
 	//	if (mv_castShadows)
-	//	m_renderFlags |= ERF_CASTSHADOWVOLUME;
+	//	renderFlags |= ERF_CASTSHADOWVOLUME;
 	//if (mv_selfShadowing)
-	//m_renderFlags |= ERF_SELFSHADOW;
+	//renderFlags |= ERF_SELFSHADOW;
 	if (mv_castShadowMaps)
-		m_renderFlags |= ERF_CASTSHADOWMAPS | ERF_HAS_CASTSHADOWMAPS;
+		renderFlags |= ERF_CASTSHADOWMAPS | ERF_HAS_CASTSHADOWMAPS;
 	if (mv_rainOccluder)
-		m_renderFlags |= ERF_RAIN_OCCLUDER;
+		renderFlags |= ERF_RAIN_OCCLUDER;
 	if (mv_registerByBBox)
-		m_renderFlags |= ERF_REGISTER_BY_BBOX;
+		renderFlags |= ERF_REGISTER_BY_BBOX;
 	if (mv_dynamicDistanceShadows)
-		m_renderFlags |= ERF_DYNAMIC_DISTANCESHADOWS;
+		renderFlags |= ERF_DYNAMIC_DISTANCESHADOWS;
 	//	if (mv_recvLightmap)
-	//	m_renderFlags |= ERF_USERAMMAPS;
+	//	renderFlags |= ERF_USERAMMAPS;
 	if (IsHidden() || IsHiddenBySpec())
-		m_renderFlags |= ERF_HIDDEN;
+		renderFlags |= ERF_HIDDEN;
 	if (mv_hideable == 1)
-		m_renderFlags |= ERF_HIDABLE;
+		renderFlags |= ERF_HIDABLE;
 	if (mv_hideable == 2)
-		m_renderFlags |= ERF_HIDABLE_SECONDARY;
+		renderFlags |= ERF_HIDABLE_SECONDARY;
 	//	if (mv_hideableSecondary)
-	//		m_renderFlags |= ERF_HIDABLE_SECONDARY;
+	//		renderFlags |= ERF_HIDABLE_SECONDARY;
 	if (mv_excludeFromTriangulation)
-		m_renderFlags |= ERF_EXCLUDE_FROM_TRIANGULATION;
+		renderFlags |= ERF_EXCLUDE_FROM_TRIANGULATION;
 	if (mv_noDynWater)
-		m_renderFlags |= ERF_NODYNWATER;
+		renderFlags |= ERF_NODYNWATER;
 	if (mv_noDecals)
-		m_renderFlags |= ERF_NO_DECALNODE_DECALS;
+		renderFlags |= ERF_NO_DECALNODE_DECALS;
 	if (mv_recvWind)
-		m_renderFlags |= ERF_RECVWIND;
+		renderFlags |= ERF_RECVWIND;
 	if (mv_Occluder)
-		m_renderFlags |= ERF_GOOD_OCCLUDER;
+		renderFlags |= ERF_GOOD_OCCLUDER;
 	((IBrush*)m_pRenderNode)->SetDrawLast(mv_drawLast);
 	if (m_pRenderNode->GetRndFlags() & ERF_COLLISION_PROXY)
-		m_renderFlags |= ERF_COLLISION_PROXY;
+		renderFlags |= ERF_COLLISION_PROXY;
 	if (m_pRenderNode->GetRndFlags() & ERF_RAYCAST_PROXY)
-		m_renderFlags |= ERF_RAYCAST_PROXY;
+		renderFlags |= ERF_RAYCAST_PROXY;
 	if (IsSelected())
-		m_renderFlags |= ERF_SELECTED;
+		renderFlags |= ERF_SELECTED;
 	if (mv_giMode)
-		m_renderFlags |= ERF_GI_MODE_BIT0;
+		renderFlags |= ERF_GI_MODE_BIT0;
 	if (!mv_ignoreTerrainLayerBlend)
-		m_renderFlags |= ERF_FOB_ALLOW_TERRAIN_LAYER_BLEND;
+		renderFlags |= ERF_FOB_ALLOW_TERRAIN_LAYER_BLEND;
 	if (!mv_ignoreDecalBlend)
-		m_renderFlags |= ERF_FOB_ALLOW_DECAL_BLEND;
+		renderFlags |= ERF_FOB_ALLOW_DECAL_BLEND;
 
-	m_pRenderNode->SetRndFlags(m_renderFlags);
+	m_renderFlags = renderFlags;
+
+	m_pRenderNode->SetRndFlags(renderFlags);
 
 	m_pRenderNode->SetMinSpec(GetMinSpec());
 	m_pRenderNode->SetViewDistRatio(mv_ratioViewDist);
 	m_pRenderNode->SetLodRatio(mv_ratioLOD);
 	m_pRenderNode->SetShadowLodBias(mv_shadowLodBias);
-
-	m_renderFlags = m_pRenderNode->GetRndFlags();
 
 	m_pRenderNode->SetMaterialLayers(GetMaterialLayersMask());
 
@@ -975,12 +997,14 @@ void CBrushObject::UpdateVisibility(bool visible)
 		CBaseObject::UpdateVisibility(visible);
 		if (m_pRenderNode)
 		{
-			if (!visible || IsHiddenBySpec())
+			const bool hidden = !visible || IsHiddenBySpec();
+
+			if (hidden)
 				m_renderFlags |= ERF_HIDDEN;
 			else
 				m_renderFlags &= ~ERF_HIDDEN;
 
-			m_pRenderNode->SetRndFlags(m_renderFlags);
+			m_pRenderNode->SetRndFlags(ERF_HIDDEN, hidden);
 		}
 	}
 

@@ -189,32 +189,22 @@ void CCryPluginManager::LoadProjectPlugins()
 
 	// Start by looking for any Cry::IEnginePlugin implementation in the current module, in case of static linking
 	gEnv->pSystem->GetCryFactoryRegistry()->IterateFactories(cryiidof<Cry::IEnginePlugin>(), factories.data(), numFactories);
-	for (size_t i = 0; i < numFactories; ++i)
+
+	auto removePluginHeader = [](string factoryName)
 	{
-		// Create an instance of the plug-in
-		ICryUnknownPtr pUnknown = factories[i]->CreateClassInstance();
-		std::shared_ptr<Cry::IEnginePlugin> pPlugin = cryinterface_cast<Cry::IEnginePlugin>(pUnknown);
-
-		m_pluginContainer.emplace_back(pPlugin);
-
-		OnPluginLoaded();
-	}
-
-#if defined(CRY_IS_MONOLITHIC_BUILD)
-	// We cache the loaded plugin names here for easier testing what plugins are loaded. m_pluginContainer will be modified below.
-	std::vector<string> loadedPluginNames;
-	loadedPluginNames.reserve(m_pluginContainer.size());
-	for (const SPluginContainer& plugin : m_pluginContainer)
-	{
-		loadedPluginNames.emplace_back(plugin.GetPluginPtr()->GetName());
-	}
-#endif
+		// Remove "Plugin_" from the start of the name if it exists (from CRYGENERATE_SINGLETONCLASS_GUID)
+		const string pluginNameHeader = "Plugin_";
+		if (factoryName.compareNoCase(0, pluginNameHeader.length(), pluginNameHeader) == 0)
+		{
+			factoryName = factoryName.substr(pluginNameHeader.size());
+		}
+		return factoryName;
+	};
 
 	m_bLoadedProjectPlugins = true;
 
-#if CrySharedLibrarySupported
 	// Load plug-ins specified in the .cryproject file from disk
-	auto* pProjectManager = static_cast<Cry::CProjectManager*>(gEnv->pSystem->GetIProjectManager());
+	Cry::CProjectManager* pProjectManager = static_cast<Cry::CProjectManager*>(gEnv->pSystem->GetIProjectManager());
 	const std::vector<Cry::SPluginDefinition>& pluginDefinitions = pProjectManager->GetPluginDefinitions();
 
 	for (const Cry::SPluginDefinition& pluginDefinition : pluginDefinitions)
@@ -224,48 +214,27 @@ void CCryPluginManager::LoadProjectPlugins()
 			continue;
 		}
 
-#if defined(CRY_IS_MONOLITHIC_BUILD)
-		// Don't attempt to load plug-ins that were declared default
-		string pluginName = PathUtil::GetFileName(pluginDefinition.path);
-		bool bValid = true;
-
-		for (const std::pair<uint8, Cry::SPluginDefinition>& defaultPlugin : CCryPluginManager::GetDefaultPlugins())
+		auto it = std::find_if(factories.begin(), factories.end(), [&](ICryFactory* factory)
 		{
-			if (defaultPlugin.second.path.compareNoCase(pluginName) == 0)
-			{
-				bValid = false;
-				break;
-			}
-		}
-
-		// Don't attempt to load plug-ins that were already statically linked in (despite being in the .cryproject)
-		for (string loadedPluginName : loadedPluginNames)
+			const string factoryName = removePluginHeader(factory->GetName());
+			return (factoryName.compareNoCase(pluginDefinition.path) == 0);
+		});
+		if (it != factories.end())
 		{
-			// Remove "Plugin_" from the start of the name if it exists (from CRYGENERATE_SINGLETONCLASS_GUID)
-			const string pluginNameHeader = "Plugin_";
-			if (loadedPluginName.compareNoCase(0, pluginNameHeader.length(), pluginNameHeader) == 0)
-			{
-				loadedPluginName = loadedPluginName.substr(pluginNameHeader.size());
-			}
-			if (loadedPluginName.compareNoCase(pluginName) == 0)
-			{
-				bValid = false;
-				break;
-			}
-		}
-
-		if (!bValid)
-		{
+			ICryUnknownPtr pUnknown = (*it)->CreateClassInstance();
+			std::shared_ptr<Cry::IEnginePlugin> pPlugin = cryinterface_cast<Cry::IEnginePlugin>(pUnknown);
+			m_pluginContainer.emplace_back(pPlugin);
+			OnPluginLoaded();
 			continue;
 		}
-#endif
-
+#if CrySharedLibrarySupported
 		if (!pluginDefinition.guid.IsNull())
 			LoadPluginByGUID(pluginDefinition.guid);
 		else
 			LoadPluginBinary(pluginDefinition.type, pluginDefinition.path);
+#endif // CrySharedLibrarySupported
 	}
-
+#if CrySharedLibrarySupported
 #if !defined(CRY_IS_MONOLITHIC_BUILD) && !defined(CRY_PLATFORM_CONSOLE)
 	// Always load the CryUserAnalytics plugin
 	Cry::SPluginDefinition userAnalyticsPlugin{ EType::Native, "CryUserAnalytics" };
@@ -289,8 +258,8 @@ bool CCryPluginManager::LoadPluginBinary(EType type, const char* szBinaryPath, b
 	{
 	case EType::Native:
 		{
-			MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "LoadPlugin");
-			MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "%s", binaryName.c_str());
+			MEMSTAT_CONTEXT(EMemStatContextType::Other, "LoadPlugin");
+			MEMSTAT_CONTEXT(EMemStatContextType::Other, binaryName.c_str());
 
 			WIN_HMODULE hModule = static_cast<CSystem*>(gEnv->pSystem)->LoadDynamicLibrary(szBinaryPath, false);
 			if (hModule == nullptr)

@@ -6,9 +6,9 @@
 #include "Common/PoolObject.h"
 #include <CryAudio/IAudioSystem.h>
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include <CrySystem/XML/IXml.h>
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -27,6 +27,8 @@ enum class ESystemRequestType : EnumFlagsType
 	ClearPreloadsData,
 	PreloadSingleRequest,
 	UnloadSingleRequest,
+	ActivateContext,
+	DeactivateContext,
 	SetParameter,
 	SetParameterGlobally,
 	SetSwitchState,
@@ -34,13 +36,14 @@ enum class ESystemRequestType : EnumFlagsType
 	AutoLoadSetting,
 	LoadSetting,
 	UnloadSetting,
-	UnloadAFCMDataByScope,
+	UnloadAFCMDataByContext,
 	AddRequestListener,
 	RemoveRequestListener,
 	ChangeLanguage,
 	ReleasePendingRays,
 	GetImplInfo,
 	RegisterListener,
+	GetListener,
 	ReleaseListener,
 	RegisterObject,
 	ReleaseObject,
@@ -49,17 +52,18 @@ enum class ESystemRequestType : EnumFlagsType
 	ExecuteDefaultTrigger,
 	StopTrigger,
 	StopAllTriggers,
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	RefreshSystem,
 	ReloadControlsData,
 	RetriggerControls,
 	DrawDebugInfo,
+	UpdateDebugInfo,
 	ExecutePreviewTrigger,
 	ExecutePreviewTriggerEx,
 	ExecutePreviewTriggerExNode,
 	StopPreviewTrigger,
 	ResetRequestCount,
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -163,82 +167,85 @@ struct SSystemRequestData<ESystemRequestType::RemoveRequestListener> final : pub
 template<>
 struct SSystemRequestData<ESystemRequestType::ParseControlsData> final : public SSystemRequestDataBase
 {
-	explicit SSystemRequestData(char const* const szFolderPath_, EDataScope const dataScope_)
+	explicit SSystemRequestData(char const* const szFolderPath, char const* const szContextName, ContextId const contextId_)
 		: SSystemRequestDataBase(ESystemRequestType::ParseControlsData)
-		, folderPath(szFolderPath_)
-		, dataScope(dataScope_)
+		, folderPath(szFolderPath)
+		, contextName(szContextName)
+		, contextId(contextId_)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ParseControlsData> const* const pSRData)
 		: SSystemRequestDataBase(ESystemRequestType::ParseControlsData)
 		, folderPath(pSRData->folderPath)
-		, dataScope(pSRData->dataScope)
+		, contextName(pSRData->contextName)
+		, contextId(pSRData->contextId)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
 
 	CryFixedStringT<MaxFilePathLength> const folderPath;
-	EDataScope const                         dataScope;
+	CryFixedStringT<MaxFilePathLength> const contextName;
+	ContextId const                          contextId;
 };
 
 //////////////////////////////////////////////////////////////////////////
 template<>
 struct SSystemRequestData<ESystemRequestType::ParsePreloadsData> final : public SSystemRequestDataBase
 {
-	explicit SSystemRequestData(char const* const szFolderPath_, EDataScope const dataScope_)
+	explicit SSystemRequestData(char const* const szFolderPath, ContextId const contextId_)
 		: SSystemRequestDataBase(ESystemRequestType::ParsePreloadsData)
-		, folderPath(szFolderPath_)
-		, dataScope(dataScope_)
+		, folderPath(szFolderPath)
+		, contextId(contextId_)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ParsePreloadsData> const* const pSRData)
 		: SSystemRequestDataBase(ESystemRequestType::ParsePreloadsData)
 		, folderPath(pSRData->folderPath)
-		, dataScope(pSRData->dataScope)
+		, contextId(pSRData->contextId)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
 
 	CryFixedStringT<MaxFilePathLength> const folderPath;
-	EDataScope const                         dataScope;
+	ContextId const                          contextId;
 };
 
 //////////////////////////////////////////////////////////////////////////
 template<>
 struct SSystemRequestData<ESystemRequestType::ClearControlsData> final : public SSystemRequestDataBase
 {
-	explicit SSystemRequestData(EDataScope const dataScope_)
+	explicit SSystemRequestData(ContextId const contextId_)
 		: SSystemRequestDataBase(ESystemRequestType::ClearControlsData)
-		, dataScope(dataScope_)
+		, contextId(contextId_)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ClearControlsData> const* const pSRData)
 		: SSystemRequestDataBase(ESystemRequestType::ClearControlsData)
-		, dataScope(pSRData->dataScope)
+		, contextId(pSRData->contextId)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
 
-	EDataScope const dataScope;
+	ContextId const contextId;
 };
 
 //////////////////////////////////////////////////////////////////////////
 template<>
 struct SSystemRequestData<ESystemRequestType::ClearPreloadsData> final : public SSystemRequestDataBase
 {
-	explicit SSystemRequestData(EDataScope const dataScope_)
+	explicit SSystemRequestData(ContextId const contextId_)
 		: SSystemRequestDataBase(ESystemRequestType::ClearPreloadsData)
-		, dataScope(dataScope_)
+		, contextId(contextId_)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ClearPreloadsData> const* const pSRData)
 		: SSystemRequestDataBase(ESystemRequestType::ClearPreloadsData)
-		, dataScope(pSRData->dataScope)
+		, contextId(pSRData->contextId)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
 
-	EDataScope const dataScope;
+	ContextId const contextId;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -280,6 +287,44 @@ struct SSystemRequestData<ESystemRequestType::UnloadSingleRequest> final : publi
 	virtual ~SSystemRequestData() override = default;
 
 	PreloadRequestId const preloadRequestId;
+};
+
+//////////////////////////////////////////////////////////////////////////
+template<>
+struct SSystemRequestData<ESystemRequestType::ActivateContext> final : public SSystemRequestDataBase
+{
+	explicit SSystemRequestData(ContextId const contextId_)
+		: SSystemRequestDataBase(ESystemRequestType::ActivateContext)
+		, contextId(contextId_)
+	{}
+
+	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ActivateContext> const* const pSRData)
+		: SSystemRequestDataBase(ESystemRequestType::ActivateContext)
+		, contextId(pSRData->contextId)
+	{}
+
+	virtual ~SSystemRequestData() override = default;
+
+	ContextId const contextId;
+};
+
+//////////////////////////////////////////////////////////////////////////
+template<>
+struct SSystemRequestData<ESystemRequestType::DeactivateContext> final : public SSystemRequestDataBase
+{
+	explicit SSystemRequestData(ContextId const contextId_)
+		: SSystemRequestDataBase(ESystemRequestType::DeactivateContext)
+		, contextId(contextId_)
+	{}
+
+	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::DeactivateContext> const* const pSRData)
+		: SSystemRequestDataBase(ESystemRequestType::DeactivateContext)
+		, contextId(pSRData->contextId)
+	{}
+
+	virtual ~SSystemRequestData() override = default;
+
+	ContextId const contextId;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -374,19 +419,19 @@ struct SSystemRequestData<ESystemRequestType::SetSwitchStateGlobally> final : pu
 template<>
 struct SSystemRequestData<ESystemRequestType::AutoLoadSetting> final : public SSystemRequestDataBase
 {
-	explicit SSystemRequestData(EDataScope const scope_)
+	explicit SSystemRequestData(ContextId const contextId_)
 		: SSystemRequestDataBase(ESystemRequestType::AutoLoadSetting)
-		, scope(scope_)
+		, contextId(contextId_)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::AutoLoadSetting> const* const pSRData)
 		: SSystemRequestDataBase(ESystemRequestType::AutoLoadSetting)
-		, scope(pSRData->scope)
+		, contextId(pSRData->contextId)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
 
-	EDataScope const scope;
+	ContextId const contextId;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -429,21 +474,21 @@ struct SSystemRequestData<ESystemRequestType::UnloadSetting> final : public SSys
 
 //////////////////////////////////////////////////////////////////////////
 template<>
-struct SSystemRequestData<ESystemRequestType::UnloadAFCMDataByScope> final : public SSystemRequestDataBase
+struct SSystemRequestData<ESystemRequestType::UnloadAFCMDataByContext> final : public SSystemRequestDataBase
 {
-	explicit SSystemRequestData(EDataScope const dataScope_)
-		: SSystemRequestDataBase(ESystemRequestType::UnloadAFCMDataByScope)
-		, dataScope(dataScope_)
+	explicit SSystemRequestData(ContextId const contextId_)
+		: SSystemRequestDataBase(ESystemRequestType::UnloadAFCMDataByContext)
+		, contextId(contextId_)
 	{}
 
-	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::UnloadAFCMDataByScope> const* const pSRData)
-		: SSystemRequestDataBase(ESystemRequestType::UnloadAFCMDataByScope)
-		, dataScope(pSRData->dataScope)
+	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::UnloadAFCMDataByContext> const* const pSRData)
+		: SSystemRequestDataBase(ESystemRequestType::UnloadAFCMDataByContext)
+		, contextId(pSRData->contextId)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
 
-	EDataScope const dataScope;
+	ContextId const contextId;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -491,6 +536,28 @@ struct SSystemRequestData<ESystemRequestType::RegisterListener> final : public S
 
 //////////////////////////////////////////////////////////////////////////
 template<>
+struct SSystemRequestData<ESystemRequestType::GetListener> final : public SSystemRequestDataBase
+{
+	explicit SSystemRequestData(CListener** const ppListener_, ListenerId const id_)
+		: SSystemRequestDataBase(ESystemRequestType::GetListener)
+		, ppListener(ppListener_)
+		, id(id_)
+	{}
+
+	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::GetListener> const* const pALRData)
+		: SSystemRequestDataBase(ESystemRequestType::GetListener)
+		, ppListener(pALRData->ppListener)
+		, id(pALRData->id)
+	{}
+
+	virtual ~SSystemRequestData() override = default;
+
+	CListener** const ppListener;
+	ListenerId const  id;
+};
+
+//////////////////////////////////////////////////////////////////////////
+template<>
 struct SSystemRequestData<ESystemRequestType::ReleaseListener> final : public SSystemRequestDataBase
 {
 	explicit SSystemRequestData(CListener* const pListener_)
@@ -518,8 +585,8 @@ struct SSystemRequestData<ESystemRequestType::RegisterObject> final : public SSy
 		, name(data.szName)
 		, occlusionType(data.occlusionType)
 		, transformation(data.transformation)
-		, entityId(data.entityId)
 		, setCurrentEnvironments(data.setCurrentEnvironments)
+		, listenerIds(data.listenerIds)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::RegisterObject> const* const pSRData)
@@ -528,8 +595,8 @@ struct SSystemRequestData<ESystemRequestType::RegisterObject> final : public SSy
 		, name(pSRData->name)
 		, occlusionType(pSRData->occlusionType)
 		, transformation(pSRData->transformation)
-		, entityId(pSRData->entityId)
 		, setCurrentEnvironments(pSRData->setCurrentEnvironments)
+		, listenerIds(pSRData->listenerIds)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
@@ -538,8 +605,8 @@ struct SSystemRequestData<ESystemRequestType::RegisterObject> final : public SSy
 	CryFixedStringT<MaxObjectNameLength> const name;
 	EOcclusionType const                       occlusionType;
 	CTransformation const                      transformation;
-	EntityId const                             entityId;
 	bool const setCurrentEnvironments;
+	ListenerIds const                          listenerIds;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -592,6 +659,7 @@ struct SSystemRequestData<ESystemRequestType::ExecuteTriggerEx> final : public S
 		, entityId(data.entityId)
 		, setCurrentEnvironments(data.setCurrentEnvironments)
 		, triggerId(data.triggerId)
+		, listenerIds(data.listenerIds)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ExecuteTriggerEx> const* const pSRData)
@@ -602,6 +670,7 @@ struct SSystemRequestData<ESystemRequestType::ExecuteTriggerEx> final : public S
 		, entityId(pSRData->entityId)
 		, setCurrentEnvironments(pSRData->setCurrentEnvironments)
 		, triggerId(pSRData->triggerId)
+		, listenerIds(pSRData->listenerIds)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
@@ -612,6 +681,7 @@ struct SSystemRequestData<ESystemRequestType::ExecuteTriggerEx> final : public S
 	EntityId const                             entityId;
 	bool const setCurrentEnvironments;
 	ControlId const                            triggerId;
+	ListenerIds const                          listenerIds;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -652,48 +722,7 @@ struct SSystemRequestData<ESystemRequestType::StopTrigger> final : public SSyste
 	ControlId const triggerId;
 };
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
-//////////////////////////////////////////////////////////////////////////
-template<>
-struct SSystemRequestData<ESystemRequestType::RefreshSystem> final : public SSystemRequestDataBase
-{
-	explicit SSystemRequestData(char const* const szLevelName)
-		: SSystemRequestDataBase(ESystemRequestType::RefreshSystem)
-		, levelName(szLevelName)
-	{}
-
-	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::RefreshSystem> const* const pSRData)
-		: SSystemRequestDataBase(ESystemRequestType::RefreshSystem)
-		, levelName(pSRData->levelName)
-	{}
-
-	virtual ~SSystemRequestData() override = default;
-
-	CryFixedStringT<MaxFileNameLength> const levelName;
-};
-
-//////////////////////////////////////////////////////////////////////////
-template<>
-struct SSystemRequestData<ESystemRequestType::ReloadControlsData> final : public SSystemRequestDataBase
-{
-	explicit SSystemRequestData(char const* const szFolderPath, char const* const szLevelName)
-		: SSystemRequestDataBase(ESystemRequestType::ReloadControlsData)
-		, folderPath(szFolderPath)
-		, levelName(szLevelName)
-	{}
-
-	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ReloadControlsData> const* const pSRData)
-		: SSystemRequestDataBase(ESystemRequestType::ReloadControlsData)
-		, folderPath(pSRData->folderPath)
-		, levelName(pSRData->levelName)
-	{}
-
-	virtual ~SSystemRequestData() override = default;
-
-	CryFixedStringT<MaxFilePathLength> const folderPath;
-	CryFixedStringT<MaxFilePathLength> const levelName;
-};
-
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 //////////////////////////////////////////////////////////////////////////
 template<>
 struct SSystemRequestData<ESystemRequestType::ExecutePreviewTrigger> final : public SSystemRequestDataBase
@@ -736,19 +765,19 @@ struct SSystemRequestData<ESystemRequestType::ExecutePreviewTriggerEx> final : p
 template<>
 struct SSystemRequestData<ESystemRequestType::ExecutePreviewTriggerExNode> final : public SSystemRequestDataBase
 {
-	explicit SSystemRequestData(XmlNodeRef const pNode_)
+	explicit SSystemRequestData(XmlNodeRef const& node_)
 		: SSystemRequestDataBase(ESystemRequestType::ExecutePreviewTriggerExNode)
-		, pNode(pNode_)
+		, node(node_)
 	{}
 
 	explicit SSystemRequestData(SSystemRequestData<ESystemRequestType::ExecutePreviewTriggerExNode> const* const pSRData)
 		: SSystemRequestDataBase(ESystemRequestType::ExecutePreviewTriggerExNode)
-		, pNode(pSRData->pNode)
+		, node(pSRData->node)
 	{}
 
 	virtual ~SSystemRequestData() override = default;
 
-	XmlNodeRef const pNode;
+	XmlNodeRef const node;
 };
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 }      // namespace CryAudio

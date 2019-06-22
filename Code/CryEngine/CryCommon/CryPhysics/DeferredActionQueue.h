@@ -282,11 +282,15 @@ public:
 
 	inline void Cancel(const uint32& queuedID)
 	{
+		CRY_PROFILE_FUNCTION(PROFILE_PHYSICS);
+		
 		ContentionPolicy::Canceled(queuedID);
 		
 		typename Submitted::iterator it = m_submitted.find(queuedID);
 		if (it == m_submitted.end())
 		{
+			CRY_PROFILE_SECTION_ARG(PROFILE_PHYSICS, "DeferredActionQueue::Cancel::PriorityQueue", CryStringUtils::toString(uint32(m_priorityQueue.size())).c_str());
+			
 			if (m_priorityQueue.has(queuedID))
 			{
 				QueuedRequest& queued = m_priorityQueue[queuedID];
@@ -298,6 +302,8 @@ public:
 		}
 		else
 		{
+			CRY_PROFILE_SECTION_ARG(PROFILE_PHYSICS, "DeferredActionQueue::Cancel::Submitted", CryStringUtils::toString(uint32(m_submitted.size())).c_str());
+
 			m_slots.erase(it->second);
 			m_submitted.erase(it);
 		}

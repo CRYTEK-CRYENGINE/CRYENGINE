@@ -14,6 +14,7 @@
 #include "AnimUtils.h"
 #include <CryCore/StlUtils.h>
 #include <CrySystem/File/IAVI_Reader.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include "Controls/QuestionDialog.h"
 #include "PathUtils.h"
 #include "IUndoObject.h"

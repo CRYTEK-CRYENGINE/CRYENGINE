@@ -132,58 +132,58 @@ protected:
 	void DrawGrid();
 	void DrawBackground();
 
-	_smart_ptr<IStatObj>        m_pObj;
-	ICharacterInstance*         m_pCharacter;
+	_smart_ptr<IStatObj>                    m_pObj;
+	ICharacterInstance*                     m_pCharacter;
 
-	IRenderer*                  m_pRenderer;
-	ICharacterManager*          m_pAnimationSystem;
-	bool                        m_renderContextCreated;
+	IRenderer*                              m_pRenderer;
+	ICharacterManager*                      m_pAnimationSystem;
+	bool                                    m_renderContextCreated;
 
-	Vec3                        m_size;
-	Vec3                        m_pos;
-	int                         m_nTimer;
+	Vec3                                    m_size;
+	Vec3                                    m_pos;
+	int                                     m_nTimer;
 
-	CString                     m_loadedFile;
-	std::vector<SRenderLight>   m_lights;
+	CString                                 m_loadedFile;
+	std::vector<SRenderLight>               m_lights;
 
-	AABB                        m_aabb;
-	Vec3                        m_cameraTarget;
-	float                       m_cameraRadius;
-	Vec3                        m_cameraAngles;
-	bool                        m_bInRotateMode;
-	bool                        m_bInMoveMode;
-	CPoint                      m_mousePosition;
-	IRenderNode*                m_pEntity;
-	struct IParticleEmitter*    m_pEmitter;
-	bool                        m_bHaveAnythingToRender;
-	bool                        m_bGrid;
-	bool                        m_bAxis;
-	bool                        m_bUpdate;
-	bool                        m_bRotate;
-	float                       m_rotateAngle;
-	ColorF                      m_clearColor;
-	ColorF                      m_ambientColor;
-	f32                         m_ambientMultiplier;
-	bool                        m_bUseBacklight;
-	bool                        m_bShowObject;
-	bool                        m_bPrecacheMaterial;
-	bool                        m_bDrawWireFrame;
-	bool                        m_bShowNormals;
-	bool                        m_bShowPhysics;
-	bool                        m_bShowRenderInfo;
-	int                         m_backgroundTextureId;
-	float                       m_tileX;
-	float                       m_tileY;
-	float                       m_tileSizeX;
-	float                       m_tileSizeY;
-	_smart_ptr<IEditorMaterial> m_pCurrentMaterial;
-	CameraChangeCallback        m_cameraChangeCallback;
-	void*                       m_pCameraChangeUserData;
-	int                         m_physHelpers0;
-
+	AABB                                    m_aabb;
+	Vec3                                    m_cameraTarget;
+	float                                   m_cameraRadius;
+	Vec3                                    m_cameraAngles;
+	bool                                    m_bInRotateMode;
+	bool                                    m_bInMoveMode;
+	CPoint                                  m_mousePosition;
+	IRenderNode*                            m_pEntity;
+	struct IParticleEmitter*                m_pEmitter;
+	bool                                    m_bHaveAnythingToRender;
+	bool                                    m_bGrid;
+	bool                                    m_bAxis;
+	bool                                    m_bUpdate;
+	bool                                    m_bRotate;
+	float                                   m_rotateAngle;
+	ColorF                                  m_clearColor;
+	ColorF                                  m_ambientColor;
+	f32                                     m_ambientMultiplier;
+	bool                                    m_bUseBacklight;
+	bool                                    m_bShowObject;
+	bool                                    m_bPrecacheMaterial;
+	bool                                    m_bDrawWireFrame;
+	bool                                    m_bShowNormals;
+	bool                                    m_bShowPhysics;
+	bool                                    m_bShowRenderInfo;
+	int                                     m_backgroundTextureId;
+	float                                   m_tileX;
+	float                                   m_tileY;
+	float                                   m_tileSizeX;
+	float                                   m_tileSizeY;
+	_smart_ptr<IEditorMaterial>             m_pCurrentMaterial;
+	CameraChangeCallback                    m_cameraChangeCallback;
+	void*                                   m_pCameraChangeUserData;
+	int                                     m_physHelpers0;
 private:
-	SDisplayContextKey m_displayContextKey;
-
+	SDisplayContextKey                      m_displayContextKey;
+	SGraphicsPipelineKey                    m_graphicsPipelineKey;
+	IRenderer::SGraphicsPipelineDescription m_graphicsPipelineDesc;
 protected:
 	virtual void PreSubclassWindow();
 };

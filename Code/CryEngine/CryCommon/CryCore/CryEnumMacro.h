@@ -10,6 +10,11 @@
   {                                                                          \
     return static_cast<std::underlying_type<ENUM>::type>(t);                 \
   }                                                                          \
+																			 \
+  constexpr bool operator!(ENUM const lhs)                                   \
+  {                                                                          \
+    return !IntegralValue(lhs);                                              \
+  }                                                                          \
                                                                              \
   constexpr ENUM operator|(ENUM const lhs, ENUM const rhs)                   \
   {                                                                          \

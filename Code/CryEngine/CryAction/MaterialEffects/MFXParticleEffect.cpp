@@ -396,7 +396,7 @@ void CMFXParticleEffect::GetResources(SMFXResourceList& resourceList) const
 
 void CMFXParticleEffect::PreLoadAssets()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	SMFXParticleEntries::iterator it = m_particleParams.m_entries.begin();
 	while (it != m_particleParams.m_entries.end())

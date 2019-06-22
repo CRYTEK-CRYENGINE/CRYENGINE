@@ -24,22 +24,22 @@ public:
 	CXMLProcessor& operator=(CXMLProcessor&&) = delete;
 
 	void           ParseSystemData();
-	void           ParseControlsData(char const* const szFolderPath, EDataScope const dataScope);
-	void           ClearControlsData(EDataScope const dataScope);
-	void           ParsePreloadsData(char const* const szFolderPath, EDataScope const dataScope);
-	void           ClearPreloadsData(EDataScope const dataScope);
-	void           ParseControlsFile(XmlNodeRef const pRootNode, EDataScope const dataScope);
-	void           ParseDefaultControlsFile(XmlNodeRef const pRootNode);
+	bool           ParseControlsData(char const* const szFolderPath, ContextId const contextId, char const* const szContextName);
+	void           ClearControlsData(ContextId const contextId, bool const clearAll);
+	void           ParsePreloadsData(char const* const szFolderPath, ContextId const contextId);
+	void           ClearPreloadsData(ContextId const contextId, bool const clearAll);
+	void           ParseControlsFile(XmlNodeRef const& rootNode, ContextId const contextId);
+	void           ParseDefaultControlsFile(XmlNodeRef const& rootNode);
 
 private:
 
-	void ParseTriggers(XmlNodeRef const pXMLTriggerRoot, EDataScope const dataScope);
-	void ParseDefaultTriggers(XmlNodeRef const pXMLTriggerRoot);
-	void ParseSwitches(XmlNodeRef const pXMLSwitchRoot, EDataScope const dataScope);
-	void ParseParameters(XmlNodeRef const pXMLParameterRoot, EDataScope const dataScope);
-	void ParsePreloads(XmlNodeRef const pPreloadDataRoot, EDataScope const dataScope, char const* const szFolderName, uint const version);
-	void ParseEnvironments(XmlNodeRef const pEnvironmentRoot, EDataScope const dataScope);
-	void ParseSettings(XmlNodeRef const pRoot, EDataScope const dataScope);
+	void ParseTriggers(XmlNodeRef const& rootNode, ContextId const contextId);
+	void ParseDefaultTriggers(XmlNodeRef const& rootNode);
+	void ParseSwitches(XmlNodeRef const& rootNode, ContextId const contextId);
+	void ParseParameters(XmlNodeRef const& rootNode, ContextId const contextId);
+	void ParsePreloads(XmlNodeRef const& rootNode, ContextId const contextId, char const* const szFolderName, uint const version);
+	void ParseEnvironments(XmlNodeRef const& rootNode, ContextId const contextId);
+	void ParseSettings(XmlNodeRef const& rootNode, ContextId const contextId);
 
 	void DeletePreloadRequest(CPreloadRequest const* const pPreloadRequest);
 };

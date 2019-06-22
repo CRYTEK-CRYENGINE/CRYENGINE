@@ -3,6 +3,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 #include "StdAfx.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "AnimationDatabase.h"
 

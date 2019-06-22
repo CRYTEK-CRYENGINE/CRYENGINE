@@ -28,7 +28,7 @@ public:
 	{
 		m_value = inRhs.m_value;
 		return *this;
-	};
+	}
 
 	//! Use only for relative value, absolute values suffer a lot from precision loss.
 	constexpr float GetSeconds() const
@@ -122,10 +122,10 @@ public:
 	// math operations
 
 	//! Binary subtraction.
-	CTimeValue operator-(const CTimeValue& inRhs) const { CTimeValue ret; ret.m_value = m_value - inRhs.m_value; return ret; };
+	CTimeValue operator-(const CTimeValue& inRhs) const { CTimeValue ret; ret.m_value = m_value - inRhs.m_value; return ret; }
 
 	//! Binary addition.
-	CTimeValue operator+(const CTimeValue& inRhs) const { CTimeValue ret; ret.m_value = m_value + inRhs.m_value; return ret; };
+	CTimeValue operator+(const CTimeValue& inRhs) const { CTimeValue ret; ret.m_value = m_value + inRhs.m_value; return ret; }
 
 	//! Sign inversion.
 	CTimeValue  operator-() const { CTimeValue ret; ret.m_value = -m_value; return ret; };
@@ -137,12 +137,12 @@ public:
 
 	// comparison -----------------------
 
-	constexpr bool operator<(const CTimeValue& inRhs) const { return m_value < inRhs.m_value; };
-	constexpr bool operator>(const CTimeValue& inRhs) const { return m_value > inRhs.m_value; };
-	constexpr bool operator>=(const CTimeValue& inRhs) const { return m_value >= inRhs.m_value; };
-	constexpr bool operator<=(const CTimeValue& inRhs) const { return m_value <= inRhs.m_value; };
-	constexpr bool operator==(const CTimeValue& inRhs) const { return m_value == inRhs.m_value; };
-	constexpr bool operator!=(const CTimeValue& inRhs) const { return m_value != inRhs.m_value; };
+	constexpr bool operator<(const CTimeValue& inRhs) const { return m_value < inRhs.m_value; }
+	constexpr bool operator>(const CTimeValue& inRhs) const { return m_value > inRhs.m_value; }
+	constexpr bool operator>=(const CTimeValue& inRhs) const { return m_value >= inRhs.m_value; }
+	constexpr bool operator<=(const CTimeValue& inRhs) const { return m_value <= inRhs.m_value; }
+	constexpr bool operator==(const CTimeValue& inRhs) const { return m_value == inRhs.m_value; }
+	constexpr bool operator!=(const CTimeValue& inRhs) const { return m_value != inRhs.m_value; }
 
 	//! Splits the time value into hours, minutes, seconds, milliseconds.
 	//! All output parameters are optional (can be nullptr).

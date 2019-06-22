@@ -175,10 +175,26 @@ void ShadowCacheGenerator::InitCachedFrustum(ShadowMapFrustumPtr& pFr, ShadowMap
 	                             ? GetCVars()->e_ShadowsCacheMaxNodesPerFrame * GetRenderer()->GetActiveGPUCount()
 	                             : std::numeric_limits<int>::max();
 
-	m_pObjManager->MakeStaticShadowCastersList(((CLightEntity*)m_pLightEntity->GetLightProperties().m_pOwner)->GetCastingException(), pFr,
-	                                           bUseCastersHull ? &m_pLightEntity->GetCastersHull() : nullptr,
-	                                           bExcludeDynamicDistanceShadows ? ERF_DYNAMIC_DISTANCESHADOWS : 0, maxNodesPerFrame, passInfo);
-	AddTerrainCastersToFrustum(pFr, passInfo);
+	IRenderNode* pCastingException = static_cast<CLightEntity*>(m_pLightEntity->GetLightProperties().m_pOwner)->GetCastingException();
+	auto pCastersHull = bUseCastersHull ? &m_pLightEntity->GetCastersHull() : nullptr;
+
+	auto jobLambda = [=]()
+	{
+		m_pObjManager->MakeStaticShadowCastersList(pCastingException, pFr, pCastersHull,
+			bExcludeDynamicDistanceShadows ? ERF_DYNAMIC_DISTANCESHADOWS : 0, maxNodesPerFrame, passInfo);
+
+		AddTerrainCastersToFrustum(pFr, passInfo);
+	};
+	
+	if (GetCVars()->e_ShadowsCacheJobs)
+	{
+		DECLARE_LAMBDA_JOB("job:shadows:MakeStaticShadowCastersList", TMakeStaticShadowCastersListJob);
+		TMakeStaticShadowCastersListJob(jobLambda).Run(JobManager::eRegularPriority, &pFr->pShadowCacheData->mTraverseOctreeJobState);
+	}
+	else
+	{
+		jobLambda();
+	}
 
 	pFr->Invalidate();
 	pFr->bIncrementalUpdate = nUpdateStrategy == ShadowMapFrustum::ShadowCacheData::eIncrementalUpdate && pFr->pShadowCacheData->mObjectsRendered != 0;

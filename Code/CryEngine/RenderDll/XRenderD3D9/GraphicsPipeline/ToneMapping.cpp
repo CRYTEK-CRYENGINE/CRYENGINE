@@ -2,10 +2,9 @@
 
 #include "StdAfx.h"
 #include "ToneMapping.h"
-
+#include "ColorGrading.h"
 #include "Bloom.h"
 #include "SunShafts.h"
-#include "ColorGrading.h"
 #include "D3DPostProcess.h"
 
 #include <Common/RenderDisplayContext.h>
@@ -15,11 +14,10 @@ void CToneMappingStage::Execute()
 	FUNCTION_PROFILER_RENDERER();
 	PROFILE_LABEL_SCOPE("TONEMAPPING");
 
-	CSunShaftsStage*    pSunShaftsStage    = (CSunShaftsStage   *)GetStdGraphicsPipeline().GetStage(eStage_Sunshafts);
-	CBloomStage*        pBloomStage        = (CBloomStage       *)GetStdGraphicsPipeline().GetStage(eStage_Bloom);
-	CColorGradingStage* pColorGradingStage = (CColorGradingStage*)GetStdGraphicsPipeline().GetStage(eStage_ColorGrading);
+	CSunShaftsStage* pSunShaftsStage = m_graphicsPipeline.GetStage<CSunShaftsStage>();
+	CBloomStage* pBloomStage = m_graphicsPipeline.GetStage<CBloomStage>();
+	CColorGradingStage* pColorGradingStage = m_graphicsPipeline.GetStage<CColorGradingStage>();
 
-	bool bHighQualitySunshafts = false;
 	bool bColorGradingEnabled = pColorGradingStage->IsStageActive(EShaderRenderingFlags(0));
 	bool bSunShaftsEnabled = pSunShaftsStage->IsStageActive(EShaderRenderingFlags(0));
 	bool bBloomEnabled = pBloomStage->IsStageActive(EShaderRenderingFlags(0));
@@ -63,15 +61,15 @@ void CToneMappingStage::Execute()
 		// TODO: CPostEffectContext::GetDstBackBufferTexture() pre-EnableAltBackBuffer()
 		static CCryNameTSCRC techToneMapping("HDRFinalPass");
 		m_passToneMapping.SetTechnique(pShader, techToneMapping, rtMask);
-		m_passToneMapping.SetRenderTarget(0, CRendererResources::s_ptexDisplayTargetDst);
+		m_passToneMapping.SetRenderTarget(0, m_graphicsPipelineResources.m_pTexDisplayTargetDst);
 		m_passToneMapping.SetState(GS_NODEPTHTEST);
 		m_passToneMapping.SetFlags(CPrimitiveRenderPass::ePassFlags_RequireVrProjectionConstants);
 		m_passToneMapping.SetPrimitiveFlags(CRenderPrimitive::eFlags_ReflectShaderConstants);	// Enables reflection constants addition in the shader
 
-		CTexture* pBloomTex = bBloomEnabled ? CRendererResources::s_ptexHDRFinalBloom : CRendererResources::s_ptexBlack;
+		CTexture* pBloomTex = bBloomEnabled ? m_graphicsPipelineResources.m_pTexHDRFinalBloom : CRendererResources::s_ptexBlack;
 
 		m_passToneMapping.SetSampler(0, EDefaultSamplerStates::LinearClamp);
-		m_passToneMapping.SetTexture(0, CRendererResources::s_ptexHDRTarget);
+		m_passToneMapping.SetTexture(0, m_graphicsPipelineResources.m_pTexHDRTarget);
 		m_passToneMapping.SetTexture(1, CRendererResources::s_ptexCurLumTexture);
 		m_passToneMapping.SetTexture(2, pBloomTex);
 		m_passToneMapping.SetTexture(7, CRendererResources::s_ptexVignettingMap);
@@ -138,17 +136,16 @@ void CToneMappingStage::ExecuteDebug()
 
 		// TODO: CPostEffectContext::GetDstBackBufferTexture() pre-EnableAltBackBuffer()
 		m_passToneMapping.SetTechnique(pShader, techToneMapping, rtMask);
-		m_passToneMapping.SetRenderTarget(0, CRendererResources::s_ptexDisplayTargetDst);
+		m_passToneMapping.SetRenderTarget(0, m_graphicsPipelineResources.m_pTexDisplayTargetDst);
 		m_passToneMapping.SetState(GS_NODEPTHTEST);
-		m_passToneMapping.SetFlags(CPrimitiveRenderPass::ePassFlags_RequireVrProjectionConstants);	
+		m_passToneMapping.SetFlags(CPrimitiveRenderPass::ePassFlags_RequireVrProjectionConstants);
 		m_passToneMapping.SetPrimitiveFlags(primFlags);
 		m_passToneMapping.SetSampler(0, EDefaultSamplerStates::LinearClamp);
-		m_passToneMapping.SetTexture(0, CRendererResources::s_ptexHDRTarget);
+		m_passToneMapping.SetTexture(0, m_graphicsPipelineResources.m_pTexHDRTarget);
 		m_passToneMapping.SetTexture(1, CRendererResources::s_ptexCurLumTexture);
 		m_passToneMapping.SetRequireWorldPos(true);
 		m_passToneMapping.SetRequirePerViewConstantBuffer(true);
 	}
-
 
 	if (CRenderer::CV_r_HDRDebug == 2)
 	{
@@ -168,15 +165,12 @@ void CToneMappingStage::ExecuteFixedExposure(CTexture* pColorTex, CTexture* pDep
 {
 	PROFILE_LABEL_SCOPE("TONEMAPPING_FIXED_EXPOSURE");
 
-	CRenderView* pRenderView = RenderView();
-	const CRenderOutput* pOutput = pRenderView->GetRenderOutput();
-
 //	ASSERT_LEGACY_PIPELINE
 	return;
 
 	// TODO: CPostEffectContext::GetDstBackBufferTexture() pre-EnableAltBackBuffer()
-	CTexture* pSrcTex = CRendererResources::s_ptexHDRTarget;
-	CTexture* pDstTex = CRendererResources::s_ptexDisplayTargetDst;
+	CTexture* pSrcTex = m_graphicsPipelineResources.m_pTexHDRTarget;
+	CTexture* pDstTex = m_graphicsPipelineResources.m_pTexDisplayTargetDst;
 
 	auto& pass = m_passFixedExposureToneMapping;
 

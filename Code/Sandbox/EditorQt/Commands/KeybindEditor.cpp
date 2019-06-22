@@ -180,14 +180,11 @@ REGISTER_PYTHON_COMMAND_WITH_EXAMPLE(Private_KeybindEditor::PyRemoveCustomComman
                                      "Creates a new custom command binds it to the shortcut",
                                      "keybind.remove_custom_command(str command)");
 
-class CKeybindEditor::KeybindModel : public CommandModel
+class CKeybindEditor::KeybindModel : public CCommandModel
 {
-	friend CommandModelFactory;
-
 public:
+	KeybindModel();
 	virtual ~KeybindModel();
-
-	virtual void Initialize();
 
 	//QAbstractItemModel implementation begin
 	virtual QVariant data(const QModelIndex& index, int role /* = Qt::DisplayRole */) const override;
@@ -195,14 +192,14 @@ public:
 	//QAbstractItemModel implementation end
 
 protected:
-	KeybindModel();
 
 	typedef std::map<QKeySequence, std::vector<CUiCommand*>> ConflictsMap;
 
-	virtual void Rebuild() override;
+	void Initialize();
+	void Rebuild();
 
-	void         UpdateConflicts(CUiCommand* command, QList<QKeySequence> oldShortcuts);
-	bool         HasConflicts(CUiCommand* command, ConflictsMap* conflictsOut = nullptr) const;
+	void UpdateConflicts(CUiCommand* command, QList<QKeySequence> oldShortcuts);
+	bool HasConflicts(CUiCommand* command, ConflictsMap* conflictsOut = nullptr) const;
 
 protected:
 	ConflictsMap m_conflicts;
@@ -212,8 +209,7 @@ protected:
 
 CKeybindEditor::KeybindModel::KeybindModel()
 {
-	GetIEditorImpl()->GetCommandManager()->signalChanged.Connect(this, &KeybindModel::Rebuild);
-	Rebuild();
+	Initialize();
 }
 
 CKeybindEditor::KeybindModel::~KeybindModel()
@@ -229,7 +225,7 @@ void CKeybindEditor::KeybindModel::Initialize()
 
 void CKeybindEditor::KeybindModel::Rebuild()
 {
-	CommandModel::Rebuild();
+	CCommandModel::Rebuild();
 
 	m_conflicts.clear();
 
@@ -341,7 +337,7 @@ bool CKeybindEditor::KeybindModel::HasConflicts(CUiCommand* command, ConflictsMa
 
 QVariant CKeybindEditor::KeybindModel::data(const QModelIndex& index, int role /* = Qt::DisplayRole */) const
 {
-	QVariant variant = CommandModel::data(index, role);
+	QVariant variant = CCommandModel::data(index, role);
 	if (variant.isValid())
 		return variant;
 
@@ -435,7 +431,7 @@ QVariant CKeybindEditor::KeybindModel::data(const QModelIndex& index, int role /
 
 bool CKeybindEditor::KeybindModel::setData(const QModelIndex& index, const QVariant& value, int role /*= Qt::EditRole*/)
 {
-	if (CommandModel::setData(index, value, role))
+	if (CCommandModel::setData(index, value, role))
 		return true;
 
 	//no need to notify of the change here because there can only be one view of this model
@@ -701,7 +697,7 @@ CKeybindEditor::CKeybindEditor(QWidget* parent)
 	, CUserData({ Private_KeybindEditor::szKeybindsPath })
 	, m_treeView(new QAdvancedTreeView())
 {
-	m_model = CommandModelFactory::Create<KeybindModel>();
+	m_model = new KeybindModel();
 	QDeepFilterProxyModel::BehaviorFlags behavior = QDeepFilterProxyModel::AcceptIfChildMatches | QDeepFilterProxyModel::AcceptIfParentMatches;
 	QDeepFilterProxyModel* proxy = new QDeepFilterProxyModel(behavior);
 	proxy->setSourceModel(m_model);
@@ -771,7 +767,7 @@ void CKeybindEditor::OnContextMenu(const QPoint& pos) const
 	QModelIndex index = m_treeView->indexAt(pos);
 	if (index.isValid())
 	{
-		QVariant commandVar = index.model()->data(index, (int)CommandModel::Roles::CommandPointerRole);
+		QVariant commandVar = index.model()->data(index, (int)CCommandModel::Roles::CommandPointerRole);
 		if (commandVar.isValid())
 		{
 			command = commandVar.value<CCommand*>();
@@ -812,7 +808,7 @@ void CKeybindEditor::customEvent(QEvent* event)
 			QModelIndex index = m_treeView->selectionModel()->currentIndex();
 			if (index.isValid())
 			{
-				QVariant commandVar = index.model()->data(index, (int)CommandModel::Roles::CommandPointerRole);
+				QVariant commandVar = index.model()->data(index, (int)CCommandModel::Roles::CommandPointerRole);
 				if (commandVar.isValid())
 				{
 					command = commandVar.value<CCommand*>();
@@ -834,7 +830,7 @@ void CKeybindEditor::OnAddCustomCommand() const
 	customCommand->Register();
 
 	QAbstractItemModel* model = m_treeView->model();
-	QModelIndexList list = model->match(model->index(0, 0, QModelIndex()), (int)CommandModel::Roles::CommandPointerRole, QVariant::fromValue((CCommand*)customCommand), 1, Qt::MatchRecursive | Qt::MatchExactly);
+	QModelIndexList list = model->match(model->index(0, 0, QModelIndex()), (int)CCommandModel::Roles::CommandPointerRole, QVariant::fromValue((CCommand*)customCommand), 1, Qt::MatchRecursive | Qt::MatchExactly);
 	if (!list.isEmpty())
 	{
 		m_treeView->expand(list.first().parent());
@@ -998,12 +994,46 @@ void CKeybindEditor::SaveUserKeybinds()
 	UserDataUtil::Save(Private_KeybindEditor::szKeybindsPath, doc.toJson());
 }
 
+std::vector<string> CKeybindEditor::GetKeyBindDirectories(const char* szRelativePath)
+{
+	std::vector<string> result;
+
+	string editorToolbarPath = PathUtil::Make("Editor", szRelativePath);
+
+	// Engine defaults
+	result.push_back(PathUtil::Make(PathUtil::GetEnginePath().c_str(), editorToolbarPath));
+	// Game project specific tool-bars
+	result.push_back(PathUtil::Make(GetIEditor()->GetProjectManager()->GetCurrentProjectDirectoryAbsolute(), editorToolbarPath));
+	// User tool-bars
+	result.push_back(UserDataUtil::GetUserPath(szRelativePath));
+
+	return result;
+}
+
 void CKeybindEditor::LoadUserKeybinds()
 {
-	QVariant keybindsVariant = UserDataUtil::Load(Private_KeybindEditor::szKeybindsPath);
-	if (keybindsVariant.isValid())
+	std::vector<string> keyBindDirectories = GetKeyBindDirectories(Private_KeybindEditor::szKeybindsPath);
+	bool keyBindsUpdated = false;
+
+	// Load all keybinds in the order of Engine -> Project -> User defined
+	for (const string& keyBindDirectory : keyBindDirectories)
 	{
-		SetState(keybindsVariant);
+		QFile file(keyBindDirectory.c_str());
+		if (!file.open(QIODevice::ReadOnly))
+			continue;
+
+		QJsonDocument doc(QJsonDocument::fromJson(file.readAll()));
+		QVariant keybindsVariant = doc.toVariant();
+
+		if (keybindsVariant.isValid())
+		{
+			SetState(keybindsVariant);
+			keyBindsUpdated = true;
+		}
+	}
+
+	if (keyBindsUpdated)
+	{
 		GetIEditorImpl()->GetCommandManager()->signalChanged();
 	}
 }

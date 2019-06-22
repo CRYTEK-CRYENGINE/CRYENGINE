@@ -51,7 +51,7 @@ template<Serialization::ResourceSelector<string>(* SELECTOR)(string&)> struct SR
 	{
 		return value == rhs.value;
 	}
-	
+
 	inline bool operator!=(const SResourceNameSelector& rhs) const
 	{
 		return value != rhs.value;
@@ -167,13 +167,22 @@ inline void ReflectType(CTypeDesc<AudioPreloadRequestName>& desc)
 	desc.SetDescription("Audio Preload Request name");
 }
 
-typedef SerializationUtils::SResourceNameSelector<&Serialization::AudioRTPC<string>> AudioRtpcName;
+typedef SerializationUtils::SResourceNameSelector<&Serialization::AudioSetting<string>> AudioSettingName;
 
-inline void ReflectType(CTypeDesc<AudioRtpcName>& desc)
+inline void ReflectType(CTypeDesc<AudioSettingName>& desc)
+{
+	desc.SetGUID("75A36F04-B6AB-4A36-AB2C-84F426C2D2FD"_cry_guid);
+	desc.SetLabel("AudioSettingName");
+	desc.SetDescription("Audio setting name");
+}
+
+typedef SerializationUtils::SResourceNameSelector<&Serialization::AudioParameter<string>> AudioParameterName;
+
+inline void ReflectType(CTypeDesc<AudioParameterName>& desc)
 {
 	desc.SetGUID("730c191c-531f-48ae-bba9-5c1d8216b701"_cry_guid);
-	desc.SetLabel("AudioRtpcName");
-	desc.SetDescription("Audio Rtpc name");
+	desc.SetLabel("AudioParameterName");
+	desc.SetDescription("Audio Parameter name");
 }
 
 typedef SerializationUtils::SResourceNameSelector<&Serialization::AudioSwitch<string>> AudioSwitchName;
@@ -185,11 +194,20 @@ inline void ReflectType(CTypeDesc<AudioSwitchName>& desc)
 	desc.SetDescription("Audio switch name");
 }
 
+typedef SerializationUtils::SResourceNameSelector<&Serialization::AudioState<string>> AudioStateName;
+
+inline void ReflectType(CTypeDesc<AudioStateName>& desc)
+{
+	desc.SetGUID("1877be04-a1db-490c-b6a2-47f99cac7fc2"_cry_guid);
+	desc.SetLabel("AudioStateName");
+	desc.SetDescription("Audio state name");
+}
+
 typedef SerializationUtils::SResourceNameSelector<&Serialization::AudioSwitchState<string>> AudioSwitchStateName;
 
 inline void ReflectType(CTypeDesc<AudioSwitchStateName>& desc)
 {
-	desc.SetGUID("1877be04-a1db-490c-b6a2-47f99cac7fc2"_cry_guid);
+	desc.SetGUID("517D230B-332F-4474-8352-9497A6FA371C"_cry_guid);
 	desc.SetLabel("AudioSwitchStateName");
 	desc.SetDescription("Audio switch state name");
 }

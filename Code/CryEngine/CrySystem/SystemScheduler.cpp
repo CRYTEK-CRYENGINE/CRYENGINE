@@ -21,6 +21,7 @@
 	#include "ClientHandler.h"
 	#include "ServerHandler.h"
 	#include <CrySystem/Profilers/IStatoscope.h>
+	#include <CrySystem/ConsoleRegistration.h>
 
 extern "C" void SliceAndSleep(const char* pFunc, int line)
 {
@@ -118,7 +119,7 @@ void CSystemScheduler::SliceAndSleep(const char* sliceName, int line)
 				CryLogAlways("[SliceAndSleep]: Interval between slice [%s:%i] and [%s:%i] was [%f] out of budget [%f]", m_pLastSliceName, m_lastSliceLine, sliceName, line, diff, sliceBudget);
 		}
 
-		gEnv->pFrameProfileSystem->OnSliceAndSleep();
+		gEnv->pSystem->GetProfilingSystem()->OnSliceAndSleep();
 		gEnv->pStatoscope->Tick();
 
 		m_pSystem->SleepIfNeeded();

@@ -1,19 +1,10 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*=============================================================================
-   ShaderSerialize.h : Shaders serialization declarations.
-
-   Revision history:
-* Created by Honich Andrey
-
-   =============================================================================*/
-
-#ifndef __SHADERSERIALIZE_H__
-#define __SHADERSERIALIZE_H__
+#pragma once
 
 #if defined(SHADERS_SERIALIZING)
 
-	#include "../ResFile.h"
+#include "../ResFile.h"
 
 inline void sAlignData(TArray<byte>& Dst, uint32 align)
 {
@@ -83,7 +74,9 @@ template<typename Container> void sAddDataArray_POD(TArray<byte>& Dst, const Con
 
 template<typename T> void sExport(TArray<byte>& dst, const T& data)
 {
+#if defined(USE_CRY_ASSERT)
 	int startNum = dst.Num();
+#endif
 
 	data.Export(dst);
 
@@ -91,7 +84,7 @@ template<typename T> void sExport(TArray<byte>& dst, const T& data)
 	// Only works on native export since structures are different sizes on console :(
 	if (!CParserBin::m_bEndians)
 	{
-		assert(dst.Num() - startNum == sizeof(T));
+		CRY_ASSERT(dst.Num() - startNum == sizeof(T));
 	}
 }
 
@@ -224,7 +217,9 @@ struct SSShader
 
 	void Export(TArray<byte>& dst) const
 	{
+#if defined(USE_CRY_ASSERT)
 		uint32 startOffset = dst.Num();
+#endif
 
 		sAddData(dst, m_nMaskGenFX);
 		sAddData(dst, (uint32)m_eSHDType);
@@ -255,7 +250,7 @@ struct SSShader
 		uint32 PAD = 0;
 		sAddData(dst, PAD); //pad to 64bit
 
-		assert(dst.Num() - startOffset == sizeof(*this));
+		CRY_ASSERT(dst.Num() - startOffset == sizeof(*this));
 	}
 
 	void Import(const byte* pData)
@@ -266,9 +261,7 @@ struct SSShader
 		{
 			SwapEndian(m_nMaskGenFX, eBigEndian);
 			SwapEndianEnum(m_eSHDType, eBigEndian);
-			;
 			SwapEndian(m_Flags, eBigEndian);
-			;
 			SwapEndian(m_Flags2, eBigEndian);
 			SwapEndian(m_nMDV, eBigEndian);
 			SwapEndianHandle(m_eVertexFormat, eBigEndian);
@@ -558,7 +551,9 @@ struct SCHWShader
 
 	void Export(TArray<byte>& dst) const
 	{
+#if defined(USE_CRY_ASSERT)
 		uint32 startOffset = dst.Num();
+#endif
 
 		sAddData(dst, m_nMaskGenShader);
 		sAddData(dst, m_nMaskGenFX);
@@ -578,7 +573,7 @@ struct SCHWShader
 		//uint32 PAD=0;
 		//sAddData(dst, PAD); //pad up to 64bit align due to uint64
 
-		assert(dst.Num() - startOffset == sizeof(*this));
+		CRY_ASSERT(dst.Num() - startOffset == sizeof(*this));
 	}
 
 	void Import(const byte* pData)
@@ -787,7 +782,7 @@ struct SSFXParam
 {
 	int    m_nsName;     // Parameter name
 	uint32 m_nFlags;
-	short  m_nParameters;   // Number of paramters
+	short  m_nParameters;   // Number of parameters
 	short  m_nComps;        // Number of components in single parameter
 	uint32 m_nsAnnotations; // Additional parameters (between <>)
 	uint32 m_nsSemantic;    // Parameter app handling type (after ':')
@@ -795,7 +790,7 @@ struct SSFXParam
 	byte   m_eType;         // EParamType
 	int8   m_nCB;
 
-	//TODO, this struct will array will be bigger on PC, to supprt more shader types
+	//TODO, this struct will array will be bigger on PC, to support more shader types
 	short m_nRegister[3];  // VS, PS, GS
 
 	SSFXParam()
@@ -849,13 +844,13 @@ struct SSFXSampler
 {
 	int    m_nsName;     // Parameter name
 	uint32 m_nFlags;
-	short  m_nArray;        // Number of paramters
+	short  m_nArray;        // Number of parameters
 	uint32 m_nsAnnotations; // Additional parameters (between <>)
 	uint32 m_nsSemantic;    // Parameter app handling type (after ':')
 	uint32 m_nsValues;      // Parameter values (after '=')
 	byte   m_eType;         // EParamType
 
-	//TODO, this struct will array will be bigger on PC, to supprt more shader types
+	//TODO, this struct will array will be bigger on PC, to support more shader types
 	short m_nRegister[3];  // VS, PS, GS
 
 	SSFXSampler()
@@ -906,14 +901,14 @@ struct SSFXTexture
 	int    m_nsName;     // Parameter name
 	int    m_nsNameTexture;
 	uint32 m_nFlags;
-	short  m_nArray;        // Number of paramters
+	short  m_nArray;        // Number of parameters
 	uint32 m_nsAnnotations; // Additional parameters (between <>)
 	uint32 m_nsSemantic;    // Parameter app handling type (after ':')
 	uint32 m_nsValues;      // Parameter values (after '=')
 	bool   m_bSRGBLookup;
 	byte   m_eType;       // EParamType
 
-	//TODO, this struct will array will be bigger on PC, to supprt more shader types
+	//TODO, this struct will array will be bigger on PC, to support more shader types
 	short m_nRegister[3];  // VS, PS, GS
 
 	SSFXTexture()
@@ -1038,5 +1033,3 @@ inline const char* sString(int nOffs, TArray<char>& Strings)
 }
 
 #endif // SHADERS_SERIALIZING
-
-#endif

@@ -14,6 +14,7 @@ enum ERcExitCode
 	eRcExitCode_Crash      = 101,
 	eRcExitCode_UserFixing = 200,
 	eRcExitCode_Pending    = 666,
+	eRcExitCode_Skipped    = 667,
 };
 
 //! Listener for synchronous resource-compilation.

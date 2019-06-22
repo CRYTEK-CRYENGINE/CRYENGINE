@@ -8,7 +8,7 @@
 
 #include <QWidget>
 
-class QAdvancedPropertyTree;
+class QAdvancedPropertyTreeLegacy;
 
 namespace CryParticleEditor
 {
@@ -59,7 +59,7 @@ protected:
 	void         OnItemsDeletion();
 
 private:
-	QAdvancedPropertyTree*          m_pPropertyTree;
+	QAdvancedPropertyTreeLegacy*          m_pPropertyTree;
 	Serialization::SStructs         m_structs;
 
 	CNodeItem*                      m_pNodeItem;

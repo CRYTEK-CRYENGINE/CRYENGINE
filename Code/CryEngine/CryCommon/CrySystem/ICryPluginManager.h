@@ -22,6 +22,16 @@ namespace Cry
 			Managed
 		};
 
+		// Alias for backwards compatibility.
+		// Reason: Enum name is part of the stored value in cryproject files.
+		enum class EPluginType
+		{
+			// C++ plug-in
+			Native = static_cast<int32>(EType::Native),
+			// Mono / C# plug-in
+			Managed = static_cast<int32>(EType::Managed)
+		};
+
 		struct IEventListener
 		{
 			enum class EEvent
@@ -77,9 +87,16 @@ namespace Cry
 		virtual void UpdateAfterRenderSubmit() = 0;
 	};
 
+// Registration for cryproject serialization.
 YASLI_ENUM_BEGIN_NESTED(IPluginManager, EType, "PluginType")
 YASLI_ENUM_VALUE_NESTED(IPluginManager, EType::Native, "Native")
 YASLI_ENUM_VALUE_NESTED(IPluginManager, EType::Managed, "Managed")
+YASLI_ENUM_END()
+
+// Backwards compatibility for old projects.
+YASLI_ENUM_BEGIN_NESTED(IPluginManager, EPluginType, "PluginTypeDeprecated")
+YASLI_ENUM_VALUE_NESTED(IPluginManager, EPluginType::Native, "Native")
+YASLI_ENUM_VALUE_NESTED(IPluginManager, EPluginType::Managed, "Managed")
 YASLI_ENUM_END()
 
 }

@@ -1,13 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name: ChunkFileWriters.h
-//  Created:   2013/10/21 by Sergey Sokov
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __ChunkFileWriters_h__
-#define __ChunkFileWriters_h__
+#pragma once
 
 #include "ChunkFileComponents.h"
 
@@ -242,8 +235,6 @@ public:
 private:
 	void          Fail();
 
-	static size_t ComputeSizeOfAlignmentArea(size_t pos, size_t alignment);
-
 	size_t        GetSizeOfHeader() const;
 	void          WriteFileHeader(int32 chunkCount, uint32 chunkTableOffsetInFile);
 
@@ -285,5 +276,3 @@ private:
 };
 
 }  // namespace ChunkFile
-
-#endif

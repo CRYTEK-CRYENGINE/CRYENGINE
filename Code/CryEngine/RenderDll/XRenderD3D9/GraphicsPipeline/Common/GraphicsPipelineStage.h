@@ -4,16 +4,20 @@
 
 #include <CryMath/Range.h>
 
-// forward declarations
+class CCVarUpdateRecorder;
+class CGraphicsPipeline;
+class CGraphicsPipelineResources;
 class CGraphicsPipelineStage;
 class CGraphicsPipelineStateLocalCache;
-class CStandardGraphicsPipeline;
-class CSceneRenderPass;
-class CRenderView;
-class CCVarUpdateRecorder;
-struct SRenderViewInfo;
-class CGraphicsPipeline;
 class CRenderOutput;
+class CRenderView;
+class CSceneRenderPass;
+class CStandardGraphicsPipeline;
+class CMinimumGraphicsPipeline;
+class CBillboardGraphicsPipeline;
+class CMobileGraphicsPipeline;
+
+struct SRenderViewInfo;
 
 enum class GraphicsPipelinePassType : std::uint8_t
 {
@@ -32,33 +36,31 @@ struct SGraphicsPipelinePassContext
 		, pRenderView(renderView)
 		, techniqueID(technique)
 	{
-
-		;
 	}
 
-	SGraphicsPipelinePassContext(GraphicsPipelinePassType type, CRenderView* renderView, CSceneRenderPass* pSceneRenderPass) 
+	SGraphicsPipelinePassContext(GraphicsPipelinePassType type, CRenderView* renderView, CSceneRenderPass* pSceneRenderPass)
 		: type(type), pSceneRenderPass(pSceneRenderPass), pRenderView(renderView)
 	{}
 
 	GraphicsPipelinePassType type = GraphicsPipelinePassType::renderPass;
 
-	CSceneRenderPass*  pSceneRenderPass;
+	CSceneRenderPass*        pSceneRenderPass;
 
-	uint32             batchIncludeFilter;
-	uint32             batchExcludeFilter;
+	uint32                   batchIncludeFilter;
+	uint32                   batchExcludeFilter;
 
-	ERenderListID      renderListId = EFSLIST_INVALID;
+	ERenderListID            renderListId = EFSLIST_INVALID;
 #if defined(ENABLE_PROFILING_CODE)
-	ERenderListID      recordListId = EFSLIST_INVALID;
+	ERenderListID            recordListId = EFSLIST_INVALID;
 #endif
 
 	// Stage ID of a scene stage (EStandardGraphicsPipelineStage)
-	uint32 stageID = 0;
+	uint32      stageID = 0;
 	// Pass ID, in case a stage has several different scene passes
-	uint32 passID = 0;
-	
+	uint32      passID = 0;
+
 	std::string groupLabel;
-	uint32 groupIndex;
+	uint32      groupIndex;
 
 #if defined(ENABLE_SIMPLE_GPU_TIMERS)
 	uint32 profilerSectionIndex;
@@ -84,10 +86,11 @@ struct SGraphicsPipelinePassContext
 class CGraphicsPipelineStage
 {
 public:
+	CGraphicsPipelineStage(CGraphicsPipeline& graphicsPipeline);
 	virtual ~CGraphicsPipelineStage() {}
 
 	// Allocate resources needed by the graphics pipeline stage
-	virtual void Init()                                    {}
+	virtual void Init() {}
 	// Change internal values and resources when the render-resolution has changed (or the underlying resource dimensions)
 	// If the resources are considering sub-view/rectangle support then interpret CRendererResources::s_resourceWidth/Height
 	virtual void Resize(int renderWidth, int renderHeight) {}
@@ -103,31 +106,23 @@ public:
 	virtual void SetRenderView(CRenderView* pRenderView) { m_pRenderView = pRenderView; }
 
 public:
-	CRenderView*                     RenderView() const { return m_pRenderView; }
-	const SRenderViewport&           GetViewport() const;
+	CRenderView*                RenderView() const { return m_pRenderView; }
+	const SRenderViewport&      GetViewport() const;
 
-	const SRenderViewInfo&           GetCurrentViewInfo() const;
+	const SRenderViewInfo&      GetCurrentViewInfo() const;
 
-	CGraphicsPipeline&               GetGraphicsPipeline()       { assert(m_pGraphicsPipeline); return *m_pGraphicsPipeline; }
-	const CGraphicsPipeline&         GetGraphicsPipeline() const { assert(m_pGraphicsPipeline); return *m_pGraphicsPipeline; }
+	const CRenderOutput&        GetRenderOutput() const;
+	CRenderOutput&              GetRenderOutput();
 
-	CStandardGraphicsPipeline&       GetStdGraphicsPipeline();
-	const CStandardGraphicsPipeline& GetStdGraphicsPipeline() const;
-
-	const CRenderOutput&             GetRenderOutput() const;
-	CRenderOutput&                   GetRenderOutput();
+	CGraphicsPipeline&          m_graphicsPipeline;
+	CGraphicsPipelineResources& m_graphicsPipelineResources;
 
 protected:
-	void                             ClearDeviceOutputState();
+	void ClearDeviceOutputState();
 
 protected:
 	friend class CGraphicsPipeline;
 
-	uint32             m_stageID;
+	CRenderView* m_pRenderView = nullptr;
 
-private:
-	CGraphicsPipeline* m_pGraphicsPipeline = nullptr;
-
-protected:
-	CRenderView*       m_pRenderView = nullptr;
 };

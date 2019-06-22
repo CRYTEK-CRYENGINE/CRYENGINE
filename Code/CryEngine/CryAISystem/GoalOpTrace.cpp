@@ -45,7 +45,7 @@ COPTrace::COPTrace(bool bExactFollow, float fEndAccuracy, bool bForceReturnParti
 	, m_pendingActorTargetRequester(eTATR_None)
 	, m_stopOnAnimationStart(bStopOnAnimationStart)
 {
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPTrace::COPTrace %p", this);
 
 	++s_instanceCount;
@@ -145,7 +145,7 @@ COPTrace::~COPTrace()
 	m_refPipeUser.Reset();
 	m_refNavTarget.Release();
 
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPTrace::~COPTrace %p %s", this, GetNameSafe(pPipeUser));
 
 	--s_instanceCount;
@@ -162,7 +162,7 @@ void COPTrace::Reset(CPipeUser* pPipeUser)
 {
 	CCCPOINT(COPTrace_Reset);
 
-	if (pPipeUser && gAIEnv.CVars.DebugPathFinding)
+	if (pPipeUser && gAIEnv.CVars.LegacyDebugPathFinding)
 		AILogAlways("COPTrace::Reset %s", GetNameSafe(pPipeUser));
 
 	if (pPipeUser)
@@ -373,7 +373,7 @@ bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 	}
 	else
 	{
-		IPathFollower* pPathFollower = gAIEnv.CVars.PredictivePathFollowing ? pPipeUser->GetPathFollower() : 0;
+		IPathFollower* pPathFollower = gAIEnv.CVars.LegacyPredictivePathFollowing ? pPipeUser->GetPathFollower() : 0;
 		float distToSmartObject = pPathFollower ? pPathFollower->GetDistToSmartObject() : pPipeUser->m_Path.GetDistToSmartObject(!isUsing3DNavigation);
 		m_passingStraightNavSO = distToSmartObject < 1.f;
 	}
@@ -410,7 +410,7 @@ bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 	                             !pPipeUser->m_Path.GetParams().precalculatedPath &&
 	                             !pPipeUser->m_Path.GetParams().inhibitPathRegeneration))
 	{
-		if (gAIEnv.CVars.AdjustPathsAroundDynamicObstacles != 0)
+		if (gAIEnv.CVars.LegacyAdjustPathsAroundDynamicObstacles != 0)
 		{
 			RegeneratePath(pPipeUser, &bForceRegeneratePath);
 		}
@@ -427,7 +427,7 @@ bool COPTrace::ExecuteTrace(CPipeUser* pPipeUser, bool bFullUpdate)
 	// ExecuteTrace Core
 	if (!m_bWaitingForPathResult && !m_bWaitingForBusySmartObject)
 	{
-		IPathFollower* pPathFollower = gAIEnv.CVars.PredictivePathFollowing ? pPipeUser->GetPathFollower() : 0;
+		IPathFollower* pPathFollower = gAIEnv.CVars.LegacyPredictivePathFollowing ? pPipeUser->GetPathFollower() : 0;
 		bTraceFinished = pPathFollower ? ExecutePathFollower(pPipeUser, bFullUpdate, pPathFollower)
 		                 : isUsing3DNavigation ? Execute3D(pPipeUser, bFullUpdate) : Execute2D(pPipeUser, bFullUpdate);
 	}
@@ -677,7 +677,7 @@ bool COPTrace::ExecutePostamble(CPipeUser* pPipeUser, bool& reachedEnd, bool ful
 		if (speed > criticalSpeed)
 		{
 
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 				AILogAlways("COPTrace reached end but waiting for speed %5.2f to fall below %5.2f %s",
 				            speed, criticalSpeed, GetNameSafe(pPipeUser));
 
@@ -1298,7 +1298,7 @@ bool COPTrace::ExecuteLanding(CPipeUser* pPipeUser, const Vec3& pathEnd)
 	if (m_landingDir.IsZero())
 	{
 
-		if (gAIEnv.CVars.DebugPathFinding)
+		if (gAIEnv.CVars.LegacyDebugPathFinding)
 			AILogAlways("COPTrace::ExecuteLanding starting final landing %s", GetNameSafe(pPipeUser));
 
 		m_landingDir = pPipeUser->GetMoveDir();
@@ -1338,7 +1338,7 @@ void COPTrace::DebugDraw(CPipeUser* pPipeUser) const
 
 void COPTrace::ExecuteTraceDebugDraw(CPipeUser* pPipeUser)
 {
-	if (gAIEnv.CVars.DebugPathFinding)
+	if (gAIEnv.CVars.LegacyDebugPathFinding)
 	{
 		if (IAIDebugRenderer* pRenderer = gAIEnv.GetDebugRenderer())
 		{
@@ -1373,7 +1373,7 @@ bool COPTrace::HandleAnimationPhase(CPipeUser* pPipeUser, bool bFullUpdate, bool
 			{
 			case eTATR_EndOfPath:
 
-				if (gAIEnv.CVars.DebugPathFinding)
+				if (gAIEnv.CVars.LegacyDebugPathFinding)
 					AILogAlways("COPTrace::ExecuteTrace resetting since error occurred during exact positioning %s", GetNameSafe(pPipeUser));
 
 				if (bFullUpdate)
@@ -1449,7 +1449,7 @@ bool COPTrace::HandleAnimationPhase(CPipeUser* pPipeUser, bool bFullUpdate, bool
 			m_actorTargetRequester = eTATR_None;
 			// Exact positioning has been finished at the end of the path, the trace is completed.
 
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 				AILogAlways("COPTrace::ExecuteTrace resetting since exact position reached/animation finished %s", GetNameSafe(pPipeUser));
 
 			if (bFullUpdate)
@@ -1582,7 +1582,7 @@ void COPTrace::TriggerExactPositioning(CPipeUser* pPipeUser, bool* pbForceRegene
 	{
 	case eATP_None:
 		{
-			if (gAIEnv.CVars.DebugPathFinding)
+			if (gAIEnv.CVars.LegacyDebugPathFinding)
 			{
 				SNavSOStates& pipeUserPendingNavSOStates = pPipeUser->m_pendingNavSOStates;
 				if (!pipeUserPendingNavSOStates.IsEmpty())

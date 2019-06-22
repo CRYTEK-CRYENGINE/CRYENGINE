@@ -16,7 +16,6 @@ class CBaseObject;
 class CBroadcastManager;
 class CConfigurationManager;
 class CCryEditDoc;
-class CEditorToolBarService;
 class CFlowGraphManager;
 class CHeightmap;
 class CGameEngine;
@@ -27,6 +26,7 @@ class CPopupMenuItem;
 class CPrefabManager;
 class CPreferences;
 class CRuler;
+class CToolBarService;
 class CTrayArea;
 class CUIEnumsDatabase;
 class CViewManager;
@@ -138,7 +138,6 @@ enum EEditorNotifyEvent
 	eNotify_OnUpdateSequencerKeySelection, // Sent when CryMannequin sequencer view changes selection of keys.
 
 	eNotify_OnInvalidateControls,      // Sent when editor needs to update some of the data that can be cached by controls like combo boxes.
-	eNotify_OnStyleChanged,            // Sent when UI color theme was changed
 
 	// Object events.
 	eNotify_OnSelectionChange,   // Sent when object selection change.
@@ -282,7 +281,7 @@ struct IEditor
 	virtual CTrayArea* GetTrayArea() = 0;
 
 	//! Access to toolbar service for loading and storing editor specific toolbars
-	virtual CEditorToolBarService* GetEditorToolBarService() = 0;
+	virtual CToolBarService* GetToolBarService() = 0;
 
 	//! Retrieve interface to the source control.
 	virtual ISourceControl* GetSourceControl() = 0;
@@ -324,10 +323,11 @@ struct IEditor
 	virtual bool          IsDevModeEnabled() const = 0; //should go to preferences?
 
 	//Dockable pane management
-	virtual IPane* CreateDockable(const char* szClassName) = 0;
-	virtual IPane* FindDockable(const char* szClassName) = 0;
-	virtual IPane* FindDockableIf(const std::function<bool(IPane*, const string& /*className*/)>& predicate) = 0;
-	virtual void   RaiseDockable(IPane* pPane) = 0;
+	virtual IPane*              CreateDockable(const char* szClassName) = 0;
+	virtual IPane*              FindDockable(const char* szClassName) = 0;
+	virtual IPane*              FindDockableIf(const std::function<bool(IPane*, const string& /*className*/)>& predicate) = 0;
+	virtual std::vector<IPane*> FindAllDockables(const char* szClassName) = 0;
+	virtual void                RaiseDockable(IPane* pPane) = 0;
 
 	//!Creates a preview widget for any file type, returns null if cannot be previewed
 	virtual QWidget* CreatePreviewWidget(const QString& file, QWidget* pParent = nullptr) = 0;
@@ -493,11 +493,11 @@ struct IAutoEditorNotifyListener : public IEditorNotifyListener
 	IAutoEditorNotifyListener()
 		: IEditorNotifyListener()
 	{
-		((IEditor*)GetIEditor())->RegisterNotifyListener(this);
+		GetIEditor()->RegisterNotifyListener(this);
 	}
 
 	~IAutoEditorNotifyListener()
 	{
-		((IEditor*)GetIEditor())->UnregisterNotifyListener(this);
+		GetIEditor()->UnregisterNotifyListener(this);
 	}
 };

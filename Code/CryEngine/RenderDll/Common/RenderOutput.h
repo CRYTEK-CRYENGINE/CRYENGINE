@@ -36,7 +36,7 @@ public:
 	bool                   RequiresTemporaryDepthBuffer() const { return m_bUseTempDepthBuffer; }
 
 	//! Retrieve display context associated with this RenderOutput.
-	CRenderDisplayContext* GetDisplayContext() const { return m_pDisplayContext; };
+	CRenderDisplayContext* GetDisplayContext() const { return m_pDisplayContext; }
 
 	void                   SetViewport(const SRenderViewport& viewport);
 	const SRenderViewport& GetViewport() const { return m_viewport; }

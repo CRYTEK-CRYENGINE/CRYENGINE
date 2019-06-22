@@ -32,8 +32,8 @@ struct CryGUID
 	{
 		return CryGUID(
 			(((uint64)d3) << 48) | (((uint64)d2) << 32) | ((uint64)d1),  //high part
-			*((uint64*)d4)  //low part
-		 );
+			(((uint64)d4[7]) << 56) | (((uint64)d4[6]) << 48) | (((uint64)d4[5]) << 40) | (((uint64)d4[4]) << 32) | (((uint64)d4[3]) << 24) | (((uint64)d4[2]) << 16) | (((uint64)d4[1]) << 8) | (uint64)d4[0]   //low part
+		);
 	}
 	
 	constexpr static CryGUID Construct(uint32 d1, uint16 d2, uint16 d3,

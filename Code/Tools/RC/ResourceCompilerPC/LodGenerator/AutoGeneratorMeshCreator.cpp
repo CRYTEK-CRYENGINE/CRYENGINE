@@ -27,7 +27,6 @@ namespace LODGenerator
 	bool CAutoGeneratorMeshCreator::Generate(const int index,const int nLodId)
 	{
 		CAutoGeneratorDataBase* pAutoGeneratorDataBase = &m_AutoGenerator->GetDataBase();
-		SAutoGeneratorParams& autoGeneratorParams = m_AutoGenerator->GetDataBase().GetParams();
 
 		std::vector<CMesh*> pLodMeshList;
 		bool bGenerated = false;

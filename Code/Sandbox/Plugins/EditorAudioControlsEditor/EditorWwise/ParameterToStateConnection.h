@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "BaseConnection.h"
+#include "../Common/IConnection.h"
 
 #include <PoolObject.h>
 #include <CryAudioImplWwise/GlobalData.h>
@@ -13,7 +13,7 @@ namespace Impl
 {
 namespace Wwise
 {
-class CParameterToStateConnection final : public CBaseConnection, public CryAudio::CPoolObject<CParameterToStateConnection, stl::PSyncNone>
+class CParameterToStateConnection final : public IConnection, public CryAudio::CPoolObject<CParameterToStateConnection, stl::PSyncNone>
 {
 public:
 
@@ -23,23 +23,30 @@ public:
 	CParameterToStateConnection& operator=(CParameterToStateConnection const&) = delete;
 	CParameterToStateConnection& operator=(CParameterToStateConnection&&) = delete;
 
-	explicit CParameterToStateConnection(ControlId const id, float const value = CryAudio::Impl::Wwise::g_defaultStateValue)
-		: CBaseConnection(id)
+	explicit CParameterToStateConnection(ControlId const id, float const value)
+		: m_id(id)
 		, m_value(value)
+	{}
+
+	explicit CParameterToStateConnection(ControlId const id)
+		: m_id(id)
+		, m_value(CryAudio::Impl::Wwise::g_defaultStateValue)
 	{}
 
 	virtual ~CParameterToStateConnection() override = default;
 
 	// CBaseConnection
-	virtual bool HasProperties() const override { return true; }
-	virtual void Serialize(Serialization::IArchive& ar) override;
+	virtual ControlId GetID() const override final   { return m_id; }
+	virtual bool      HasProperties() const override { return true; }
+	virtual void      Serialize(Serialization::IArchive& ar) override;
 	// ~CBaseConnection
 
 	float GetValue() const { return m_value; }
 
 private:
 
-	float m_value;
+	ControlId const m_id;
+	float           m_value;
 };
 } // namespace Wwise
 } // namespace Impl

@@ -216,7 +216,8 @@ struct entity_grid_checker {
 					if (nEnts>=szList)
 						szList = pWorld->ReallocTmpEntList(pTmpEntList,iCaller,szList+1024); 
 					nEntsChecked++;	
-					CPhysicalEntity *pent,*pentLog,*pentFlags,*pentList;
+					CPhysicalEntity *pent,*pentFlags,*pentList;
+					IPhysicalEntity *pentLog;
 					bCallbackUsed=bRecheckOtherParts = 0;
 
 					if (thunk.pent->m_iSimClass==5) {
@@ -234,7 +235,7 @@ struct entity_grid_checker {
 							pcontacts->id[0] = pWorld_m_matWater;
 							pcontacts->iNode[0] = -1;
 							pentList = pent = (CPhysicalEntity*)(pGridEnt = thunk.pent);
-							i=0; j=1; nParts=0; pentLog=0; goto gotcontacts;
+							i=0; j=1; nParts=0; pentLog=pPhysArea; goto gotcontacts;
 						}
 						continue;
 					}
@@ -242,7 +243,7 @@ struct entity_grid_checker {
 					//This is causing a load hit store on the branch two lines down. Safe to remove? Suspect not due to GetEntity() doing phys on demand and causing a reposition
 					//	call that could set m_bGridThunksChanged. Damn. Could it be set earlier...?
 					pWorld->m_bGridThunksChanged = 0;	
-					pentList = pentLog = pentFlags = pent = (pGridEnt=thunk.pent)->GetEntity();
+					pentLog = pentList = pentFlags = pent = (pGridEnt=thunk.pent)->GetEntity();
 					if (pWorld->m_bGridThunksChanged) 
 						ithunk_next=pEntGrid[gridIdx], ithunk_prev=0;
 					pWorld->m_bGridThunksChanged = 0;
@@ -341,7 +342,7 @@ gotcontacts:
 
 	ILINE void check_cell_contact(int& j,geom_contact *&pcontacts, ray_hit *phits, unsigned int flags,
 		CPhysicalEntity *pentFlags,int& nThroughHits, int& nThroughHitsAux, int& imat, int &ilastcell,CRayGeom& aray,
-		int& iSolidNode, CPhysicalEntity *pentLog,int i, int& ihit)
+		int& iSolidNode, IPhysicalEntity *pentLog,int i, int& ihit)
 	{ 
 		primitives::grid& RESTRICT_REFERENCE entgrid = *pgrid;
 		const Vec2 entgrid_stepr = entgrid.stepr;

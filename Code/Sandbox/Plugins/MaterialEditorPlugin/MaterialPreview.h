@@ -26,5 +26,5 @@ private:
 	void dropEvent(QDropEvent* pEvent) override;
 
 	CMaterialEditor* m_pMatEd;
-	QPreviewWidget* m_pPreviewWidget;
+	QPreviewWidget*  m_pPreviewWidget;
 };

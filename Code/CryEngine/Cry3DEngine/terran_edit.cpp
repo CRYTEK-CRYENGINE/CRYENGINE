@@ -164,7 +164,7 @@ void CTerrain::SetTerrainElevation(int X1, int Y1, int nSizeX, int nSizeY, float
 {
 #ifndef _RELEASE
 
-	//LOADING_TIME_PROFILE_SECTION;
+	//CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	FUNCTION_PROFILER_3DENGINE;
 
 	float unitSize = CTerrain::GetHeightMapUnitSize();
@@ -655,8 +655,6 @@ void CTerrain::CloneRegion(const AABB& region, const Vec3& offset, float zRotati
 			pBrush->m_Matrix = l2w * pBrush->m_Matrix;
 
 			pBrush->CalcBBox();
-
-			pBrush->m_pOcNode = NULL;
 
 			// to get correct indirect lighting the registration must be done before checking if this object is inside a VisArea
 			Get3DEngine()->RegisterEntity(pBrush);

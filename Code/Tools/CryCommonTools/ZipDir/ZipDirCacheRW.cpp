@@ -1467,8 +1467,7 @@ bool ZipDir::CacheRW::WriteCDR(FILE* fTarget, bool encryptCDR)
 	//arrFiles.SortByFileOffset();
 	size_t nSizeCDR = arrFiles.GetStats().nSizeCDR;
 	void* pCDR = malloc(nSizeCDR);
-	size_t nSizeCDRSerialized = arrFiles.MakeZipCDR(m_lCDROffset, pCDR, encryptCDR);
-	assert (nSizeCDRSerialized == nSizeCDR);
+	arrFiles.MakeZipCDR(m_lCDROffset, pCDR, encryptCDR);
 	
 	if (encryptCDR)
 	{

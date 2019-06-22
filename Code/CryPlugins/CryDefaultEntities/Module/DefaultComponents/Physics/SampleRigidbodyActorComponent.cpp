@@ -31,40 +31,6 @@ void CSampleActorComponent::Register(Schematyc::CEnvRegistrationScope& component
 	}
 }
 
-int CSampleActorComponent::g_numActors = 0;
-
-/**
- * Handle PhysicalWorld Event: OnPostStep
- *
- * This method will retrieve the Entity/Component that matches our EventPhysPostStep Foreign Data. If the retrieved
- * Entity is of type `PE_WALKING_RIGID`, this method will invoke its `OnPostStep` method.
- *
- * A "step" in Physics is the moment the Engine moves all Entities that requested movement since the last step.
- *
- * This method is invoked automatically by the PhysicalWorld Event System after adding an Event Listener.
- * @example gEnv->pPhysicalWorld->AddEventClient(EventPhysPostStep::id, (int(*)(const EventPhys*))OnPostStepWalking, 0);
- *
- * @param epps | EventPhysPostStep | A `EventPhysPostStep` Pointer
- */
-int OnPostStepWalking(const EventPhysPostStep *epps)
-{
-	if (epps->iForeignData == PHYS_FOREIGN_ID_ENTITY && epps->pEntity->GetType() == PE_WALKINGRIGID)
-		if (CSampleActorComponent *actor = ((IEntity*)epps->pForeignData)->GetComponent<CSampleActorComponent>())
-			return actor->OnPostStep(epps);
-	return 1;
-}
-
-/**
- * Construct a CSampleActorComponent
- *
- * This method will add a PhysicalWorld Event Listener for `EventPhysPostStep`, using `OnPostStepWalking` as a callback
- */
-CSampleActorComponent::CSampleActorComponent()
-{
-	if (!g_numActors++)
-		gEnv->pPhysicalWorld->AddEventClient(EventPhysPostStep::id, (int(*)(const EventPhys*))OnPostStepWalking, 0);
-}
-
 /**
  * Deconstruct a CSampleActorComponent
  *
@@ -75,8 +41,6 @@ CSampleActorComponent::~CSampleActorComponent()
 	SEntityPhysicalizeParams pp;
 	pp.type = PE_NONE;
 	m_pEntity->Physicalize(pp);
-	if (!--g_numActors)
-		gEnv->pPhysicalWorld->RemoveEventClient(EventPhysPostStep::id, (int(*)(const EventPhys*))OnPostStepWalking, 0);
 }
 
 /**
@@ -88,12 +52,13 @@ CSampleActorComponent::~CSampleActorComponent()
  *
  * @note This method is invoked by `CSampleActorComponent::OnPostStepWalking`
  *
- * @param epps | EventPhysPostStep | A `EventPhysPostStep` Pointer
+ * @param deltaTime | float | The time delta
  */
-int CSampleActorComponent::OnPostStep(const EventPhysPostStep *epps)
+int CSampleActorComponent::OnPostStep(float deltaTime)
 {
 	// immediate post step; is called directly from the physics thread
-	if (epps->dt <= 0)
+	IPhysicalEntity *pEntity = m_pEntity->GetPhysicalEntity();
+	if (deltaTime <= 0 || !pEntity)
 		return 1;
 	pe_params_walking_rigid pwr;
 	pe_action_set_velocity asv;
@@ -102,14 +67,14 @@ int CSampleActorComponent::OnPostStep(const EventPhysPostStep *epps)
 	pe_status_dynamics sd;
 	pe_status_sensors ss;
 	Vec3 pt; ss.pPoints = &pt;
-	epps->pEntity->GetStatus(&sl);
-	epps->pEntity->GetStatus(&sd);
-	epps->pEntity->GetStatus(&ss);
+	pEntity->GetStatus(&sl);
+	pEntity->GetStatus(&sd);
+	pEntity->GetStatus(&ss);
 	if (sl.pGroundCollider)
 	{
 		Vec3 velReq = m_velMove - sl.groundSlope*(sl.groundSlope*m_velMove); // project velMove to the ground
 		velReq += sl.velGround;	// if we stand on something, inherit its velocity
-		Vec3 dv = (velReq-sl.vel)*(epps->dt*10.0f);	// default inertial movement: exponentially approach velReq with strength 10
+		Vec3 dv = (velReq-sl.vel)*(deltaTime*10.0f);	// default inertial movement: exponentially approach velReq with strength 10
 		m_timeFly = 0;
 		pwr.velLegStick = 0.5f;
 		if (m_velJump.len2())
@@ -141,12 +106,12 @@ int CSampleActorComponent::OnPostStep(const EventPhysPostStep *epps)
 		}
 	}
 	else
-		m_timeFly -= epps->dt;
+		m_timeFly -= deltaTime;
 	if (m_timeFly <= 0)
 		pwr.velLegStick = 0.5f;
-	epps->pEntity->SetParams(&sp,1);
-	epps->pEntity->SetParams(&pwr,1);
-	epps->pEntity->Action(&asv,1);
+	pEntity->SetParams(&sp,1);
+	pEntity->SetParams(&pwr,1);
+	pEntity->Action(&asv,1);
 	return 1;
 }
 

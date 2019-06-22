@@ -22,7 +22,7 @@ bool AIQueueBubbleMessage(const char* messageName, const EntityId entityID,
 
 void CAIBubblesSystem::Init()
 {
-	SetNameFilter(gAIEnv.CVars.BubblesSystemNameFilter);
+	SetNameFilter(gAIEnv.CVars.legacyBubblesSystem.BubblesSystemNameFilter);
 }
 
 void CAIBubblesSystem::Reset()
@@ -147,7 +147,7 @@ public:
 					m_bubbleOnscreenPos = Vec3(x, y, z);
 
 					const float distance = gEnv->pSystem->GetViewCamera().GetPosition().GetDistance(entityPos);
-					m_currentTextSize = gAIEnv.CVars.BubblesSystemFontSize / distance;
+					m_currentTextSize = gAIEnv.CVars.legacyBubblesSystem.BubblesSystemFontSize / distance;
 				}
 			}
 		}
@@ -175,7 +175,7 @@ public:
 		}
 		else
 		{
-			bUseDepthTest = ((gAIEnv.CVars.BubblesSystemUseDepthTest) != 0);
+			bUseDepthTest = ((gAIEnv.CVars.legacyBubblesSystem.BubblesSystemUseDepthTest) != 0);
 		}
 
 		DrawBubbleMessage(message, drawingPosition, bFramed, bUseDepthTest);
@@ -266,7 +266,7 @@ bool CAIBubblesSystem::DisplaySpeechBubble(SAIBubbleRequestContainer& requestCon
 
 	const TBubbleRequestOptionFlags requestFlags = request.GetFlags();
 
-	if (requestFlags & eBNS_Balloon && gAIEnv.CVars.BubblesSystemAlertnessFilter & eBNS_Balloon)
+	if (requestFlags & eBNS_Balloon && gAIEnv.CVars.legacyBubblesSystem.BubblesSystemAlertnessFilter & eBNS_Balloon)
 	{
 		if (!bubbleRender.Prepare())
 		{
@@ -287,7 +287,7 @@ bool CAIBubblesSystem::DisplaySpeechBubble(SAIBubbleRequestContainer& requestCon
 
 void CAIBubblesSystem::LogMessage(const char* const message, const TBubbleRequestOptionFlags flags) const
 {
-	if (gAIEnv.CVars.BubblesSystemAlertnessFilter & eBNS_Log)
+	if (gAIEnv.CVars.legacyBubblesSystem.BubblesSystemAlertnessFilter & eBNS_Log)
 	{
 		if (flags & eBNS_LogWarning)
 		{
@@ -307,7 +307,7 @@ void CAIBubblesSystem::PopupBlockingAlert(const char* const message, const TBubb
 		return;
 	}
 
-	if (flags & eBNS_BlockingPopup && gAIEnv.CVars.BubblesSystemAlertnessFilter & eBNS_BlockingPopup)
+	if (flags & eBNS_BlockingPopup && gAIEnv.CVars.legacyBubblesSystem.BubblesSystemAlertnessFilter & eBNS_BlockingPopup)
 	{
 		CryMessageBox(message, "AIBubbleSystemMessageBox");
 	}
@@ -315,7 +315,7 @@ void CAIBubblesSystem::PopupBlockingAlert(const char* const message, const TBubb
 
 bool CAIBubblesSystem::ShouldSuppressMessageVisibility(const SAIBubbleRequest::ERequestType requestType) const
 {
-	if (gAIEnv.CVars.EnableBubblesSystem != 1)
+	if (gAIEnv.CVars.legacyBubblesSystem.EnableBubblesSystem != 1)
 	{
 		return true;
 	}
@@ -325,7 +325,7 @@ bool CAIBubblesSystem::ShouldSuppressMessageVisibility(const SAIBubbleRequest::E
 	case SAIBubbleRequest::eRT_ErrorMessage:
 		return gAIEnv.CVars.DebugDraw < 1;
 	case SAIBubbleRequest::eRT_PrototypeDialog:
-		return gAIEnv.CVars.BubblesSystemAllowPrototypeDialogBubbles != 1;
+		return gAIEnv.CVars.legacyBubblesSystem.BubblesSystemAllowPrototypeDialogBubbles != 1;
 	default:
 		assert(0);
 		return gAIEnv.CVars.DebugDraw > 0;

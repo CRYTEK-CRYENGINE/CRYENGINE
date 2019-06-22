@@ -500,7 +500,7 @@ void CAnimatedCharacter::Release()
 
 void CAnimatedCharacter::FullSerialize(TSerialize ser)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Animated character serialization");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Animated character serialization");
 
 #define SerializeMember(member)                    ser.Value( # member, member)
 #define SerializeMemberType(type, member)          { type temp = member; ser.Value( # member, temp); if (isReading) member = temp; }

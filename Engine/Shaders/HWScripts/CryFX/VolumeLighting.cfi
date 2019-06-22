@@ -1456,7 +1456,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 		bool applyProbes = true;
 		if (applyProbes)
 		{
-			if (lightType == TILEDLIGHT_TYPE_PROBE && probeWeightSum < 1 && clipVolumeBlendWeight > 0.0f)
+			if (lightType == LIGHT_TYPE_PROBE && probeWeightSum < 1 && clipVolumeBlendWeight > 0.0f)
 			{
 				SVolumeLightShadeInfo light = VolumeLightsShadeInfo[lightIndex];
 				float3 lightPos = light.posRad.xyz;
@@ -1503,7 +1503,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 		bool applyAmbientLights = true;
 		if(applyAmbientLights)
 		{
-			if (TILEDLIGHT_TYPE_AMBIENT_POINT <= lightType && lightType <= TILEDLIGHT_TYPE_AMBIENT_AREA && clipVolumeBlendWeight > 0.0f)
+			if (LIGHT_TYPE_AMBIENT_POINT <= lightType && lightType <= LIGHT_TYPE_AMBIENT_AREA && clipVolumeBlendWeight > 0.0f)
 			{
 				SVolumeLightShadeInfo light = VolumeLightsShadeInfo[lightIndex];
 
@@ -1516,7 +1516,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 				float attenuation;
 				float NdotL;
 
-				if (lightType == TILEDLIGHT_TYPE_AMBIENT_AREA)
+				if (lightType == LIGHT_TYPE_AMBIENT_AREA)
 				{
 					lightVec = ComputeNearestLightOnRectangle(lightVec, light.projectorMatrix);
 
@@ -1539,7 +1539,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 
 					NdotL = 1;
 
-					if (lightType == TILEDLIGHT_TYPE_AMBIENT_PROJECTOR)
+					if (lightType == LIGHT_TYPE_AMBIENT_PROJECTOR)
 					{
 						filter = 0;
 						[branch] if (attenuation > 0)
@@ -1567,7 +1567,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 		}
 
 		// regular lights except sun light and area light
-		if (lightType > TILEDLIGHT_TYPE_AMBIENT_AREA && clipVolumeBlendWeight > 0.0f)
+		if (lightType > LIGHT_TYPE_AMBIENT_AREA && clipVolumeBlendWeight > 0.0f)
 		{
 			const float4 posRad = VolumeLightsShadeInfo[lightIndex].posRad;
 
@@ -1575,7 +1575,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 			const float plane = 0.008f;
 			float d0 = depthFront;
 			float d1 = depth;
-			if(lightType == TILEDLIGHT_TYPE_REGULAR_PROJECTOR)
+			if(lightType == LIGHT_TYPE_REGULAR_PROJECTOR)
 			{
 				float3 position = depth * eyeRay;
 				float3 pf = depthFront * eyeRay;
@@ -1665,7 +1665,7 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 				coverage = saturate(coverage > 0.0f ? abs(d1 - d0) / coverage : 0.0f);
 			}
 #if ENABLE_SPHERE_INTERSECTION
-			else if(lightType != TILEDLIGHT_TYPE_REGULAR_AREA) // TILEDLIGHT_TYPE_REGULAR_POINT or TILEDLIGHT_TYPE_REGULAR_POINTFACE
+			else if(lightType != TILEDLIGHT_TYPE_REGULAR_AREA) // LIGHT_TYPE_REGULAR_POINT or LIGHT_TYPE_REGULAR_POINTFACE
 			{
 				// find the intersection between sampling line segment and sphere.
 				float3 pf = depthFront * eyeRay;
@@ -1719,12 +1719,6 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 #endif
 
 				float3 lightVec = posRad.xyz - position;
-#if %_RT_SAMPLE2
-				if (lightType == TILEDLIGHT_TYPE_REGULAR_AREA)
-				{
-					lightVec = ComputeNearestLightOnRectangle(lightVec, VolumeLightsShadeInfo[lightIndex].projectorMatrix);
-				}
-#endif
 				float lightDist = length( lightVec );
 
 				if(lightDist < posRad.w)
@@ -1734,31 +1728,14 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 					const uint ShadowMap = 0x2;
 					uint flag = 0;
 
-#if !%_RT_SAMPLE2
 					VolumetricFogLight fragLight;
 					float3 vLight = normalize( lightVec );
-					fragLight.k = InjectInscatteringParams.x;
-					fragLight.k2 = InjectInscatteringParams.y;
+                    fragLight.k = InjectInscatteringParams.x;
+                    fragLight.k2 = InjectInscatteringParams.y;
 					fragLight.dotLE = dot(vLight, normalizedEyeRay);
 					fragLight.cDiffuse = light.color.rgb;
-					fragLight.radialLobe = light.color.w;
-					fragLight.fFallOff = (1.0f/ count) * coverage * GetPhysicalLightAttenuation( lightDist, 1.0 / posRad.w, light.attenuationParams.x );
-#else
-					VolumetricFogLight fragLight;
-					fragLight.k = InjectInscatteringParams.x;
-					fragLight.k2 = InjectInscatteringParams.y;
-					fragLight.cDiffuse = light.color.rgb;
-					fragLight.radialLobe = light.color.w;
-					fragLight.fFallOff = (1.0f/ count) * coverage * GetPhysicalLightAttenuation( lightDist, 1.0 / posRad.w, light.attenuationParams.x );
-					float3 vLight = normalize( lightVec );
-					if (lightType == TILEDLIGHT_TYPE_REGULAR_AREA)
-					{
-						float PdotL = dot( -vLight.xyz, light.projectorMatrix[0].xyz );
-						fragLight.fFallOff *= GetSpotAttenuation( PdotL, light.projectorMatrix[3].w, posRad.w ) * step( 0, PdotL );
-						fragLight.fFallOff *= saturate( PdotL );
-					}
-					fragLight.dotLE = dot(vLight, normalizedEyeRay);
-#endif
+                    fragLight.radialLobe = light.color.w;
+                    fragLight.fFallOff = (1.0f / count) * coverage * GetPhysicalLightAttenuation(lightDist, 1.0 / posRad.w, light.attenuationParams.x);
 
 #if %_RT_LIGHTVOLUME0 || %_RT_LIGHTVOLUME1
 #else
@@ -1766,42 +1743,68 @@ void AccumulateInscatteringRegularLights(inout float3 inscatter, in float depth,
 					float3 vShadowBias = vLight * exp2(1.442695f * 4.0f * min(0.0f, lerp(depthFront, depth, jitter) - maxLinearZ));
 #endif
 
-					if (lightType == TILEDLIGHT_TYPE_REGULAR_PROJECTOR)
-					{
-						if (fragLight.fFallOff > 0)
-						{
-							float4 projTC = mul( light.projectorMatrix, float4( position, 1.0f ) );
-							projTC.xy /= projTC.w;
+                    if (lightType == LIGHT_TYPE_REGULAR_PROJECTOR)
+                    {
+                        if (fragLight.fFallOff > 0)
+                        {
+                            float4 projTC = mul(light.projectorMatrix, float4(position, 1.0f));
+                            projTC.xy /= projTC.w;
 						
-							if (projTC.w < plane || min( projTC.x, projTC.y ) < 0 || max( projTC.x, projTC.y ) > 1)  // Avoid back-projection
-								flag |= SkipShading;
-							else
-							{
+                            if (projTC.w < plane || min(projTC.x, projTC.y) < 0 || max(projTC.x, projTC.y) > 1)  // Avoid back-projection
+                                flag |= SkipShading;
+                            else
+                            {
 								// TODO: base the mip-level selection on distance from the projector source (variable width "shadows")
-								uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
-								fragLight.cDiffuse *= VL_SpotTexArray.SampleLevel( vfTrilinearClampSampler, float3(projTC.xy, resIndexClamps.x), max(resIndexClamps.y, 4) ).xxx;
-							}
+                                uint4 resIndexClamps = GetResourceIndexAndMipClamps(light.resIndex);
+                                fragLight.cDiffuse *= VL_SpotTexArray.SampleLevel(vfTrilinearClampSampler, float3(projTC.xy, resIndexClamps.x), max(resIndexClamps.y, 4)).xxx;
+                            }
 
-							if (light.shadowParams.x > 0)
-								flag |= ShadowMap;
-						}
-					}
-					else if (lightType == TILEDLIGHT_TYPE_REGULAR_POINTFACE)
-					{
-						uint cubeFace = selectCubeFace(vLight);
+                            if (light.shadowParams.x > 0)
+                                flag |= ShadowMap;
+                        }
+                    }
+                    else if (lightType == LIGHT_TYPE_REGULAR_POINTFACE)
+                    {
+                        uint cubeFace = selectCubeFace(vLight);
 
-						if (light.resIndex != cubeFace)
-							flag |= SkipShading;
-						else
-							flag |= ShadowMap;
-					}
-#if %_RT_SAMPLE2
-					else if (lightType == TILEDLIGHT_TYPE_REGULAR_AREA)
-					{
-						if (light.shadowParams.x > 0)
-								flag |= ShadowMap;
-					}
-#endif
+                        if (light.resIndex != cubeFace)
+                            flag |= SkipShading;
+                        else
+                            flag |= ShadowMap;
+                    }
+                    else if (lightType == LIGHT_TYPE_REGULAR_AREA)
+                    {
+                        flag &= ~ShadowMap;
+
+						// Define Light shape
+                        float3 points[4];
+                        points[0] = float3(light.projectorMatrix[0][0], light.projectorMatrix[0][1], light.projectorMatrix[0][2]);
+                        points[1] = float3(light.projectorMatrix[1][0], light.projectorMatrix[1][1], light.projectorMatrix[1][2]);
+                        points[2] = float3(light.projectorMatrix[2][0], light.projectorMatrix[2][1], light.projectorMatrix[2][2]);
+                        points[3] = float3(light.projectorMatrix[3][0], light.projectorMatrix[3][1], light.projectorMatrix[3][2]);
+               
+                        bool twoSided = light.projectorMatrix[1][3];
+
+						// Early out
+                        float3 lightNormal = cross(points[1] - points[0], points[3] - points[0]);
+                        bool behindLight = dot(points[0] - position, lightNormal) < 0.0f;
+
+                        if ((behindLight && !twoSided))
+                            flag |= SkipShading;
+
+                        if (!(flag & SkipShading))
+                        {
+							// Polygon
+                            float3 L[4];
+                            L[0] = points[0] - position;
+                            L[1] = points[1] - position;
+                            L[2] = points[2] - position;
+                            L[3] = points[3] - position;
+
+                            uint4 lightArrayIdx = GetResourceIndexAndMipClamps(light.resIndex).x;
+                            fragLight.cDiffuse *= FetchDiffuseFilteredTexture(VL_SpotTexArray, lightArrayIdx, L[0], L[1], L[2], L[3], false);
+                        }
+                    }
 
 					if (!(flag & SkipShading))
 					{

@@ -25,7 +25,7 @@ CSkyLightManager::CSkyLightManager()
 	, m_bFlushFullUpdate(false)
 	, m_renderParams()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "SkyLightManager");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "SkyLightManager");
 
 	m_updateRequested[0] = m_updateRequested[1] = 0;
 

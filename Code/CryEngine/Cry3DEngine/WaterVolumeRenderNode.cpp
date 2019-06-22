@@ -752,11 +752,11 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 			// fill in data for render object
 			if (!IsAttachedToEntity())
 			{
-				pROVol->SetMatrix(Matrix34::CreateIdentity(), passInfo);
+				pROVol->SetMatrix(Matrix34::CreateIdentity());
 			}
 			else
 			{
-				pROVol->SetMatrix(m_parentEntityWorldTM, passInfo);
+				pROVol->SetMatrix(m_parentEntityWorldTM);
 				pROVol->m_ObjFlags |= FOB_TRANS_MASK;
 			}
 			pROVol->m_fSort = 0;
@@ -779,11 +779,11 @@ void CWaterVolumeRenderNode::Render_JobEntry(SRendParams rParam, SRenderingPassI
 		// fill in data for render object
 		if (!IsAttachedToEntity())
 		{
-			pROSurf->SetMatrix(Matrix34::CreateIdentity(), passInfo);
+			pROSurf->SetMatrix(Matrix34::CreateIdentity());
 		}
 		else
 		{
-			pROSurf->SetMatrix(m_parentEntityWorldTM, passInfo);
+			pROSurf->SetMatrix(m_parentEntityWorldTM);
 			pROSurf->m_ObjFlags |= FOB_TRANS_MASK;
 		}
 		pROSurf->m_fSort = 0;
@@ -849,6 +849,8 @@ void CWaterVolumeRenderNode::Physicalize(bool bInstant)
 		m_pPhysArea->GetStatus(&sp);
 
 		pe_params_buoyancy pb;
+		pb.waterDensity = m_density;
+		pb.waterResistance = m_resistance;
 		pb.waterPlane.n = sp.q * Vec3(0, 0, 1);
 		pb.waterPlane.origin = m_pPhysAreaInput->m_contour[0];
 		//pb.waterFlow = sp.q * Vec3( m_streamSpeed, 0, 0 );

@@ -12,6 +12,7 @@ class SequenceManager : public ISequenceManager
 public:
 	SequenceManager()
 		: m_sequenceIdCounter(1)
+		, m_pAgentAdapter(nullptr)
 	{
 	}
 
@@ -37,16 +38,23 @@ public:
 	virtual void RequestActionStart(SequenceId sequenceId, TFlowNodeId actionNodeId);
 	virtual void ActionCompleted(SequenceId sequenceId);
 	virtual void SetBookmark(SequenceId sequenceId, TFlowNodeId bookmarkNodeId);
+
+	virtual void SetAgentAdapter(IAgentAdapter* pAgentAdapter);
 	// ~AIActionSequence::ISequenceManager
+
+	IAgentAdapter* InitAgentAdapter(EntityId entityId);
 
 private:
 	SequenceId GenerateUniqueSequenceId();
 	Sequence*  GetSequence(SequenceId sequenceId);
+	void       CancelSequence(Sequence& sequence);
 	void       CancelActiveSequencesForThisEntity(EntityId entityId);
 
 	typedef std::map<SequenceId, Sequence> SequenceMap;
 	SequenceMap m_registeredSequences;
 	SequenceId  m_sequenceIdCounter;
+
+	IAgentAdapter* m_pAgentAdapter;
 };
 
 } // namespace AIActionSequence

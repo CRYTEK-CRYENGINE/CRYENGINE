@@ -151,8 +151,7 @@ public:
 private:
 	static void Execute(void* pRHS)
 	{
-		TYPE* rhs = static_cast<TYPE*>(pRHS);
-		rhs->~TYPE();
+		reinterpret_cast<TYPE*>(pRHS)->~TYPE();
 	}
 };
 

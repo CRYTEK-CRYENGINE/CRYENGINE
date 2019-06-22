@@ -1,0 +1,1 @@
+set(CMAKE_C_VERBOSE_FLAG "-v")

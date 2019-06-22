@@ -9,7 +9,6 @@
 bool SPixFormat::CheckSupport(D3DFormat Format, const char* szDescr)
 {
 	bool bRes = false;
-	CD3D9Renderer* rd = gcpRendD3D;
 
 	Init();
 	if ((Options = GetDeviceObjectFactory().QueryFormatSupport(Format)) & (FMTSUPPORT_TEXTURE2D | FMTSUPPORT_TEXTURECUBE))

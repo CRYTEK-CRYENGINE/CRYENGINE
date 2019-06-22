@@ -1180,6 +1180,7 @@ struct State
 		Serialization::SContext context(archive, this);
 
 		archive(name, "name", "^State Name");
+		nameCRC32 = CCrc32::ComputeLowercase(name);
 		archive.doc("State name");
 
 		if (name.empty())
@@ -1547,7 +1548,7 @@ public:
 		if (!context.eventsDeclaration.IsDeclared(eventName.c_str(), isLoadingFromEditor))
 		{
 			context.eventsDeclaration.DeclareGameEvent(eventName.c_str());
-			gEnv->pLog->LogWarning("SendEvent(%d) [Tree='%s'] Unknown event '%s' used. Event will be declared automatically.", xml->getLine(), context.treeName, m_eventToSend.GetName());
+			gEnv->pLog->LogWarning("SendEvent(%d) [Tree='%s'] Unknown event '%s' used. Event will be declared automatically.", xml->getLine(), context.treeName, m_eventToSend.GetName().c_str());
 		}
 #endif // STORE_EVENT_NAME && USING_BEHAVIOR_TREE_SERIALIZATION
 
@@ -1559,7 +1560,7 @@ public:
 	{
 		XmlNodeRef xml = BaseClass::CreateXmlDescription();
 		xml->setTag("SendEvent");
-		xml->setAttr("name", m_eventToSend.GetName());
+		xml->setAttr("name", m_eventToSend.GetName().c_str());
 		return xml;
 	}
 #endif
@@ -1573,9 +1574,9 @@ public:
 			return;
 		}
 
-		string eventName = m_eventToSend.GetName();
+		string& eventName = m_eventToSend.GetName();
 		SerializeContainerAsSortedStringList(archive, "event", "^Event", eventsDeclaration->GetEventsWithFlags(), "Event",  eventName);
-		m_eventToSend = Event(eventName);
+		m_eventToSend = Event(eventName.c_str());
 		archive.doc("Event to be sent");
 
 		BaseClass::Serialize(archive);
@@ -1587,9 +1588,9 @@ protected:
 	{
 
 #ifdef STORE_EVENT_NAME
-		if (!context.variables.eventsDeclaration.IsDeclared(m_eventToSend.GetName()))
+		if (!context.variables.eventsDeclaration.IsDeclared(m_eventToSend.GetName().c_str()))
 		{
-			gEnv->pLog->LogError("Event '%s' was not sent. Did you forget to declare it?", m_eventToSend.GetName());
+			gEnv->pLog->LogError("Event '%s' was not sent. Did you forget to declare it?", m_eventToSend.GetName().c_str());
 			return;
 		}
 #endif // #ifdef STORE_EVENT_NAME
@@ -1668,9 +1669,9 @@ public:
 #ifdef STORE_EVENT_NAME
 		else
 		{
-			string eventName = m_eventToSend.GetName();
+			string& eventName = m_eventToSend.GetName();
 			SerializeContainerAsSortedStringList(archive, "event", "^Event", state->transitions, "Transition event", eventName);
-			m_eventToSend = Event(eventName);
+			m_eventToSend = Event(eventName.c_str());
 
 			archive.doc("Transition event to be sent. Must be previously defined in the Transitions section of the State");
 		}
@@ -1684,9 +1685,9 @@ protected:
 	{
 
 #ifdef STORE_EVENT_NAME
-		if (!context.variables.eventsDeclaration.IsDeclared(m_eventToSend.GetName()))
+		if (!context.variables.eventsDeclaration.IsDeclared(m_eventToSend.GetName().c_str()))
 		{
-			gEnv->pLog->LogError("Event '%s' was not sent. Did you forget to declare it?", m_eventToSend.GetName());
+			gEnv->pLog->LogError("Event '%s' was not sent. Did you forget to declare it?", m_eventToSend.GetName().c_str());
 			return;
 		}
 #endif // #ifdef STORE_EVENT_NAME
@@ -2366,7 +2367,7 @@ public:
 	{
 		XmlNodeRef xml = BaseClass::CreateXmlDescription();
 		xml->setTag("WaitForEvent");
-		xml->setAttr("name", m_eventToWaitFor.GetName());
+		xml->setAttr("name", m_eventToWaitFor.GetName().c_str());
 		return xml;
 	}
 #endif
@@ -2380,9 +2381,9 @@ public:
 			return;
 		}
 
-		string eventName = m_eventToWaitFor.GetName();
+		string& eventName = m_eventToWaitFor.GetName();
 		SerializeContainerAsSortedStringList(archive, "event", "^Event", eventsDeclaration->GetEventsWithFlags(), "Event", eventName);
-		m_eventToWaitFor = Event(eventName);
+		m_eventToWaitFor = Event(eventName.c_str());
 
 		archive.doc("Event to wait for");
 
@@ -3104,31 +3105,31 @@ void RegisterBehaviorTreeNodes_Core()
 	
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Sequence, "Flow\\Sequence", COLOR_FLOW);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Selector, "Flow\\Selector", COLOR_FLOW);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Priority, "Flow\\Priority selector", COLOR_FLOW);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Priority, "Flow\\Priority Case", COLOR_FLOW);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Parallel, "Flow\\Parallel", COLOR_FLOW);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Loop, "Flow\\Loop", COLOR_FLOW);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, LoopUntilSuccess, "Flow\\Loop until success", COLOR_FLOW);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, StateMachine, "Flow\\State Machine\\State machine", COLOR_FLOW);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SendTransitionEvent, "Flow\\State Machine\\Send transition event", COLOR_FLOW);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, LoopUntilSuccess, "Flow\\Loop Until Success", COLOR_FLOW);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, StateMachine, "Flow\\State Machine\\State Sachine", COLOR_FLOW);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SendTransitionEvent, "Flow\\State Machine\\Send Transition Event", COLOR_FLOW);
 
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, IfCondition, "Conditions\\Condition gate", COLOR_CONDITION);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, AssertCondition, "Conditions\\Check condition", COLOR_CONDITION);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, IfCondition, "Conditions\\Condition Gate", COLOR_CONDITION);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, AssertCondition, "Conditions\\Check Condition", COLOR_CONDITION);
 
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Timeout, "Time\\Timeout", COLOR_FAIL);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, IfTime, "Time\\Timestamp gate", COLOR_TIME);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, IfTime, "Time\\Timestamp Gate", COLOR_TIME);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Wait, "Time\\Wait", COLOR_TIME);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, MonitorCondition, "Time\\Wait for condition", COLOR_TIME);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, WaitForEvent, "Time\\Wait for event", COLOR_TIME);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, WaitUntilTime, "Time\\Wait for timestamp", COLOR_TIME);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, MonitorCondition, "Time\\Wait for Condition", COLOR_TIME);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, WaitForEvent, "Time\\Wait for Event", COLOR_TIME);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, WaitUntilTime, "Time\\Wait for Timestamp", COLOR_TIME);
 
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Fail, "Core\\Fail", COLOR_FAIL);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, RandomGate, "Core\\Random gate", COLOR_CORE);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, RandomGate, "Core\\Random Gate", COLOR_CORE);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SendEvent, "Core\\Send Event", COLOR_CORE);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SuppressFailure, "Core\\Suppress failure", COLOR_FAIL);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, SuppressFailure, "Core\\Suppress Failure", COLOR_FAIL);
 
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, AssertTime, "Debug\\Check timestamp", COLOR_DEBUG);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, AssertTime, "Debug\\Check Timestamp", COLOR_DEBUG);
 	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Halt, "Debug\\Halt", COLOR_DEBUG);
-	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Log, "Debug\\Log message", COLOR_DEBUG);
+	REGISTER_BEHAVIOR_TREE_NODE_WITH_SERIALIZATION(manager, Log, "Debug\\Log Message", COLOR_DEBUG);
 
 	REGISTER_BEHAVIOR_TREE_NODE(manager, Breakpoint);
 }

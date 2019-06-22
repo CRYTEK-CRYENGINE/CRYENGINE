@@ -20,6 +20,7 @@
 #include "GameObjects/GameObject.h"
 #include <CryCore/Platform/IPlatformOS.h>
 #include <CryRenderer/IRenderAuxGeom.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CActionMapManager* CActionMapManager::s_pThis = nullptr;
 

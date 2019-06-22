@@ -84,7 +84,7 @@ void CXmlArchive::Save(const string& file)
 
 bool CXmlArchive::SaveToPak(const string& levelPath, CPakFile& pakFile)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	_smart_ptr<IXmlStringData> pXmlStrData = root->getXMLData(5000000);
 
 	// Save xml file.
@@ -111,7 +111,7 @@ bool CXmlArchive::LoadFromPak(const string& levelPath)
 
 bool CXmlArchive::SaveToFile(const string& filepath)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	if (!root->saveToFile(filepath))
 	{

@@ -172,7 +172,6 @@ IMPLEMENT_DYNCREATE(CObjectMode, CEditTool)
 SDeepSelectionPreferences gDeepSelectionPreferences;
 REGISTER_PREFERENCES_PAGE_PTR(SDeepSelectionPreferences, &gDeepSelectionPreferences)
 
-
 //////////////////////////////////////////////////////////////////////////
 // Class description.
 //////////////////////////////////////////////////////////////////////////
@@ -186,7 +185,7 @@ class CObjectMode_ClassDesc : public IClassDesc
 
 	//! This method returns Category of this class, Category is specifing where this plugin class fits best in
 	//! create panel.
-	virtual const char*    Category() { return "Select"; }
+	virtual const char*    Category()        { return "Select"; }
 	virtual CRuntimeClass* GetRuntimeClass() { return RUNTIME_CLASS(CObjectMode); }
 };
 
@@ -405,6 +404,8 @@ bool CObjectMode::OnLButtonDown(CViewport* view, int nFlags, CPoint point)
 	bool bLockSelection = GetIEditor()->IsSelectionLocked();
 
 	HitContext hitInfo(view);
+	// Take in consideration all objects (including frozen), while snapping via (Ctrl+Shift+LMB)
+	hitInfo.ignoreFrozenObjects = !(bCtrlClick && bShiftClick);
 	HitTest(hitInfo, view, point);
 
 	if (hitInfo.axis != CLevelEditorSharedState::Axis::None)
@@ -547,52 +548,52 @@ int CObjectMode::ApplyMouseSelection(CViewport* pView, CBaseObject* pHitObject, 
 {
 	int numSelected = 0;
 
-		// If not selection locked.
-		pView->BeginUndo();
+	// If not selection locked.
+	pView->BeginUndo();
 
-		IObjectManager* pObjectManager = GetIEditor()->GetObjectManager();
+	IObjectManager* pObjectManager = GetIEditor()->GetObjectManager();
 
-		if (pHitObject)
+	if (pHitObject)
+	{
+		numSelected = 1;
+
+		if (!bToggle)
 		{
-			numSelected = 1;
-
-			if (!bToggle)
+			if (bAdd)
 			{
-				if (bAdd)
-				{
-					pObjectManager->AddObjectToSelection(pHitObject);
-				}
-				else
-				{
-					pObjectManager->SelectObject(pHitObject);
-				}
+				pObjectManager->AddObjectToSelection(pHitObject);
 			}
 			else
 			{
-				if (pHitObject->IsSelected())
-				{
-					pObjectManager->UnselectObject(pHitObject);
-				}
-				else
-				{
-					pObjectManager->AddObjectToSelection(pHitObject);
-				}
+				pObjectManager->SelectObject(pHitObject);
 			}
 		}
 		else
 		{
-			if (!bNoRemoveSelection)
+			if (pHitObject->IsSelected())
 			{
-				// Current selection should be cleared
-				numSelected = GetIEditor()->GetISelectionGroup()->GetCount();
-				pObjectManager->ClearSelection();
+				pObjectManager->UnselectObject(pHitObject);
+			}
+			else
+			{
+				pObjectManager->AddObjectToSelection(pHitObject);
 			}
 		}
-
-		if (pView->IsUndoRecording())
+	}
+	else
+	{
+		if (!bNoRemoveSelection)
 		{
-			pView->AcceptUndo("Select Object(s)");
+			// Current selection should be cleared
+			numSelected = GetIEditor()->GetISelectionGroup()->GetCount();
+			pObjectManager->ClearSelection();
 		}
+	}
+
+	if (pView->IsUndoRecording())
+	{
+		pView->AcceptUndo("Select Object(s)");
+	}
 
 	return numSelected;
 }
@@ -650,7 +651,7 @@ bool CObjectMode::OnLButtonUp(CViewport* view, int nFlags, CPoint point)
 		const IObjectManager::ESelectOp selectOp = bUnselect ? IObjectManager::ESelectOp::eUnselect :
 		                                           (bToggle ? IObjectManager::ESelectOp::eToggle : IObjectManager::ESelectOp::eSelect);
 
-    //If a rectangle is too small we don't want to create a selection from it 
+		//If a rectangle is too small we don't want to create a selection from it
 		CRect selectRect = view->GetSelectionRectangle();
 		if (!selectRect.IsRectEmpty())
 		{
@@ -784,7 +785,7 @@ bool CObjectMode::OnRButtonUp(CViewport* view, int nFlags, CPoint point)
 			m_suspendHighlightChange = true;
 
 			// and resume on close
-			menu.SetOnHideFunctor([ = ]
+			menu.SetOnHideFunctor([=]
 			{
 				if (GetIEditor()->GetLevelEditorSharedState()->GetEditTool() == this)
 				{
@@ -854,7 +855,7 @@ void CObjectMode::HandleMoveSelectionToPosition(Vec3& pos, const CPoint& point, 
 		selectionFlags |= ISelectionGroup::eMS_SnapToNormal;
 
 	// Save current constraints so we can remove and re-add after we've moved objects to position
-	// If not then having a constraint on Z, for example, will result in moving to position 
+	// If not then having a constraint on Z, for example, will result in moving to position
 	// completely failing
 	auto pLevelEditorState = GetIEditor()->GetLevelEditorSharedState();
 	auto currentConstraints = pLevelEditorState->GetAxisConstraint();
@@ -1401,14 +1402,13 @@ void CObjectMode::OnManipulatorEndDrag(IDisplayViewport* view, ITransformManipul
 // Other movements of the object are handled in the 'CObjectMode::OnMouseMove()' method.
 void CObjectMode::OnManipulatorDrag(IDisplayViewport* view, ITransformManipulator* pManipulator, const Vec2i& point, const Vec3& value, int flags)
 {
-	CPoint p(point.x, point.y);
-
 	if (m_commandMode == MoveMode)
 	{
 		int halfLength = gViewportPreferences.dragSquareSize / 2;
 		CRect rcDrag(m_cMouseDownPos.x, m_cMouseDownPos.y, m_cMouseDownPos.x, m_cMouseDownPos.y);
 		InflateRect(rcDrag, halfLength, halfLength);
 
+		CPoint p(point.x, point.y);
 		if (PtInRect(rcDrag, p))
 		{
 			return;
@@ -1444,11 +1444,10 @@ void CObjectMode::OnManipulatorDrag(IDisplayViewport* view, ITransformManipulato
 	}
 	else if (m_commandMode == RotateMode)
 	{
-		GetIEditor()->GetIUndoManager()->Restore();
-		const ISelectionGroup* pSelection = GetIEditor()->GetISelectionGroup();
-
-		// unfortunately more conversion to fit selectiongroup format
+		// Unfortunately more conversion to fit selectiongroup format
 		Ang3 angles = RAD2DEG(-value);
+
+		const ISelectionGroup* pSelection = GetIEditor()->GetISelectionGroup();
 		pSelection->Rotate(angles);
 	}
 	else if (m_commandMode == ScaleMode)

@@ -1,3 +1,4 @@
+include ("${CMAKE_CURRENT_LIST_DIR}/../../CrossPlatformSetup.cmake")
 set(ANDROID TRUE)
 set(OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/android")
 

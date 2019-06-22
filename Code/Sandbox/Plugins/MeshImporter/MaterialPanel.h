@@ -5,7 +5,7 @@
 
 #include <memory>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 struct ITaskHost;
 class CCreateMaterialTask;
@@ -47,7 +47,7 @@ public:
 	void                             GenerateTemporaryMaterial(void* pUserData = nullptr);
 
 	CMaterialSettings*               GetMaterialSettings();
-	QPropertyTree*                   GetMaterialSettingsTree();
+	QPropertyTreeLegacy*                   GetMaterialSettingsTree();
 	CSortedMaterialModel*            GetMaterialModel();
 	CMaterialView*                   GetMaterialView();
 
@@ -71,7 +71,7 @@ private:
 
 	// Engine material.
 	std::unique_ptr<CMaterialSettings> m_pMaterialSettings;
-	QPropertyTree*                     m_pMaterialSettingsTree;
+	QPropertyTreeLegacy*                     m_pMaterialSettingsTree;
 
 	// Materials.
 	std::unique_ptr<CSortedMaterialModel> m_pMaterialModel;

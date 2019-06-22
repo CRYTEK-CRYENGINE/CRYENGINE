@@ -3,21 +3,8 @@
 #include "StdAfx.h"
 
 #include "GraphicsPipelineStage.h"
-#include "../StandardGraphicsPipeline.h"
 
 //////////////////////////////////////////////////////////////////////////
-CStandardGraphicsPipeline& CGraphicsPipelineStage::GetStdGraphicsPipeline()
-{
-	assert(m_pGraphicsPipeline);
-	return *static_cast<CStandardGraphicsPipeline*>(m_pGraphicsPipeline);
-}
-
-//////////////////////////////////////////////////////////////////////////
-const CStandardGraphicsPipeline& CGraphicsPipelineStage::GetStdGraphicsPipeline() const
-{
-	assert(m_pGraphicsPipeline);
-	return *static_cast<const CStandardGraphicsPipeline*>(m_pGraphicsPipeline);
-}
 
 const CRenderOutput& CGraphicsPipelineStage::GetRenderOutput() const
 {

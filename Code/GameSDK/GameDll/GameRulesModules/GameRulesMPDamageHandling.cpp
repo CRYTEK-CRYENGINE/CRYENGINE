@@ -688,7 +688,7 @@ bool CGameRulesMPDamageHandling::IsDead(CActor* actor, IScriptTable* actorScript
 	}
 	else
 	{
-		CRY_PROFILE_REGION(PROFILE_GAME, "SvOnCollision IsDead scope");
+		CRY_PROFILE_SECTION(PROFILE_GAME, "SvOnCollision IsDead scope");
 		HSCRIPTFUNCTION isDeadFunc = NULL;
 		if (actorScript->GetValue("IsDead", isDeadFunc))
 		{
@@ -872,7 +872,7 @@ void CGameRulesMPDamageHandling::SvOnCollision(const IEntity *pVictimEntity, con
 	// Filter frequent collisions
 	if (pOffenderEntity)
 	{
-		CRY_PROFILE_REGION(PROFILE_GAME, "Filter out recent collisions");
+		CRY_PROFILE_SECTION(PROFILE_GAME, "Filter out recent collisions");
 
 		EntityCollisionRecords::const_iterator collisionRecordIter = m_entityCollisionRecords.find(victimID);
 		if (collisionRecordIter != m_entityCollisionRecords.end())
@@ -1077,7 +1077,7 @@ void CGameRulesMPDamageHandling::SvOnCollision(const IEntity *pVictimEntity, con
 				}	
 				else if (pVictimScript)
 				{
-					CRY_PROFILE_REGION(PROFILE_GAME, "Call to OnHit");
+					CRY_PROFILE_SECTION(PROFILE_GAME, "Call to OnHit");
 
 					if (!IsDead(victimActor, pVictimScript))
 					{

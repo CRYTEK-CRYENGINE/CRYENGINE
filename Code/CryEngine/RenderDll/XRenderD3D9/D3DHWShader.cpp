@@ -36,7 +36,7 @@ int CHWShader_D3D::s_nResetDeviceFrame = -1;
 int CHWShader_D3D::s_nInstFrame = -1;
 
 CHWShader* CHWShader::s_pCurHWVS;
-char *CHWShader::s_GS_MultiRes_NV;
+char* CHWShader::s_GS_MultiRes_NV;
 
 namespace
 {
@@ -67,7 +67,7 @@ SD3DShader::~SD3DShader() noexcept
 
 void SHWShaderCache::GetMemoryUsage(ICrySizer* pSizer) const
 {
-	for (const auto &s : m_shaders)
+	for (const auto& s : m_shaders)
 	{
 		if (stl::holds_alternative<SDeviceShaderEntry>(s.second))
 			pSizer->AddObject(&stl::get<SDeviceShaderEntry>(s.second));
@@ -86,7 +86,7 @@ void CHWShader_D3D::SHWSInstance::Release()
 		CGParamManager::FreeParametersGroup(m_nParams[1]);
 	if (m_nParams_Inst >= 0)
 		CGParamManager::FreeParametersGroup(m_nParams_Inst);
-	
+
 	m_Handle.m_pShader = nullptr;
 
 	if (m_Shader.m_pShaderData)
@@ -119,7 +119,6 @@ void CHWShader_D3D::SHWSInstance::GetInstancingAttribInfo(uint8 Attributes[32], 
 	}
 }
 
-
 void CHWShader_D3D::ShutDown()
 {
 	uint32 numResourceLeaks = 0;
@@ -131,15 +130,14 @@ void CHWShader_D3D::ShutDown()
 		eHWSC_Geometry,
 		eHWSC_Domain,
 		eHWSC_Hull,
-		eHWSC_Compute
-	};
-	for (const auto &c : classes)
+		eHWSC_Compute };
+	for (const auto& c : classes)
 	{
 		const CCryNameTSCRC Name = CHWShader::mfGetClassName(c);
 		SResourceContainer* pRL = CBaseResource::GetResourcesForClass(Name);
 		if (pRL)
 		{
-			for (const auto &s : pRL->m_RMap)
+			for (const auto& s : pRL->m_RMap)
 			{
 				if (s.second)
 					++numResourceLeaks;
@@ -242,11 +240,13 @@ CCryNameTSCRC CHWShader::mfGetCacheClassName(EHWShaderClass eClass)
 
 CHWShader* CHWShader::mfForName(const char* name, const char* nameSource, uint32 CRC32, const char* szEntryFunc, EHWShaderClass eClass, const TArray<uint32>& SHData, const FXShaderToken& Table, uint32 dwType, CShader* pFX, uint64 nMaskGen, uint64 nMaskGenFX)
 {
-	//	LOADING_TIME_PROFILE_SECTION(iSystem);
+	//	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(iSystem);
 	if (!name || !name[0])
 		return nullptr;
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Shader, 0, "%s", name);
+	CVrProjectionManager* pVRProjectionManager = gcpRendD3D->GetVrProjectionManager();
+
+	MEMSTAT_CONTEXT(EMemStatContextType::Shader, name);
 
 	CHWShader_D3D* pSH = nullptr;
 	stack_string strName = name;
@@ -328,7 +328,7 @@ CHWShader* CHWShader::mfForName(const char* name, const char* nameSource, uint32
 	}
 	pSH->m_pCache = static_cast<SHWShaderCache*>(hwSharedCache);
 
-	if (CParserBin::m_bEditable || (CVrProjectionManager::IsMultiResEnabledStatic() && eClass == eHWSC_Vertex))
+	if (CParserBin::m_bEditable || ((!pVRProjectionManager || pVRProjectionManager->IsMultiResEnabledStatic()) && eClass == eHWSC_Vertex))
 	{
 		pSH->m_TokenTable = Table;
 		pSH->m_TokenData = SHData;
@@ -343,13 +343,13 @@ CHWShader* CHWShader::mfForName(const char* name, const char* nameSource, uint32
 	// Check for auto MultiRes-Geom shader
 	if (eClass == eHWSC_Geometry && szEntryFunc[0] == '$')
 	{
-		if (!CVrProjectionManager::IsMultiResEnabledStatic())
+		if (pVRProjectionManager && !pVRProjectionManager->IsMultiResEnabledStatic())
 		{
 			pSH->Release();
 			return NULL;
 		}
 		pSH->m_Flags |= HWSG_GS_MULTIRES;
-		SShaderBin *pBinGS = gRenDev->m_cEF.m_Bin.GetBinShader("$nv_vr", false, pFX->m_CRC32);
+		SShaderBin* pBinGS = gRenDev->m_cEF.m_Bin.GetBinShader("$nv_vr", false, pFX->m_CRC32);
 		if (pBinGS)
 		{
 			CParserBin Parser(pBinGS, pFX);
@@ -422,7 +422,6 @@ uint64 CHWShader_D3D::CheckIfExpr_r(const uint32* pTokens, uint32& nCur, uint32 
 
 	while (nCur < nSize)
 	{
-		int nRecurs = 0;
 		uint32 nToken = pTokens[nCur++];
 		if (nToken == eT_br_rnd_1) // check for '('
 		{
@@ -562,10 +561,9 @@ void CHWShader_D3D::mfConstructFX(const FXShaderToken& Table, const TArray<uint3
 	}
 }
 
-CHWShader_D3D::cacheValidationResult CHWShader_D3D::mfValidateCache(const SDiskShaderCache &cache)
+CHWShader_D3D::cacheValidationResult CHWShader_D3D::mfValidateCache(const SDiskShaderCache& cache)
 {
 	static constexpr auto fVersion = static_cast<float>(FX_CACHE_VER);
-	const auto cacheType = cache.GetType();
 
 	const SResFileLookupData* pLookup = cache.m_pRes->GetLookupData();
 	if (!pLookup)
@@ -579,7 +577,7 @@ CHWShader_D3D::cacheValidationResult CHWShader_D3D::mfValidateCache(const SDiskS
 }
 
 bool CHWShader_D3D::mfWarmupCache(CShader* pFX)
-{ 
+{
 	static constexpr auto fVersion = static_cast<float>(FX_CACHE_VER);
 
 	std::vector<cacheSource> cacheTypes = { cacheSource::readonly };
@@ -588,7 +586,7 @@ bool CHWShader_D3D::mfWarmupCache(CShader* pFX)
 	if (CRendererCVars::CV_r_shadersediting || gRenDev->IsShaderCacheGenMode())
 		cacheTypes = { cacheSource::user };
 
- 	for (const auto &cacheType : cacheTypes)
+	for (const auto& cacheType : cacheTypes)
 	{
 		auto cache = AcquireDiskCache(cacheType);
 
@@ -624,7 +622,7 @@ bool CHWShader_D3D::mfWarmupCache(CShader* pFX)
 		if (cacheType == cacheSource::user && !validCache)
 		{
 			// Recreate user cache
-			cache = 
+			cache =
 				(m_pCache->m_pDiskShaderCache[static_cast<int>(cacheType)] = stl::make_unique<SDiskShaderCache>(SDiskShaderCache::recreateUserCacheTag{}, m_pCache->GetName().c_str(), m_CRC32, fVersion)).get();
 			validCache = cache && cache->m_pRes;
 		}
@@ -650,7 +648,7 @@ bool CHWShader_D3D::mfWarmupCache(CShader* pFX)
 	return true;
 }
 
-SDeviceShaderEntry CHWShader_D3D::mfShaderEntryFromCache(CShader* pFX, const CDirEntry& de, CResFileOpenScope &rfOpenGuard, SDiskShaderCache &cache)
+SDeviceShaderEntry CHWShader_D3D::mfShaderEntryFromCache(CShader* pFX, const CDirEntry& de, CResFileOpenScope& rfOpenGuard, SDiskShaderCache& cache)
 {
 	const auto offset = de.GetOffset();
 	const auto size = de.GetSize();
@@ -690,7 +688,7 @@ SDeviceShaderEntry CHWShader_D3D::mfShaderEntryFromCache(CShader* pFX, const CDi
 	// Store whole binary for vertex shaders and other vertex properties, as they are special that way (and need the binary for generating input layout).
 	std::unique_ptr<byte[]> pVertexShaderBinary;
 #if CRY_RENDERER_VULKAN
-	std::vector<SVertexInputStream>  VSInputStreams;
+	std::vector<SVertexInputStream> VSInputStreams;
 #endif
 	std::vector<SCGBind> bindVars;
 
@@ -715,6 +713,8 @@ SDeviceShaderEntry CHWShader_D3D::mfShaderEntryFromCache(CShader* pFX, const CDi
 
 		if (pShaderReflection)
 			mfCreateBinds(bindVars, pShaderReflection, (std::size_t)nSize);
+
+		SAFE_RELEASE(pShaderReflection);
 
 		// Vertex shenanigans
 		if (instance.m_eClass == EHWShaderClass::eHWSC_Vertex)
@@ -755,14 +755,14 @@ SDeviceShaderEntry CHWShader_D3D::mfShaderEntryFromCache(CShader* pFX, const CDi
 	};
 }
 
-void CHWShader_D3D::mfPrecacheAllCombinations(CShader* pFX, CResFileOpenScope &rfOpenGuard, SDiskShaderCache &cache)
+void CHWShader_D3D::mfPrecacheAllCombinations(CShader* pFX, CResFileOpenScope& rfOpenGuard, SDiskShaderCache& cache)
 {
 #if CRY_RENDERER_VULKAN || CRY_RENDERER_GNM
 	return;
 #endif
 
 	CRY_ASSERT(gRenDev->m_pRT->IsRenderThread());
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "CHWShader_D3D::mfPrecacheAllCombinations()");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "CHWShader_D3D::mfPrecacheAllCombinations()");
 
 	std::vector<std::pair<size_t, const SDeviceShaderEntry*>> entries;
 	const auto entries_pred = [](const typename decltype(entries)::value_type &lhs, std::size_t rhs) noexcept { return std::get<0>(lhs) < rhs; };
@@ -773,7 +773,7 @@ void CHWShader_D3D::mfPrecacheAllCombinations(CShader* pFX, CResFileOpenScope &r
 	CryLog("---Shader Cache: mfPrecacheAllCombinations() %s", rfOpenGuard.getHandle()->mfGetFileName());
 
 	// Go over all entries
-	auto &devCache = GetDevCache();
+	auto& devCache = GetDevCache();
 	for (const auto& shaderEntry : *rfOpenGuard.getHandle()->mfGetDirectory())
 	{
 		const auto offset = shaderEntry.GetOffset();
@@ -816,14 +816,14 @@ void CHWShader_D3D::mfPrecacheAllCombinations(CShader* pFX, CResFileOpenScope &r
 		v.emplace<SDeviceShaderEntry>(std::move(entry));
 		auto insertResult = devCache.emplace(
 			std::piecewise_construct,
-			std::forward_as_tuple(devCacheKey), 
+			std::forward_as_tuple(devCacheKey),
 			std::forward_as_tuple(std::move(v)));
- 		const auto* ptr = &insertResult.first->second;
+		const auto* ptr = &insertResult.first->second;
 		entries.emplace(it, offset, reinterpret_cast<const SDeviceShaderEntry*>(ptr));
 	}
 
 	// Handle duplicates
-	for (const auto &p : duplicates)
+	for (const auto& p : duplicates)
 	{
 		const auto offset = p.first;
 		auto it = std::lower_bound(entries.begin(), entries.end(), offset, entries_pred);
@@ -954,7 +954,6 @@ int CGParamManager::GetParametersGroup(SParamsGroup& InGr, int nId)
 	}
 	else if (nId == 1)
 	{
-		SCGParam& Pr = InParams[0];
 		bGeneral = false;
 	}
 	s_Groups[n].bGeneral = bGeneral;
@@ -1006,7 +1005,7 @@ void CGParamManager::Shutdown()
 
 SCGParamPool* CGParamManager::NewPool(int nEntries)
 {
-  return s_Pools.emplace_back(nEntries);
+	return s_Pools.emplace_back(nEntries);
 }
 
 //===========================================================================================================
@@ -1036,10 +1035,10 @@ NO_INLINE void sZeroLine(UFloat4* sData)
 	sData[0].f[3] = 0.0f;
 }
 
-NO_INLINE void sGetScreenSize(UFloat4* sData, CD3D9Renderer* r)
+NO_INLINE void sGetScreenSize(UFloat4* sData, CD3D9Renderer* r, CRenderView* pRenderView)
 {
 	SRenderViewInfo viewInfo[2];
-	gcpRendD3D.GetGraphicsPipeline().GenerateViewInfo(viewInfo);
+	pRenderView->GetGraphicsPipeline()->GenerateViewInfo(viewInfo);
 	int iWidth = viewInfo[0].viewport.width;
 	int iHeight = viewInfo[0].viewport.height;
 
@@ -1100,9 +1099,7 @@ NO_INLINE void sGetRegularKernel(UFloat4* sData, CD3D9Renderer* r)
 		else
 		{
 			sData[nInd / 2].f[2] = regular_kernel[nInd].x * fFilterRange;
-			;
 			sData[nInd / 2].f[3] = regular_kernel[nInd].y * fFilterRange;
-			;
 		}
 	}
 }
@@ -1444,13 +1441,13 @@ NO_INLINE Vec4 sGetVolumetricFogDistanceParams(const CCamera& camera)
 	return params;
 }
 
-NO_INLINE void sCausticsSmoothSunDirection(UFloat4* sData)
+NO_INLINE void sCausticsSmoothSunDirection(UFloat4* sData, CRenderView* pRenderView)
 {
-	SRenderViewShaderConstants& PF = gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView()->GetShaderConstants();
+	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
 	Vec3 v(0.0f, 0.0f, 0.0f);
 	I3DEngine* pEng = gEnv->p3DEngine;
 
-	// Caustics are done with projection from sun - ence they update too fast with regular
+	// Caustics are done with projection from sun - Hence they update too fast with regular
 	// sun direction. Use a smooth sun direction update instead to workaround this
 	if (PF.nCausticsFrameID != gRenDev->GetRenderFrameID())
 	{
@@ -1474,10 +1471,12 @@ NO_INLINE void sCausticsSmoothSunDirection(UFloat4* sData)
 	sData[0].f[3] = 0;
 }
 
-NO_INLINE void sNearFarDist(UFloat4* sData, CD3D9Renderer* r)
+NO_INLINE void sNearFarDist(UFloat4* sData, CD3D9Renderer* r, CRenderView* pRenderView)
 {
-	float nearPlane = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left).nearClipPlane;
-	float farPlane = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left).farClipPlane;
+	const SRenderViewInfo& renderViewInfo = pRenderView->GetViewInfo(CCamera::eEye_Left);
+
+	float nearPlane = renderViewInfo.nearClipPlane;
+	float farPlane  = renderViewInfo.farClipPlane;
 	sData[0].f[0] = nearPlane;
 	sData[0].f[1] = farPlane;
 	// NOTE : v[2] is used to put the weapon's depth range into correct relation to the whole scene
@@ -1493,7 +1492,7 @@ void CRenderer::ReadPerFrameShaderConstants(const SRenderingPassInfo& passInfo, 
 	// Per frame - hardcoded/fast - update of commonly used data - feel free to improve this
 	CRenderView* pRenderView = passInfo.GetRenderView();
 
-	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();;
+	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
 	uint32 nFrameID = passInfo.GetFrameID();
 	if (PF.nFrameID == nFrameID)
 		return;
@@ -1670,7 +1669,7 @@ void CRenderer::ReadPerFrameShaderConstants(const SRenderingPassInfo& passInfo, 
 	CShadowUtils::GetIrregKernel(PF.irregularFilterKernel, sampleCountByQuality[shaderQuality]);
 }
 
-bool CHWShader_D3D::PrecacheShader(CShader* pShader, const SShaderCombIdent &cacheIdent,uint32 nFlags)
+bool CHWShader_D3D::PrecacheShader(CShader* pShader, const SShaderCombIdent& cacheIdent, uint32 nFlags)
 {
 	SShaderCombIdent Ident;
 	Ident.m_LightMask = cacheIdent.m_LightMask;
@@ -1729,7 +1728,7 @@ int CHWShader_D3D::CheckActivation(CShader* pSH, SHWSInstance*& pInst, uint32 nF
 	return 1;
 }
 
-void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWShaderClass eSH, int nMaxVecs, Vec4* pOutBuffer, uint32 outBufferSize, const D3DViewPort* pVP)
+void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWShaderClass eSH, int nMaxVecs, Vec4* pOutBuffer, uint32 outBufferSize, const D3DViewPort* pVP, CRenderView* pRenderView)
 {
 	DETAILED_PROFILE_MARKER("mfSetParameters");
 	PROFILE_FRAME(Shader_SetParams);
@@ -1739,13 +1738,15 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 	Vec4 v4;
 	const SCGParam* ParamBind = pParams;
 	int nParams;
-	const int rLog = CRenderer::CV_r_log;
+
+	CRY_ASSERT(pRenderView);
 
 	if (!pParams)
 		return;
 
 	CD3D9Renderer* const __restrict r = gcpRendD3D;
-	SRenderViewShaderConstants& PF = gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView()->GetShaderConstants();
+	SRenderViewShaderConstants& PF = pRenderView->GetShaderConstants();
+	std::shared_ptr<CGraphicsPipeline> pActiveGraphicsPipeline = pRenderView->GetGraphicsPipeline();
 
 	UFloat4* sData = sDataBuffer; // data length must not exceed the lenght of sDataBuffer [=sozeof(36*float4)]
 
@@ -1781,11 +1782,11 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 
 			case ECGP_PB_CameraPos:
 				{
-					const Vec3& vCamPos = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left).cameraOrigin;
+					const Vec3& vCamPos = pRenderView->GetViewInfo(CCamera::eEye_Left).cameraOrigin;
 					sData[0].f[0] = vCamPos.x;
 					sData[0].f[1] = vCamPos.y;
 					sData[0].f[2] = vCamPos.z;
-					sData[0].f[3] = gcpRendD3D.GetGraphicsPipeline().GetCurrentRenderView()->IsViewFlag(SRenderViewInfo::eFlags_MirrorCull) ? -1.0f : 1.0f;
+					sData[0].f[3] = pRenderView->IsViewFlag(SRenderViewInfo::eFlags_MirrorCull) ? -1.0f : 1.0f;
 				}
 				break;
 
@@ -1798,7 +1799,7 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 				sData[0].f[3] = 0.5f / pVP->Height;
 				break;
 			case ECGP_PB_NearFarDist:
-				sNearFarDist(sData, r);
+				sNearFarDist(sData, r, pRenderView);
 				break;
 
 			case ECGP_PB_ClipVolumeParams:
@@ -1810,12 +1811,12 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 				ASSERT_LEGACY_PIPELINE;
 				sZeroLine(sData);
 				/*
-				pRE = rRP.m_pRE;
-				if (!pRE || !(pData = (float*)pRE->m_CustomData))
-					sData[0].f[nComp] = 0;
-				else
-					sData[0].f[nComp] = pData[(ParamBind->m_nID >> (nComp * 8)) & 0xff];
-					*/
+				   pRE = rRP.m_pRE;
+				   if (!pRE || !(pData = (float*)pRE->m_CustomData))
+				   sData[0].f[nComp] = 0;
+				   else
+				   sData[0].f[nComp] = pData[(ParamBind->m_nID >> (nComp * 8)) & 0xff];
+				 */
 				break;
 
 			case ECGP_PB_VolumetricFogParams:
@@ -1929,8 +1930,8 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 					Vec4 param(0.0f);
 
 					{
-						auto pStage = r->GetGraphicsPipeline().GetVolumetricFogStage();
-						assert(pStage);
+						auto pStage = pActiveGraphicsPipeline->GetStage<CVolumetricFogStage>();
+						CRY_ASSERT(pStage);
 						if (pStage)
 						{
 							param = pStage->GetGlobalEnvProbeShaderParam0();
@@ -1948,9 +1949,12 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 					Vec4 param(0.0f);
 
 					{
-						auto pStage = r->GetGraphicsPipeline().GetVolumetricFogStage();
+						auto pStage = pActiveGraphicsPipeline->GetStage<CVolumetricFogStage>();
 						CRY_ASSERT(pStage);
-						param = pStage->GetGlobalEnvProbeShaderParam1();
+						if (pStage)
+						{
+							param = pStage->GetGlobalEnvProbeShaderParam1();
+						}
 					}
 					sData[0].f[0] = param.x;
 					sData[0].f[1] = param.y;
@@ -1981,7 +1985,7 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 			case ECGP_PB_StereoParams:
 				if (gRenDev->IsStereoEnabled())
 				{
-					sData[0].f[0] = gcpRendD3D->GetS3DRend().GetMaxSeparationScene() * (gcpRendD3D->GetGraphicsPipeline().GetCurrentRenderView()->GetCurrentEye() == CCamera::eEye_Left ? 1 : -1);
+					sData[0].f[0] = gcpRendD3D->GetS3DRend().GetMaxSeparationScene() * (pRenderView->GetCurrentEye() == CCamera::eEye_Left ? 1 : -1);
 					sData[0].f[1] = gcpRendD3D->GetS3DRend().GetZeroParallaxPlaneDist();
 					sData[0].f[2] = gcpRendD3D->GetS3DRend().GetNearGeoShift();
 					sData[0].f[3] = gcpRendD3D->GetS3DRend().GetNearGeoScale();
@@ -2010,7 +2014,7 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 				break;
 
 			case ECGP_PB_CausticsSmoothSunDirection:
-				sCausticsSmoothSunDirection(sData);
+				sCausticsSmoothSunDirection(sData, pRenderView);
 				break;
 
 			case ECGP_PB_Time:
@@ -2059,9 +2063,8 @@ void CHWShader_D3D::mfSetParameters(SCGParam* pParams, const int nINParams, EHWS
 				break;
 
 			case ECGP_PB_WaterRipplesLookupParams:
-
 				{
-					auto pStage = r->GetGraphicsPipeline().GetWaterRipplesStage();
+					auto pStage = pActiveGraphicsPipeline->GetStage<CWaterRipplesStage>();
 					CRY_ASSERT(pStage);
 					auto param = pStage->GetWaterRippleLookupParam();
 					sData[0].f[0] = param.x;
@@ -2154,7 +2157,6 @@ ED3DShError CHWShader_D3D::mfFallBack(SHWSInstance*& pInst, int nStatus)
 {
 	return ED3DShError_CompilingError;
 }
-
 
 ED3DShError CHWShader_D3D::mfIsValid_Int(SHWSInstance*& pInst, bool bFinalise)
 {
@@ -2393,7 +2395,6 @@ CHWShader_D3D::SHWSInstance* CHWShader_D3D::mfGetInstance(SShaderCombIdent& Iden
 		s_nInstFrame++;
 		pInst->m_Ident = Ident;
 		pInst->m_eClass = m_eSHClass;
-		size_t i = std::distance(pInstCont->begin(), it);
 		pInstCont->insert(it, pInst);
 		if (nFlags & HWSF_FAKE)
 			pInst->m_Handle.SetFake();
@@ -2425,7 +2426,7 @@ void CHWShader_D3D::mfUpdatePreprocessFlags(SShaderTechnique* pTech)
 	for (uint32 i = 0; i < (uint32)m_Insts.size(); i++)
 	{
 		SHWSInstance* pInst = m_Insts[i];
-		for (const auto &t : pInst->m_pFXTextures)
+		for (const auto& t : pInst->m_pFXTextures)
 		{
 			if (t && t->m_pTarget)
 			{

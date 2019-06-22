@@ -2,7 +2,7 @@
 #pragma once
 
 #include "EditorCommonAPI.h"
-#include "Serialization/QPropertyTree2/IPropertyTreeWidget.h"
+#include "Serialization/QPropertyTree/IPropertyTreeWidget.h"
 #include <CryMath/Cry_Math.h>
 
 #include <QWidget>

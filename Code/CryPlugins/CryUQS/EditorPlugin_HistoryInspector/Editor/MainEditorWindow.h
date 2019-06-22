@@ -15,7 +15,7 @@
 #include <IPostRenderer.h>
 
 #include <CryUQS/Shared/SharedIncludes.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 
 struct SQuery;
 class CHistoricQueryTreeModel;
@@ -88,7 +88,7 @@ private:
 	QTextEdit*                       m_pTextItemDetails;
 	QComboBox*                       m_pComboBoxHistoryOrigin;
 	QPushButton*                     m_pButtonClearCurrentHistory;
-	QPropertyTree*                   m_pPropertyTree;
+	QPropertyTreeLegacy*                   m_pPropertyTree;
 	CUQSHistoryPostRenderer*         m_pHistoryPostRenderer;
 	QMenu*                           m_pPaneMenu;
 };

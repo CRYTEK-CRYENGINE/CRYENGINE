@@ -2,8 +2,8 @@
 
 #include "stdafx.h"
 
-#include "QPropertyTree/ContextList.h"
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include "QPropertyTreeLegacy/ContextList.h"
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include "CharacterDocument.h"
 #include "Expected.h"
 #include "PlaybackLayers.h"
@@ -38,8 +38,8 @@ SceneParametersPanel::SceneParametersPanel(QWidget* parent, System* system)
 	layout->setMargin(0);
 	layout->setSpacing(0);
 
-	m_propertyTree = new QPropertyTree(this);
-	PropertyTreeStyle treeStyle(QPropertyTree::defaultTreeStyle());
+	m_propertyTree = new QPropertyTreeLegacy(this);
+	PropertyTreeStyle treeStyle(QPropertyTreeLegacy::defaultTreeStyle());
 	treeStyle.propertySplitter = false;
 	treeStyle.groupRectangle = false;
 	m_propertyTree->setTreeStyle(treeStyle);
@@ -49,9 +49,9 @@ SceneParametersPanel::SceneParametersPanel(QWidget* parent, System* system)
 	m_propertyTree->setShowContainerIndices(false);
 	m_propertyTree->setArchiveContext(m_system->contextList->Tail());
 	m_propertyTree->attach(Serialization::SStruct(*m_system->scene));
-	EXPECTED(connect(m_propertyTree, &QPropertyTree::signalChanged, this, &SceneParametersPanel::OnPropertyTreeChanged));
-	EXPECTED(connect(m_propertyTree, &QPropertyTree::signalSelected, this, &SceneParametersPanel::OnPropertyTreeSelected));
-	EXPECTED(connect(m_propertyTree, &QPropertyTree::signalContinuousChange, this, &SceneParametersPanel::OnPropertyTreeContinuousChange));
+	EXPECTED(connect(m_propertyTree, &QPropertyTreeLegacy::signalChanged, this, &SceneParametersPanel::OnPropertyTreeChanged));
+	EXPECTED(connect(m_propertyTree, &QPropertyTreeLegacy::signalSelected, this, &SceneParametersPanel::OnPropertyTreeSelected));
+	EXPECTED(connect(m_propertyTree, &QPropertyTreeLegacy::signalContinuousChange, this, &SceneParametersPanel::OnPropertyTreeContinuousChange));
 
 	layout->addWidget(m_propertyTree, 1);
 }

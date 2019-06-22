@@ -66,10 +66,11 @@ public:
 	}
 
 private:
-	static string GetTemporaryDirectoryPath()
+	static CryPathString GetTemporaryDirectoryPath()
 	{
-		char path[ICryPak::g_nMaxPath] = {};
-		return GetISystem()->GetIPak()->AdjustFileName("%USER%/temp/AlembicCompiler", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_ADD_TRAILING_SLASH);
+		CryPathString path;
+		GetISystem()->GetIPak()->AdjustFileName("%USER%/temp/AlembicCompiler", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING | ICryPak::FLAGS_ADD_TRAILING_SLASH);
+		return path;
 	}
 
 	// Create a temp directory to store asset files during processing.
@@ -78,7 +79,7 @@ private:
 		// Temporary files are created outside the asset directory primarily to avoid interference with the editor asset system.
 		// Right now, when creating a temporary folder, we copy the folder hierarchy of the asset folder to avoid naming conflicts.
 		// In the future, this should be replaced by some central system that creates temporary folders.
-		static const string tempPrefix = GetTemporaryDirectoryPath();
+		static const CryPathString tempPrefix = GetTemporaryDirectoryPath();
 
 		string drive;
 		string dir;

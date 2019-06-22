@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "AdvantagePointOccupancyControl.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if defined(CRYAISYSTEM_DEBUG)
 #include <CryRenderer/IRenderAuxGeom.h>

@@ -138,8 +138,7 @@ private:
 		};
 		m_Dtor = [](void* storage)
 		{
-			CallableType* pCallable = reinterpret_cast<CallableType*>(storage);
-			pCallable->~CallableType();
+			reinterpret_cast<CallableType*>(storage)->~CallableType();
 		};
 		m_Clone = [](const void* srcStorage, void* dstStorage)
 		{

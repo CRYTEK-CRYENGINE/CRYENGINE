@@ -4,7 +4,6 @@
 #include "Impl.h"
 
 #include "Common.h"
-#include "BaseConnection.h"
 #include "EventConnection.h"
 #include "ParameterConnection.h"
 #include "StateConnection.h"
@@ -12,9 +11,13 @@
 #include "DataPanel.h"
 #include "Utils.h"
 
+#include <QtUtil.h>
 #include <CrySystem/ISystem.h>
 #include <CryCore/StlUtils.h>
 #include <CrySystem/XML/IXml.h>
+#include <DragDrop.h>
+
+#include <QDirIterator>
 
 namespace ACE
 {
@@ -28,27 +31,92 @@ constexpr uint32 g_parameterConnectionPoolSize = 256;
 constexpr uint32 g_stateConnectionPoolSize = 256;
 
 //////////////////////////////////////////////////////////////////////////
-void CountConnections(EAssetType const assetType)
+void CountConnections(EAssetType const assetType, CryAudio::ContextId const contextId)
 {
 	switch (assetType)
 	{
 	case EAssetType::Trigger:
 		{
-			++g_connections.events;
+			++g_connections[contextId].events;
 			break;
 		}
 	case EAssetType::Parameter:
 		{
-			++g_connections.parameters;
+			++g_connections[contextId].parameters;
 			break;
 		}
 	case EAssetType::State:
 		{
-			++g_connections.switchStates;
+			++g_connections[contextId].switchStates;
 			break;
 		}
 	default:
-		break;
+		{
+			break;
+		}
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool HasDirValidData(QDir const& dir)
+{
+	bool hasValidData = false;
+
+	if (dir.exists())
+	{
+		QDirIterator itFiles(dir.path(), (QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot));
+
+		while (itFiles.hasNext())
+		{
+			QFileInfo const& fileInfo(itFiles.next());
+
+			if (fileInfo.isFile())
+			{
+				hasValidData = true;
+				break;
+			}
+		}
+
+		if (!hasValidData)
+		{
+			QDirIterator itDirs(dir.path(), (QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot));
+
+			while (itDirs.hasNext())
+			{
+				QDir const& folder(itDirs.next());
+
+				if (HasDirValidData(folder))
+				{
+					hasValidData = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return hasValidData;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void GetFilesFromDir(QDir const& dir, QString const& folderName, FileImportInfos& fileImportInfos)
+{
+	if (dir.exists())
+	{
+		QString const parentFolderName = (folderName.isEmpty() ? (dir.dirName() + "/") : (folderName + dir.dirName() + "/"));
+
+		for (auto const& fileInfo : dir.entryInfoList(QDir::Files | QDir::NoSymLinks | QDir::NoDotAndDotDot))
+		{
+			if (fileInfo.isFile())
+			{
+				fileImportInfos.emplace_back(fileInfo, s_supportedFileTypes.contains(fileInfo.suffix(), Qt::CaseInsensitive), parentFolderName);
+			}
+		}
+
+		for (auto const& fileInfo : dir.entryInfoList(QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot))
+		{
+			QDir const& folder(fileInfo.absoluteFilePath());
+			GetFilesFromDir(folder, parentFolderName, fileImportInfos);
+		}
 	}
 }
 
@@ -76,18 +144,14 @@ CImpl::~CImpl()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CImpl::Initialize(SImplInfo& implInfo, Platforms const& platforms)
+void CImpl::Initialize(
+	SImplInfo& implInfo,
+	ExtensionFilterVector& extensionFilters,
+	QStringList& supportedFileTypes)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioImpl, 0, "SDL Mixer ACE Item Pool");
 	CItem::CreateAllocator(g_itemPoolSize);
-
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioImpl, 0, "SDL Mixer ACE Event Connection Pool");
 	CEventConnection::CreateAllocator(g_eventConnectionPoolSize);
-
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioImpl, 0, "SDL Mixer ACE Parameter Connection Pool");
 	CParameterConnection::CreateAllocator(g_parameterConnectionPoolSize);
-
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioImpl, 0, "SDL Mixer ACE State Connection Pool");
 	CStateConnection::CreateAllocator(g_stateConnectionPoolSize);
 
 	CryAudio::SImplInfo systemImplInfo;
@@ -95,6 +159,8 @@ void CImpl::Initialize(SImplInfo& implInfo, Platforms const& platforms)
 	m_implName = systemImplInfo.name.c_str();
 
 	SetImplInfo(implInfo);
+	extensionFilters = s_extensionFilters;
+	supportedFileTypes = s_supportedFileTypes;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -174,18 +240,19 @@ QString const& CImpl::GetItemTypeName(IItem const* const pIItem) const
 bool CImpl::IsTypeCompatible(EAssetType const assetType, IItem const* const pIItem) const
 {
 	bool isCompatible = false;
-	auto const pItem = static_cast<CItem const* const>(pIItem);
 
-	if (pItem != nullptr)
+	switch (assetType)
 	{
-		switch (assetType)
+	case EAssetType::Trigger:   // Intentional fall-through.
+	case EAssetType::Parameter: // Intentional fall-through.
+	case EAssetType::State:
 		{
-		case EAssetType::Trigger:   // Intentional fall-through.
-		case EAssetType::Parameter: // Intentional fall-through.
-		case EAssetType::State:
+			auto const pItem = static_cast<CItem const* const>(pIItem);
 			isCompatible = (pItem->GetType() == EItemType::Event);
 			break;
-		default:
+		}
+	default:
+		{
 			isCompatible = false;
 			break;
 		}
@@ -200,16 +267,15 @@ EAssetType CImpl::ImplTypeToAssetType(IItem const* const pIItem) const
 	EAssetType assetType = EAssetType::None;
 	auto const pItem = static_cast<CItem const* const>(pIItem);
 
-	if (pItem != nullptr)
+	switch (pItem->GetType())
 	{
-		EItemType const implType = pItem->GetType();
-
-		switch (implType)
+	case EItemType::Event:
 		{
-		case EItemType::Event:
 			assetType = EAssetType::Trigger;
 			break;
-		default:
+		}
+	default:
+		{
 			assetType = EAssetType::None;
 			break;
 		}
@@ -223,17 +289,20 @@ IConnection* CImpl::CreateConnectionToControl(EAssetType const assetType, IItem 
 {
 	IConnection* pIConnection = nullptr;
 
-	if (pIItem != nullptr)
+	switch (assetType)
 	{
-		switch (assetType)
+	case EAssetType::Parameter:
 		{
-		case EAssetType::Parameter:
 			pIConnection = static_cast<IConnection*>(new CParameterConnection(pIItem->GetId()));
 			break;
-		case EAssetType::State:
+		}
+	case EAssetType::State:
+		{
 			pIConnection = static_cast<IConnection*>(new CStateConnection(pIItem->GetId()));
 			break;
-		default:
+		}
+	default:
+		{
 			pIConnection = static_cast<IConnection*>(new CEventConnection(pIItem->GetId()));
 			break;
 		}
@@ -243,34 +312,34 @@ IConnection* CImpl::CreateConnectionToControl(EAssetType const assetType, IItem 
 }
 
 //////////////////////////////////////////////////////////////////////////
-IConnection* CImpl::CreateConnectionFromXMLNode(XmlNodeRef pNode, EAssetType const assetType)
+IConnection* CImpl::CreateConnectionFromXMLNode(XmlNodeRef const& node, EAssetType const assetType)
 {
 	IConnection* pIConnection = nullptr;
 
-	if (pNode != nullptr)
+	if (node.isValid())
 	{
-		char const* const szTag = pNode->getTag();
+		char const* const szTag = node->getTag();
 
 		if ((_stricmp(szTag, CryAudio::Impl::SDL_mixer::g_szEventTag) == 0) ||
 		    (_stricmp(szTag, CryAudio::Impl::SDL_mixer::g_szSampleTag) == 0) ||
 		    (_stricmp(szTag, "SDLMixerEvent") == 0) || // Backwards compatibility.
 		    (_stricmp(szTag, "SDLMixerSample") == 0))  // Backwards compatibility.
 		{
-			string name = pNode->getAttr(CryAudio::g_szNameAttribute);
-			string path = pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute);
+			string name = node->getAttr(CryAudio::g_szNameAttribute);
+			string path = node->getAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute);
 			// Backwards compatibility will be removed before March 2019.
 #if defined (USE_BACKWARDS_COMPATIBILITY)
-			if (name.IsEmpty() && pNode->haveAttr("sdl_name"))
+			if (name.IsEmpty() && node->haveAttr("sdl_name"))
 			{
-				name = pNode->getAttr("sdl_name");
+				name = node->getAttr("sdl_name");
 			}
 
-			if (path.IsEmpty() && pNode->haveAttr("sdl_path"))
+			if (path.IsEmpty() && node->haveAttr("sdl_path"))
 			{
-				path = pNode->getAttr("sdl_path");
+				path = node->getAttr("sdl_path");
 			}
 #endif      // USE_BACKWARDS_COMPATIBILITY
-			string const localizedAttribute = pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute);
+			string const localizedAttribute = node->getAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute);
 			bool const isLocalized = (localizedAttribute.compareNoCase(CryAudio::Impl::SDL_mixer::g_szTrueValue) == 0);
 			ControlId const id = Utils::GetId(EItemType::Event, name, path, isLocalized);
 
@@ -290,11 +359,11 @@ IConnection* CImpl::CreateConnectionFromXMLNode(XmlNodeRef pNode, EAssetType con
 				case EAssetType::Trigger:
 					{
 						auto const pEventConnection = new CEventConnection(pItem->GetId());
-						string actionType = pNode->getAttr(CryAudio::g_szTypeAttribute);
+						string actionType = node->getAttr(CryAudio::g_szTypeAttribute);
 #if defined (USE_BACKWARDS_COMPATIBILITY)
-						if (actionType.IsEmpty() && pNode->haveAttr("event_type"))
+						if (actionType.IsEmpty() && node->haveAttr("event_type"))
 						{
-							actionType = pNode->getAttr("event_type");
+							actionType = node->getAttr("event_type");
 						}
 #endif            // USE_BACKWARDS_COMPATIBILITY
 						if (actionType.compareNoCase(CryAudio::Impl::SDL_mixer::g_szStopValue) == 0)
@@ -314,40 +383,40 @@ IConnection* CImpl::CreateConnectionFromXMLNode(XmlNodeRef pNode, EAssetType con
 							pEventConnection->SetActionType(CEventConnection::EActionType::Start);
 
 							float fadeInTime = CryAudio::Impl::SDL_mixer::g_defaultFadeInTime;
-							pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szFadeInTimeAttribute, fadeInTime);
+							node->getAttr(CryAudio::Impl::SDL_mixer::g_szFadeInTimeAttribute, fadeInTime);
 							pEventConnection->SetFadeInTime(fadeInTime);
 
 							float fadeOutTime = CryAudio::Impl::SDL_mixer::g_defaultFadeOutTime;
-							pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szFadeOutTimeAttribute, fadeOutTime);
+							node->getAttr(CryAudio::Impl::SDL_mixer::g_szFadeOutTimeAttribute, fadeOutTime);
 							pEventConnection->SetFadeOutTime(fadeOutTime);
 						}
 
-						string const enablePanning = pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szPanningEnabledAttribute);
+						string const enablePanning = node->getAttr(CryAudio::Impl::SDL_mixer::g_szPanningEnabledAttribute);
 						pEventConnection->SetPanningEnabled(enablePanning.compareNoCase(CryAudio::Impl::SDL_mixer::g_szTrueValue) == 0);
 
-						string enableDistAttenuation = pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationEnabledAttribute);
+						string enableDistAttenuation = node->getAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationEnabledAttribute);
 #if defined (USE_BACKWARDS_COMPATIBILITY)
-						if (enableDistAttenuation.IsEmpty() && pNode->haveAttr("enable_distance_attenuation"))
+						if (enableDistAttenuation.IsEmpty() && node->haveAttr("enable_distance_attenuation"))
 						{
-							enableDistAttenuation = pNode->getAttr("enable_distance_attenuation");
+							enableDistAttenuation = node->getAttr("enable_distance_attenuation");
 						}
 #endif            // USE_BACKWARDS_COMPATIBILITY
 						pEventConnection->SetAttenuationEnabled(enableDistAttenuation.compareNoCase(CryAudio::Impl::SDL_mixer::g_szTrueValue) == 0);
 
 						float minAttenuation = CryAudio::Impl::SDL_mixer::g_defaultMinAttenuationDist;
-						pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMinDistanceAttribute, minAttenuation);
+						node->getAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMinDistanceAttribute, minAttenuation);
 						pEventConnection->SetMinAttenuation(minAttenuation);
 
 						float maxAttenuation = CryAudio::Impl::SDL_mixer::g_defaultMaxAttenuationDist;
-						pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMaxDistanceAttribute, maxAttenuation);
+						node->getAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMaxDistanceAttribute, maxAttenuation);
 						pEventConnection->SetMaxAttenuation(maxAttenuation);
 
 						float volume = pEventConnection->GetVolume();
-						pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szVolumeAttribute, volume);
+						node->getAttr(CryAudio::Impl::SDL_mixer::g_szVolumeAttribute, volume);
 						pEventConnection->SetVolume(volume);
 
 						int loopCount = pEventConnection->GetLoopCount();
-						pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szLoopCountAttribute, loopCount);
+						node->getAttr(CryAudio::Impl::SDL_mixer::g_szLoopCountAttribute, loopCount);
 						loopCount = std::max(0, loopCount); // Delete this when backwards compatibility gets removed and use uint32 directly.
 						pEventConnection->SetLoopCount(static_cast<uint32>(loopCount));
 
@@ -357,27 +426,34 @@ IConnection* CImpl::CreateConnectionFromXMLNode(XmlNodeRef pNode, EAssetType con
 						}
 
 						pIConnection = static_cast<IConnection*>(pEventConnection);
+
+						break;
 					}
-					break;
 				case EAssetType::Parameter:
 					{
 						float mult = CryAudio::Impl::SDL_mixer::g_defaultParamMultiplier;
-						pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szMutiplierAttribute, mult);
+						node->getAttr(CryAudio::Impl::SDL_mixer::g_szMutiplierAttribute, mult);
 
 						float shift = CryAudio::Impl::SDL_mixer::g_defaultParamShift;
-						pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szShiftAttribute, shift);
+						node->getAttr(CryAudio::Impl::SDL_mixer::g_szShiftAttribute, shift);
 
 						pIConnection = static_cast<IConnection*>(new CParameterConnection(pItem->GetId(), mult, shift));
+
+						break;
 					}
-					break;
 				case EAssetType::State:
 					{
 						float value = CryAudio::Impl::SDL_mixer::g_defaultStateValue;
-						pNode->getAttr(CryAudio::Impl::SDL_mixer::g_szValueAttribute, value);
+						node->getAttr(CryAudio::Impl::SDL_mixer::g_szValueAttribute, value);
 
 						pIConnection = static_cast<IConnection*>(new CStateConnection(pItem->GetId(), value));
+
+						break;
 					}
-					break;
+				default:
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -387,9 +463,12 @@ IConnection* CImpl::CreateConnectionFromXMLNode(XmlNodeRef pNode, EAssetType con
 }
 
 //////////////////////////////////////////////////////////////////////////
-XmlNodeRef CImpl::CreateXMLNodeFromConnection(IConnection const* const pIConnection, EAssetType const assetType)
+XmlNodeRef CImpl::CreateXMLNodeFromConnection(
+	IConnection const* const pIConnection,
+	EAssetType const assetType,
+	CryAudio::ContextId const contextId)
 {
-	XmlNodeRef pNode = nullptr;
+	XmlNodeRef node;
 
 	auto const pItem = static_cast<CItem const*>(GetItem(pIConnection->GetID()));
 
@@ -403,175 +482,195 @@ XmlNodeRef CImpl::CreateXMLNodeFromConnection(IConnection const* const pIConnect
 
 				if (pEventConnection != nullptr)
 				{
-					pNode = GetISystem()->CreateXmlNode(CryAudio::Impl::SDL_mixer::g_szEventTag);
-					pNode->setAttr(CryAudio::g_szNameAttribute, pItem->GetName());
+					node = GetISystem()->CreateXmlNode(CryAudio::Impl::SDL_mixer::g_szEventTag);
+					node->setAttr(CryAudio::g_szNameAttribute, pItem->GetName());
 
 					string const& path = pItem->GetPath();
 
 					if (!path.IsEmpty())
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute, pItem->GetPath());
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute, pItem->GetPath());
 					}
 
-					CEventConnection::EActionType const actionType = pEventConnection->GetActionType();
-
-					switch (actionType)
+					switch (pEventConnection->GetActionType())
 					{
 					case CEventConnection::EActionType::Start:
 						{
-							pNode->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szStartValue);
-							pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szVolumeAttribute, pEventConnection->GetVolume());
+							node->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szStartValue);
+							node->setAttr(CryAudio::Impl::SDL_mixer::g_szVolumeAttribute, pEventConnection->GetVolume());
 
 							if (pEventConnection->IsPanningEnabled())
 							{
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szPanningEnabledAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szPanningEnabledAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
 							}
 
 							if (pEventConnection->IsAttenuationEnabled())
 							{
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationEnabledAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMinDistanceAttribute, pEventConnection->GetMinAttenuation());
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMaxDistanceAttribute, pEventConnection->GetMaxAttenuation());
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationEnabledAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMinDistanceAttribute, pEventConnection->GetMinAttenuation());
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szAttenuationMaxDistanceAttribute, pEventConnection->GetMaxAttenuation());
 							}
 
 							if (pEventConnection->GetFadeInTime() != CryAudio::Impl::SDL_mixer::g_defaultFadeInTime)
 							{
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szFadeInTimeAttribute, pEventConnection->GetFadeInTime());
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szFadeInTimeAttribute, pEventConnection->GetFadeInTime());
 							}
 
 							if (pEventConnection->GetFadeOutTime() != CryAudio::Impl::SDL_mixer::g_defaultFadeOutTime)
 							{
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szFadeOutTimeAttribute, pEventConnection->GetFadeOutTime());
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szFadeOutTimeAttribute, pEventConnection->GetFadeOutTime());
 							}
 
 							if (pEventConnection->IsInfiniteLoop())
 							{
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szLoopCountAttribute, 0);
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szLoopCountAttribute, 0);
 							}
 							else
 							{
-								pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szLoopCountAttribute, pEventConnection->GetLoopCount());
+								node->setAttr(CryAudio::Impl::SDL_mixer::g_szLoopCountAttribute, pEventConnection->GetLoopCount());
 							}
+
+							break;
 						}
-						break;
 					case CEventConnection::EActionType::Stop:
-						pNode->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szStopValue);
-						break;
+						{
+							node->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szStopValue);
+							break;
+						}
 					case CEventConnection::EActionType::Pause:
-						pNode->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szPauseValue);
-						break;
+						{
+							node->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szPauseValue);
+							break;
+						}
 					case CEventConnection::EActionType::Resume:
-						pNode->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szResumeValue);
-						break;
+						{
+							node->setAttr(CryAudio::g_szTypeAttribute, CryAudio::Impl::SDL_mixer::g_szResumeValue);
+							break;
+						}
+					default:
+						{
+							break;
+						}
 					}
 
 					if ((pItem->GetFlags() & EItemFlags::IsLocalized) != 0)
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
 					}
 				}
+
+				break;
 			}
-			break;
 		case EAssetType::Parameter:
 			{
 				auto const pParameterConnection = static_cast<CParameterConnection const*>(pIConnection);
 
 				if (pParameterConnection != nullptr)
 				{
-					pNode = GetISystem()->CreateXmlNode(CryAudio::Impl::SDL_mixer::g_szEventTag);
-					pNode->setAttr(CryAudio::g_szNameAttribute, pItem->GetName());
+					node = GetISystem()->CreateXmlNode(CryAudio::Impl::SDL_mixer::g_szEventTag);
+					node->setAttr(CryAudio::g_szNameAttribute, pItem->GetName());
 
 					string const& path = pItem->GetPath();
 
 					if (!path.IsEmpty())
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute, pItem->GetPath());
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute, pItem->GetPath());
 					}
 
 					if (pParameterConnection->GetMultiplier() != CryAudio::Impl::SDL_mixer::g_defaultParamMultiplier)
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szMutiplierAttribute, pParameterConnection->GetMultiplier());
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szMutiplierAttribute, pParameterConnection->GetMultiplier());
 					}
 
 					if (pParameterConnection->GetShift() != CryAudio::Impl::SDL_mixer::g_defaultParamShift)
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szShiftAttribute, pParameterConnection->GetShift());
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szShiftAttribute, pParameterConnection->GetShift());
 					}
 
 					if ((pItem->GetFlags() & EItemFlags::IsLocalized) != 0)
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
 					}
 				}
+
+				break;
 			}
-			break;
 		case EAssetType::State:
 			{
 				auto const pStateConnection = static_cast<CStateConnection const*>(pIConnection);
 
 				if (pStateConnection != nullptr)
 				{
-					pNode = GetISystem()->CreateXmlNode(CryAudio::Impl::SDL_mixer::g_szEventTag);
-					pNode->setAttr(CryAudio::g_szNameAttribute, pItem->GetName());
+					node = GetISystem()->CreateXmlNode(CryAudio::Impl::SDL_mixer::g_szEventTag);
+					node->setAttr(CryAudio::g_szNameAttribute, pItem->GetName());
 
 					string const& path = pItem->GetPath();
 
 					if (!path.IsEmpty())
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute, pItem->GetPath());
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szPathAttribute, pItem->GetPath());
 					}
 
-					pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szValueAttribute, pStateConnection->GetValue());
+					node->setAttr(CryAudio::Impl::SDL_mixer::g_szValueAttribute, pStateConnection->GetValue());
 
 					if ((pItem->GetFlags() & EItemFlags::IsLocalized) != 0)
 					{
-						pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
+						node->setAttr(CryAudio::Impl::SDL_mixer::g_szLocalizedAttribute, CryAudio::Impl::SDL_mixer::g_szTrueValue);
 					}
 				}
+
+				break;
 			}
-			break;
+		default:
+			{
+				break;
+			}
 		}
-		CountConnections(assetType);
+
+		CountConnections(assetType, contextId);
 	}
 
-	return pNode;
+	return node;
 }
 
 //////////////////////////////////////////////////////////////////////////
-XmlNodeRef CImpl::SetDataNode(char const* const szTag)
+XmlNodeRef CImpl::SetDataNode(char const* const szTag, CryAudio::ContextId const contextId)
 {
-	XmlNodeRef pNode = GetISystem()->CreateXmlNode(szTag);
-	bool hasConnections = false;
+	XmlNodeRef node;
 
-	if (g_connections.events > 0)
+	if (g_connections.find(contextId) != g_connections.end())
 	{
-		pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szEventsAttribute, g_connections.events);
-		hasConnections = true;
+		node = GetISystem()->CreateXmlNode(szTag);
+
+		if (g_connections[contextId].events > 0)
+		{
+			node->setAttr(CryAudio::Impl::SDL_mixer::g_szEventsAttribute, g_connections[contextId].events);
+		}
+
+		if (g_connections[contextId].parameters > 0)
+		{
+			node->setAttr(CryAudio::Impl::SDL_mixer::g_szParametersAttribute, g_connections[contextId].parameters);
+		}
+
+		if (g_connections[contextId].switchStates > 0)
+		{
+			node->setAttr(CryAudio::Impl::SDL_mixer::g_szSwitchStatesAttribute, g_connections[contextId].switchStates);
+		}
 	}
 
-	if (g_connections.parameters > 0)
-	{
-		pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szParametersAttribute, g_connections.parameters);
-		hasConnections = true;
-	}
+	return node;
+}
 
-	if (g_connections.switchStates > 0)
-	{
-		pNode->setAttr(CryAudio::Impl::SDL_mixer::g_szSwitchStatesAttribute, g_connections.switchStates);
-		hasConnections = true;
-	}
+//////////////////////////////////////////////////////////////////////////
+void CImpl::OnBeforeWriteLibrary()
+{
+	g_connections.clear();
+}
 
-	if (hasConnections)
-	{
-		// Reset connection count for next library.
-		ZeroStruct(g_connections);
-	}
-	else
-	{
-		pNode = nullptr;
-	}
-
-	return pNode;
+//////////////////////////////////////////////////////////////////////////
+void CImpl::OnAfterWriteLibrary()
+{
+	g_connections.clear();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -658,6 +757,84 @@ void CImpl::OnFileImporterClosed()
 }
 
 //////////////////////////////////////////////////////////////////////////
+bool CImpl::CanDropExternalData(QMimeData const* const pData) const
+{
+	bool hasValidData = false;
+	CDragDropData const* const pDragDropData = CDragDropData::FromMimeData(pData);
+
+	if (pDragDropData->HasFilePaths())
+	{
+		QStringList& allFiles = pDragDropData->GetFilePaths();
+
+		for (auto const& filePath : allFiles)
+		{
+			QFileInfo const& fileInfo(filePath);
+
+			if (fileInfo.isFile() && s_supportedFileTypes.contains(fileInfo.suffix(), Qt::CaseInsensitive))
+			{
+				hasValidData = true;
+				break;
+			}
+		}
+
+		if (!hasValidData)
+		{
+			for (auto const& filePath : allFiles)
+			{
+				QDir const& folder(filePath);
+
+				if (HasDirValidData(folder))
+				{
+					hasValidData = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return hasValidData;
+}
+
+//////////////////////////////////////////////////////////////////////////
+bool CImpl::DropExternalData(QMimeData const* const pData, FileImportInfos& fileImportInfos) const
+{
+	CRY_ASSERT_MESSAGE(fileImportInfos.empty(), "Passed container must be empty during %s", __FUNCTION__);
+
+	if (CanDropExternalData(pData))
+	{
+		CDragDropData const* const pDragDropData = CDragDropData::FromMimeData(pData);
+
+		if (pDragDropData->HasFilePaths())
+		{
+			QStringList const& allFiles = pDragDropData->GetFilePaths();
+
+			for (auto const& filePath : allFiles)
+			{
+				QFileInfo const& fileInfo(filePath);
+
+				if (fileInfo.isFile())
+				{
+					fileImportInfos.emplace_back(fileInfo, s_supportedFileTypes.contains(fileInfo.suffix(), Qt::CaseInsensitive));
+				}
+				else
+				{
+					QDir const& folder(filePath);
+					GetFilesFromDir(folder, "", fileImportInfos);
+				}
+			}
+		}
+	}
+
+	return !fileImportInfos.empty();
+}
+
+//////////////////////////////////////////////////////////////////////////
+ControlId CImpl::GenerateItemId(QString const& name, QString const& path, bool const isLocalized)
+{
+	return Utils::GetId(EItemType::Event, QtUtil::ToString(name), QtUtil::ToString(path), isLocalized);
+}
+
+//////////////////////////////////////////////////////////////////////////
 void CImpl::Clear()
 {
 	for (auto const& itemPair : m_itemCache)
@@ -680,6 +857,7 @@ void CImpl::SetImplInfo(SImplInfo& implInfo)
 	implInfo.assetsPath = m_assetAndProjectPath.c_str();
 	implInfo.localizedAssetsPath = m_localizedAssetsPath.c_str();
 	implInfo.flags = (
+		EImplInfoFlags::SupportsFileImport |
 		EImplInfoFlags::SupportsTriggers |
 		EImplInfoFlags::SupportsParameters |
 		EImplInfoFlags::SupportsSwitches |

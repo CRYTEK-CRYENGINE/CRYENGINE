@@ -2490,7 +2490,7 @@ void CHeightmap::CalcSurfaceTypes(const CRect* rect)
 
 void CHeightmap::UpdateEngineTerrain(bool bOnlyElevation, bool boUpdateReloadSurfacertypes)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	if (boUpdateReloadSurfacertypes)
 	{
@@ -2502,7 +2502,7 @@ void CHeightmap::UpdateEngineTerrain(bool bOnlyElevation, bool boUpdateReloadSur
 
 void CHeightmap::UpdateEngineTerrain(int x1, int y1, int areaSize, int _height, TerrainUpdateFlags updateFlags)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	I3DEngine* p3DEngine = GetIEditorImpl()->Get3DEngine();
 	const int nHeightMapUnitSize = p3DEngine->GetHeightMapUnitSize();
@@ -2761,7 +2761,7 @@ void CHeightmap::Serialize(CXmlArchive& xmlAr)
 
 void CHeightmap::SerializeTerrain(CXmlArchive& xmlAr)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	if (xmlAr.bLoading)
 	{

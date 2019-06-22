@@ -250,7 +250,7 @@ bool CAIObject::ShouldSerialize() const
 	if (!m_serialize)
 		return false;
 
-	if (gAIEnv.CVars.ForceSerializeAllObjects == 0)
+	if (gAIEnv.CVars.LegacyForceSerializeAllObjects == 0)
 	{
 		IEntity* pEntity = GetEntity();
 		return pEntity ? ((pEntity->GetFlags() & ENTITY_FLAG_NO_SAVE) == 0) : true;

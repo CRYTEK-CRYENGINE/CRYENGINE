@@ -39,6 +39,7 @@ History:
 #include "UI/Utils/ScreenLayoutManager.h"
 #include "UI/Utils/ILoadingMessageProvider.h"
 #include <CryNetwork/INetworkService.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "LagOMeter.h"
 #include "GameRulesModules/IGameRulesTeamsModule.h"
@@ -1716,6 +1717,11 @@ void SCVars::InitCVars(IConsole *pConsole)
 
 	REGISTER_CVAR(ai_DebugSignalTimers, 0, VF_CHEAT, "Enable Signal Timers Debug Screen\n");
 	REGISTER_CVAR(ai_DebugRangeSignaling, 0, VF_CHEAT, "Enable Range Signaling Debug Screen\n");
+
+#ifdef AI_LOG_SIGNALS
+	REGISTER_CVAR2("ai_LogSignals", &aiLogSignals, 0, VF_CHEAT, "Maximum radius at which player can interact with other entities");
+	REGISTER_CVAR2("ai_MaxSignalDuration", &aiMaxSignalDuration, 3.f, VF_CHEAT, "Maximum radius at which player can interact with other entities");
+#endif
 
 	REGISTER_CVAR(g_actorViewDistRatio, 127, 0, "Sets the view dist ratio for actors.\n");
 	REGISTER_CVAR(g_playerLodRatio, 80, VF_REQUIRE_LEVEL_RELOAD, "Sets the lod ratio for players.\n");
@@ -3983,7 +3989,7 @@ void CGame::CmdFlyCamPlay(IConsoleCmdArgs *pArgs)
 #if defined(USE_CRY_ASSERT)
 void CGame::CmdIgnoreAllAsserts(IConsoleCmdArgs *pArgs)
 {
-	gEnv->ignoreAllAsserts = true;	
+	Cry::Assert::IgnoreAllAsserts(true);	
 	gEnv->bTesting = true;
 }
 #endif
@@ -4838,8 +4844,6 @@ void CGame::CmdInspectConnectedStorage(IConsoleCmdArgs* pArgs)
 			dumpToFile = atoi(pArgs->GetArg(4)) != 0;
 		}
 
-		size_t numConverted = 0;
-
 		wstring containerNameW;
 		Unicode::Convert(containerNameW, containerName);
 
@@ -4862,18 +4866,18 @@ void CGame::CmdInspectConnectedStorage(IConsoleCmdArgs* pArgs)
 		{
 			if (dumpToFile)
 			{
-				char path[ICryPak::g_nMaxPath] = "";
+				CryPathString path;
 				gEnv->pCryPak->AdjustFileName(string("%USER%\\ConnectedStorageDump\\") + containerName + "\\", path, ICryPak::FLAGS_PATH_REAL | ICryPak::FLAGS_FOR_WRITING);
 				if (gEnv->pCryPak->MakeDir(path))
 				{
-					cry_strcat(path, blobName);
+					path += blobName;
 
 					if (FILE* pFile = gEnv->pCryPak->FOpen(path, "wt"))
 					{
 						gEnv->pCryPak->FWrite(block[0].pDataBlock, 1, block[0].dataBlockSize, pFile);
 						gEnv->pCryPak->FClose(pFile);
 
-						CryLogAlways("CmdInspectConnectedStorage: Container:%s blob:%s dump to:%s", containerName, blobName, path);
+						CryLogAlways("CmdInspectConnectedStorage: Container:%s blob:%s dump to:%s", containerName, blobName, path.c_str());
 					}
 				}
 			}
@@ -4938,7 +4942,7 @@ void CGame::CmdHideAllDummyPlayers(IConsoleCmdArgs* pCmdArgs)
 									IRenderNode* pRenderNode = pIEntityRender->GetRenderNode();
 									if(pRenderNode)
 									{
-										pRenderNode->Hide(bHidePlayers);
+										pRenderNode->SetRndFlags(ERF_HIDDEN, bHidePlayers);
 									}
 								}
 

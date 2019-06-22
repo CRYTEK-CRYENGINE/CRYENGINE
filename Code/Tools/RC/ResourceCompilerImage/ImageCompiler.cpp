@@ -1805,8 +1805,7 @@ void CImageCompiler::GetFinalImageInfo(int platform, EPixelFormat& finalFormat, 
 			return;
 		}
 
-		const PixelFormatInfo* const pInputFormatInfo = CPixelFormats::GetPixelFormatInfo(inputFormat);
-		assert(pInputFormatInfo);
+		assert(CPixelFormats::GetPixelFormatInfo(inputFormat));
 
 		uint32 dwMips;
 
@@ -1820,8 +1819,7 @@ void CImageCompiler::GetFinalImageInfo(int platform, EPixelFormat& finalFormat, 
 			return;
 		}
 
-		const PixelFormatInfo* const pFinalFormatInfo = CPixelFormats::GetPixelFormatInfo(finalFormat);
-		assert(pFinalFormatInfo);
+		assert(CPixelFormats::GetPixelFormatInfo(finalFormat));
 	}
 
 	bCubemap = m_Props.GetCubemap(platform) && m_pInputImage->HasCubemapCompatibleSizes();

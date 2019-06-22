@@ -3,7 +3,7 @@
 #include "stdafx.h"
 #include "Return.h"
 #include "Common.h"
-#include "BaseObject.h"
+#include "Object.h"
 
 namespace CryAudio
 {
@@ -14,17 +14,17 @@ namespace Fmod
 //////////////////////////////////////////////////////////////////////////
 CReturn::~CReturn()
 {
-	for (auto const pBaseObject : g_constructedObjects)
+	for (auto const pObject : g_constructedObjects)
 	{
-		pBaseObject->RemoveReturn(this);
+		pObject->RemoveReturn(this);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CReturn::Set(IObject* const pIObject, float const amount)
 {
-	auto const pBaseObject = static_cast<CBaseObject*>(pIObject);
-	pBaseObject->SetReturn(this, amount);
+	auto const pObject = static_cast<CObject*>(pIObject);
+	pObject->SetReturn(this, amount);
 }
 } // namespace Fmod
 } // namespace Impl

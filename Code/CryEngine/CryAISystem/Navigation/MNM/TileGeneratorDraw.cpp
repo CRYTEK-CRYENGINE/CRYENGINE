@@ -45,6 +45,22 @@ static void RenderText(IRenderAuxGeom* const pRenderAuxGeom, const Vec3& pos, SD
 	va_end(args);
 }
 
+static ColorB CheckerboardizeColor(const ColorB& color, size_t x, size_t y)
+{
+	float scale = 1.0f;
+	if ((x + y) % 2)
+	{
+		scale = 0.75f;
+	}
+	if ((x / 10 + y / 10) % 2)
+	{
+		scale *= 0.85f;
+	}
+	ColorB outColor = color;
+	outColor.ScaleCol(scale);
+	return outColor;
+}
+
 struct SEmptyInfoPrinter
 {
 	void operator()(const CompactSpanGrid::Span& /*span*/, const SSpanCoord& /*spanCoord*/, const Vec3& /*topCenter*/, IRenderAuxGeom* const /*pRenderAuxGeom*/) const
@@ -54,7 +70,7 @@ struct SEmptyInfoPrinter
 };
 
 template<typename TyFilter, typename TyInfoPrinter>
-void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanGrid& grid, const TyFilter& filter, const ColorB& color, const TyInfoPrinter& printer) PREFAST_SUPPRESS_WARNING(6262)
+void DrawSpanGrid(const Vec3& volumeMin, const Vec3& voxelSize, const CompactSpanGrid& grid, const TyFilter& filter, const ColorB& color, const TyInfoPrinter& printer) PREFAST_SUPPRESS_WARNING(6262)
 {
 	const size_t width  = grid.GetWidth();
 	const size_t height = grid.GetHeight();
@@ -120,14 +136,14 @@ void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanG
 }
 
 template<typename TyFilter>
-void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanGrid& grid, const TyFilter& filter, const ColorB& color) PREFAST_SUPPRESS_WARNING(6262)
+void DrawSpanGrid(const Vec3& volumeMin, const Vec3& voxelSize, const CompactSpanGrid& grid, const TyFilter& filter, const ColorB& color) PREFAST_SUPPRESS_WARNING(6262)
 {
 	DrawSpanGrid(volumeMin, voxelSize, grid, filter, color, SEmptyInfoPrinter());
 }
 
 template<typename TyFilter, typename TyColorPicker, typename TyInfoPrinter>
-void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
-                  const TyColorPicker& color, const TyInfoPrinter& printer)
+void DrawSpanGrid(const Vec3& volumeMin, const Vec3& voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
+                  const TyColorPicker& color, const TyInfoPrinter& printer, const bool checkerboardize)
 {
 	const size_t width = grid.GetWidth();
 	const size_t height = grid.GetHeight();
@@ -159,14 +175,15 @@ void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanG
 
 					if (filter(grid, cell.index + s))
 					{
-						AABB aabb(Vec3(minX, minY, minZ + span.bottom * voxelSize.z),
+						const AABB aabb(Vec3(minX, minY, minZ + span.bottom * voxelSize.z),
 						          Vec3(minX + voxelSize.x, minY + voxelSize.y, minZ + (span.bottom + span.height) * voxelSize.z));
 
 						Vec3 topCenter(aabb.GetCenter());
 						topCenter.z = aabb.max.z;
 						printer(span, SSpanCoord(x, y, s, cell.index + s), topCenter, renderAuxGeom);
 
-						renderAuxGeom->DrawAABB(aabb, true, color(grid, cell.index + s), eBBD_Faceted);
+						const ColorB drawColor = checkerboardize ? CheckerboardizeColor(color(grid, cell.index + s), x, y) : color(grid, cell.index + s);
+						renderAuxGeom->DrawAABB(aabb, true, drawColor, eBBD_Faceted);
 					}
 				}
 			}
@@ -177,15 +194,15 @@ void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanG
 }
 
 template<typename TyFilter, typename TyColorPicker>
-void DrawSpanGrid(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
-                  const TyColorPicker& color)
+void DrawSpanGrid(const Vec3& volumeMin, const Vec3& voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
+                  const TyColorPicker& color, const bool checkerboardize)
 {
-	DrawSpanGrid(volumeMin, voxelSize, grid, filter, color, SEmptyInfoPrinter());
+	DrawSpanGrid(volumeMin, voxelSize, grid, filter, color, SEmptyInfoPrinter(), checkerboardize);
 }
 
 template<typename TyFilter, typename TyColorPicker, typename TyInfoPrinter>
-void DrawSpanGridTop(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
-                     const TyColorPicker& color, const TyInfoPrinter& printer)
+void DrawSpanGridTop(const Vec3& volumeMin, const Vec3& voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
+                     const TyColorPicker& color, const TyInfoPrinter& printer, const bool checkerboardize)
 {
 	const size_t width = grid.GetWidth();
 	const size_t height = grid.GetHeight();
@@ -217,12 +234,12 @@ void DrawSpanGridTop(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSp
 
 					if (filter(grid, cell.index + s))
 					{
-						ColorB vcolor = color(grid, cell.index + s);
-
-						Vec3 v0 = Vec3(minX, minY, minZ + (span.bottom + span.height) * voxelSize.z);
-						Vec3 v1 = Vec3(v0.x, v0.y + voxelSize.y, v0.z);
-						Vec3 v2 = Vec3(v0.x + voxelSize.x, v0.y + voxelSize.y, v0.z);
-						Vec3 v3 = Vec3(v0.x + voxelSize.x, v0.y, v0.z);
+						const ColorB vcolor = checkerboardize ? CheckerboardizeColor(color(grid, cell.index + s), x, y) : color(grid, cell.index + s);
+						
+						const Vec3 v0 = Vec3(minX, minY, minZ + (span.bottom + span.height) * voxelSize.z);
+						const Vec3 v1 = Vec3(v0.x, v0.y + voxelSize.y, v0.z);
+						const Vec3 v2 = Vec3(v0.x + voxelSize.x, v0.y + voxelSize.y, v0.z);
+						const Vec3 v3 = Vec3(v0.x + voxelSize.x, v0.y, v0.z);
 
 						renderAuxGeom->DrawTriangle(v0, vcolor, v2, vcolor, v1, vcolor);
 						renderAuxGeom->DrawTriangle(v0, vcolor, v3, vcolor, v2, vcolor);
@@ -238,10 +255,10 @@ void DrawSpanGridTop(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSp
 }
 
 template<typename TyFilter, typename TyColorPicker>
-void DrawSpanGridTop(const Vec3 volumeMin, const Vec3 voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
-                     const TyColorPicker& color)
+void DrawSpanGridTop(const Vec3& volumeMin, const Vec3& voxelSize, const CompactSpanGrid& grid, const TyFilter& filter,
+                     const TyColorPicker& color, const bool checkerboardize)
 {
-	DrawSpanGridTop(volumeMin, voxelSize, grid, filter, color, SEmptyInfoPrinter());
+	DrawSpanGridTop(volumeMin, voxelSize, grid, filter, color, SEmptyInfoPrinter(), checkerboardize);
 }
 
 ColorB ColorFromNumber(size_t n)
@@ -803,7 +820,7 @@ private:
 	SAuxGeomRenderFlags m_oldRenderFlags;
 };
 
-void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) const
+void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo, const bool checkerboardizeColor) const
 {
 #if DEBUG_MNM_ENABLED
 
@@ -836,7 +853,7 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 		if (m_spanGridRaw.GetSpanCount())
 		{
 			MNM::DrawSpanGrid(origin, m_params.voxelSize, m_spanGridRaw
-			                  , AllPassFilter(), RawColorPicker(Col_LightGray, Col_DarkGray));
+			                  , AllPassFilter(), RawColorPicker(Col_LightGray, Col_DarkGray), checkerboardizeColor);
 		}
 		break;
 
@@ -844,7 +861,7 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 		if (m_spanGrid.GetSpanCount())
 		{
 			MNM::DrawSpanGrid(origin, m_params.voxelSize, m_spanGrid
-			                  , AllPassFilter(), RawColorPicker(Col_LightGray, Col_DarkGray));
+			                  , AllPassFilter(), RawColorPicker(Col_LightGray, Col_DarkGray), checkerboardizeColor);
 		}
 		break;
 
@@ -870,11 +887,11 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 		{
 			if (bDrawAdditionalInfo)
 			{
-				DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, AllPassFilter(), DistanceColorPicker(&m_distances.front()), CDistanceInfoPrinter(&m_distances.front()));
+				DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, AllPassFilter(), DistanceColorPicker(&m_distances.front()), CDistanceInfoPrinter(&m_distances.front()), false);
 			}
 			else
 			{
-				DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, AllPassFilter(), DistanceColorPicker(&m_distances.front()));
+				DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, AllPassFilter(), DistanceColorPicker(&m_distances.front()), false);
 			}
 		}
 		break;
@@ -882,7 +899,7 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 	case EDrawMode::DrawPainting:
 		if (!m_paint.empty())
 		{
-			DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, AllPassFilter(), SPaintColorPicker(&m_paint.front()));
+			DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, AllPassFilter(), SPaintColorPicker(&m_paint.front()), checkerboardizeColor);
 			if (bDrawAdditionalInfo)
 			{
 				SPaintColorLegendRenderer::DrawLegend(m_paint);
@@ -891,7 +908,7 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 		break;
 
 	case EDrawMode::DrawSegmentation:
-		DrawSegmentation(origin, bDrawAdditionalInfo);
+		DrawSegmentation(origin, bDrawAdditionalInfo, checkerboardizeColor);
 		break;
 
 	case EDrawMode::DrawNumberedContourVertices:
@@ -907,7 +924,7 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 	#if DEBUG_MNM_GATHER_EXTRA_CONTOUR_VERTEX_INFO
 			if (bDrawAdditionalInfo)
 			{
-				DrawSegmentation(origin + Vec3(0, 0, -0.01f), false);
+				DrawSegmentation(origin + Vec3(0, 0, -0.01f), false, checkerboardizeColor);
 				contourRenderer.DrawRegions(m_regions, red, CContourRenderer::SContourVertexDebugInfoPrinter(m_debugContourVertexDebugInfos));
 				DrawTracers(origin + Vec3(0, 0, 0.003f));
 				// Note: uncomment and recode to show even vertices, which were discarded during contour creation
@@ -962,11 +979,11 @@ void CTileGenerator::Draw(const EDrawMode mode, const bool bDrawAdditionalInfo) 
 #endif // DEBUG_MNM_ENABLED
 }
 
-void CTileGenerator::DrawSegmentation(const Vec3& origin, const bool bDrawAdditionalInfo) const
+void CTileGenerator::DrawSegmentation(const Vec3& origin, const bool bDrawAdditionalInfo, const bool checkerboardizeColor) const
 {
 	if (!m_labels.empty())
 	{
-		DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, WalkableFilter(), LabelColorPicker(&m_labels.front()));
+		DrawSpanGridTop(origin, m_params.voxelSize, m_spanGrid, WalkableFilter(), LabelColorPicker(&m_labels.front()), checkerboardizeColor);
 		if (bDrawAdditionalInfo)
 		{
 			SLabelColorLegendRenderer::DrawLegend();

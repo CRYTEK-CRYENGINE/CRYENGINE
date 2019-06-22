@@ -5,9 +5,8 @@
 class CRELensOptics : public CRenderElement
 {
 public:
-	CRELensOptics(void);
-	~CRELensOptics(void) {}
+	CRELensOptics();
 
-	virtual void mfExport(struct SShaderSerializeContext& SC)                 {};
-	virtual void mfImport(struct SShaderSerializeContext& SC, uint32& offset) {};
+	virtual void mfExport(struct SShaderSerializeContext& SC)                 {}
+	virtual void mfImport(struct SShaderSerializeContext& SC, uint32& offset) {}
 };

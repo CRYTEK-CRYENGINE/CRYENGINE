@@ -3115,7 +3115,15 @@ void CHyperGraphView::OnSelectEntity()
 					{
 						IEditor* const pEditor = GetIEditor();
 						CBaseObject* const pObject = pEditor->GetObjectManager()->FindObject(sInstanceName);
-						pEditor->GetObjectManager()->AddObjectToSelection(pObject);
+						//make sure this object actually exists 
+						if (pObject)
+						{
+							pEditor->GetObjectManager()->AddObjectToSelection(pObject);
+						}
+						else
+						{
+							CryWarning(EValidatorModule::VALIDATOR_MODULE_FLOWGRAPH, EValidatorSeverity::VALIDATOR_WARNING, "The Prefab Instance named %s does not exist", sInstanceName.GetBuffer());
+						}
 					}
 				}
 			}

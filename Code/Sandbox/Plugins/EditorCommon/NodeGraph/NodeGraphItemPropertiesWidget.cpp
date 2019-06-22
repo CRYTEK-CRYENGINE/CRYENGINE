@@ -6,7 +6,7 @@
 #include "AbstractNodeGraphViewModelItem.h"
 #include "NodeGraphUndo.h"
 
-#include <QAdvancedPropertyTree.h>
+#include <QAdvancedPropertyTreeLegacy.h>
 
 namespace CryGraphEditor {
 
@@ -40,7 +40,7 @@ void CNodeGraphItemPropertiesWidget::showEvent(QShowEvent* pEvent)
 
 void CNodeGraphItemPropertiesWidget::SetupPropertyTree()
 {
-	m_pPropertyTree = new QAdvancedPropertyTree("Node Graph Items");
+	m_pPropertyTree = new QAdvancedPropertyTreeLegacy("Node Graph Items");
 	m_pPropertyTree->setExpandLevels(4);
 	m_pPropertyTree->setValueColumnWidth(0.6f);
 	m_pPropertyTree->setAutoRevert(false);

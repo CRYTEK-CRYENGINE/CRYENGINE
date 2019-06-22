@@ -119,8 +119,8 @@ typedef uint64   __uint64;
 #endif
 #endif
 
-#define THREADID_NULL 0
 typedef unsigned long int threadID;
+constexpr threadID THREADID_NULL = 0;
 
 #define TRUE  1
 #define FALSE 0

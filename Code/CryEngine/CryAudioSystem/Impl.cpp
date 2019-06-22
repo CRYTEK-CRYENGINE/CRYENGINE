@@ -25,10 +25,12 @@ struct SObject final : IObject
 	virtual void                   Update(float const deltaTime) override                                                                        {}
 	virtual void                   SetTransformation(CTransformation const& transformation) override                                             {}
 	virtual CTransformation const& GetTransformation() const override                                                                            { return CTransformation::GetEmptyObject(); }
-	virtual void                   SetOcclusion(float const occlusion) override                                                                  {}
+	virtual void                   SetOcclusion(IListener* const pIListener, float const occlusion, uint8 const numRemainingListeners) override  {}
 	virtual void                   SetOcclusionType(EOcclusionType const occlusionType) override                                                 {}
 	virtual void                   StopAllTriggers() override                                                                                    {}
 	virtual ERequestStatus         SetName(char const* const szName) override                                                                    { return ERequestStatus::Success; }
+	virtual void                   AddListener(IListener* const pIListener) override                                                             {}
+	virtual void                   RemoveListener(IListener* const pIListener) override                                                          {}
 	virtual void                   ToggleFunctionality(EObjectFunctionality const type, bool const enable) override                              {}
 	virtual void                   DrawDebugInfo(IRenderAuxGeom& auxGeom, float const posX, float posY, char const* const szTextFilter) override {}
 };
@@ -60,7 +62,7 @@ void CImpl::Release()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CImpl::SetLibraryData(XmlNodeRef const pNode, bool const isLevelSpecific)
+void CImpl::SetLibraryData(XmlNodeRef const& node, ContextId const contextId)
 {
 }
 
@@ -70,7 +72,7 @@ void CImpl::OnBeforeLibraryDataChanged()
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CImpl::OnAfterLibraryDataChanged()
+void CImpl::OnAfterLibraryDataChanged(int const poolAllocationMode)
 {
 }
 
@@ -121,7 +123,7 @@ void CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 }
 
 //////////////////////////////////////////////////////////////////////////
-ERequestStatus CImpl::ConstructFile(XmlNodeRef const pRootNode, SFileInfo* const pFileInfo)
+ERequestStatus CImpl::ConstructFile(XmlNodeRef const& rootNode, SFileInfo* const pFileInfo)
 {
 	pFileInfo->memoryBlockAlignment = 0;
 	pFileInfo->size = 0;
@@ -151,16 +153,9 @@ void CImpl::GetInfo(SImplInfo& implInfo) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IObject* CImpl::ConstructGlobalObject()
+IObject* CImpl::ConstructObject(CTransformation const& transformation, IListeners const& listeners, char const* const szName /*= nullptr*/)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioSystem, 0, "CryAudio::Impl::Null::SObject");
-	return static_cast<IObject*>(new SObject());
-}
-
-///////////////////////////////////////////////////////////////////////////
-IObject* CImpl::ConstructObject(CTransformation const& transformation, char const* const szName /*= nullptr*/)
-{
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioSystem, 0, "CryAudio::Impl::Null::SObject");
+	MEMSTAT_CONTEXT(EMemStatContextType::AudioSystem, "CryAudio::Impl::Null::SObject");
 	return static_cast<IObject*>(new SObject());
 }
 
@@ -177,9 +172,9 @@ void CImpl::DestructListener(IListener* const pIListener)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IListener* CImpl::ConstructListener(CTransformation const& transformation, char const* const szName /*= nullptr*/)
+IListener* CImpl::ConstructListener(CTransformation const& transformation, char const* const szName)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioSystem, 0, "CryAudio::Impl::Null::SListener");
+	MEMSTAT_CONTEXT(EMemStatContextType::AudioSystem, "CryAudio::Impl::Null::SListener");
 	return static_cast<IListener*>(new SListener());
 }
 
@@ -194,7 +189,7 @@ void CImpl::GamepadDisconnected(DeviceId const deviceUniqueID)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-ITriggerConnection* CImpl::ConstructTriggerConnection(XmlNodeRef const pRootNode, float& radius)
+ITriggerConnection* CImpl::ConstructTriggerConnection(XmlNodeRef const& rootNode, float& radius)
 {
 	return nullptr;
 }
@@ -206,12 +201,12 @@ ITriggerConnection* CImpl::ConstructTriggerConnection(ITriggerInfo const* const 
 }
 
 ///////////////////////////////////////////////////////////////////////////
-void CImpl::DestructTriggerConnection(ITriggerConnection const* const pITriggerConnection)
+void CImpl::DestructTriggerConnection(ITriggerConnection* const pITriggerConnection)
 {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IParameterConnection* CImpl::ConstructParameterConnection(XmlNodeRef const pRootNode)
+IParameterConnection* CImpl::ConstructParameterConnection(XmlNodeRef const& rootNode)
 {
 	return nullptr;
 }
@@ -222,7 +217,7 @@ void CImpl::DestructParameterConnection(IParameterConnection const* const pIPara
 }
 
 ///////////////////////////////////////////////////////////////////////////
-ISwitchStateConnection* CImpl::ConstructSwitchStateConnection(XmlNodeRef const pRootNode)
+ISwitchStateConnection* CImpl::ConstructSwitchStateConnection(XmlNodeRef const& rootNode)
 {
 	return nullptr;
 }
@@ -233,7 +228,7 @@ void CImpl::DestructSwitchStateConnection(ISwitchStateConnection const* const pI
 }
 
 ///////////////////////////////////////////////////////////////////////////
-IEnvironmentConnection* CImpl::ConstructEnvironmentConnection(XmlNodeRef const pRootNode)
+IEnvironmentConnection* CImpl::ConstructEnvironmentConnection(XmlNodeRef const& rootNode)
 {
 	return nullptr;
 }
@@ -244,7 +239,7 @@ void CImpl::DestructEnvironmentConnection(IEnvironmentConnection const* const pI
 }
 
 //////////////////////////////////////////////////////////////////////////
-ISettingConnection* CImpl::ConstructSettingConnection(XmlNodeRef const pRootNode)
+ISettingConnection* CImpl::ConstructSettingConnection(XmlNodeRef const& rootNode)
 {
 	return nullptr;
 }
@@ -265,12 +260,12 @@ void CImpl::SetLanguage(char const* const szLanguage)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CImpl::DrawDebugMemoryInfo(IRenderAuxGeom& auxGeom, float posX, float& posY, bool const showDetailedInfo)
+void CImpl::DrawDebugMemoryInfo(IRenderAuxGeom& auxGeom, float posX, float& posY, bool const drawDetailedInfo)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CImpl::DrawDebugInfoList(IRenderAuxGeom& auxGeom, float& posX, float posY, float const debugDistance, char const* const szTextFilter) const
+void CImpl::DrawDebugInfoList(IRenderAuxGeom& auxGeom, float& posX, float posY, Vec3 const& camPos, float const debugDistance, char const* const szTextFilter) const
 {
 }
 } // namespace Null

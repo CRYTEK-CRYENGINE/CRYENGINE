@@ -1,0 +1,19 @@
+{
+    "toolBar": [
+        {
+            "command": "general.reload",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "reload",
+            "type": 0
+        },
+        {
+            "command": "particle.show_options",
+            "iconPath": "",
+            "m_IsCustom": false,
+            "name": "show_options",
+            "type": 0
+        }
+    ],
+    "version": 2
+}

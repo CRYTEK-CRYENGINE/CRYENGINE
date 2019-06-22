@@ -18,7 +18,8 @@ namespace Schematyc2
 		{
 			enum : uint32
 			{
-				Value = 0
+				In = 0,
+				Value
 			};
 		};
 

@@ -95,7 +95,7 @@ int WorldMonitor::BBoxChangeHandler(const EventPhys* pPhysEvent)
 				pthis->m_callback(entityId, aabbOld);
 				pthis->m_callback(entityId, aabbNew);
 
-				if (gAIEnv.CVars.DebugDrawNavigationWorldMonitor)
+				if (gAIEnv.CVars.navigation.DebugDrawNavigationWorldMonitor)
 				{
 					CDebugDrawContext dc;
 
@@ -121,7 +121,7 @@ int WorldMonitor::EntityRemovedHandler(const EventPhys* pPhysEvent)
 	{
 		pthis->m_callback(change.entityId, change.aabb);
 
-		if (gAIEnv.CVars.DebugDrawNavigationWorldMonitor)
+		if (gAIEnv.CVars.navigation.DebugDrawNavigationWorldMonitor)
 		{
 			CDebugDrawContext dc;
 			dc->DrawAABB(change.aabb, IDENTITY, false, Col_White, eBBD_Faceted);
@@ -198,7 +198,7 @@ void WorldMonitor::FlushPendingAABBChanges()
 			m_callback(aabbChange.entityId, aabbChange.aabb);
 		}
 
-		if (gAIEnv.CVars.DebugDrawNavigationWorldMonitor)
+		if (gAIEnv.CVars.navigation.DebugDrawNavigationWorldMonitor)
 		{
 			CDebugDrawContext dc;
 			for (const EntityAABBChange& aabbChange : changesInTheWorld)

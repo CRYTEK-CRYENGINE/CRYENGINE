@@ -1,7 +1,8 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _BASICAREA_H_
-#define _BASICAREA_H_
+#pragma once
+
+class COctreeNode;
 
 #define COPY_MEMBER_SAVE(_dst, _src, _name) { (_dst)->_name = (_src)->_name; }
 #define COPY_MEMBER_LOAD(_dst, _src, _name) { (_dst)->_name = (_src)->_name; }
@@ -73,19 +74,14 @@ struct CBasicArea : public Cry3DEngineBase
 
 	~CBasicArea();
 
-	void               CompileObjects(int nListId); // optimize objects lists for rendering
-
-	bool               IsObjectsTreeValid()                    { return m_pObjectsTree != nullptr; }
-	class COctreeNode* GetObjectsTree()                        { return m_pObjectsTree; }
-	void               SetObjectsTree(class COctreeNode* node) { m_pObjectsTree = node; }
+	bool         IsObjectsTreeValid()              { return m_pObjectsTree != nullptr; }
+	COctreeNode* GetObjectsTree()                  { return m_pObjectsTree; }
+	void         SetObjectsTree(COctreeNode* node) { m_pObjectsTree = node; }
 
 	AABB m_boxArea;                  // bbox containing everything in sector including child sectors
 	AABB m_boxStatics;               // bbox containing only objects in STATIC_OBJECTS list of this node and height-map
 
 private:
 
-	class COctreeNode* m_pObjectsTree;
-
+	COctreeNode* m_pObjectsTree;
 };
-
-#endif // _BASICAREA_H_

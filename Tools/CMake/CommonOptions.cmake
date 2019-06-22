@@ -60,3 +60,9 @@ endif()
 
 option(OPTION_RELEASE_PROFILING "Enable basic profiling in Release builds" OFF)
 option(OPTION_RELEASE_LOGGING "Enable logging in Release builds" ON)
+
+if (WINDOWS)
+	option (OPTION_MEMREPLAY_USES_DETOURS "Use the Detours library to try capturing more allocations by hooking into malloc, etc." ON)
+else()
+	set (OPTION_MEMREPLAY_USES_DETOURS FALSE)
+endif ()

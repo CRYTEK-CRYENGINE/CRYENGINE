@@ -239,22 +239,22 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 {
 	half3 vHalf = normalize(-normalize(attribs.worldPos) + light.lightVec);
                           
-  half NdotL = dot(attribs.normal, light.lightVec);
+	half NdotL = dot(attribs.normal, light.lightVec);
 	half NdotLVertex = dot(attribs.custom.vertexNormal, light.lightVec);
 	
 	// Wrapped diffuse, using normalization factor of (1 + DiffuseWrap) to be energy-conserving
 	half wrapDenom = 1 + DiffuseWrap;
 	half fNdotLDiffuse = saturate(((NdotL + NdotLVertex) * 0.5 + DiffuseWrap) / (wrapDenom * wrapDenom));
 
-  // Diffuse term - wrapped diffuse
-  half3 cDiffuse = fNdotLDiffuse;
+	// Diffuse term - wrapped diffuse
+	half3 cDiffuse = fNdotLDiffuse;
 	
 	half3 specCol = min(attribs.reflectance, 0.045);
 	
 	// Primary highlight (specular surface reflection) 
-  half3 cSpecular = KajiyaKayAnisotropic(attribs.custom.tangent, vHalf, exp2(10.0 * attribs.smoothness + 1.0)) * specCol;
+	half3 cSpecular = KajiyaKayAnisotropic(attribs.custom.tangent, vHalf, exp2(10.0 * attribs.smoothness + 1.0)) * specCol;
 
-  // Secondary highlight (reflected back after entering underneath surface)   
+	// Secondary highlight (reflected back after entering underneath surface)   
 	cSpecular.xyz += KajiyaKayAnisotropic(attribs.custom.tangentSec.xyz, vHalf.xyz, exp2(10.0 * max(attribs.smoothness / SecondaryHighlightWidth, 0.4) + 1.0)) * SecondaryHighlightColor.xyz * attribs.albedo;
 	cSpecular.xyz *= saturate(NdotL);
 		
@@ -265,8 +265,8 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 		cSpecular.xyz *= fOcclusion;
 	}
 
-  diffuseAcc.xyz = cDiffuse.xyz * light.illuminance;
-  specularAcc.xyz = cSpecular.xyz * light.illuminance;
+	diffuseAcc.xyz = cDiffuse.xyz * light.illuminance;
+	specularAcc.xyz = cSpecular.xyz * light.illuminance;
 }
 
 #include "ForwardShading.cfi"
@@ -367,7 +367,7 @@ float4 HairShading(vert2FragHair IN, bool bOpaquePass)
 	#endif
 
 		ForwardLightParams lightParams;
-		lightParams.type = LT_DIRECTIONAL;
+        lightParams.type = LIGHT_TYPE_SUN;
 		lightParams.lightVec = CV_SunLightDir.xyz;
 		lightParams.illuminance = CV_SunColor.xyz * (1 - shadowOccl);
 		
@@ -420,7 +420,7 @@ pixoutHair2 ThinHairDepthPS(vert2FragHair IN)
 {
 	pixoutHair2 OUT = (pixoutHair2)0;
 	
-	float fOpacity = saturate(GetAlphaTex(diffuseTex, IN.Common.baseTC) * AlphaBlendMultiplier) a;
+	float fOpacity = saturate(GetAlphaTex(diffuseTex, IN.Common.baseTC) * AlphaBlendMultiplier);
 	clip(fOpacity - ThinHairThreshold);
 	
 	return OUT;
@@ -749,20 +749,19 @@ v2f_sh HairSG_VS(app2vertGeneral IN)
 #endif
 
 	float4 HPosition = mul(g_VS_ViewProjMatr, vertPassPos.WorldPos);
-
-#if !%_RT_CUBEMAP0 
+#if !%_RT_CUBEMAP0
 	#if !%_RT_NEAREST
 		HPosition.z /= CP_ShadowGen_FrustumInfo.y;
 	#endif
 
-	#if %_RT_SAMPLE0
+	#if %_RT_SAMPLE0 && %_RT_SHADOW_DEPTH_OUTPUT_LINEAR
 		OUT.Depth = HPosition.z + CP_ShadowGen_DepthTestBias.x;
 	#endif
 	
 	#if !%_RT_NEAREST
 		HPosition.z *= HPosition.w;
 	#endif
-#else 
+#elif %_RT_SHADOW_DEPTH_OUTPUT_LINEAR
 	OUT.Depth = (HPosition.z/CP_ShadowGen_FrustumInfo.y);
 	OUT.Depth += CP_ShadowGen_DepthTestBias.x;
 #endif

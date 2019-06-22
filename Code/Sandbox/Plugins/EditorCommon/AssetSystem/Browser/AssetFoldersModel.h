@@ -112,7 +112,7 @@ private:
 	QModelIndex   ToIndex(const Folder* pFolder) const;
 	const Folder* GetFolder(const char* path) const;
 
-	Folder           m_root;//root of the view, not displayed
-	Folder*          m_assetFolders;//helper pointer containing all the asset folders, displayed by the view
-	QVector<QString> m_addedFolders;
+	Folder      m_root;         //root of the view, not displayed
+	Folder*     m_assetFolders; //helper pointer containing all the asset folders, displayed by the view
+	QStringList m_addedFolders;
 };

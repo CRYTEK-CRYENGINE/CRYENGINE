@@ -23,7 +23,7 @@ public:
 	CVolumeParameter& operator=(CVolumeParameter const&) = delete;
 	CVolumeParameter& operator=(CVolumeParameter&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	explicit CVolumeParameter(
 		SampleId const sampleId,
 		float const multiplier,
@@ -43,7 +43,7 @@ public:
 		, m_multiplier(multiplier)
 		, m_shift(shift)
 	{}
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 	virtual ~CVolumeParameter() override = default;
 
@@ -58,9 +58,9 @@ private:
 	float const    m_multiplier;
 	float const    m_shift;
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 };
 } // namespace SDL_mixer
 } // namespace Impl

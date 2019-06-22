@@ -22,7 +22,7 @@
 #include <IUndoObject.h>
 #include <Controls/QuestionDialog.h>
 #include <Menu/AbstractMenu.h>
-#include <Serialization/QPropertyTree/QPropertyTree.h>
+#include <Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h>
 #include <Util/FileUtil.h>
 
 #include <CrySandbox/CrySignal.h>
@@ -327,9 +327,9 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 
 		void SetupToolsMenu(CAbstractMenu* pToolsMenu, CVegetationEditor* pParentEditor)
 		{
-			pToolsMenu->AddAction(pParentEditor->GetAction("vegetation.paint"));
-			pToolsMenu->AddAction(pParentEditor->GetAction("vegetation.erase"));
-			pToolsMenu->AddAction(pParentEditor->GetAction("vegetation.select"));
+			pToolsMenu->AddCommandAction(pParentEditor->GetAction_Deprecated("vegetation.paint"));
+			pToolsMenu->AddCommandAction(pParentEditor->GetAction_Deprecated("vegetation.erase"));
+			pToolsMenu->AddCommandAction(pParentEditor->GetAction_Deprecated("vegetation.select"));
 
 			const int section = pToolsMenu->GetNextEmptySection();
 
@@ -373,21 +373,18 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 
 	struct SUi
 	{
-		SUi(QAbstractItemModel* pVegetationModel, QWidget* pParent, const std::vector<QAction*>& toolBarActions)
+		SUi(QAbstractItemModel* pVegetationModel, const std::vector<QAction*>& toolBarActions)
 		{
-			auto pParentLayout = pParent->layout();
+			pContentLayout = new QVBoxLayout();
 
-			auto pToolBar = CreateToolBar(toolBarActions, pParent);
-			// set spacing to 0 to remove small border between
-			// property tree and status bar
-			//pParentLayout->setSpacing(0);
-			pParentLayout->addWidget(pToolBar);
+			auto pToolBar = CreateToolBar(toolBarActions);
+			pContentLayout->addWidget(pToolBar);
 
-			pVegetationTreeView = CreateVegetationTreeView(pVegetationModel, pParent);
+			pVegetationTreeView = CreateVegetationTreeView(pVegetationModel);
 
-			auto pToolButtonPanel = CreateToolButtonPanel(pParent);
+			auto pToolButtonPanel = CreateToolButtonPanel();
 
-			pPropertyTree = CreatePropertyTree(pParent);
+			pPropertyTree = CreatePropertyTree();
 
 			auto pPropertyLayout = new QVBoxLayout;
 			pPropertyLayout->setContentsMargins(0, 0, 0, 0);
@@ -399,27 +396,27 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 			auto pPropertyWidget = new QWidget;
 			pPropertyWidget->setLayout(pPropertyLayout);
 
-			pPreviewWidget = CreatePreviewWidget(pParent);
+			pPreviewWidget = CreatePreviewWidget();
 
 			pSplitter = new QSplitter(Qt::Vertical);
 			pSplitter->addWidget(pVegetationTreeView);
 			pSplitter->addWidget(pPropertyWidget);
 			pSplitter->addWidget(pPreviewWidget);
-			pParentLayout->addWidget(pSplitter);
+			pContentLayout->addWidget(pSplitter);
 
 			pSplitter->setStretchFactor(0, 0);
 			pSplitter->setStretchFactor(1, 1);
 			pSplitter->setStretchFactor(2, 1);
 
-			pStatusLabel = new QLabel(pParent);
-			auto pStatusBar = new QStatusBar(pParent);
+			pStatusLabel = new QLabel();
+			auto pStatusBar = new QStatusBar();
 			pStatusBar->addWidget(pStatusLabel);
-			pParentLayout->addWidget(pStatusBar);
+			pContentLayout->addWidget(pStatusBar);
 		}
 
-		static QToolBar* CreateToolBar(const std::vector<QAction*>& toolBarActions, QWidget* pParent)
+		static QToolBar* CreateToolBar(const std::vector<QAction*>& toolBarActions)
 		{
-			auto pToolBar = new QToolBar(pParent);
+			auto pToolBar = new QToolBar();
 			for (auto pAction : toolBarActions)
 			{
 				pToolBar->addAction(pAction);
@@ -428,9 +425,9 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 			return pToolBar;
 		}
 
-		static CVegetationTreeView* CreateVegetationTreeView(QAbstractItemModel* pModel, QWidget* pParent)
+		static CVegetationTreeView* CreateVegetationTreeView(QAbstractItemModel* pModel)
 		{
-			auto pVegetationTreeView = new CVegetationTreeView(pParent);
+			auto pVegetationTreeView = new CVegetationTreeView();
 			auto pFilterModel = new QSortFilterProxyModel();
 			pFilterModel->setSourceModel(pModel);
 			pVegetationTreeView->setModel(pFilterModel);
@@ -444,9 +441,9 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 			return pVegetationTreeView;
 		}
 
-		static QEditToolButtonPanel* CreateToolButtonPanel(QWidget* pParent)
+		static QEditToolButtonPanel* CreateToolButtonPanel()
 		{
-			auto pToolButtonPanel = new QEditToolButtonPanel(QEditToolButtonPanel::LayoutType::Horizontal, pParent);
+			auto pToolButtonPanel = new QEditToolButtonPanel(QEditToolButtonPanel::LayoutType::Horizontal);
 			pToolButtonPanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
 			const auto paintToolButtonInfo = CVegetationPaintTool::CreatePaintToolButtonInfo();
 			const auto eraseToolButtonInfo = CVegetationEraseTool::CreateEraseToolButtonInfo();
@@ -458,9 +455,9 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 			return pToolButtonPanel;
 		}
 
-		static QPropertyTree* CreatePropertyTree(QWidget* pParent)
+		static QPropertyTreeLegacy* CreatePropertyTree()
 		{
-			auto pPropertyTree = new QPropertyTree(pParent);
+			auto pPropertyTree = new QPropertyTreeLegacy();
 			pPropertyTree->setValueColumnWidth(0.6f);
 			pPropertyTree->setSizeToContent(false);
 			pPropertyTree->setAutoRevert(false);
@@ -470,7 +467,7 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 			return pPropertyTree;
 		}
 
-		static QPreviewWidget* CreatePreviewWidget(QWidget* pParent)
+		static QPreviewWidget* CreatePreviewWidget()
 		{
 			auto pPreviewWidget = new QPreviewWidget;
 			pPreviewWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
@@ -510,8 +507,9 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 			}
 		}
 
+		QVBoxLayout*         pContentLayout;
 		CVegetationTreeView* pVegetationTreeView;
-		QPropertyTree*       pPropertyTree;
+		QPropertyTreeLegacy*       pPropertyTree;
 		QPreviewWidget*      pPreviewWidget;
 		QSplitter*           pSplitter;
 		QLabel*              pStatusLabel;
@@ -519,9 +517,9 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 
 	SImplementation(CVegetationEditor* pEditor)
 		: m_pEditor(pEditor)
-		, m_pVegetationModel(new CVegetationModel(pEditor))
+		, m_pVegetationModel(new CVegetationModel())
 		, m_actions(m_pEditor)
-		, m_ui(m_pVegetationModel, m_pEditor, m_actions.toolBarActions)
+		, m_ui(m_pVegetationModel, m_actions.toolBarActions)
 		, m_splitterState(QtUtil::ToQByteArray(m_pEditor->GetProperty(s_previewSplitterStatePropertyName)))
 	{
 		SetupControls();
@@ -1201,6 +1199,11 @@ struct CVegetationEditor::SImplementation : public IEditorNotifyListener
 		}
 	}
 
+	QLayout* GetContentLayout() const
+	{
+		return m_ui.pContentLayout;
+	}
+
 private:
 	CVegetationEditor*                 m_pEditor;
 	CVegetationModel*                  m_pVegetationModel;
@@ -1268,12 +1271,23 @@ CVegetationEditor::CVegetationEditor(QWidget* parent)
 	: CDockableEditor(parent)
 	, p(new SImplementation(this))
 {
+	SetContent(p->GetContentLayout());
+	RegisterActions();
 	setAttribute(Qt::WA_DeleteOnClose);
 }
 
 CVegetationEditor::~CVegetationEditor()
 {
 	GetIEditorImpl()->GetLevelEditorSharedState()->SetEditTool(nullptr);
+}
+
+void CVegetationEditor::RegisterActions()
+{
+	// Register general commands
+	RegisterAction("general.new", &CVegetationEditor::OnNew);
+	RegisterAction("general.delete", &CVegetationEditor::OnDelete);
+	RegisterAction("general.duplicate", &CVegetationEditor::OnDuplicate);
+	RegisterAction("general.select_all", &CVegetationEditor::OnSelectAll);
 }
 
 bool CVegetationEditor::OnNew()

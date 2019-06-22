@@ -141,7 +141,7 @@ void CoverUser::UpdateCoverEyes()
 
 void CoverUser::Update(const CTimeValue frameStartTime, const float timeDelta)
 {
-	CRY_PROFILE_REGION(PROFILE_AI, "CoverUser::Update");
+	CRY_PROFILE_SECTION(PROFILE_AI, "CoverUser::Update");
 
 	UpdateBlacklisted(timeDelta);
 

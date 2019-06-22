@@ -1,16 +1,15 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
-#include <StdAfx.h>
-#include "LevelAssetType.h"
+
+#include "StdAfx.h"
 #include "LevelFileUtils.h"
+#include "LevelAssetType.h"
 
-#include "CryEditDoc.h"
-#include "PathUtils.h"
-
-#include <QString>
-#include <QDir>
-#include <QFileInfo>
+#include <PathUtils.h>
 
 #include <CrySystem/IProjectManager.h>
+
+#include <QDir>
+#include <QString>
 
 namespace LevelFileUtils
 {

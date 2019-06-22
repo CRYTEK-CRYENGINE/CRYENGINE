@@ -16,7 +16,6 @@
 #include "TimeDemoRecorder.h"
 #include <CrySystem/File/CryFile.h>
 #include <IActorSystem.h>
-#include <CryAISystem/IAgent.h>
 #include <ILevelSystem.h>
 #include <CryMovie/IMovieSystem.h>
 #include "IMovementController.h"
@@ -26,26 +25,29 @@
 #include <CryCore/Platform/CryWindows.h>
 #include <Cry3DEngine/ITimeOfDay.h>
 #include <CryRenderer/IRenderAuxGeom.h>
+#include <CryCore/RingBuffer.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include <array>
 
 //////////////////////////////////////////////////////////////////////////
 // Brush Export structures.
 //////////////////////////////////////////////////////////////////////////
-#define TIMEDEMO_FILE_SIGNATURE         "CRY "
-#define TIMEDEMO_FILE_TYPE              150
-#define TIMEDEMO_FILE_VERSION_1         1
-#define TIMEDEMO_FILE_VERSION_2         2
-#define TIMEDEMO_FILE_VERSION_3         4 // ?
-#define TIMEDEMO_FILE_VERSION_4         6
-#define TIMEDEMO_FILE_VERSION_7         7
-#define TIMEDEMO_FILE_VERSION           TIMEDEMO_FILE_VERSION_7
+#define TIMEDEMO_FILE_SIGNATURE            "CRY "
+#define TIMEDEMO_FILE_TYPE                 150
+#define TIMEDEMO_FILE_VERSION_1            1
+#define TIMEDEMO_FILE_VERSION_2            2
+#define TIMEDEMO_FILE_VERSION_3            4 // ?
+#define TIMEDEMO_FILE_VERSION_4            6
+#define TIMEDEMO_FILE_VERSION_7            7
+#define TIMEDEMO_FILE_VERSION              TIMEDEMO_FILE_VERSION_7
 
-#define TIMEDEMO_MAX_INPUT_EVENTS       16
-#define TIMEDEMO_MAX_GAME_EVENTS        1 // For now...
-#define TIMEDEMO_MAX_DESCRIPTION_LENGTH 128
+#define TIMEDEMO_MAX_INPUT_EVENTS          16
+#define TIMEDEMO_MAX_GAME_EVENTS           1 // For now...
+#define TIMEDEMO_MAX_DESCRIPTION_LENGTH_V4 64
+#define TIMEDEMO_MAX_DESCRIPTION_LENGTH_V7 128
 
-#define FIXED_TIME_STEP                 (30) // Assume running at 30fps.
+#define FIXED_TIME_STEP                    (30) // Assume running at 30fps.
 
 enum ETimeDemoFileFlags
 {
@@ -172,12 +174,13 @@ struct STimeDemoFrame_2
 	}
 };
 
+template <int DESCRIPTION_LENGTH>
 struct SRecordedGameEvent
 {
 	uint32 gameEventType;
-	char   entityName[TIMEDEMO_MAX_DESCRIPTION_LENGTH];
-	char   description[TIMEDEMO_MAX_DESCRIPTION_LENGTH];
-	char   description2[TIMEDEMO_MAX_DESCRIPTION_LENGTH];
+	char   entityName[DESCRIPTION_LENGTH];
+	char   description[DESCRIPTION_LENGTH];
+	char   description2[DESCRIPTION_LENGTH];
 	float  value;
 	int32  extra;
 
@@ -199,7 +202,26 @@ struct SRecordedGameEvent
 	}
 };
 
-STimeDemoGameEvent::STimeDemoGameEvent(const SRecordedGameEvent& event)
+struct SRecordedGameEventV4 : SRecordedGameEvent<TIMEDEMO_MAX_DESCRIPTION_LENGTH_V4>
+{
+	using SRecordedGameEvent<TIMEDEMO_MAX_DESCRIPTION_LENGTH_V4>::operator=;
+};
+
+struct SRecordedGameEventV7 : SRecordedGameEvent<TIMEDEMO_MAX_DESCRIPTION_LENGTH_V7>
+{
+	using SRecordedGameEvent<TIMEDEMO_MAX_DESCRIPTION_LENGTH_V7>::operator=;
+};
+
+STimeDemoGameEvent::STimeDemoGameEvent(const SRecordedGameEventV4& event)
+	: entityName(event.entityName)
+	, gameEventType(event.gameEventType)
+	, description(event.description)
+	, description2(event.description2)
+	, value(event.value)
+	, extra(event.extra)
+{}
+
+STimeDemoGameEvent::STimeDemoGameEvent(const SRecordedGameEventV7& event)
 	: entityName(event.entityName)
 	, gameEventType(event.gameEventType)
 	, description(event.description)
@@ -258,7 +280,7 @@ struct STimeDemoFrame_4
 	int                   numInputEvents;
 	STimeDemoFrameEvent_2 inputEvents[TIMEDEMO_MAX_INPUT_EVENTS];
 	int                   numGameEvents;
-	SRecordedGameEvent    gameEvents[TIMEDEMO_MAX_GAME_EVENTS];
+	SRecordedGameEventV4  gameEvents[TIMEDEMO_MAX_GAME_EVENTS];
 
 	uint32                bFollow; // if true, data from the next timedemo frame will be collected in this frame
 
@@ -302,7 +324,7 @@ struct STimeDemoFrame_7
 	int                   numInputEvents;
 	STimeDemoFrameEvent_2 inputEvents[TIMEDEMO_MAX_INPUT_EVENTS];
 	int                   numGameEvents;
-	SRecordedGameEvent    gameEvents[TIMEDEMO_MAX_GAME_EVENTS];
+	SRecordedGameEventV7  gameEvents[TIMEDEMO_MAX_GAME_EVENTS];
 
 	uint32                bFollow;
 
@@ -450,8 +472,7 @@ CTimeDemoRecorder::CTimeDemoRecorder()
 	, m_nPolysCounter(0)
 	, m_fpsCounter(0)
 	, m_fileVersion(TIMEDEMO_FILE_VERSION)
-	, m_bEnabledProfiling(false)
-	, m_bVisibleProfiling(false)
+	, m_profilingPaused(false)
 	, m_oldPeakTolerance(0.0f)
 	, m_fixedTimeStep(0)
 	, m_pTimeDemoInfo(nullptr)
@@ -487,6 +508,7 @@ CTimeDemoRecorder::CTimeDemoRecorder()
 //////////////////////////////////////////////////////////////////////////
 CTimeDemoRecorder::~CTimeDemoRecorder()
 {
+	CRY_ASSERT_MESSAGE(s_pTimeDemoRecorder == nullptr, "TimeDemoRecorder was not unregistered.");
 }
 
 void CTimeDemoRecorder::OnRegistered()
@@ -1499,6 +1521,20 @@ void CTimeDemoRecorder::PreUpdate()
 //////////////////////////////////////////////////////////////////////////
 void CTimeDemoRecorder::PostUpdate()
 {
+	string log;
+	if (m_logInfoQueue.dequeue(log))
+	{
+		gEnv->pLog->Log("%s", log.c_str());
+
+		string filename = PathUtil::Make("%USER%/TestResults", PathUtil::ReplaceExtension(CTimeDemoRecorder::s_timedemo_file->GetString(), "log"));
+		FILE* hFile = fxopen(filename.c_str(), "at");
+		if (hFile)
+		{
+			fprintf(hFile, "%s\n", log.c_str());
+			fclose(hFile);
+		}
+	}
+
 	if (gEnv->pSystem->IsQuitting())
 	{
 		return;
@@ -1902,6 +1938,14 @@ void CTimeDemoRecorder::SetConsoleVar(const char* sVarName, float value)
 }
 
 //////////////////////////////////////////////////////////////////////////
+void CTimeDemoRecorder::SetConsoleVar(const char* sVarName, int value)
+{
+	ICVar* pVar = gEnv->pConsole->GetCVar(sVarName);
+	if (pVar)
+		pVar->Set(value);
+}
+
+//////////////////////////////////////////////////////////////////////////
 float CTimeDemoRecorder::GetConsoleVar(const char* sVarName)
 {
 	ICVar* pVar = gEnv->pConsole->GetCVar(sVarName);
@@ -1996,26 +2040,36 @@ void CTimeDemoRecorder::StartSession()
 	// Register to frame profiler.
 
 	// remember old profiling settings
-	m_bEnabledProfiling = gEnv->pFrameProfileSystem->IsEnabled();
-	m_bVisibleProfiling = gEnv->pFrameProfileSystem->IsVisible();
-	m_oldPeakTolerance = GetConsoleVar("profile_peak");
+	ICryProfilingSystem* pProfSystem = GetISystem()->GetProfilingSystem();
+	m_profilingPaused = pProfSystem->IsPaused();
+	m_oldPeakTolerance = GetConsoleVar("profile_peak_tolerance");
 
 	if (m_demo_profile)
 	{
-		gEnv->pFrameProfileSystem->Enable(true, gEnv->pFrameProfileSystem->IsVisible());
-
-		// Profile peaks by registering a listener.
-		// Enable peaks profiling only if "demo_profile == 1".
-		gEnv->pFrameProfileSystem->AddPeaksListener(this);
-		SetConsoleVar("profile_peak", 50);
+		if (pProfSystem->IsStopped())
+		{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "The profiling system was already stopped, but peak profiling is requested for the time demo.");
+			m_demo_profile = false;
+		}
+		else if (GetISystem()->GetLegacyProfilerInterface() == nullptr)
+		{
+			CryWarning(VALIDATOR_MODULE_SYSTEM, VALIDATOR_WARNING, "The used profiling system does not support peak profiling, but it was requested for the time demo.");
+			m_demo_profile = false;
+		}
+		else
+		{
+			// Profile peaks by registering a listener.
+			pProfSystem->PauseRecording(false);
+			GetISystem()->GetLegacyProfilerInterface()->AddFrameListener(this);
+			SetConsoleVar("profile_peak_tolerance", 50.0f);
+		}
 	}
 
 	m_fixedTimeStep = GetConsoleVar("t_FixedStep");
 	if (m_demo_fixed_timestep > 0)
+	{
 		SetConsoleVar("t_FixedStep", 1.0f / (float)m_demo_fixed_timestep);
-
-	if (m_demo_vtune)
-		GetISystem()->GetIProfilingSystem()->VTuneResume();
+	}
 
 	m_lastFrameTime = GetTime();
 }
@@ -2023,11 +2077,6 @@ void CTimeDemoRecorder::StartSession()
 //////////////////////////////////////////////////////////////////////////
 void CTimeDemoRecorder::StopSession()
 {
-	if (m_demo_vtune)
-	{
-		GetISystem()->GetIProfilingSystem()->VTunePause();
-	}
-
 	// Set old time step.
 	SetConsoleVar("t_FixedStep", m_fixedTimeStep);
 
@@ -2045,13 +2094,13 @@ void CTimeDemoRecorder::StopSession()
 
 	gEnv->pGameFramework->GetIGameplayRecorder()->EnableGameStateRecorder(false, this, false);
 	
-	// Revert the profiling CVAR-s and UI.
-	SetConsoleVar("profile_peak", m_oldPeakTolerance);
-	gEnv->pFrameProfileSystem->RemovePeaksListener(this);
-
+	// Revert the profiling CVARs
+	ICryProfilingSystem* pProfSystem = GetISystem()->GetProfilingSystem();
 	if (m_demo_profile)
 	{
-		gEnv->pFrameProfileSystem->Enable(m_bEnabledProfiling, m_bVisibleProfiling);
+		SetConsoleVar("profile_peak_tolerance", m_oldPeakTolerance);
+		GetISystem()->GetLegacyProfilerInterface()->RemoveFrameListener(this);
+		pProfSystem->PauseRecording(m_profilingPaused);
 	}
 
 	m_lastPlayedTotalTime = m_totalDemoTime.GetSeconds();
@@ -2113,16 +2162,7 @@ void CTimeDemoRecorder::LogInfo(const char* format, ...)
 	cry_vsprintf(szBuffer, format, ArgList);
 	va_end(ArgList);
 
-	gEnv->pLog->Log("%s", szBuffer);
-
-	string filename = PathUtil::Make("%USER%/TestResults", PathUtil::ReplaceExtension(CTimeDemoRecorder::s_timedemo_file->GetString(), "log"));
-	FILE* hFile = fxopen(filename.c_str(), "at");
-	if (hFile)
-	{
-		// Write the string to the file and close it
-		fprintf(hFile, "%s\n", szBuffer);
-		fclose(hFile);
-	}
+	m_logInfoQueue.enqueue(szBuffer);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -2365,11 +2405,22 @@ void CTimeDemoRecorder::OnGameplayEvent(IEntity* pEntity, const GameplayEvent& e
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CTimeDemoRecorder::OnFrameProfilerPeak(CFrameProfiler* pProfiler, float fPeakTime)
+void CTimeDemoRecorder::OnFrameEnd(TTime time, ILegacyProfiler* pProfSystem)
 {
+	const uint32 frame = gEnv->nMainFrameID;
 	if (m_bPlaying && !m_bPaused)
 	{
-		LogInfo("    -Peak at Frame %d, %.2fms : %s (count: %d)", m_currentFrame, fPeakTime, pProfiler->m_name, pProfiler->m_count);
+		const ILegacyProfiler::PeakList* pPeaks = pProfSystem->GetPeakRecords();
+		if (pPeaks == nullptr)
+			return;
+
+		const size_t peakCount = pPeaks->size();
+		for(size_t i = 0; i < peakCount; ++i)
+		{
+			const SPeakRecord& peak = (*pPeaks)[i];
+			if (peak.frame == frame) // do not log peaks repeatedly
+				LogInfo("    -Peak at Frame %d, %.2fms : %s (count: %d)", m_currentFrame, peak.peakValue, peak.pTracker->pDescription->szEventname, peak.count);
+		}
 	}
 }
 

@@ -21,8 +21,9 @@ void RegisterResourceTypes(IEnvRegistrar& registrar)
 		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(ParticleEffectName));
 		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioEnvironmentName));
 		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioPreloadRequestName));
-		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioRtpcName));
+		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioParameterName));
 		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioSwitchName));
+		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioStateName));
 		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioSwitchStateName));
 		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(AudioTriggerName));
 		scope.Register(SCHEMATYC_MAKE_ENV_DATA_TYPE(DialogName));

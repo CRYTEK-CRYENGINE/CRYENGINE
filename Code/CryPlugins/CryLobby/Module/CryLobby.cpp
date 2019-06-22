@@ -731,7 +731,8 @@ void CCryLobby::InternalSocketCreate(ECryLobbyService service)
 		}
 		else
 		{
-			NetLog("[Lobby] Socket could not be created, check firewall or try a different port. Connecting to network games may fail if not fixed.");
+			CryWarning(VALIDATOR_MODULE_ONLINE, VALIDATOR_ERROR,
+				"[Lobby] Socket could not be created, check firewall or try a different port. Connecting to network games may fail if not fixed.");
 		}
 	}
 }

@@ -21,6 +21,9 @@ class CCreateProjectPanel : public QWidget
 public:
 	CCreateProjectPanel(CSelectProjectDialog* pParent, bool runOnSandboxInit);
 
+protected:
+	void paintEvent(QPaintEvent*) override;
+
 private:
 	void CreateSearchPanel();
 	void CreateViews();

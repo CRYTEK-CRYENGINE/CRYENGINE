@@ -15,6 +15,8 @@
 #define IDC_PHYS_GRAB                   111
 #define IDC_PHYS_AIM                    112
 #define IDC_SCISSORS                    113
+#define IDC_PHYS_PIN                    114
+#define IDC_PHYS_FORK										115
 #define IDR_MAINFRAME                   128
 #define ID_RELOADWORLD                  32774
 #define ID_RELOADGEOMETRIES             32775
@@ -52,6 +54,6 @@
 #define _APS_NEXT_RESOURCE_VALUE        133
 #define _APS_NEXT_COMMAND_VALUE         32818
 #define _APS_NEXT_CONTROL_VALUE         1001
-#define _APS_NEXT_SYMED_VALUE           114
+#define _APS_NEXT_SYMED_VALUE           116
 #endif
 #endif

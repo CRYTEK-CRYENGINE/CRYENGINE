@@ -5,7 +5,7 @@
 #include "Common/SharedData.h"
 #include <QWidget>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class QAttributeFilterProxyModel;
 
 namespace ACE
@@ -33,11 +33,13 @@ public:
 	void Reset();
 	void OnBeforeReload();
 	void OnAfterReload();
+	void OnFileImporterOpened();
+	void OnFileImporterClosed();
+	void OnConnectionAdded(ControlId const id);
 
 private slots:
 
 	void OnContextMenu(QPoint const& pos);
-	void OnConnectionAdded(ControlId const id);
 
 private:
 
@@ -53,10 +55,9 @@ private:
 	XmlNodeRef ConstructTemporaryTriggerConnections(CControl const* const pControl);
 
 	CControl*                         m_pControl;
-	QPropertyTree* const              m_pConnectionProperties;
+	QPropertyTreeLegacy* const              m_pConnectionProperties;
 	QAttributeFilterProxyModel* const m_pAttributeFilterProxyModel;
 	CConnectionsModel* const          m_pConnectionModel;
 	CTreeView* const                  m_pTreeView;
-	int const                         m_nameColumn;
 };
 } // namespace ACE

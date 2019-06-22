@@ -281,9 +281,9 @@ IMaterial* CMatMan::LoadMaterial(const char* sMtlName, bool bMakeIfNotFound, boo
 	const char* name = UnifyName(sMtlName);
 	IMaterial* pMtl = 0;
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Materials");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_MTL, EMemStatContextFlags::MSF_Instance, "%s", name);
-	LOADING_TIME_PROFILE_SECTION_ARGS(sMtlName); // Only profile actually loading of the material.
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Materials");
+	MEMSTAT_CONTEXT(EMemStatContextType::MTL, name);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, sMtlName); // Only profile actually loading of the material.
 
 	CRY_DEFINE_ASSET_SCOPE("Material", sMtlName);
 
@@ -471,7 +471,7 @@ IMaterial* CMatMan::MakeMaterialFromXml(const char* sMtlName, const char* sMtlFi
 			}
 			else
 			{
-				// version doens't has string gen mask yet ? Remap flags if needed
+				// version doesn't has string gen mask yet ? Remap flags if needed
 				nShaderGenMask = GetRenderer()->EF_GetRemapedShaderMaskGen((const char*)shaderName, nShaderGenMask, ((mtlFlags & MTL_64BIT_SHADERGENMASK) != 0));
 			}
 		}
@@ -835,7 +835,7 @@ void CMatMan::ParsePublicParams(SInputShaderResources& sr, XmlNodeRef paramsNode
 ISurfaceType* CMatMan::GetSurfaceTypeByName(const char* sSurfaceTypeName, const char* sWhy)
 {
 	return m_pSurfaceTypeManager->GetSurfaceTypeByName(sSurfaceTypeName, sWhy);
-};
+}
 
 //////////////////////////////////////////////////////////////////////////
 int CMatMan::GetSurfaceTypeIdByName(const char* sSurfaceTypeName, const char* sWhy)
@@ -844,7 +844,7 @@ int CMatMan::GetSurfaceTypeIdByName(const char* sSurfaceTypeName, const char* sW
 	if (pSurfaceType)
 		return pSurfaceType->GetId();
 	return 0;
-};
+}
 
 //////////////////////////////////////////////////////////////////////////
 IMaterial* CMatMan::GetDefaultLayersMaterial()
@@ -997,7 +997,7 @@ void CMatMan::InitDefaults()
 		return;
 	m_bInitialized = true;
 
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	SYNCHRONOUS_LOADING_TICK();
 
@@ -1093,7 +1093,7 @@ static bool IsPureChild(IMaterial* pMtl)
 static bool IsMultiSubMaterial(IMaterial* pMtl)
 {
 	return (pMtl->GetFlags() & MTL_FLAG_MULTI_SUBMTL) ? true : false;
-};
+}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1117,7 +1117,7 @@ IMaterial* CMatMan::LoadMaterialFromXml(const char* sMtlName, XmlNodeRef mtlNode
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::PreloadLevelMaterials()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	//bool bMtlfCacheExist = GetISystem()->GetIResourceManager()->LoadLevelCachePak( MTL_LEVEL_CACHE_PAK,"" );
 	//if (!bMtlfCacheExist)
@@ -1174,7 +1174,7 @@ void CMatMan::PreloadLevelMaterials()
 //////////////////////////////////////////////////////////////////////////
 void CMatMan::PreloadDecalMaterials()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	float fStartTime = GetCurAsyncTimeSec();
 

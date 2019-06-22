@@ -13,6 +13,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include "D3DPostProcess.h"
 #include "D3DStereo.h"
+#include "GraphicsPipeline/PostEffects.h"
 #include <CrySystem/Scaleform/IFlashPlayer.h>
 
 #pragma warning(push)
@@ -81,7 +82,7 @@ void CHud3D::Release()
 	SAFE_RELEASE(m_pNoise);
 
 	for (uint32 i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
-		stl::free_container(m_pRenderData[i]);
+		m_pRenderData[i].reset_container();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,17 +114,14 @@ bool CHud3D::Preprocess(const SRenderViewInfo& viewInfo)
 void CHud3D::Update()
 {
 	const uint32 nThreadID = gRenDev->GetRenderThreadID();
-	SHudDataVec& rRenderData = m_pRenderData[nThreadID];
-	rRenderData.CoalesceMemory();
-	size_t nSize = rRenderData.size();
-	if (nSize != 0)
+	if (!m_pRenderData[nThreadID].empty())
 	{
-		for (size_t i = 0; i < m_pRenderData[nThreadID].size(); ++i)
-			m_pRenderData[nThreadID][i].Init();
-
-		SHudData* pBegin = &rRenderData[0];
-		SHudData* pEnd = pBegin + nSize;
-		std::sort(pBegin, pEnd, HudDataSortCmp());
+		for (SHudData& hudData : m_pRenderData[nThreadID])
+			hudData.Init();
+		
+		// We are also operating on invalid elements here!
+		// That's ok though as it's POD and the compare only accesses the SHudData directly (and does not follow any pointers).
+		std::sort(&*m_pRenderData[nThreadID].begin(), &*m_pRenderData[nThreadID].end(), HudDataSortCmp());
 	}
 }
 
@@ -134,7 +132,7 @@ void CHud3D::OnBeginFrame(const SRenderingPassInfo& passInfo)
 {
 	const uint32 nThreadID = gRenDev->GetMainThreadID();
 	if (passInfo.IsGeneralPass())
-		m_pRenderData[nThreadID].resize(0);
+		m_pRenderData[nThreadID].clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,7 +146,7 @@ void CHud3D::Reset(bool bOnSpecChange)
 	SHudData::s_nFlashHeightMax = 16;
 
 	for (uint32 i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
-		m_pRenderData[i].resize(0);
+		m_pRenderData[i].reset_container();
 	m_pOpacityMul->ResetParam(1.0f);
 	m_pHudColor->ResetParamVec4(Vec4(1.0f, 1.0f, 1.0f, 1.0f));
 	m_pGlowMul->ResetParam(1.0f);
@@ -181,9 +179,9 @@ void CHud3D::Reset(bool bOnSpecChange)
 
 void CHud3D::CalculateProjMatrix()
 {
-	const float fHUDFov = clamp_tpl<float>(m_pFOV->GetParam(), 1.0f, 180.0f);
+	const float fHUDFov = clamp_tpl<float>(m_pFOV->GetParam(), 1.0f, 180.0f);	
+	const auto& viewInfo = m_pCurrentContext->GetRenderView()->GetViewInfo(CCamera::eEye_Left);
 
-	const auto& viewInfo = gcpRendD3D.GetGraphicsPipeline().GetCurrentViewInfo(CCamera::eEye_Left);
 	// Patch projection matrix to have HUD FOV
 	m_mProj = viewInfo.unjitteredProjMatrix;
 
@@ -537,11 +535,9 @@ void CHud3D::FlashUpdateRT(void)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void CHud3D::ReleaseFlashPlayerRef(const uint32 nThreadID)
 {
-	uint32 nRECount = m_pRenderData[nThreadID].size();
-	for (uint32 r = 0; r < nRECount; ++r)
+	for (SHudData& rData : m_pRenderData[nThreadID])
 	{
-		SHudData& pData = m_pRenderData[nThreadID][r];
-		pData.pFlashPlayer = nullptr;
+		rData.pFlashPlayer = nullptr;
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////

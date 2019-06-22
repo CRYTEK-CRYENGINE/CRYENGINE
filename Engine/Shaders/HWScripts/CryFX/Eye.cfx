@@ -46,7 +46,7 @@ struct CustomForwardShadingAttribs
 
 //////////////////////////////// Samplers ////////////////
 
-Texture2D Fwd_EyeOverlayTex : register(t41);
+Texture2D<float2> Fwd_EyeOverlayTex : register(t41);
 
 ENVIRONMENTCUBEMAP
 
@@ -307,7 +307,7 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 	cSpecular *= fNdotLCornea;
 
 	// Iris self-shadowing
-	if (light.type == LT_DIRECTIONAL)
+	if (light.type == LIGHT_TYPE_SUN)
 	{
 		const float2 lightDelta = float2(vLightTS.x, vLightTS.y) * IrisDepth;
 		const float2 uv = attribs.custom.baseTC.xy;
@@ -329,19 +329,22 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if %EYE_AO_OVERLAY
+float2 EyePS(vert2FragGeneral IN) : SV_Target0
+{
+	half4 cDiffuseMap = GetDiffuseTex(diffuseTex, IN.baseTC.xy);
+	half4 cSpecularMap = GetSpecularTex(specularTex, IN.baseTC.xy);
+
+	half fDiffOcc = cDiffuseMap.w * DiffOccStrength;
+	half fSpecOcc = lerp(1.h, cSpecularMap.w, SpecOccStrength);
+
+	return half2(fDiffOcc, fSpecOcc);
+}
+#else
 pixout EyePS(vert2FragGeneral IN)
 {
   pixout OUT = (pixout) 0;  
     
-#if %EYE_AO_OVERLAY
-  half4 cDiffuseMap = GetDiffuseTex(diffuseTex, IN.baseTC.xy);
-  half4 cSpecularMap = GetSpecularTex(specularTex, IN.baseTC.xy);
-
-  half fDiffOcc = cDiffuseMap.w * DiffOccStrength;
-  half fSpecOcc = lerp(1.h, cSpecularMap.w, SpecOccStrength);
-
-  OUT.Color = half4(fDiffOcc, fSpecOcc, 0, 0);
-#else
 	ForwardShadingAttribs attribs = (ForwardShadingAttribs) 0;
 	
 	float3 vNormal = cross(IN.vTangent.xyz, IN.vBinormal.xyz) * IN.vTangent.w;
@@ -401,7 +404,7 @@ pixout EyePS(vert2FragGeneral IN)
 	// Handle direct lighting from sun
 	{
 		ForwardLightParams lightParams;
-		lightParams.type = LT_DIRECTIONAL;
+        lightParams.type = LIGHT_TYPE_SUN;
 		lightParams.lightVec = CV_SunLightDir.xyz;
 		lightParams.illuminance = CV_SunColor.xyz * (1 - GetSunShadowMask(IN.screenProj).r);
 		
@@ -425,7 +428,7 @@ pixout EyePS(vert2FragGeneral IN)
 #else
 	half2 occlusionMap = half2(0, 1);
 	#if !%_RT_SECONDARY_VIEW
-		occlusionMap = GetTexture2DProj(Fwd_EyeOverlayTex, ssFwdBilinearWrap, IN.screenProj).xy;
+		occlusionMap = GetTexture2DProj(Fwd_EyeOverlayTex, ssFwdBilinearWrap, IN.screenProj);
 	#endif
 	
 	half3 diffuseOccl = 1 - occlusionMap.xxx * half3(0.85, 0.95, 1);
@@ -438,10 +441,10 @@ pixout EyePS(vert2FragGeneral IN)
   Fwd_ApplyFog(worldPos, IN.vView.xyz, IN.WPos, cFinal.rgb);
 
   OUT.Color = cFinal;
-#endif
  
   return OUT; 
 }
+#endif
 
 //////////////////////////////// technique ////////////////
 

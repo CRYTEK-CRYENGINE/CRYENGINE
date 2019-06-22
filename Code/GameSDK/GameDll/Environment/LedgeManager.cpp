@@ -6,6 +6,7 @@
 #include <CryCore/TypeInfo_impl.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CryMath/Cry_Camera.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define LEDGE_DATA_FILE_VERSION 3
 

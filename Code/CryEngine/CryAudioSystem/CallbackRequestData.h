@@ -21,6 +21,8 @@ enum class ECallbackRequestType : EnumFlagsType
 	ReportFinishedTriggerInstance,
 	ReportPhysicalizedObject,
 	ReportVirtualizedObject,
+	ReportContextActivated,
+	ReportContextDeactivated,
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -2,27 +2,27 @@
 #include "StdAfx.h"
 #include "Inspector.h"
 
-#include <QApplication>
-#include <QLayout>
-#include <QTabWidget>
-#include <QLabel>
-#include <QPushButton>
-#include <QSpacerItem>
-#include <QToolBar>
-#include <QToolButton>
-#include <QCloseEvent>
-#include "QScrollableBox.h"
-
 #include "CryIcon.h"
-#include "QtViewPane.h"
+#include "EditorFramework/BroadcastManager.h"
 #include "EditorFramework/Editor.h"
 #include "EditorFramework/Events.h"
-#include "EditorFramework/BroadcastManager.h"
-#include <CrySystem/Profilers/FrameProfiler/FrameProfiler.h>
+#include "QScrollableBox.h"
+#include "QtViewPane.h"
+#include "Serialization\QPropertyTree\PropertyTree.h"
+
+#include <QApplication>
+#include <QCloseEvent>
+#include <QLabel>
+#include <QLayout>
+#include <QPushButton>
+#include <QSpacerItem>
+#include <QTabWidget>
+#include <QToolBar>
+#include <QToolButton>
 
 CInspector::CInspector(QWidget* pParent)
 	: CDockableWidget(pParent)
-	, m_pOwnedWidget(nullptr)
+	, m_pOwnedPropertyTree(nullptr)
 {
 	CRY_ASSERT(pParent);
 	Init();
@@ -30,7 +30,7 @@ CInspector::CInspector(QWidget* pParent)
 }
 
 CInspector::CInspector(CEditor* pParent)
-	: m_pOwnedWidget(nullptr)
+	: m_pOwnedPropertyTree(nullptr)
 {
 	CRY_ASSERT(pParent);
 	Init();
@@ -38,7 +38,7 @@ CInspector::CInspector(CEditor* pParent)
 }
 
 CInspector::CInspector(CBroadcastManager* pBroadcastManager)
-	: m_pOwnedWidget(nullptr)
+	: m_pOwnedPropertyTree(nullptr)
 {
 	Init();
 	Connect(pBroadcastManager);
@@ -120,13 +120,13 @@ void CInspector::OnPopulate(PopulateInspectorEvent& event)
 	setUpdatesEnabled(true);
 }
 
-void CInspector::AddWidget(QWidget* pWidget)
+void CInspector::AddPropertyTree(QPropertyTree* pPropertyTree)
 {
 	CRY_PROFILE_FUNCTION(PROFILE_EDITOR);
 	//this inspector supports only one widget at time, clear the previous widget if we add a new one
 	Clear();
-	m_pWidgetLayout->addWidget(pWidget);
-	m_pOwnedWidget = pWidget;
+	m_pWidgetLayout->addWidget(pPropertyTree);
+	m_pOwnedPropertyTree = pPropertyTree;
 }
 
 void CInspector::closeEvent(QCloseEvent* event)
@@ -139,12 +139,12 @@ void CInspector::Clear()
 {
 	CRY_PROFILE_FUNCTION(PROFILE_EDITOR);
 
-	if (m_pOwnedWidget)
+	if (m_pOwnedPropertyTree)
 	{
-		m_pOwnedWidget->deleteLater();
+		m_pOwnedPropertyTree->deleteLater();
 	}
 
-	m_pOwnedWidget = nullptr;
+	m_pOwnedPropertyTree = nullptr;
 
 	return;
 }
@@ -169,12 +169,12 @@ void CInspector::Lock()
 {
 	m_isLocked = true;
 	m_pLockButton->setToolTip("Unlock Inspector");
-	m_pLockButton->setIcon(CryIcon("icons:General/Lock_True.ico"));
+	m_pLockButton->setIcon(CryIcon("icons:general_lock_true.ico"));
 }
 
 void CInspector::Unlock()
 {
 	m_isLocked = false;
 	m_pLockButton->setToolTip("Lock Inspector");
-	m_pLockButton->setIcon(CryIcon("icons:General/Lock_False.ico"));
+	m_pLockButton->setIcon(CryIcon("icons:general_lock_false.ico"));
 }

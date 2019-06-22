@@ -16,6 +16,7 @@
 #include <Cry3DEngine/I3DEngine.h>
 #include <Cry3DEngine/IIndexedMesh.h>
 #include <Cry3DEngine/IStatObj.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 IMPLEMENT_DYNCREATE(CVertexSnappingModeTool, CEditTool)
 

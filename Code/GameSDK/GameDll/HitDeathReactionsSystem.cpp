@@ -710,7 +710,7 @@ ProfileId CHitDeathReactionsSystem::GetReactionParamsForActor(const CActor& acto
 			// Seed the random generator with the key obtained for this reaction params instance
 			m_pseudoRandom.seed(gEnv->bNoRandomSeed ? 0 : profileId);
 
-			MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "HitDeathReactions_SharedData");
+			MEMSTAT_CONTEXT(EMemStatContextType::Other, "HitDeathReactions_SharedData");
 
 			// Instantiate the shared reaction containers
 			ReactionsContainerPtr pNewHitReactions(new ReactionsContainer);
@@ -1146,7 +1146,7 @@ ScriptTablePtr CHitDeathReactionsSystem::LoadReactionsScriptTable(const char* sz
 		if (gEnv->pScriptSystem->GetGlobalValue(HIT_DEATH_REACTIONS_SCRIPT_TABLE, pHitDeathReactionsTable) &&
 		    pHitDeathReactionsTable->GetValue(LOAD_XML_DATA_FUNCTION, loadXMLDataFnc))
 		{
-			MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "HitDeathReactions_SharedReactionTables");
+			MEMSTAT_CONTEXT(EMemStatContextType::Other, "HitDeathReactions_SharedReactionTables");
 
 			// [*DavidR | 23/Jun/2010] ToDo: We should expose CryAction's XMLLoadScript functionality so it can be used outside
 			// that project. The only way to use it currently is through lua binds, hence the following call

@@ -37,7 +37,7 @@ struct SMetaData;
 struct ICharacterInstance;
 struct IPhysicalEntity;
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 
 class QTemporaryDir;
 
@@ -149,7 +149,7 @@ private:
 	std::unique_ptr<Private_DialogCHR::SViewSettings> m_pViewSettings;
 	CSplitViewportContainer*                    m_pViewportContainer;
 	Private_DialogCHR::CPreviewModeWidget* m_pPreviewModeWidget;
-	QPropertyTree* m_pPropertyTree;
+	QPropertyTreeLegacy* m_pPropertyTree;
 	std::unique_ptr<CModelProperties> m_pModelProperties;
 };
 

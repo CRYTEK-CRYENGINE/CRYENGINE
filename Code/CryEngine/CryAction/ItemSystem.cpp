@@ -23,7 +23,6 @@
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CryAnimation/ICryAnimation.h>
 #include <CryAISystem/ISignal.h>
-#include <CryAISystem/IAIObject.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <IVehicleSystem.h>
 #include "ItemParams.h"
@@ -31,6 +30,7 @@
 #include "CryActionCVars.h"
 
 #include "IGameRulesSystem.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 ICVar* CItemSystem::m_pPrecache = 0;
 ICVar* CItemSystem::m_pItemLimitMP = 0;
@@ -489,8 +489,8 @@ void CItemSystem::Scan(const char* folderName)
 //------------------------------------------------------------------------
 bool CItemSystem::ScanXML(XmlNodeRef& root, const char* xmlFile)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "ItemSystem");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Item XML (%s)", xmlFile);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "ItemSystem");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, xmlFile);
 
 	if (strcmpi(root->getTag(), "item"))
 	{
@@ -693,9 +693,9 @@ EntityId CItemSystem::GiveItem(IActor* pActor, const char* item, bool sound, boo
 			//[kirill] make sure AI gets notified about new item
 			if (gEnv->pAISystem)
 			{
-				if (IAIObject* pActorAI = pActor->GetEntity()->GetAI())
+				if (pActor->GetEntity()->HasAI())
 				{
-					const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnUpdateItems(), pActorAI->GetAIObjectID());
+					const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnUpdateItems(), pActor->GetEntityId());
 					gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 				}
 			}
@@ -873,7 +873,7 @@ void CItemSystem::CacheGeometry(const IItemParamsNode* geometry)
 //------------------------------------------------------------------------
 void CItemSystem::CacheItemGeometry(const char* className)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 	if (m_itemParamsFlushed)
 		return;
 
@@ -897,7 +897,7 @@ void CItemSystem::CacheItemGeometry(const char* className)
 //------------------------------------------------------------------------
 void CItemSystem::CacheItemSound(const char* className)
 {
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 	if (m_itemParamsFlushed)
 		return;
 

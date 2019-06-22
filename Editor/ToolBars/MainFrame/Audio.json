@@ -1,22 +1,23 @@
 {
-    "toolBar": {
-        "Commands": [
-            {
-                "command": "ui_action.actionMute_Audio",
-                "custom": false,
-                "uiName": "Mute Audio"
-            },
-            {
-                "command": "ui_action.actionStop_All_Sounds",
-                "custom": false,
-                "uiName": "Stop All Sounds"
-            },
-            {
-                "command": "ui_action.actionRefresh_Audio",
-                "custom": false,
-                "uiName": "Refresh Audio"
-            }
-        ]
-    },
-    "version": 1
+    "toolBar": [
+        {
+            "command": "ui_action.actionMute_Audio",
+            "m_IsCustom": false,
+            "name": "Mute Audio",
+            "type": 0
+        },
+        {
+            "command": "ui_action.actionStop_All_Sounds",
+            "m_IsCustom": false,
+            "name": "Stop All Sounds",
+            "type": 0
+        },
+        {
+            "command": "ui_action.actionRefresh_Audio",
+            "m_IsCustom": false,
+            "name": "Refresh Audio",
+            "type": 0
+        }
+    ],
+    "version": 2
 }

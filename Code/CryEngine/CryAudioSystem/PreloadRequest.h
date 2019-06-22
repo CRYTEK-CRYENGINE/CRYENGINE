@@ -12,32 +12,32 @@ class CPreloadRequest final : public CEntity<PreloadRequestId>, public CPoolObje
 {
 public:
 
-	using FileEntryIds = std::vector<FileEntryId>;
+	using FileIds = std::vector<FileId>;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	explicit CPreloadRequest(
 		PreloadRequestId const id,
-		EDataScope const dataScope,
+		ContextId const contextId,
 		bool const bAutoLoad,
-		FileEntryIds const& fileEntryIds,
+		FileIds const& fileIds,
 		char const* const szName)
-		: CEntity<PreloadRequestId>(id, dataScope, szName)
+		: CEntity<PreloadRequestId>(id, contextId, szName)
 		, m_bAutoLoad(bAutoLoad)
-		, m_fileEntryIds(fileEntryIds)
+		, m_fileIds(fileIds)
 	{}
 #else
 	explicit CPreloadRequest(
 		PreloadRequestId const id,
-		EDataScope const dataScope,
+		ContextId const contextId,
 		bool const bAutoLoad,
-		FileEntryIds const& fileEntryIds)
-		: CEntity<PreloadRequestId>(id, dataScope)
+		FileIds const& fileIds)
+		: CEntity<PreloadRequestId>(id, contextId)
 		, m_bAutoLoad(bAutoLoad)
-		, m_fileEntryIds(fileEntryIds)
+		, m_fileIds(fileIds)
 	{}
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
-	bool const   m_bAutoLoad;
-	FileEntryIds m_fileEntryIds;
+	bool const m_bAutoLoad;
+	FileIds    m_fileIds;
 };
 } // namespace CryAudio

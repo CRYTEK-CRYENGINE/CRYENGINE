@@ -14,6 +14,7 @@ public:
 	virtual bool                              IsImported() const override        { return true; }
 	virtual bool                              CanBeCopied() const                { return true; }
 	virtual bool                              CanBeEdited() const override       { return true; }
+	virtual bool                              HasDerivedFiles() const            { return true; }
 	virtual bool                              HasThumbnail() const override      { return true; }
 	virtual QColor                            GetThumbnailColor() const override { return QColor(79, 187, 185); }
 	virtual std::vector<CItemModelAttribute*> GetDetails() const override;

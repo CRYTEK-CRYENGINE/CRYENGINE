@@ -112,10 +112,11 @@ bool QTrackingTooltip::SetText(const QString& str)
 	label->setObjectName("QTrackingTooltipLabel");
 	label->adjustSize();
 
-	auto layout = new QVBoxLayout();
-	layout->setMargin(1);
-	layout->addWidget(label);
-	setLayout(layout);
+	auto pLayout = new QVBoxLayout();
+	pLayout->setMargin(0);
+	pLayout->setSpacing(0);
+	pLayout->addWidget(label);
+	setLayout(pLayout);
 	return true;
 }
 
@@ -124,6 +125,7 @@ bool QTrackingTooltip::SetPixmap(const QPixmap& pixmap)
 	QLabel* label = findChild<QLabel*>("QTrackingTooltipLabel");
 	if (label)
 	{
+		QSize pixmapSize = pixmap.size();
 		label->setPixmap(pixmap);
 		adjustSize();
 		return true;
@@ -138,10 +140,11 @@ bool QTrackingTooltip::SetPixmap(const QPixmap& pixmap)
 	label->setObjectName("QTrackingTooltipLabel");
 	label->adjustSize();
 
-	auto layout = new QVBoxLayout();
-	layout->setMargin(1);
-	layout->addWidget(label);
-	setLayout(layout);
+	auto pLayout = new QVBoxLayout();
+	pLayout->setMargin(0);
+	pLayout->setSpacing(0);
+	pLayout->addWidget(label);
+	setLayout(pLayout);
 	return true;
 }
 

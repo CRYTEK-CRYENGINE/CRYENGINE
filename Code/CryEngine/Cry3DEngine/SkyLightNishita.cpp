@@ -423,7 +423,7 @@ bool CSkyLightNishita::ComputeOpticalDepth(const Vec3d& cameraLookDir, const f64
 
 void CSkyLightNishita::ComputeOpticalLUTs()
 {
-	LOADING_TIME_PROFILE_SECTION(GetISystem());
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	ILog* pLog(C3DEngine::GetLog());
 	if (0 != pLog)

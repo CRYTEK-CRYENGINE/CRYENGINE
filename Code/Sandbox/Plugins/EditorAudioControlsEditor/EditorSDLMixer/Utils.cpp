@@ -27,14 +27,20 @@ string GetTypeName(EItemType const type)
 	switch (type)
 	{
 	case EItemType::Event:
-		name = "event:";
-		break;
+		{
+			name = "event:";
+			break;
+		}
 	case EItemType::Folder:
-		name = "folder:";
-		break;
+		{
+			name = "folder:";
+			break;
+		}
 	default:
-		name = "";
-		break;
+		{
+			name = "";
+			break;
+		}
 	}
 
 	return name;

@@ -20,7 +20,7 @@ class CScaleformHelper final : public IScaleformHelper
 public:
 	virtual bool Init() override
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init Scaleform Helper");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Init Scaleform Helper");
 		CFlashPlayer::InitCVars();
 		CSharedFlashPlayerResources::Init();
 		return true;

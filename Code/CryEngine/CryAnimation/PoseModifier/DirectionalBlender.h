@@ -97,12 +97,12 @@ public:
 			, nDirLayer(ISkeletonAnim::LayerCount)
 			, vDirIKTarget(ZERO)
 			, fDirIKFadeoutRadians(gf_PI)
-			, fDirIKFadeInTime(1.0 / 0.6f)
+			, fDirIKFadeInTime(1.0f / 0.6f)
 			, fDirIKFadeOutTime(1.0f / 0.3f)
-			, fDirIKMinDistanceSquared(0.f)
+			, fDirIKMinDistanceSquared(0.0f)
 			, fPolarCoordinatesSmoothTimeSeconds(0.2f)
 			, vPolarCoordinatesOffset(ZERO)
-			, vPolarCoordinatesMaxRadiansPerSecond(DEG2RAD(3600.f), DEG2RAD(3600.f))
+			, vPolarCoordinatesMaxRadiansPerSecond(DEG2RAD(3600.0f), DEG2RAD(3600.0f))
 		{
 		}
 	};

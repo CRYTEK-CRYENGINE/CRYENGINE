@@ -118,7 +118,7 @@ namespace UQS
 			const CGeneratorBlueprint*                         GetGeneratorBlueprint() const;
 			const std::vector<CInstantEvaluatorBlueprint*>&    GetInstantEvaluatorBlueprints() const;
 			const std::vector<CDeferredEvaluatorBlueprint*>&   GetDeferredEvaluatorBlueprints() const;
-			bool                                               CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const Shared::IVariantDict& runtimeParamsToValidate, Shared::CUqsString& error) const;
+			bool                                               CheckPresenceAndTypeOfGlobalRuntimeParamsRecursively(const Shared::IVariantDict& runtimeParamsToValidate, Shared::IUqsString& error) const;
 
 			const Shared::CTypeInfo*                           GetTypeOfShuttledItemsToExpect() const;
 			const CQueryFactoryBase&                           GetQueryFactory() const;

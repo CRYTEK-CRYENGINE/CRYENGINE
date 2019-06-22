@@ -8,10 +8,7 @@
 #include "GeneralMemoryHeap.h"
 #include "PageMappingHeap.h"
 #include "DefragAllocator.h"
-
-#if CRY_PLATFORM_WINDOWS
-	#include <Psapi.h>
-#endif
+#include <CryCore/AlignmentTools.h>
 
 #if CRY_PLATFORM_APPLE
 	#include <mach/mach.h> // task_info
@@ -21,26 +18,43 @@
 	#include <sys/types.h> // required by mman.h
 	#include <sys/mman.h>  //mmap - virtual memory manager
 #endif
-extern LONG g_TotalAllocatedMemory;
-extern thread_local LONG tls_ThreadAllocatedMemory;
-
-#ifdef MEMMAN_STATIC
-CCryMemoryManager g_memoryManager;
-#endif
+extern int64 g_TotalAllocatedMemory;
+extern thread_local int64 tls_allocatedMemory;
+SUninitialized<CCryMemoryManager> s_memoryManager;
+bool s_bMemoryManagerInitialized = false;
 
 //////////////////////////////////////////////////////////////////////////
 CCryMemoryManager* CCryMemoryManager::GetInstance()
 {
-#ifdef MEMMAN_STATIC
-	return &g_memoryManager;
-#else
-	static CCryMemoryManager memman;
-	return &memman;
+	if (!s_bMemoryManagerInitialized)
+	{
+		s_memoryManager.DefaultConstruct();
+		s_bMemoryManagerInitialized = true;
+	}
+	return &static_cast<CCryMemoryManager&>(s_memoryManager);
+}
+
+//////////////////////////////////////////////////////////////////////////
+CCryMemoryManager::CCryMemoryManager()
+#if CRY_PLATFORM_WINDOWS
+	: m_pGetProcessMemoryInfo(nullptr), m_hPSAPI(0)
+#endif
+{
+#if CRY_PLATFORM_WINDOWS
+	m_hPSAPI = ::LoadLibraryA("psapi.dll");
+	if (m_hPSAPI)
+		m_pGetProcessMemoryInfo = (pfGetProcessMemoryInfo)GetProcAddress(m_hPSAPI, "GetProcessMemoryInfo");
 #endif
 }
 
-#ifndef MEMMAN_STATIC
-#include <CrySystem/IConsole.h>
+CCryMemoryManager::~CCryMemoryManager()
+{
+#if CRY_PLATFORM_WINDOWS
+	::FreeLibrary(m_hPSAPI);
+#endif
+}
+
+#include <CrySystem/ConsoleRegistration.h>
 
 int CCryMemoryManager::s_sys_MemoryDeadListSize;
 
@@ -48,12 +62,12 @@ void CCryMemoryManager::RegisterCVars()
 {
 	REGISTER_CVAR2("sys_MemoryDeadListSize", &s_sys_MemoryDeadListSize, 0, VF_REQUIRE_APP_RESTART, "Keep upto size bytes in a \"deadlist\" of allocations to assist in capturing tramples");
 }
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 bool CCryMemoryManager::GetProcessMemInfo(SProcessMemInfo& minfo)
 {
 	ZeroStruct(minfo);
+
 #if CRY_PLATFORM_WINDOWS
 
 	MEMORYSTATUSEX mem;
@@ -63,34 +77,28 @@ bool CCryMemoryManager::GetProcessMemInfo(SProcessMemInfo& minfo)
 	minfo.TotalPhysicalMemory = mem.ullTotalPhys;
 	minfo.FreePhysicalMemory = mem.ullAvailPhys;
 
-	//////////////////////////////////////////////////////////////////////////
-	typedef BOOL (WINAPI * GetProcessMemoryInfoProc)(HANDLE, PPROCESS_MEMORY_COUNTERS, DWORD);
-
 	PROCESS_MEMORY_COUNTERS pc;
 	ZeroStruct(pc);
 	pc.cb = sizeof(pc);
-	static HMODULE hPSAPI = LoadLibraryA("psapi.dll");
-	if (hPSAPI)
-	{
-		static GetProcessMemoryInfoProc pGetProcessMemoryInfo = (GetProcessMemoryInfoProc)GetProcAddress(hPSAPI, "GetProcessMemoryInfo");
-		if (pGetProcessMemoryInfo)
-		{
-			if (pGetProcessMemoryInfo(GetCurrentProcess(), &pc, sizeof(pc)))
-			{
-				minfo.PageFaultCount = pc.PageFaultCount;
-				minfo.PeakWorkingSetSize = pc.PeakWorkingSetSize;
-				minfo.WorkingSetSize = pc.WorkingSetSize;
-				minfo.QuotaPeakPagedPoolUsage = pc.QuotaPeakPagedPoolUsage;
-				minfo.QuotaPagedPoolUsage = pc.QuotaPagedPoolUsage;
-				minfo.QuotaPeakNonPagedPoolUsage = pc.QuotaPeakNonPagedPoolUsage;
-				minfo.QuotaNonPagedPoolUsage = pc.QuotaNonPagedPoolUsage;
-				minfo.PagefileUsage = pc.PagefileUsage;
-				minfo.PeakPagefileUsage = pc.PeakPagefileUsage;
 
-				return true;
-			}
+	if (m_pGetProcessMemoryInfo)
+	{
+		if (m_pGetProcessMemoryInfo(::GetCurrentProcess(), &pc, sizeof(pc)))
+		{
+			minfo.PageFaultCount = pc.PageFaultCount;
+			minfo.PeakWorkingSetSize = pc.PeakWorkingSetSize;
+			minfo.WorkingSetSize = pc.WorkingSetSize;
+			minfo.QuotaPeakPagedPoolUsage = pc.QuotaPeakPagedPoolUsage;
+			minfo.QuotaPagedPoolUsage = pc.QuotaPagedPoolUsage;
+			minfo.QuotaPeakNonPagedPoolUsage = pc.QuotaPeakNonPagedPoolUsage;
+			minfo.QuotaNonPagedPoolUsage = pc.QuotaNonPagedPoolUsage;
+			minfo.PagefileUsage = pc.PagefileUsage;
+			minfo.PeakPagefileUsage = pc.PeakPagefileUsage;
+
+			return true;
 		}
 	}
+
 	return false;
 
 #elif CRY_PLATFORM_ORBIS
@@ -100,25 +108,33 @@ bool CCryMemoryManager::GetProcessMemInfo(SProcessMemInfo& minfo)
 	minfo.TotalPhysicalMemory = sceKernelGetDirectMemorySize();
 	minfo.PeakPagefileUsage = minfo.PagefileUsage = mainMemory + videoMemory;
 	minfo.FreePhysicalMemory = minfo.TotalPhysicalMemory - (mainMemory + videoMemory);
+
 #elif CRY_PLATFORM_LINUX || CRY_PLATFORM_ANDROID
 
 	MEMORYSTATUS MemoryStatus;
 	GlobalMemoryStatus(&MemoryStatus);
-	minfo.PagefileUsage = minfo.PeakPagefileUsage = MemoryStatus.dwTotalPhys - MemoryStatus.dwAvailPhys;
-
 	minfo.FreePhysicalMemory = MemoryStatus.dwAvailPhys;
 	minfo.TotalPhysicalMemory = MemoryStatus.dwTotalPhys;
 
-	#if CRY_PLATFORM_ANDROID
-	// On Android, mallinfo() is an EXTREMELY time consuming operation. Nearly 80% CPU time will be spent
-	// on this operation once -memreplay is given. Since WorkingSetSize is only used for statistics and
-	// debugging purpose, it's simply ignored.
+	minfo.PagefileUsage = 0;
 	minfo.WorkingSetSize = 0;
-	#else
-	struct mallinfo meminfo = mallinfo();
-	minfo.WorkingSetSize = meminfo.usmblks + meminfo.uordblks;
-	#endif
 
+	FILE* statm = fopen("/proc/self/statm", "r");
+	if (statm)
+	{
+		char buffer[256];
+		if (fread(buffer, 1, sizeof(buffer), statm))
+		{
+			buffer[sizeof(buffer) - 1] = 0;
+			int totalPages = 0, residentPages = 0, sharedPages = 0, codePages = 0, unused1 = 0, dataPages = 0, unused2 = 0;
+			if (sscanf(buffer, "%d %d %d %d %d %d %d\n", &totalPages, &residentPages, &sharedPages, &codePages, &unused1, &dataPages, &unused2) == 7)
+			{
+				minfo.PagefileUsage = totalPages * 4096;
+				minfo.WorkingSetSize = residentPages * 4096;
+			}
+		}
+		fclose(statm);
+	}
 #elif CRY_PLATFORM_APPLE
 
 	MEMORYSTATUS MemoryStatus;
@@ -168,8 +184,8 @@ bool CCryMemoryManager::GetProcessMemInfo(SProcessMemInfo& minfo)
 //////////////////////////////////////////////////////////////////////////
 void CCryMemoryManager::FakeAllocation(long size)
 {
-	CryInterlockedExchangeAdd((LONG volatile*)&g_TotalAllocatedMemory, (LONG)size);
-	tls_ThreadAllocatedMemory += size;
+	CryInterlockedAdd(&g_TotalAllocatedMemory, (int64) size);
+	tls_allocatedMemory += size;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -214,8 +230,8 @@ IMemReplay* CCryMemoryManager::GetIMemReplay()
 #if CAPTURE_REPLAY_LOG
 	return CMemReplay::GetInstance();
 #else
-	static IMemReplay m;
-	return &m;
+	static IMemReplay memReplay;
+	return &memReplay;
 #endif
 }
 
@@ -257,9 +273,9 @@ void* CCryMemoryManager::AllocPages(size_t size)
 		CryLogAlways("Virtual allocation of size %" PRISIZE_T " requested!", size);
 		gEnv->pSystem->debug_LogCallStack();
 	}
-	
+
 	void* ret = NULL;
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 #if CRY_PLATFORM_ORBIS
 
@@ -283,10 +299,7 @@ void* CCryMemoryManager::AllocPages(size_t size)
 
 void CCryMemoryManager::FreePages(void* p, size_t size)
 {
-#if CAPTURE_REPLAY_LOG
-	UINT_PTR id = (UINT_PTR)p;
-#endif
-	MEMREPLAY_SCOPE(EMemReplayAllocClass::C_UserPointer, EMemReplayUserPointerClass::C_CryMalloc);
+	MEMREPLAY_SCOPE(EMemReplayAllocClass::UserPointer, EMemReplayUserPointerClass::CryMalloc);
 
 #if CRY_PLATFORM_ORBIS
 
@@ -305,7 +318,7 @@ void CCryMemoryManager::FreePages(void* p, size_t size)
 
 #endif
 
-	MEMREPLAY_SCOPE_FREE(id);
+	MEMREPLAY_SCOPE_FREE(p);
 }
 
 //////////////////////////////////////////////////////////////////////////

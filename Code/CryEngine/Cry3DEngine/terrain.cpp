@@ -202,7 +202,7 @@ void CTerrain::CheckNodesGeomUnload(const SRenderingPassInfo& passInfo)
 void CTerrain::UpdateNodesIncrementaly(const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_3DENGINE;
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Terrain, 0, "CTerrain::UpdateNodesIncrementaly");
+	MEMSTAT_CONTEXT(EMemStatContextType::Terrain, "CTerrain::UpdateNodesIncrementaly");
 
 #if defined(FEATURE_SVO_GI)
 	// make sure top most node is always ready

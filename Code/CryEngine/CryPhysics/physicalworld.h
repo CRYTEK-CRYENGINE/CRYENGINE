@@ -437,6 +437,7 @@ public:
 		int iChunk; for(iChunk=0; iChunk<m_nPlaceholderChunks && (unsigned int)(pent-m_pPlaceholders[iChunk])>=(unsigned int)PLACEHOLDER_CHUNK_SZ; iChunk++);
 		return iChunk<m_nPlaceholderChunks ? (iChunk<<PLACEHOLDER_CHUNK_SZLG2 | (int)(pent-m_pPlaceholders[iChunk]))+1 : 0;
 	}
+	virtual IPhysicalEntity* ClonePhysicalEntity(IPhysicalEntity *src, bool regInWorld=true, int newId=-1);
 
 	virtual void TimeStep(float time_interval, int flags=ent_all|ent_deleted);
 	virtual float GetPhysicsTime() { return m_timePhysics; }
@@ -499,12 +500,7 @@ public:
 	virtual void RasterizeEntities(const grid3d& grid, uchar *rbuf, int objtypes, float massThreshold, const Vec3& offsBBox, const Vec3& sizeBBox, int flags, IPhysicalEntity *pentOnlyThis=nullptr);
 
 	virtual int GetEntitiesInBox(Vec3 ptmin,Vec3 ptmax, IPhysicalEntity **&pList, int objtypes, int szListPrealloc) {
-		int iCaller;
-		Vec3 gBBox[2]; m_entgrid.BBoxToGrid(ptmin,ptmax, gBBox);
-		if ((gBBox[1].x-gBBox[0].x)*(gBBox[1].y-gBBox[0].y) > m_entgrid.step.x*m_entgrid.step.y*sqr(50)) {
-			iCaller = MAX_PHYS_THREADS; set_extCaller(0);	// for large boxes (and thus potentially lots on ents) always use external caller 0
-		}	else
-			iCaller = get_iCaller(1);
+		int iCaller = get_iCaller(1);
 		WriteLock lock(m_lockCaller[iCaller]);
 		return GetEntitiesAround(ptmin,ptmax, (CPhysicalEntity**&)pList, objtypes, 0, szListPrealloc, iCaller);
 	}
@@ -671,11 +667,10 @@ public:
 
 	int GetTmpEntList(CPhysicalEntity **&pEntList, int iCaller)	{
 		INT_PTR plist = (INT_PTR)m_threadData[iCaller].pTmpEntList;
-		INT_PTR is0=-iszero(iCaller), isN=-iszero(MAX_PHYS_THREADS-iCaller);
+		INT_PTR is0=-iszero(iCaller);
 		plist += (INT_PTR)m_pTmpEntList -plist & is0;
-		plist += (INT_PTR)m_pTmpEntList2-plist & isN;
 		m_threadData[iCaller].pTmpEntList = (CPhysicalEntity**)plist;
-		m_threadData[iCaller].szList += m_nEntsAlloc-m_threadData[iCaller].szList & (is0|isN);
+		m_threadData[iCaller].szList += m_nEntsAlloc-m_threadData[iCaller].szList & is0;
 		pEntList = m_threadData[iCaller].pTmpEntList;
 		return m_threadData[iCaller].szList;
 	}
@@ -797,7 +792,7 @@ public:
 	IPhysRenderer *m_pRenderer;
 
 	CPhysicalEntity *m_pTypedEnts[8],*m_pTypedEntsPerm[8];
-	CPhysicalEntity **m_pTmpEntList,**m_pTmpEntList1,**m_pTmpEntList2;
+	CPhysicalEntity **m_pTmpEntList,**m_pTmpEntList1;
 	CPhysicalEntity *m_pHiddenEnts;
 	float *m_pGroupMass,*m_pMassList;
 	int *m_pGroupIds,*m_pGroupNums;

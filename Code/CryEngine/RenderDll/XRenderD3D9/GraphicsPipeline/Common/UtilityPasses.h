@@ -26,7 +26,7 @@ struct IUtilityRenderPass
 		MaxPassCount,
 	};
 
-	virtual ~IUtilityRenderPass() {};
+	virtual ~IUtilityRenderPass() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,11 +35,15 @@ struct IUtilityRenderPass
 class CStretchRectPass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT);
+	CStretchRectPass() {}
+	CStretchRectPass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		m_pass.SetGraphicsPipeline(pGraphicsPipeline);
+	}
+	void           Execute(CTexture* pSrcRT, CTexture* pDestRT);
 
 	static EPassId GetPassId() { return EPassId::StretchRectPass; }
 
-protected:
 	CFullscreenPass m_pass;
 };
 
@@ -49,20 +53,21 @@ protected:
 class CStretchRegionPass : public IUtilityRenderPass
 {
 public:
-	CStretchRegionPass() {};
-	~CStretchRegionPass() {};
+	CStretchRegionPass(CGraphicsPipeline* pGraphicsPipeline) : m_pGraphicsPipeline(pGraphicsPipeline) {}
+	~CStretchRegionPass() {}
 
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT, const RECT *pSrcRect = NULL, const RECT *pDstRect = NULL, bool bBigDownsample = false, const ColorF& color = ColorF(1,1,1,1), const int renderStateFlags = 0);
-	bool PreparePrimitive(CRenderPrimitive& prim, CPrimitiveRenderPass& targetPass, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture *pSrcRT, CTexture *pDstRT, const ColorF& color);
+	void           Execute(CTexture* pSrcRT, CTexture* pDestRT, const RECT* pSrcRect = NULL, const RECT* pDstRect = NULL, bool bBigDownsample = false, const ColorF& color = ColorF(1, 1, 1, 1), const int renderStateFlags = 0);
+	bool           PreparePrimitive(CRenderPrimitive& prim, CPrimitiveRenderPass& targetPass, const RECT& rcS, int renderState, const D3DViewPort& targetViewport, bool bResample, bool bBigDownsample, CTexture* pSrcRT, CTexture* pDstRT, const ColorF& color);
 
 	static EPassId GetPassId() { return EPassId::StretchRegionPass; }
 
 protected:
 	CPrimitiveRenderPass m_pass;
-	CRenderPrimitive m_Primitive;
+	CRenderPrimitive     m_Primitive;
+	CGraphicsPipeline*   m_pGraphicsPipeline;
 
 private:
-	static CStretchRegionPass *s_pPass;
+	static CStretchRegionPass* s_pPass;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,11 +76,15 @@ private:
 class CSharpeningUpsamplePass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT);
+	CSharpeningUpsamplePass() {}
+	CSharpeningUpsamplePass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		m_pass.SetGraphicsPipeline(pGraphicsPipeline);
+	}
+	void           Execute(CTexture* pSrcRT, CTexture* pDestRT);
 
 	static EPassId GetPassId() { return EPassId::SharpeningUpsamplePass; }
 
-private:
 	CFullscreenPass m_pass;
 };
 
@@ -85,12 +94,20 @@ private:
 class CNearestDepthUpsamplePass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pOrgDS, CTexture* pSrcRT, CTexture* pSrcDS, CTexture* pDestRT, bool bAlphaBased = false);
+	CNearestDepthUpsamplePass() {}
+	CNearestDepthUpsamplePass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		for (auto& pass : m_pass)
+		{
+			pass.SetGraphicsPipeline(pGraphicsPipeline);
+		}
+	}
+
+	void           Execute(CTexture* pOrgDS, CTexture* pSrcRT, CTexture* pSrcDS, CTexture* pDestRT, bool bAlphaBased = false);
 
 	static EPassId GetPassId() { return EPassId::NearestDepthUpsamplePass; }
 
-private:
-	CFullscreenPass m_pass[2];
+	std::array<CFullscreenPass, 2> m_pass;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,6 +116,11 @@ private:
 class CDownsamplePass : public IUtilityRenderPass
 {
 public:
+	CDownsamplePass() {}
+	CDownsamplePass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		m_pass.SetGraphicsPipeline(pGraphicsPipeline);
+	}
 	enum EFilterType
 	{
 		FilterType_Box,
@@ -107,11 +129,10 @@ public:
 		FilterType_Lanczos,
 	};
 
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT, int nSrcW, int nSrcH, int nDstW, int nDstH, EFilterType eFilter);
+	void           Execute(CTexture* pSrcRT, CTexture* pDestRT, int nSrcW, int nSrcH, int nDstW, int nDstH, EFilterType eFilter);
 
 	static EPassId GetPassId() { return EPassId::DownsamplePass; }
 
-private:
 	CFullscreenPass m_pass;
 };
 
@@ -121,11 +142,15 @@ private:
 class CStableDownsamplePass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT, bool bKillFireflies);
+	CStableDownsamplePass() {}
+	CStableDownsamplePass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		m_pass.SetGraphicsPipeline(pGraphicsPipeline);
+	}
+	void           Execute(CTexture* pSrcRT, CTexture* pDestRT, bool bKillFireflies);
 
 	static EPassId GetPassId() { return EPassId::StableDownsamplePass; }
 
-private:
 	CFullscreenPass m_pass;
 };
 
@@ -135,11 +160,15 @@ private:
 class CDepthLinearizationPass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT);
+	CDepthLinearizationPass() {}
+	CDepthLinearizationPass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		m_pass.SetGraphicsPipeline(pGraphicsPipeline);
+	}
+	void           Execute(CTexture* pSrcRT, CTexture* pDestRT);
 
 	static EPassId GetPassId() { return EPassId::DepthLinearizationPass; }
 
-private:
 	CFullscreenPass m_pass;
 };
 
@@ -149,11 +178,15 @@ private:
 class CDepthDelinearizationPass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pSrcRT, CTexture* pDestDS);
+	CDepthDelinearizationPass() {}
+	CDepthDelinearizationPass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		m_pass.SetGraphicsPipeline(pGraphicsPipeline);
+	}
+	void           Execute(CTexture* pSrcRT, CTexture* pDestDS);
 
 	static EPassId GetPassId() { return EPassId::DepthDelinearizationPass; }
 
-private:
 	CFullscreenPass m_pass;
 };
 
@@ -163,11 +196,15 @@ private:
 class CDepthDownsamplePass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pSrcRT, CTexture* pDestRT, CTexture* pDestDS, bool bLinearizeSrcDepth, bool bFromSingleChannel);
+	CDepthDownsamplePass() {}
+	CDepthDownsamplePass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		m_pass.SetGraphicsPipeline(pGraphicsPipeline);
+	}
+	void           Execute(CTexture* pSrcRT, CTexture* pDestRT, CTexture* pDestDS, bool bLinearizeSrcDepth, bool bFromSingleChannel);
 
 	static EPassId GetPassId() { return EPassId::DepthDownsamplePass; }
 
-private:
 	CFullscreenPass m_pass;
 };
 
@@ -177,28 +214,32 @@ private:
 class CGaussianBlurPass : public IUtilityRenderPass
 {
 public:
-	CGaussianBlurPass()
+	CGaussianBlurPass() {}
+	CGaussianBlurPass(CGraphicsPipeline* pGraphicsPipeline)
 		: m_scale(-FLT_MIN)
 		, m_distribution(-FLT_MIN)
 	{
+		m_passH.SetGraphicsPipeline(pGraphicsPipeline);
+		m_passV.SetGraphicsPipeline(pGraphicsPipeline);
 	}
-	void Execute(CTexture* pScrDestRT, CTexture* pTempRT, float scale, float distribution, bool bAlphaOnly = false);
+
+	void           Execute(CTexture* pScrDestRT, CTexture* pTempRT, float scale, float distribution, bool bAlphaOnly = false);
 
 	static EPassId GetPassId() { return EPassId::GaussianBlurPass; }
+
+	CFullscreenPass m_passH;
+	CFullscreenPass m_passV;
 
 protected:
 	float GaussianDistribution1D(float x, float rho);
 	void  ComputeParams(int texWidth, int texHeight, int numSamples, float scale, float distribution);
 
 protected:
-	float           m_scale;
-	float           m_distribution;
-	Vec4            m_paramsH[16];
-	Vec4            m_paramsV[16];
-	Vec4            m_weights[16];
-
-	CFullscreenPass m_passH;
-	CFullscreenPass m_passV;
+	float m_scale;
+	float m_distribution;
+	Vec4  m_paramsH[16];
+	Vec4  m_paramsV[16];
+	Vec4  m_weights[16];
 };
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -206,11 +247,19 @@ protected:
 class CMipmapGenPass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pScrDestRT, int mipCount = 0);
+	CMipmapGenPass(){}
+	CMipmapGenPass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		for (auto& pass : m_downsamplePasses)
+		{
+			pass.SetGraphicsPipeline(pGraphicsPipeline);
+		}
+	}
+
+	void           Execute(CTexture* pScrDestRT, int mipCount = 0);
 
 	static EPassId GetPassId() { return EPassId::MipmapGenPass; }
 
-protected:
 	std::array<CFullscreenPass, 13> m_downsamplePasses;
 };
 
@@ -220,10 +269,10 @@ protected:
 class CClearSurfacePass : public IUtilityRenderPass
 {
 public:
-	static void Execute(const CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil);
-	static void Execute(const CTexture* pColorTex, const ColorF& cClear);
-	static void Execute(const CGpuBuffer* pBuf, const ColorF& cClear);
-	static void Execute(const CGpuBuffer* pBuf, const ColorI& cClear);
+	static void    Execute(const CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil);
+	static void    Execute(const CTexture* pColorTex, const ColorF& cClear);
+	static void    Execute(const CGpuBuffer* pBuf, const ColorF& cClear);
+	static void    Execute(const CGpuBuffer* pBuf, const ColorI& cClear);
 
 	static EPassId GetPassId() { return EPassId::ClearSurfacePass; }
 };
@@ -234,13 +283,13 @@ public:
 class CClearRegionPass : public CClearSurfacePass
 {
 public:
-	CClearRegionPass();
+	CClearRegionPass(CGraphicsPipeline* pGraphicsPipeline);
 	virtual ~CClearRegionPass();
 
-	void Execute(CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil, const uint numRects, const RECT* pRects);
-	void Execute(CTexture* pColorTex, const ColorF& cClear, const uint numRects, const RECT* pRects);
-	void Execute(CGpuBuffer* pBuf, const ColorF& cClear, const uint numRanges, const RECT* pRanges);
-	void Execute(CGpuBuffer* pBuf, const ColorI& cClear, const uint numRanges, const RECT* pRanges);
+	void           Execute(CTexture* pDepthTex, const int nFlags, const float cDepth, const uint8 cStencil, const uint numRects, const RECT* pRects);
+	void           Execute(CTexture* pColorTex, const ColorF& cClear, const uint numRects, const RECT* pRects);
+	void           Execute(CGpuBuffer* pBuf, const ColorF& cClear, const uint numRanges, const RECT* pRanges);
+	void           Execute(CGpuBuffer* pBuf, const ColorI& cClear, const uint numRanges, const RECT* pRanges);
 
 	static EPassId GetPassId() { return EPassId::ClearRegionPass; }
 
@@ -250,6 +299,7 @@ protected:
 	CPrimitiveRenderPass          m_clearPass;
 	std::vector<CRenderPrimitive> m_clearPrimitives;
 	buffer_handle_t               m_quadVertices;
+	CGraphicsPipeline*            m_pGraphicsPipeline;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -258,10 +308,17 @@ protected:
 class CAnisotropicVerticalBlurPass : public IUtilityRenderPass
 {
 public:
-	void Execute(CTexture* pTex, int nAmount, float fScale, float fDistribution, bool bAlphaOnly);
+	CAnisotropicVerticalBlurPass() {}
+	CAnisotropicVerticalBlurPass(CGraphicsPipeline* pGraphicsPipeline)
+	{
+		for (auto& pass : m_passBlurAnisotropicVertical)
+		{
+			pass.SetGraphicsPipeline(pGraphicsPipeline);
+		}
+	}
+	void           Execute(CTexture* pTex, int nAmount, float fScale, float fDistribution, bool bAlphaOnly);
 
 	static EPassId GetPassId() { return EPassId::AnisotropicVerticalBlurPass; }
 
-private:
-	CFullscreenPass m_passBlurAnisotropicVertical[2];
+	std::array<CFullscreenPass, 2> m_passBlurAnisotropicVertical;
 };

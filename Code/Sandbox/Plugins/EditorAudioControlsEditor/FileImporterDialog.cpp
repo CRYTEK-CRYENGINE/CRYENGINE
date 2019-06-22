@@ -3,9 +3,11 @@
 #include "StdAfx.h"
 #include "FileImporterDialog.h"
 
+#include "Common.h"
 #include "FileImporterModel.h"
 #include "TreeView.h"
 #include "FolderSelectorDialog.h"
+#include "Common/IImpl.h"
 
 #include <ProxyModels/AttributeFilterProxyModel.h>
 #include <PathUtils.h>
@@ -34,6 +36,7 @@ CFileImporterDialog::CFileImporterDialog(
 	QString const& targetPath,
 	QString const& targetFolderName,
 	bool const isLocalized,
+	bool const getImplItemIds,
 	QWidget* const pParent)
 	: CEditorDialog("AudioFileImporterDialog", pParent)
 	, m_fileImportInfos(fileInfos)
@@ -42,6 +45,7 @@ CFileImporterDialog::CFileImporterDialog(
 	, m_targetPath(targetPath)
 	, m_targetFolderName(targetFolderName)
 	, m_isLocalized(isLocalized)
+	, m_getImplItemIds(getImplItemIds)
 	, m_gameFolder(QtUtil::ToQString(PathUtil::GetGameFolder()))
 	, m_pTargetDirLineEdit(new QLineEdit(this))
 	, m_pFileImporterModel(new CFileImporterModel(m_fileImportInfos, this))
@@ -192,7 +196,7 @@ void CFileImporterDialog::OnCreateFolderSelector()
 //////////////////////////////////////////////////////////////////////////
 void CFileImporterDialog::OnActionChanged(Qt::CheckState const isChecked)
 {
-	auto const& selection = m_pTreeView->selectionModel()->selectedRows(static_cast<int>(CFileImporterModel::EColumns::Import));
+	QModelIndexList const& selection = m_pTreeView->selectionModel()->selectedRows(static_cast<int>(CFileImporterModel::EColumns::Import));
 
 	if (selection.size() > 1)
 	{
@@ -294,7 +298,16 @@ void CFileImporterDialog::OnApplyImport()
 					}
 				}
 
-				if (!sourceFile.copy(fullTargetPath))
+				if (sourceFile.copy(fullTargetPath))
+				{
+					if (m_getImplItemIds)
+					{
+						QString const& absPath = fileInfo.targetInfo.absolutePath();
+						QString const& path = m_isLocalized ? absPath.mid(m_localizedAssetsPath.size() + 1) : absPath.mid(m_assetsPath.size() + 1);
+						g_importedItemIds.emplace_back(g_pIImpl->GenerateItemId(fileInfo.targetInfo.fileName(), path, m_isLocalized));
+					}
+				}
+				else
 				{
 					CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING,
 					           "[Audio Controls Editor] Could not copy %s to %s",

@@ -3,12 +3,12 @@
 #include "stdafx.h"
 #include "CueInstance.h"
 #include "Common.h"
-#include "BaseObject.h"
+#include "Object.h"
 #include "Cue.h"
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	#include <CrySystem/ITimer.h>
-#endif  // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -17,7 +17,7 @@ namespace Impl
 namespace Adx2
 {
 //////////////////////////////////////////////////////////////////////////
-bool CCueInstance::PrepareForPlayback(CBaseObject& baseObject)
+bool CCueInstance::PrepareForPlayback(CObject& object)
 {
 	bool isPlaying = false;
 
@@ -41,7 +41,7 @@ bool CCueInstance::PrepareForPlayback(CBaseObject& baseObject)
 		}
 
 		RemoveFlag(ECueInstanceFlags::IsPending);
-		baseObject.UpdateVelocityTracking();
+		object.UpdateVelocityTracking();
 
 		isPlaying = true;
 	}
@@ -52,9 +52,9 @@ bool CCueInstance::PrepareForPlayback(CBaseObject& baseObject)
 //////////////////////////////////////////////////////////////////////////
 void CCueInstance::Stop()
 {
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	StartFadeOut();
-#endif  // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 	criAtomExPlayback_Stop(m_playbackId);
 }
@@ -71,7 +71,7 @@ void CCueInstance::Resume()
 	criAtomExPlayback_Pause(m_playbackId, CRI_FALSE);
 }
 
-#if defined(CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 //////////////////////////////////////////////////////////////////////////
 void CCueInstance::StartFadeOut()
 {
@@ -81,7 +81,7 @@ void CCueInstance::StartFadeOut()
 		m_timeFadeOutStarted = gEnv->pTimer->GetAsyncTime().GetSeconds();
 	}
 }
-#endif // CRY_AUDIO_IMPL_ADX2_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 }      // namespace Adx2
 }      // namespace Impl
 }      // namespace CryAudio

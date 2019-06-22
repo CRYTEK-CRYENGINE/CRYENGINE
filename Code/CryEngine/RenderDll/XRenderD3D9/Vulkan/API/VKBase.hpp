@@ -151,7 +151,7 @@ public:
 	void CheckEmpty()
 	{
 		// If this triggers, you failed to clean up the handle, and you probably leaked the contents.
-		VK_ASSERT(value == VK_NULL_HANDLE && "Attempt to overwrite or destroy non-empty handle, contained object has been leaked!");
+		VK_ASSERT(value == VK_NULL_HANDLE, "Attempt to overwrite or destroy non-empty handle, contained object has been leaked!");
 	}
 
 	// Cast to handle-type allowed

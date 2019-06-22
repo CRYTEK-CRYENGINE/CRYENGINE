@@ -29,6 +29,10 @@ namespace Cry
 			void                        OnBeforeNodeRemoved(const INode& nodeBeingRemoved) const;
 			void                        OnAfterNodeRemoved(const void* pFormerAddressOfNode) const;
 
+			//! Clears all children nodes of the root node, leaving the tree with only one node, the root.
+			//! \note Does not modify the list of listeners.
+			void                        Clear();
+
 		private:
 
 			CNode                       m_root;

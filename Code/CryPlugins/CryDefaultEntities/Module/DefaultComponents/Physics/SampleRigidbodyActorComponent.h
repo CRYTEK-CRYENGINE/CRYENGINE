@@ -23,18 +23,19 @@ namespace Cry
 
 			virtual void ProcessEvent(const SEntityEvent& event) final
 			{
-				if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
+				switch (event.event)
 				{
-					m_pEntity->UpdateComponentEventMask(this);
+					case ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED: m_pEntity->UpdateComponentEventMask(this); break;
+					case ENTITY_EVENT_PHYS_POSTSTEP: OnPostStep(event.fParam[0]); break;
 				}
 			}
 
-			virtual Cry::Entity::EventFlags GetEventMask() const final	{	return ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED; }
+			virtual Cry::Entity::EventFlags GetEventMask() const final	{	return ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED | ENTITY_EVENT_PHYS_POSTSTEP; }
 
 			// ~IEntityComponent
 
 		public:
-			CSampleActorComponent();
+			CSampleActorComponent() {}
 			virtual ~CSampleActorComponent();
 
 			static void Register(Schematyc::CEnvRegistrationScope& componentScope);
@@ -72,7 +73,7 @@ namespace Cry
 			void Physicalize();
 			void SetupLegs(bool immediately = false);
 			void OnInput();
-			int  OnPostStep(const EventPhysPostStep *epps);
+			int  OnPostStep(float deltaTime);
 
 			float m_friction     = 1.0f;
 			float m_minMass      = 1.0f;
@@ -82,8 +83,6 @@ namespace Cry
 			Vec3  m_velMove = Vec3(ZERO);
 			Vec3  m_velJump = Vec3(ZERO);
 			float m_timeFly = 0.0f;
-
-			static int g_numActors;
 		};
 	}
 }

@@ -78,7 +78,7 @@ struct IAIBubblesSystem;
 
 struct SAIEnvironment
 {
-	AIConsoleVars            CVars;
+	SAIConsoleVars            CVars;
 
 	SConfiguration           configuration;
 

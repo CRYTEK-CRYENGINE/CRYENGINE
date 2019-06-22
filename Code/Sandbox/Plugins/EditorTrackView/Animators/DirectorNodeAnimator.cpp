@@ -156,7 +156,12 @@ void CDirectorNodeAnimator::ForEachActiveSequence(const SAnimContext& animContex
 						animateFunction(pSequence, newAnimContext);
 					}
 
+					// TODO: Indicating here that we are doing animating of DirectorNodeAnimator at the moment
+					// and the sequence going to be reseted during animating. This should be eliminated during future refactoring.
+					pSequence->SetAnimating(true);
 					resetFunction(pSequence, newAnimContext);
+					pSequence->SetAnimating(false);
+					// ~TODO
 				}
 			}
 		}

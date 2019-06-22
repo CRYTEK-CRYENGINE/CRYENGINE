@@ -9,6 +9,7 @@
 #include <CrySandbox/CrySignal.h>
 
 class QAction;
+class QCommandAction;
 class QToolButton;
 
 //! Base class for editors integrated with the asset system.
@@ -40,9 +41,6 @@ public:
 	//! Returns true if this asset type is supported by this editor
 	bool CanOpenAsset(const CAssetType* pType);
 
-	//! Returns true if this editor supports instant editing mode
-	virtual bool AllowsInstantEditing() const { return false; }
-
 	//! Closes the currently edited asset. Returns false if the user refused closing in case of unsaved changes.
 	bool Close();
 
@@ -56,8 +54,8 @@ public:
 	CAsset*       GetAssetBeingEdited()       { return m_assetBeingEdited; }
 	const CAsset* GetAssetBeingEdited() const { return m_assetBeingEdited; }
 
-	virtual bool  OnSave() override;   // #TODO Make this method final.
-	virtual bool  OnSaveAs() override; // #TODO Make this method final.
+	virtual bool  OnSave();   // #TODO Make this method non-virtual.
+	virtual bool  OnSaveAs(); // #TODO Make this method non-virtual.
 
 	bool          SaveBackup(const string& backupFolder);
 
@@ -69,7 +67,9 @@ public:
 	//! Will be called for the subclass to save the asset. Always save the asset in its original file.
 	//! In a "SaveAs" situation, changes will be discarded and files will be moved/renamed appropriately, so that this method should not have to care.
 	//! Note that editAsset may not have all of its metadata cleared before passing. TODO:improve this!
-	virtual bool OnSaveAsset(CEditableAsset& editAsset) = 0;
+	virtual bool OnSaveAsset(CEditableAsset& editAsset);
+
+	const std::vector<CAssetType*>& GetSupportedAssetTypes() const { return m_supportedAssetTypes; }
 
 	//! Called immediately after the editor has opened an asset.
 	// \sa CAssetEditor::GetAssetBeingEdited()
@@ -106,6 +106,24 @@ protected:
 	//! \param reason Reason that prevents this editor from closing safely.
 	virtual bool OnAboutToCloseAsset(string& reason) const { return true; }
 
+	//! Called when edited asset is changed
+	virtual void OnAssetChanged(CAsset& asset, int changeFlags);
+
+	//! Returns true if the editor uses docking widgets.
+	virtual bool IsDockingSystemEnabled() const { return true; }
+
+	//! Override this method to register all possible dockable widgets for this editor.
+	virtual void OnInitialize() {}
+
+	//! Override this method and use CDockableContainer::SpawnWidget to define the default layout.
+	virtual void OnCreateDefaultLayout(CDockableContainer* pSender, QWidget* pAssetBrowser) {}
+
+	virtual bool CanQuit(std::vector<string>& unsavedChanges) final;
+
+	virtual void closeEvent(QCloseEvent* pEvent) final;
+	virtual void dragEnterEvent(QDragEnterEvent* pEvent) override;
+	virtual void dropEvent(QDropEvent* pEvent) override;
+
 	//! Tries to close this editor. If the editor cannot be safely closed, a dialog is presented that
 	//! asks the user whether he wants to save or discard the asset.
 	//! An editor is considered to be safely closable, if there are neither unsaved asset modifications,
@@ -113,23 +131,8 @@ protected:
 	//! \return True, if the editor closes; or false, otherwise.
 	bool TryCloseAsset();
 
-	//! Called when edited asset is changed
-	virtual void OnAssetChanged(CAsset& asset, int changeFlags);
-
-	virtual bool CanQuit(std::vector<string>& unsavedChanges) final;
-
-	virtual void closeEvent(QCloseEvent* pEvent) final;
-	virtual void customEvent(QEvent* pEvent) override;
-	virtual void dragEnterEvent(QDragEnterEvent* pEvent) override;
-	virtual void dropEvent(QDropEvent* pEvent) override;
-
-	QWidget*     CreateInstantEditorToolbar();
-	void         InitInstantEditing();
-
-	QAction* m_pLockAction;
-
 private:
-	void Init();
+	void RegisterActions();
 	void InitGenericMenu();
 	void InitNewMenu();
 	int  GetNewableAssetCount() const;
@@ -138,6 +141,11 @@ private:
 
 	void UpdateWindowTitle();
 	void SetAssetBeingEdited(CAsset* pAsset);
+
+	//! Creates copy of editing asset with given path
+	bool CreateAssetCopy(const string& path);
+	//! Creates and opens copy of editing asset with given path. Any changes to editing asset will be discarded
+	bool CreateAssetCopyAndOpen(const string& path);
 
 	//! OnAboutToCloseAsset returns true if this editor can be safely closed; or false, otherwise.
 	//! An editor is considered to be safely closable, if there are neither unsaved asset modifications,
@@ -151,14 +159,14 @@ private:
 	//! The method calls OnCloseAsset and signalAssetClosed.
 	void CloseAsset();
 
-	//! Allows you to use this editor as an instant editor. There can be only one instance of the active instance editor for each asset type.
-	void SetInstantEditingMode(bool isActive);
+	bool OnNew();
+	bool OnOpen();
+	bool OnClose();
 
-	//Methods implemented generically are set to final on purpose
-	virtual bool OnNew() override final;
-	virtual bool OnOpen() override final;
+	//Method implemented generically are set to final on purpose
 	virtual bool OnOpenFile(const QString& path) override final;
-	virtual bool OnClose() override final;
+	virtual void Initialize() final;
+	virtual void CreateDefaultLayout(CDockableContainer* pSender) final;
 
 	CAsset*                  m_assetBeingEdited;
 	std::vector<CAssetType*> m_supportedAssetTypes;

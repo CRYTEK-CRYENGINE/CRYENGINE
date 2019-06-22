@@ -185,6 +185,7 @@ void CEditorDialog::showEvent(QShowEvent* event)
 		// setLayout() assigns the layout to the editor.
 		m_grid = new QGridLayout();
 		m_grid->setSpacing(0);
+		m_grid->setMargin(0);
 		m_grid->setContentsMargins(0, 0, 0, 0);
 		m_titleBar = new QSandboxTitleBar(this, s_config);
 		m_grid->addWidget(m_titleBar, 0, 0, 1, 3);

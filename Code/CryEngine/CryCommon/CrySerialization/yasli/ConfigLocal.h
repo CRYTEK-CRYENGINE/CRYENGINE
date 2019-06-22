@@ -3,6 +3,7 @@
 #pragma once
 
 #include <CryCore/Platform/platform.h>
+#include <CryString/CryString.h>
 
 #if defined(EDITOR_COMMON_EXPORTS)
 #define PROPERTY_TREE_API __declspec(dllexport)

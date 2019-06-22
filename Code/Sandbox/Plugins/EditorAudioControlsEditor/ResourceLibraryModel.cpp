@@ -34,29 +34,42 @@ QVariant CResourceLibraryModel::data(QModelIndex const& index, int role) const
 			switch (role)
 			{
 			case Qt::DisplayRole:
-				variant = QtUtil::ToQStringSafe(pAsset->GetName());
-				break;
-			case Qt::ToolTipRole:
-				if (!pAsset->GetDescription().IsEmpty())
-				{
-					variant = QtUtil::ToQStringSafe(pAsset->GetName() + ": " + pAsset->GetDescription());
-				}
-				else
 				{
 					variant = QtUtil::ToQStringSafe(pAsset->GetName());
+					break;
 				}
-				break;
+			case Qt::ToolTipRole:
+				{
+					if (!pAsset->GetDescription().IsEmpty())
+					{
+						variant = QtUtil::ToQStringSafe(pAsset->GetName() + ": " + pAsset->GetDescription());
+					}
+					else
+					{
+						variant = QtUtil::ToQStringSafe(pAsset->GetName());
+					}
+
+					break;
+				}
 			case Qt::DecorationRole:
-				variant = GetAssetIcon(assetType);
-				break;
+				{
+					variant = GetAssetIcon(assetType);
+					break;
+				}
 			case static_cast<int>(ModelUtils::ERoles::SortPriority):
-				variant = static_cast<int>(assetType);
-				break;
+				{
+					variant = static_cast<int>(assetType);
+					break;
+				}
 			case static_cast<int>(ModelUtils::ERoles::InternalPointer):
-				variant = reinterpret_cast<intptr_t>(pAsset);
-				break;
+				{
+					variant = reinterpret_cast<intptr_t>(pAsset);
+					break;
+				}
 			default:
-				break;
+				{
+					break;
+				}
 			}
 		}
 	}

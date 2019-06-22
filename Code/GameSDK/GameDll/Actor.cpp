@@ -683,7 +683,12 @@ void CActor::Revive( EReasonForRevive reasonForRevive )
 	if (m_pAnimatedCharacter)
 		m_pAnimatedCharacter->ResetState();
 
-	bool hasChangedModel = SetActorModel(); // set the model before physicalizing
+	const bool hasChangedModel = SetActorModel(); // set the model before physicalizing
+	if (hasChangedModel)
+	{
+		// If the model has changed, it was dephysicalized
+		m_currentPhysProfile = eAP_NotPhysicalized;
+	}
 
 	if(!gEnv->bMultiplayer || hasChangedModel)
 	{
@@ -5540,6 +5545,28 @@ void CActor::EndInteractiveAction( EntityId entityId )
 
 }
 
+bool CActor::GetValidPositionNearby(const Vec3& proposedPosition, Vec3& adjustedPosition) const
+{
+	IAIObject* pAIObject = GetEntity()->GetAI();
+	if (pAIObject && gEnv->pAISystem)
+	{
+		if (IAIPathAgent* pAIActor = pAIObject->CastToIAIActor())
+		{
+			return pAIActor->GetValidPositionNearby(proposedPosition, adjustedPosition);
+		}
+	}
+	return false;
+}
+
+void CActor::SetExpectedPhysicsPos(const Vec3& expectedPosition)
+{
+	IAIObject* pAIObject = GetEntity()->GetAI();
+	if (pAIObject && gEnv->pAISystem)
+	{
+		pAIObject->SetExpectedPhysicsPos(expectedPosition);
+	}
+}
+
 void CActor::LockInteractor(EntityId lockId, bool lock)
 {
 	SmartScriptTable locker(gEnv->pScriptSystem);
@@ -5569,7 +5596,7 @@ void CActor::SetGrabbedByPlayer( IEntity* pPlayerEntity, bool grabbed )
 				{
 					AISignals::IAISignalExtraData *pSData = gEnv->pAISystem->CreateSignalExtraData();	
 					pSData->point = Vec3(0,0,0);
-					pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrabbedByPlayer(), pPlayerEntity ?  pPlayerEntity->GetAIObjectID() : 0, pSData));
+					pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, gEnv->pAISystem->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnGrabbedByPlayer(), pPlayerEntity ?  pPlayerEntity->GetId() : INVALID_ENTITYID, pSData));
 				}
 				pAIObject->Event(AIEVENT_DISABLE,0);
 			}

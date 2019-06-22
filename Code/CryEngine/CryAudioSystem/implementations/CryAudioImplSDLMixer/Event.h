@@ -13,6 +13,15 @@ namespace Impl
 {
 namespace SDL_mixer
 {
+enum class EEventFlags : EnumFlagsType
+{
+	None                  = 0,
+	IsAttenuationEnnabled = BIT(0),
+	IsPanningEnabled      = BIT(1),
+	ToBeDestructed        = BIT(2),
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(EEventFlags);
+
 class CEvent final : public ITriggerConnection, public CPoolObject<CEvent, stl::PSyncNone>
 {
 public:
@@ -32,10 +41,11 @@ public:
 	CEvent& operator=(CEvent const&) = delete;
 	CEvent& operator=(CEvent&&) = delete;
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	explicit CEvent(
 		char const* const szName,
 		uint32 const id,
+		EEventFlags const flags,
 		EActionType const type,
 		SampleId const sampleId,
 		float const attenuationMinDistance = g_defaultMinAttenuationDist,
@@ -43,10 +53,10 @@ public:
 		int const volume = 128,
 		int const numLoops = 1,
 		int const fadeInTime = 0,
-		int const fadeOutTime = 0,
-		bool const isPanningEnabled = true)
+		int const fadeOutTime = 0)
 		: m_name(szName)
 		, m_id(id)
+		, m_flags(flags)
 		, m_type(type)
 		, m_sampleId(sampleId)
 		, m_attenuationMinDistance(attenuationMinDistance)
@@ -55,13 +65,12 @@ public:
 		, m_numLoops(numLoops)
 		, m_fadeInTime(fadeInTime)
 		, m_fadeOutTime(fadeOutTime)
-		, m_isPanningEnabled(isPanningEnabled)
 		, m_numInstances(0)
-		, m_toBeDestructed(false)
 	{}
 #else
 	explicit CEvent(
 		uint32 const id,
+		EEventFlags const flags,
 		EActionType const type,
 		SampleId const sampleId,
 		float const attenuationMinDistance = g_defaultMinAttenuationDist,
@@ -69,9 +78,9 @@ public:
 		int const volume = 128,
 		int const numLoops = 1,
 		int const fadeInTime = 0,
-		int const fadeOutTime = 0,
-		bool const isPanningEnabled = true)
+		int const fadeOutTime = 0)
 		: m_id(id)
+		, m_flags(flags)
 		, m_type(type)
 		, m_sampleId(sampleId)
 		, m_attenuationMinDistance(attenuationMinDistance)
@@ -80,11 +89,9 @@ public:
 		, m_numLoops(numLoops)
 		, m_fadeInTime(fadeInTime)
 		, m_fadeOutTime(fadeOutTime)
-		, m_isPanningEnabled(isPanningEnabled)
 		, m_numInstances(0)
-		, m_toBeDestructed(false)
 	{}
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 	virtual ~CEvent() override = default;
 
@@ -93,35 +100,35 @@ public:
 	virtual void           Stop(IObject* const pIObject) override;
 	// ~CryAudio::Impl::ITriggerConnection
 
-	uint32      GetId() const       { return m_id; }
-	EActionType GetType() const     { return m_type; }
-	SampleId    GetSampleId() const { return m_sampleId; }
+	uint32      GetId() const                   { return m_id; }
+	EActionType GetType() const                 { return m_type; }
+	SampleId    GetSampleId() const             { return m_sampleId; }
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+	EEventFlags GetFlags() const                { return m_flags; }
+	void        SetFlag(EEventFlags const flag) { m_flags |= flag; }
+
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	char const* GetName() const { return m_name.c_str(); }
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 	float GetAttenuationMinDistance() const { return m_attenuationMinDistance; }
 	float GetAttenuationMaxDistance() const { return m_attenuationMaxDistance; }
 	int   GetVolume() const                 { return m_volume; }
-	int   GetNumLoops() const               { return m_numLoops; }
-	int   GetFadeInTime() const             { return m_fadeInTime; }
 	int   GetFadeOutTime() const            { return m_fadeOutTime; }
-	bool  IsPanningEnabled() const          { return m_isPanningEnabled; }
 
 	void  IncrementNumInstances()           { ++m_numInstances; }
 	void  DecrementNumInstances();
 
-	bool  CanBeDestructed() const   { return m_toBeDestructed && (m_numInstances == 0); }
-	void  SetToBeDestructed() const { m_toBeDestructed = true; }
+	bool  CanBeDestructed() const { return ((m_flags& EEventFlags::ToBeDestructed) != 0) && (m_numInstances == 0); }
 
 private:
 
-#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_SDLMIXER_USE_DEBUG_CODE
 
 	uint32 const m_id;
+	EEventFlags       m_flags;
 	EActionType const m_type;
 	SampleId const    m_sampleId;
 	float const       m_attenuationMinDistance;
@@ -130,9 +137,7 @@ private:
 	int const         m_numLoops;
 	int const         m_fadeInTime;
 	int const         m_fadeOutTime;
-	bool const        m_isPanningEnabled;
 	uint16            m_numInstances;
-	mutable bool      m_toBeDestructed;
 };
 } // namespace SDL_mixer
 } // namespace Impl

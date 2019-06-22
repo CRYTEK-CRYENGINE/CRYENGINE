@@ -84,7 +84,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CScriptComponentInstance::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		SerializationContext::SetValidatorLink(archive, SValidatorLink(m_guid)); // #SchematycTODO : Can we set this from CScriptElementBase?
 		switch(SerializationContext::GetPass(archive))

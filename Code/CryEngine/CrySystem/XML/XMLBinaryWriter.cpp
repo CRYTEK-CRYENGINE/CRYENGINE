@@ -13,7 +13,7 @@
 #include "StdAfx.h"
 #include "XMLBinaryWriter.h"
 #include <CryCore/CryEndian.h>
-#include <string.h>  // memcpy()
+#include <cstring> // std::memcpy
 
 //////////////////////////////////////////////////////////////////////////
 namespace XMLBinary
@@ -113,7 +113,7 @@ bool XMLBinary::CXMLBinaryWriter::WriteNode(IDataWriter* pFile, XmlNodeRef node,
 	BinaryFileHeader header;
 	static const char signature[] = "CryXmlB";
 	static_assert(sizeof(signature) == sizeof(header.szSignature), "Wrong signature size!");
-	memcpy(header.szSignature, signature, sizeof(header.szSignature));
+	std::memcpy(header.szSignature, signature, sizeof(header.szSignature));
 	nTheoreticalPosition += sizeof(header);
 	align(nTheoreticalPosition, nAlignment);
 

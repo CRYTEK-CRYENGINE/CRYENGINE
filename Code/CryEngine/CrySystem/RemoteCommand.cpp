@@ -13,6 +13,7 @@
 #include "RemoteCommand.h"
 #include "RemoteCommandHelpers.h"
 #include <CrySystem/ConsoleRegistration.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 //-----------------------------------------------------------------------------
 

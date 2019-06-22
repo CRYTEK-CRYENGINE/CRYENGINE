@@ -39,7 +39,7 @@ class CCryVKShaderReflectionType // Not ref-counted
 {
 public:
 	CCryVKShaderReflectionType(CCryVKShaderReflection* pShaderReflection, uint32_t typeId);
-	~CCryVKShaderReflectionType() {};
+	~CCryVKShaderReflectionType() {}
 
 	HRESULT STDMETHODCALLTYPE GetDesc(D3D11_SHADER_TYPE_DESC* pDesc);
 
@@ -51,7 +51,7 @@ class CCryVKShaderReflectionVariable // Not ref-counted
 {
 public:
 	CCryVKShaderReflectionVariable(CCryVKShaderReflection* pShaderReflection, const spirv_cross::Resource& constantBuffer, uint32 memberIndex, bool bInUse);
-	~CCryVKShaderReflectionVariable() {};
+	~CCryVKShaderReflectionVariable() {}
 
 	HRESULT STDMETHODCALLTYPE                               GetDesc(D3D11_SHADER_VARIABLE_DESC* pDesc);
 	ID3D11ShaderReflectionType* STDMETHODCALLTYPE           GetType();
@@ -71,7 +71,7 @@ class CCryVKShaderReflectionConstantBuffer // Not ref-counted
 {
 public:
 	CCryVKShaderReflectionConstantBuffer(CCryVKShaderReflection* pShaderReflection, const spirv_cross::Resource& resource);
-	~CCryVKShaderReflectionConstantBuffer() {};
+	~CCryVKShaderReflectionConstantBuffer() {}
 
 	HRESULT STDMETHODCALLTYPE                         GetDesc(D3D11_SHADER_BUFFER_DESC* pDesc);
 	ID3D11ShaderReflectionVariable* STDMETHODCALLTYPE GetVariableByIndex(UINT Index);

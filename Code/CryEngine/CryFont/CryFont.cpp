@@ -8,6 +8,7 @@
 	#include "FFont.h"
 	#include "FontTexture.h"
 	#include "FontRenderer.h"
+	#include <CrySystem/ConsoleRegistration.h>
 
 	#if !defined(_RELEASE)
 static void DumpFontTexture(IConsoleCmdArgs* pArgs)

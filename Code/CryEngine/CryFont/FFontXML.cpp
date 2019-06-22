@@ -337,7 +337,7 @@ public:
 // Main loading function
 bool CFFont::Load(const char* pXMLFile)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "Font %s", pXMLFile);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Other, "Font %s", pXMLFile);
 
 	m_curPath = "";
 	if (pXMLFile)

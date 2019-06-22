@@ -4,6 +4,7 @@
 
 // Included only once per DLL module.
 #include <CryCore/Platform/platform_impl.inl>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "HttpImplementation_cURL.h"
 

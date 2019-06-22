@@ -64,6 +64,7 @@ SProjectDescription::SProjectDescription()
 	: state(0)
 	, engineBuild(0)
 	, lastOpened(0)
+	, startupProject(false)
 {
 }
 
@@ -100,6 +101,8 @@ void SProjectDescription::Serialize(Serialization::IArchive& ar)
 	{
 		fullPathToCryProject = PathUtil::ToUnixPath(fullPathToCryProject);
 	}
+
+	ar(startupProject, "startupProject", "Startup Project");
 
 	if (ar.isInput())
 	{
@@ -181,6 +184,7 @@ CProjectManager::CProjectManager()
 
 		if (!proj.FindAndUpdateCryProjPath())
 		{
+			proj.startupProject = false; // Project will lost ability to be startup project
 			m_hiddenProjects.push_back(proj);
 			continue;
 		}
@@ -227,6 +231,19 @@ const SProjectDescription* CProjectManager::GetLastUsedProject() const
 	return &(*it);
 }
 
+string CProjectManager::GetStartupProject() const
+{
+	for (const auto& project : m_projects)
+	{
+		if (project.startupProject)
+		{
+			return project.fullPathToCryProject;
+		}
+	}
+
+	return "";
+}
+
 void CProjectManager::ImportProject(const string& fullPathToProject)
 {
 	SProjectDescription descr = ParseProjectData(fullPathToProject);
@@ -261,7 +278,6 @@ void CProjectManager::AddProject(const SProjectDescription& projectDescr)
 
 SProjectDescription CProjectManager::ParseProjectData(const string& fullPathToProject) const
 {
-
 	QFileInfo fileInfo(fullPathToProject.c_str());
 
 	yasli::JSONIArchive ia;
@@ -282,6 +298,37 @@ SProjectDescription CProjectManager::ParseProjectData(const string& fullPathToPr
 	descr.engineBuild = currentEngineVersion.GetBuild();
 
 	return descr;
+}
+
+void CProjectManager::ToggleStartupProperty(const SProjectDescription& projectDescr)
+{
+	auto it = std::find_if(m_projects.begin(), m_projects.end(), [projectDescr](SProjectDescription& curr)
+	{
+		return curr.fullPathToCryProject.CompareNoCase(projectDescr.fullPathToCryProject) == 0;
+	});
+
+	if (it == m_projects.end())
+	{
+		return;
+	}
+
+	signalBeforeProjectsUpdated();
+
+	const bool newState = !(it->startupProject);
+	if (newState)
+	{
+		// Reset "startup" flag on all
+		for (auto& proj: m_projects)
+		{
+			proj.startupProject = false;
+		}
+	}
+
+	it->startupProject = newState;
+
+	signalAfterProjectsUpdated();
+
+	SaveProjectDescriptions();
 }
 
 void CProjectManager::DeleteProject(const SProjectDescription& projectDescr, bool removeFromDisk)

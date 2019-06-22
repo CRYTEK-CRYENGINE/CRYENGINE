@@ -268,9 +268,12 @@ ZipDir::CachePtr ZipDir::CacheFactory::MakeCache (const char* szFile)
 	m_f = NULL; // we don't own the file anymore - it's in possession of the cache instance
 
 	// try to serialize into the memory
-	size_t nSizeSerialized = m_treeFileEntries.Serialize (cache->GetRoot());
-
-	assert (nSizeSerialized == nSizeRequired);
+#if !defined(_RELEASE)
+	size_t nSizeSerialized = m_treeFileEntries.Serialize(cache->GetRoot());
+	assert(nSizeSerialized == nSizeRequired);
+#else
+	m_treeFileEntries.Serialize(cache->GetRoot());
+#endif
 
 	char* pZipPath = ((char*)(pCacheInstance + 1)) + nSizeRequired;
 
@@ -496,8 +499,6 @@ bool ZipDir::CacheFactory::BuildFileEntryMap()
 			case EXTRA_NTFS:
 				{
 					extra.nLastModifyTime = *(uint64*)(pAttrData + sizeof(ExtraNTFSHeader));
-					uint64 accTime = *(uint64*)(pAttrData + sizeof(ExtraNTFSHeader) + 8);
-					uint64 crtTime = *(uint64*)(pAttrData + sizeof(ExtraNTFSHeader) + 16);
 				}
 				break;
 			}

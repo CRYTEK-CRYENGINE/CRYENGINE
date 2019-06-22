@@ -195,7 +195,7 @@ void FollowPath::OnNavigationAnnotationChanged(NavigationAgentTypeID navigationA
 
 void FollowPath::QueueNavigationChange(NavigationAgentTypeID navigationAgentTypeID, NavigationMeshID meshID, MNM::TileID tileID, const SMeshTileChange::ChangeFlags& changeFlag)
 {
-	if (gAIEnv.CVars.MovementSystemPathReplanningEnabled)
+	if (gAIEnv.CVars.movement.MovementSystemPathReplanningEnabled)
 	{
 		if (m_path.GetMeshID() == meshID)
 		{

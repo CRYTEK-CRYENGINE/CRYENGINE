@@ -1,0 +1,21 @@
+The following resources are available to get help using CMake:
+
+Home Page
+ https://cmake.org
+
+ The primary starting point for learning about CMake.
+
+Online Documentation and Community Resources
+ https://cmake.org/documentation
+
+ Links to available documentation and community resources may be
+ found on this web page.
+
+Mailing List
+ https://cmake.org/mailing-lists
+
+ For help and discussion about using cmake, a mailing list is
+ provided at cmake@cmake.org.  The list is member-post-only but one
+ may sign up on the CMake web page.  Please first read the full
+ documentation at https://cmake.org before posting questions to
+ the list.

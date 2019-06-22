@@ -3,9 +3,8 @@
 #include "StdAfx.h"
 #include "AssetsManager.h"
 
-#include "Common.h"
 #include "AudioControlsEditorPlugin.h"
-#include "ImplementationManager.h"
+#include "ImplManager.h"
 #include "AssetUtils.h"
 #include "Common/IConnection.h"
 #include "Common/IImpl.h"
@@ -15,25 +14,22 @@
 
 namespace ACE
 {
-ControlId CAssetsManager::m_nextId = 1;
-
-constexpr uint32 g_controlPoolSize = 8192;
-constexpr uint32 g_folderPoolSize = 1024;
-constexpr uint32 g_libraryPoolSize = 256;
+constexpr uint16 g_controlPoolSize = 8192;
+constexpr uint16 g_folderPoolSize = 1024;
+constexpr uint16 g_libraryPoolSize = 256;
 
 //////////////////////////////////////////////////////////////////////////
 CAssetsManager::CAssetsManager()
 {
 	ClearDirtyFlags();
-	m_scopes[g_globalScopeId] = SScopeInfo(g_szGlobalScopeName, false);
-	m_controls.reserve(8192);
+	m_controls.reserve(static_cast<size_t>(g_controlPoolSize));
 }
 
 //////////////////////////////////////////////////////////////////////////
 CAssetsManager::~CAssetsManager()
 {
-	g_implementationManager.SignalOnBeforeImplementationChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
-	g_implementationManager.SignalOnAfterImplementationChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	g_implManager.SignalOnBeforeImplChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
+	g_implManager.SignalOnAfterImplChange.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::SignalOnBeforeLoad.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	CAudioControlsEditorPlugin::SignalOnAfterLoad.DisconnectById(reinterpret_cast<uintptr_t>(this));
 	Clear();
@@ -46,21 +42,16 @@ CAssetsManager::~CAssetsManager()
 //////////////////////////////////////////////////////////////////////////
 void CAssetsManager::Initialize()
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioSystem, 0, "ACE Control Pool");
 	CControl::CreateAllocator(g_controlPoolSize);
-
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioSystem, 0, "ACE Folder Pool");
 	CFolder::CreateAllocator(g_folderPoolSize);
-
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_AudioSystem, 0, "ACE Library Pool");
 	CLibrary::CreateAllocator(g_libraryPoolSize);
 
-	g_implementationManager.SignalOnBeforeImplementationChange.Connect([this]()
+	g_implManager.SignalOnBeforeImplChange.Connect([this]()
 		{
 			ClearAllConnections();
 		}, reinterpret_cast<uintptr_t>(this));
 
-	g_implementationManager.SignalOnAfterImplementationChange.Connect([this]()
+	g_implManager.SignalOnAfterImplChange.Connect([this]()
 		{
 			m_isLoading = false;
 		}, reinterpret_cast<uintptr_t>(this));
@@ -77,7 +68,7 @@ void CAssetsManager::Initialize()
 }
 
 //////////////////////////////////////////////////////////////////////////
-CControl* CAssetsManager::CreateControl(string const& name, EAssetType const type, CAsset* const pParent /*= nullptr*/)
+CControl* CAssetsManager::CreateControl(string const& name, EAssetType const type, CAsset* const pParent)
 {
 	CControl* pControl = nullptr;
 
@@ -97,8 +88,8 @@ CControl* CAssetsManager::CreateControl(string const& name, EAssetType const typ
 			{
 				SignalOnBeforeAssetAdded(pParent);
 
-				auto const pNewControl = new CControl(name, GenerateUniqueId(), type);
-
+				ControlId const controlId = (type != EAssetType::State) ? AssetUtils::GenerateUniqueAssetId(name, type) : AssetUtils::GenerateUniqueStateId(pParent->GetName(), name);
+				auto const pNewControl = new CControl(name, controlId, type);
 				m_controls.push_back(pNewControl);
 
 				pNewControl->SetParent(pParent);
@@ -170,51 +161,12 @@ CControl* CAssetsManager::CreateDefaultControl(string const& name, EAssetType co
 
 	if (pControl != nullptr)
 	{
-		pControl->SetScope(g_globalScopeId);
+		pControl->SetContextId(CryAudio::GlobalContextId);
 		pControl->SetDescription(description);
 		pControl->SetFlags(pControl->GetFlags() | flags);
 	}
 
 	return pControl;
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAssetsManager::ClearScopes()
-{
-	m_scopes.clear();
-
-	// The global scope must always exist
-	m_scopes[g_globalScopeId] = SScopeInfo(g_szGlobalScopeName, false);
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAssetsManager::AddScope(string const& name, bool const isLocalOnly /*= false*/)
-{
-	m_scopes[CryAudio::StringToId(name.c_str())] = SScopeInfo(name, isLocalOnly);
-}
-
-//////////////////////////////////////////////////////////////////////////
-bool CAssetsManager::ScopeExists(string const& name) const
-{
-	return m_scopes.find(CryAudio::StringToId(name.c_str())) != m_scopes.end();
-}
-
-//////////////////////////////////////////////////////////////////////////
-void CAssetsManager::GetScopeInfos(ScopeInfos& scopeInfos) const
-{
-	stl::map_to_vector(m_scopes, scopeInfos);
-}
-
-//////////////////////////////////////////////////////////////////////////
-Scope CAssetsManager::GetScope(string const& name) const
-{
-	return CryAudio::StringToId(name.c_str());
-}
-
-//////////////////////////////////////////////////////////////////////////
-SScopeInfo CAssetsManager::GetScopeInfo(Scope const id) const
-{
-	return stl::find_in_map(m_scopes, id, SScopeInfo());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -229,7 +181,6 @@ void CAssetsManager::Clear()
 
 	CRY_ASSERT_MESSAGE(m_controls.empty(), "m_controls is not empty during %s", __FUNCTION__);
 	CRY_ASSERT_MESSAGE(m_libraries.empty(), "m_systemLibraries is not empty during %s", __FUNCTION__);
-	ClearScopes();
 	ClearDirtyFlags();
 }
 
@@ -258,7 +209,7 @@ CLibrary* CAssetsManager::CreateLibrary(string const& name)
 		if (!foundLibrary)
 		{
 			SignalOnBeforeLibraryAdded();
-			auto const pLibrary = new CLibrary(name);
+			auto const pLibrary = new CLibrary(name, AssetUtils::GenerateUniqueAssetId(name, EAssetType::Library));
 			m_libraries.push_back(pLibrary);
 			SignalOnAfterLibraryAdded(pLibrary);
 			pLibrary->SetModified(true);
@@ -270,7 +221,7 @@ CLibrary* CAssetsManager::CreateLibrary(string const& name)
 }
 
 //////////////////////////////////////////////////////////////////////////
-CAsset* CAssetsManager::CreateFolder(string const& name, CAsset* const pParent /*= nullptr*/)
+CAsset* CAssetsManager::CreateFolder(string const& name, CAsset* const pParent)
 {
 	CAsset* pAsset = nullptr;
 	bool foundFolder = false;
@@ -295,7 +246,7 @@ CAsset* CAssetsManager::CreateFolder(string const& name, CAsset* const pParent /
 
 			if (!foundFolder)
 			{
-				auto const pFolder = new CFolder(name);
+				auto const pFolder = new CFolder(name, AssetUtils::GenerateUniqueFolderId(name, pParent));
 
 				if (pFolder != nullptr)
 				{
@@ -328,13 +279,13 @@ void CAssetsManager::OnBeforeControlModified(CControl* const pControl)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAssetsManager::OnConnectionAdded(CControl* const pControl, Impl::IItem* const pIItem)
+void CAssetsManager::OnConnectionAdded(CControl* const pControl)
 {
 	SignalConnectionAdded(pControl);
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CAssetsManager::OnConnectionRemoved(CControl* const pControl, Impl::IItem* const pIItem)
+void CAssetsManager::OnConnectionRemoved(CControl* const pControl)
 {
 	SignalConnectionRemoved(pControl);
 }
@@ -412,6 +363,7 @@ void CAssetsManager::ClearDirtyFlags()
 {
 	m_modifiedTypes.clear();
 	m_modifiedLibraryNames.clear();
+	m_reloadAfterSave = false;
 	SignalIsDirty(false);
 }
 
@@ -641,8 +593,14 @@ void CAssetsManager::DeleteAsset(CAsset* const pAsset)
 
 		if (type == EAssetType::Library)
 		{
-			m_libraries.erase(std::remove(m_libraries.begin(), m_libraries.end(), static_cast<CLibrary*>(pAsset)), m_libraries.end());
+			auto const pLibrary = static_cast<CLibrary*>(pAsset);
+			m_libraries.erase(std::remove(m_libraries.begin(), m_libraries.end(), pLibrary), m_libraries.end());
 			SignalOnAfterLibraryRemoved();
+
+			if ((pLibrary->GetPakStatus() & EPakStatus::InPak) != 0)
+			{
+				m_reloadAfterSave = true;
+			}
 		}
 		else
 		{
@@ -670,38 +628,40 @@ void CAssetsManager::DeleteAsset(CAsset* const pAsset)
 //////////////////////////////////////////////////////////////////////////
 void CAssetsManager::MoveAssets(CAsset* const pParent, Assets const& assets)
 {
-	if (pParent != nullptr)
+	for (auto const pAsset : assets)
 	{
-		for (auto const pAsset : assets)
+		CAsset* const pPreviousParent = pAsset->GetParent();
+
+		if (pPreviousParent != nullptr)
 		{
-			if (pAsset != nullptr)
+			SignalOnBeforeAssetRemoved(pAsset);
+			pPreviousParent->RemoveChild(pAsset);
+			pAsset->SetParent(nullptr);
+			SignalOnAfterAssetRemoved(pPreviousParent, pAsset);
+			pPreviousParent->SetModified(true);
+		}
+
+		SignalOnBeforeAssetAdded(pParent);
+
+		switch (pAsset->GetType())
+		{
+		case EAssetType::State: // Intentional fall-through.
+		case EAssetType::Folder:
 			{
-				CAsset* const pPreviousParent = pAsset->GetParent();
-
-				if (pPreviousParent != nullptr)
-				{
-					SignalOnBeforeAssetRemoved(pAsset);
-					pPreviousParent->RemoveChild(pAsset);
-					pAsset->SetParent(nullptr);
-					SignalOnAfterAssetRemoved(pPreviousParent, pAsset);
-					pPreviousParent->SetModified(true);
-				}
-
-				SignalOnBeforeAssetAdded(pParent);
-				EAssetType const type = pAsset->GetType();
-
-				if ((type == EAssetType::State) || (type == EAssetType::Folder))
-				{
-					// To prevent duplicated names of states and folders.
-					pAsset->UpdateNameOnMove(pParent);
-				}
-
-				pParent->AddChild(pAsset);
-				pAsset->SetParent(pParent);
-				SignalOnAfterAssetAdded(pAsset);
-				pAsset->SetModified(true);
+				// To prevent duplicated names of states and folders.
+				pAsset->UpdateNameOnMove(pParent);
+				break;
+			}
+		default:
+			{
+				break;
 			}
 		}
+
+		pParent->AddChild(pAsset);
+		pAsset->SetParent(pParent);
+		SignalOnAfterAssetAdded(pAsset);
+		pAsset->SetModified(true);
 	}
 }
 
@@ -709,7 +669,7 @@ void CAssetsManager::MoveAssets(CAsset* const pParent, Assets const& assets)
 void CAssetsManager::CreateAndConnectImplItems(Impl::IItem* const pIItem, CAsset* const pParent)
 {
 	SignalOnBeforeAssetAdded(pParent);
-	CAsset* pAsset = CreateAndConnectImplItemsRecursively(pIItem, pParent);
+	CAsset* const pAsset = CreateAndConnectImplItemsRecursively(pIItem, pParent);
 	SignalOnAfterAssetAdded(pAsset);
 }
 
@@ -741,7 +701,8 @@ CAsset* CAssetsManager::CreateAndConnectImplItemsRecursively(Impl::IItem* const 
 			name = AssetUtils::GenerateUniqueName(name, type, pParent);
 		}
 
-		auto const pControl = new CControl(name, GenerateUniqueId(), type);
+		ControlId const controlId = (type != EAssetType::State) ? AssetUtils::GenerateUniqueAssetId(name, type) : AssetUtils::GenerateUniqueStateId(pParent->GetName(), name);
+		auto const pControl = new CControl(name, controlId, type);
 		pControl->SetParent(pParent);
 		pParent->AddChild(pControl);
 		m_controls.push_back(pControl);
@@ -759,7 +720,7 @@ CAsset* CAssetsManager::CreateAndConnectImplItemsRecursively(Impl::IItem* const 
 	{
 		// If the type of the control is invalid then it must be a folder or container
 		name = AssetUtils::GenerateUniqueName(name, EAssetType::Folder, pParent);
-		auto const pFolder = new CFolder(name);
+		auto const pFolder = new CFolder(name, AssetUtils::GenerateUniqueFolderId(name, pParent));
 		pParent->AddChild(pFolder);
 		pFolder->SetParent(pParent);
 
@@ -774,5 +735,17 @@ CAsset* CAssetsManager::CreateAndConnectImplItemsRecursively(Impl::IItem* const 
 	}
 
 	return pAsset;
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CAssetsManager::ChangeContext(CryAudio::ContextId const oldContextId, CryAudio::ContextId const newContextId)
+{
+	for (auto const pControl : m_controls)
+	{
+		if (pControl->GetContextId() == oldContextId)
+		{
+			pControl->SetContextId(newContextId);
+		}
+	}
 }
 } // namespace ACE

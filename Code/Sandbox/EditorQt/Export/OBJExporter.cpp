@@ -49,6 +49,11 @@ bool COBJExporter::ExportToFile(const char* filename, const SExportData* pExport
 		Quat rot(pObj->rot.w, pObj->rot.v.x, pObj->rot.v.y, pObj->rot.v.z);
 		Vec3 scale(pObj->scale.x, pObj->scale.y, pObj->scale.z);
 
+		if (numObjects == 1)
+		{
+			pos.SetZero();
+		}
+
 		Matrix34 tm = Matrix33::CreateScale(scale) * Matrix34(rot);
 		tm.SetTranslation(pos);
 
@@ -126,9 +131,9 @@ bool COBJExporter::ExportToFile(const char* filename, const SExportData* pExport
 			{
 				const Export::Face& face = pFaceBuf[i];
 				fprintf(hFile, "f %i/%i/%i %i/%i/%i %i/%i/%i\n",
-				        face.idx[0] - numVertices, face.idx[0] - numTexCoords, face.idx[0] - numNormals,
-				        face.idx[1] - numVertices, face.idx[1] - numTexCoords, face.idx[1] - numNormals,
-				        face.idx[2] - numVertices, face.idx[2] - numTexCoords, face.idx[2] - numNormals);
+				        face.vertex[0] - numVertices, face.texCoord[0] - numTexCoords, face.normal[0] - numNormals,
+				        face.vertex[1] - numVertices, face.texCoord[1] - numTexCoords, face.normal[1] - numNormals,
+				        face.vertex[2] - numVertices, face.texCoord[2] - numTexCoords, face.normal[2] - numNormals);
 			}
 			fprintf(hFile, "# %i faces\n\n", numFaces);
 		}

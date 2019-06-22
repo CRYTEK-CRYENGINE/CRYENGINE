@@ -20,9 +20,9 @@ CShader* CShader::Create(CDevice* device, const D3D12_SHADER_BYTECODE& byteCode)
 	ID3D12ShaderReflection* shaderReflection = NULL;
 
 	// Reflect shader internals
-	if (S_OK != D3DReflection(byteCode.pShaderBytecode, byteCode.BytecodeLength, IID_ID3D12ShaderReflection, (void**)&shaderReflection))
+	if (S_OK != D3DReflection(byteCode.pShaderBytecode, byteCode.BytecodeLength, IID_D3DShaderReflection, (void**)&shaderReflection))
 	{
-		DX12_ASSERT(0, "Could not do a shader reflection!");
+		DX12_ERROR("Could not do a shader reflection!");
 		return NULL;
 	}
 

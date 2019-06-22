@@ -211,6 +211,21 @@ public:
 	CGenericJob& operator= (const CGenericJob&) = delete;
 	CGenericJob& operator= (CGenericJob&&) = delete;
 
+	using CJobBase::Run;
+
+	ILINE void Run(unsigned int priority)
+	{
+		SetPriorityLevel(priority);
+		Run();
+	}
+
+	ILINE void Run(unsigned int priority, JobManager::SJobState* __restrict pJobState)
+	{
+		SetPriorityLevel(priority);
+		RegisterJobState(pJobState);
+		Run();
+	}
+
 	//Detector for TFuncType::m_pInstance
 	template<class T> using HasPInstanceDetector = decltype(std::declval<T>().m_pInstance);
 

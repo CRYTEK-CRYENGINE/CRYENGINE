@@ -366,7 +366,7 @@ void CSDLPad::HandleConnectionState(const bool connected)
 		if (!connected)
 		{
 			CloseDevice();
-			event.keyId = eKI_XI_Disconnect;
+			event.keyId = eKI_SYS_DisconnectDevice;
 			event.keyName = "disconnect";
 			GetLinuxInput().PostInputEvent(event);
 		}
@@ -374,7 +374,7 @@ void CSDLPad::HandleConnectionState(const bool connected)
 		{
 			if (OpenDevice())
 			{
-				event.keyId = eKI_XI_Connect;
+				event.keyId = eKI_SYS_ConnectDevice;
 				event.keyName = "connect";
 				GetLinuxInput().PostInputEvent(event);
 				gEnv->pLog->Log("CSDLPad - Gamepad [%d] connected (%s)", m_deviceNo, SDL_JoystickName(m_pSDLDevice));

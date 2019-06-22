@@ -13,6 +13,7 @@
 #include <CrySerialization/Color.h>
 #include <CrySerialization/Decorators/BitFlags.h>
 #include <CrySerialization/Decorators/Range.h>
+#include <CrySerialization/Decorators/Resources.h>
 #include <Serialization/Decorators/ToggleButton.h>
 #include <Serialization/Qt.h>
 #include <CrySerialization/ClassFactory.h>

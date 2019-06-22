@@ -10,6 +10,8 @@
 class CVolumetricFogStage : public CGraphicsPipelineStage
 {
 public:
+	static const EGraphicsPipelineStage StageID = eStage_VolumetricFog;
+
 	struct SForwardParams
 	{
 		Vec4 vfSamplingParams;
@@ -55,7 +57,7 @@ public:
 	}
 
 public:
-	CVolumetricFogStage();
+	CVolumetricFogStage(CGraphicsPipeline& graphicsPipeline);
 	virtual ~CVolumetricFogStage();
 
 	bool IsStageActive(EShaderRenderingFlags flags) const final

@@ -1,16 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   particleeffect.cpp
-//  Version:     v1.00
-//  Created:     10/7/2003 by Timur.
-//  Compilers:   Visual Studio.NET
-//  Description:
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
 #include "StdAfx.h"
 #include "ParticleEffect.h"
 #include "ParticleEmitter.h"
@@ -19,7 +8,7 @@
 #include <CryAudio/IAudioSystem.h>
 
 //////////////////////////////////////////////////////////////////////////
-// TypeInfo XML serialisation code
+// TypeInfo XML serialization code
 #include <CryParticleSystem/ParticleParams_TypeInfo.h>
 #include <CryCore/TypeInfo_impl.h>
 
@@ -730,7 +719,7 @@ int ResourceParticleParams::LoadResources(const char* pEffectName)
 {
 	// Load only what is not yet loaded. Check everything, but caller may check params.bResourcesLoaded first.
 	// Call UnloadResources to force unload/reload.
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	if (!bEnabled)
 	{
@@ -865,13 +854,13 @@ void ResourceParticleParams::UnloadResources()
 // Struct and TypeInfo for reading older params
 //
 struct CompatibilityParticleParams
-	: ParticleParams, ZeroInit<CompatibilityParticleParams>, Cry3DEngineBase
+	: ParticleParams, Cry3DEngineBase
 {
-	int    nVersion;
+	int    nVersion = 0;
 	string sSandboxVersion;
 
 	// Version 26
-	float fBounciness;
+	float fBounciness = 0.0f;
 	DEFINE_ENUM(EMoveRelative,
 	            No,
 	            Yes,
@@ -881,30 +870,33 @@ struct CompatibilityParticleParams
 
 	// Version 25
 	ETrinary tDX;
-	bool     bGeometryInPieces;
+	bool     bGeometryInPieces = false;
 
 	// Version 24
-	float fAlphaTest;
-	float fCameraDistanceBias;
-	int   nDrawLast;
+	float fAlphaTest = 0.0f;
+	float fCameraDistanceBias = 0.0f;
+	int   nDrawLast = 0;
 
 	// Version 22
-	float  fPosRandomOffset;
-	float  fAlphaScale;
-	float  fGravityScaleBias;
-	float  fCollisionPercentage;
+	float  fPosRandomOffset = 0.0f;
+	float  fAlphaScale = 0.0f;
+	float  fGravityScaleBias = 0.0f;
+	float  fCollisionPercentage = 0.0f;
 
-	bool   bSimpleParticle;
-	bool   bSecondGeneration, bSpawnOnParentCollision, bSpawnOnParentDeath;
+	bool   bSimpleParticle = false;
+	bool   bSecondGeneration = false;
+	bool   bSpawnOnParentCollision = false;
+	bool   bSpawnOnParentDeath = false;
 
 	string sAllowHalfRes;
 
 	// Version 20
-	bool bBindToEmitter;
-	bool bTextureUnstreamable, bGeometryUnstreamable;
+	bool bBindToEmitter = false;
+	bool bTextureUnstreamable = false;
+	bool bGeometryUnstreamable = false;
 
 	// Version 19
-	bool bIgnoreAttractor;
+	bool bIgnoreAttractor = false;
 
 	void Correct(class CParticleEffect* pEffect);
 
@@ -1176,7 +1168,6 @@ void CompatibilityParticleParams::Correct(CParticleEffect* pEffect)
 	case 27:
 		fEmissiveLighting = fEmissiveLighting * 10.0f;
 	}
-	;
 
 	// Universal corrections.
 	if (!fTailLength)

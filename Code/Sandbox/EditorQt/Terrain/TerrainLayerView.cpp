@@ -4,12 +4,12 @@
 #include "TerrainLayerView.h"
 
 #include "IEditorImpl.h"
-#include "Commands/QCommandAction.h"
 #include "Terrain/TerrainLayerModel.h"
 #include "Terrain/TerrainManager.h"
 #include "Terrain/Layer.h"
 #include "RecursionLoopGuard.h"
 
+#include <Commands/QCommandAction.h>
 #include <EditorFramework/Events.h>
 #include <QAdvancedItemDelegate.h>
 

@@ -2,7 +2,7 @@
 
 #include "stdafx.h"
 #include "DspBus.h"
-#include "BaseObject.h"
+#include "Object.h"
 
 #include <cri_atom_ex.h>
 
@@ -15,9 +15,9 @@ namespace Adx2
 //////////////////////////////////////////////////////////////////////////
 void CDspBus::Set(IObject* const pIObject, float const amount)
 {
-	auto const pBaseObject = static_cast<CBaseObject const*>(pIObject);
+	auto const pObject = static_cast<CObject const*>(pIObject);
 
-	CriAtomExPlayerHn const pPlayer = pBaseObject->GetPlayer();
+	CriAtomExPlayerHn const pPlayer = pObject->GetPlayer();
 	criAtomExPlayer_SetBusSendLevelByName(pPlayer, static_cast<CriChar8 const*>(m_name.c_str()), static_cast<CriFloat32>(amount));
 	criAtomExPlayer_UpdateAll(pPlayer);
 }

@@ -17,6 +17,7 @@
 #include "AnimationGraphCVars.h"
 #include "../Animation/PoseAligner/PoseAligner.h"
 #include <CryAction.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 CAnimationGraphCVars* CAnimationGraphCVars::s_pThis = 0;
 

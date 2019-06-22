@@ -525,6 +525,7 @@ public:
 	virtual void OnVehicleDestroyed(EntityId id);
 	virtual void OnVehicleSubmerged(EntityId id, float ratio);
 	virtual bool CanEnterVehicle(EntityId playerId);
+	virtual void OnVehicleEvent(IVehicle* pVehicle, EVehicleEvent event, const SVehicleEventParams& params);
 
 	virtual void CreateEntityRespawnData(EntityId entityId);
 	virtual bool HasEntityRespawnData(EntityId entityId) const;

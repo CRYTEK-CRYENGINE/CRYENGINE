@@ -54,12 +54,11 @@ public:
 				{
 					if (IAttachment* pAttach = pAttachmentManager->GetInterfaceByNameCRC(params.attachmentName.crc))
 					{
-						if (IAttachmentSkin* pSkinAttach = pAttach->GetIAttachmentSkin())
+						if (pAttach->GetIAttachmentSkin())
 						{
 							if (ISkin* pSkin = gEnv->pCharacterManager->LoadModelSKIN(params.objectFilename.c_str(), 0))
 							{
 								CSKINAttachment* pSkinAttachment = new CSKINAttachment();
-								pSkinAttachment->m_pIAttachmentSkin = pSkinAttach;
 								pAttachment->AddBinding(pSkinAttachment, pSkin, 0);
 							}
 						}

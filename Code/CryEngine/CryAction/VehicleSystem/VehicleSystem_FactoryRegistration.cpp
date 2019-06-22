@@ -66,7 +66,7 @@
 //------------------------------------------------------------------------
 void CVehicleSystem::RegisterVehicles(IGameFramework* gameFramework)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	IEntityClassRegistry::SEntityClassDesc serializerClass;
 	serializerClass.sName = "VehicleSeatSerializer";
 	serializerClass.sScriptFile = "";

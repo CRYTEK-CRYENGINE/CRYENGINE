@@ -667,7 +667,10 @@ void QMenuComboBox::OnToggled(int index, bool checked)
 			// at index 0
 			else
 			{
-				OnToggled(-1, checked);
+				if (m_lastSelected != -1) // deselect regular entry -> fall back to empty entry
+					OnToggled(-1, true);
+				else // deselect of the empty entry -> reenable to keep the checkmark
+					InternalSetChecked(-1, true);
 			}
 		}
 	}

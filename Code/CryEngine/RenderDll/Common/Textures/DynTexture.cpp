@@ -71,14 +71,7 @@ SDynTexture::TextureSubset SDynTexture::s_checkedOutTexturePoolCube_R10G10B10A2;
 SDynTexture::TextureSet SDynTexture::s_availableTexturePoolCubeCustom_R16G16F;
 SDynTexture::TextureSubset SDynTexture::s_checkedOutTexturePoolCubeCustom_R16G16F;
 
-uint32 SDynTexture::s_SuggestedDynTexAtlasCloudsMaxsize;
-uint32 SDynTexture::s_SuggestedDynTexAtlasSpritesMaxsize;
-uint32 SDynTexture::s_SuggestedTexAtlasSize;
 uint32 SDynTexture::s_SuggestedDynTexMaxSize;
-
-uint32 SDynTexture::s_CurDynTexAtlasCloudsMaxsize;
-uint32 SDynTexture::s_CurDynTexAtlasSpritesMaxsize;
-uint32 SDynTexture::s_CurTexAtlasSize;
 uint32 SDynTexture::s_CurDynTexMaxSize;
 
 //======================================================================
@@ -270,7 +263,7 @@ bool SDynTexture::Update(int nNewWidth, int nNewHeight)
 
 bool SDynTexture::RT_Update(int nNewWidth, int nNewHeight)
 {
-	CRY_PROFILE_REGION(PROFILE_RENDERER, "SDynTexture::RT_Update");
+	CRY_PROFILE_SECTION(PROFILE_RENDERER, "SDynTexture::RT_Update");
 
 	Unlink();
 
@@ -478,19 +471,13 @@ void SDynTexture::ReleaseDynamicRT(bool bForce)
 		pSubset->erase(coTexture);
 		s_iNumTextureBytesCheckedOut -= m_pTexture->GetDataSize();
 	}
-	else
-	{
-		//assert(false);
-		int nnn = 0;
-	}
 
 	// Don't cache too many unused textures.
 	if (bForce)
 	{
 		s_nMemoryOccupied -= m_pTexture->GetDataSize();
 		assert(s_iNumTextureBytesCheckedOut + s_iNumTextureBytesCheckedIn == s_nMemoryOccupied);
-		int refCount = m_pTexture->Release();
-		assert(refCount <= 0);
+		CRY_VERIFY(m_pTexture->Release() <= 0);
 		m_pTexture = NULL;
 		Unlink();
 		return;
@@ -840,26 +827,15 @@ bool SDynTexture::IsValid()
 
 void SDynTexture::Tick()
 {
-	if (s_SuggestedDynTexMaxSize != CRenderer::CV_r_dyntexmaxsize ||
-	    s_SuggestedDynTexAtlasCloudsMaxsize != CRenderer::CV_r_dyntexatlascloudsmaxsize ||
-	    s_SuggestedDynTexAtlasSpritesMaxsize != CRenderer::CV_r_dyntexatlasspritesmaxsize ||
-	    s_SuggestedTexAtlasSize != CRenderer::CV_r_texatlassize)
+	if (s_SuggestedDynTexMaxSize != CRenderer::CV_r_dyntexmaxsize)
 	{
 		Init();
-		//CTexture::InitStreaming();
 	}
 }
 
 void SDynTexture::Init()
 {
-	s_SuggestedDynTexAtlasCloudsMaxsize = CRenderer::CV_r_dyntexatlascloudsmaxsize;
-	s_SuggestedDynTexAtlasSpritesMaxsize = CRenderer::CV_r_dyntexatlasspritesmaxsize;
-	s_SuggestedTexAtlasSize = CRenderer::CV_r_texatlassize;
 	s_SuggestedDynTexMaxSize = CRenderer::CV_r_dyntexmaxsize;
-
-	s_CurDynTexAtlasCloudsMaxsize = s_SuggestedDynTexAtlasCloudsMaxsize;
-	s_CurDynTexAtlasSpritesMaxsize = s_SuggestedDynTexAtlasSpritesMaxsize;
-	s_CurTexAtlasSize = s_SuggestedTexAtlasSize;
 	s_CurDynTexMaxSize = s_SuggestedDynTexMaxSize;
 }
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MNM.h"
+#include "WayTriangleData.h"
 #include "OpenList.h"
 #include "DangerousAreas.h"
 

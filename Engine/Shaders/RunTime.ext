@@ -42,7 +42,9 @@ Property
   Precache = EyePS
   Precache = EyeVS  
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = ParticleVS
   Precache = ParticleHS
   Precache = ParticleDS
@@ -103,6 +105,7 @@ Property
   Precache = ShadowGenPS
   Precache = DebugPassPS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
 }
 
 Property
@@ -127,7 +130,9 @@ Property
   Precache = EyePS
   Precache = EyeVS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = ParticleVS
   Precache = ParticleHS
   Precache = ParticleDS
@@ -160,7 +165,9 @@ Property
   Precache = SkinVS
   Precache = GeneralVS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = VegetationVS    
   Precache = ShadowVS
   Precache = DetailVS
@@ -189,7 +196,9 @@ Property
   Precache = VegetationPS
 	Precache = GeneralPS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = GlowVS
   Precache = GlowPS  
   Precache = MotionBlurVS
@@ -219,7 +228,9 @@ Property
   Precache = HairPS
   Precache = EyePS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = ParticlePS
+  Precache = DeferredPassPS
 }
 
 Property
@@ -246,6 +257,7 @@ Property
   Precache = CustomRenderVS
   Precache = CustomRenderPS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = SkinPS
   Precache = HDRPostProcessPS
   Precache = PostMotionBlurVS
@@ -413,6 +425,7 @@ Property
 	Precache = GeneralPS
   Precache = ClothVS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
 //  Precache = VegetationPS  
   Precache = CustomRenderHS
   Precache = CustomRenderDS
@@ -455,7 +468,9 @@ Property
   Precache = EyePS
   Precache = EyeVS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = TerrainPS  
   Precache = TerrainVS  
   Precache = VoxTerrainPS
@@ -518,7 +533,9 @@ Property
   Precache = EyePS
   Precache = EyeVS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = TerrainPS  
   Precache = TerrainVS  
   Precache = VoxTerrainPS
@@ -580,6 +597,7 @@ Property
 	Precache = HairVS 
   Precache = EyeVS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = VegetationVS    
   Precache = ShadowVS
   Precache = ShadowGenVS  
@@ -600,6 +618,7 @@ Property
 	Precache = EyePS
 	Precache = HairPS
 	Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
 	Precache = GeneralPS
 	Precache = VegetationPS
 	Precache = SkinPS
@@ -762,6 +781,7 @@ Property
 	Precache = HairVS	
   Precache = EyeVS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = VegetationVS    
   Precache = ShadowVS
   Precache = ShadowGenVS
@@ -788,6 +808,7 @@ Property
 	Precache = HairVS	
   Precache = EyeVS
   Precache = GlassVS
+  Precache = MultiLayeredMaterialsVS
   Precache = VegetationVS    
   Precache = ShadowVS
   Precache = ShadowGenVS
@@ -1038,6 +1059,7 @@ Property
   Precache = CustomRenderPS
   Precache = SkinPS
   Precache = GlassPS
+  Precache = MultiLayeredMaterialsPS
   Precache = DebugPassVS
   Precache = DebugPassPS
 	Precache = ZPS
@@ -1157,6 +1179,7 @@ Property
 		Precache = HairVS	
 		Precache = EyeVS
 		Precache = GlassVS
+		Precache = MultiLayeredMaterialsVS
 		Precache = VegetationVS    
 		Precache = ShadowVS
 		Precache = ShadowGenVS

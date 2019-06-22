@@ -4,7 +4,7 @@
 #include "Common.h"
 #include "System.h"
 #include "Object.h"
-#include "GlobalObject.h"
+#include "Listener.h"
 #include "LoseFocusTrigger.h"
 #include "GetFocusTrigger.h"
 #include "MuteAllTrigger.h"
@@ -12,23 +12,26 @@
 #include "PauseAllTrigger.h"
 #include "ResumeAllTrigger.h"
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 	#include "PreviewTrigger.h"
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 namespace CryAudio
 {
 Impl::IImpl* g_pIImpl = nullptr;
+Impl::IObject* g_pIObject = nullptr;
 CSystem g_system;
 ESystemStates g_systemStates = ESystemStates::None;
-TriggerLookup g_triggers;
-ParameterLookup g_parameters;
-SwitchLookup g_switches;
+TriggerLookup g_triggerLookup;
+ParameterLookup g_parameterLookup;
+SwitchLookup g_switchLookup;
 PreloadRequestLookup g_preloadRequests;
-EnvironmentLookup g_environments;
-SettingLookup g_settings;
-TriggerInstanceIdLookup g_triggerInstanceIdToObject;
-TriggerInstanceIdLookupGlobal g_triggerInstanceIdToGlobalObject;
+EnvironmentLookup g_environmentLookup;
+SettingLookup g_settingLookup;
+TriggerInstances g_triggerInstances;
+TriggerInstanceIdLookup g_triggerInstanceIdLookup;
+ContextLookup g_contextLookup;
+TriggerInstanceIds g_triggerInstanceIds;
 
 CLoseFocusTrigger g_loseFocusTrigger;
 CGetFocusTrigger g_getFocusTrigger;
@@ -45,13 +48,20 @@ TriggerInstanceId g_triggerInstanceIdCounter = 1;
 
 SPoolSizes g_poolSizes;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
+CListener g_defaultListener(DefaultListenerId, false, g_szDefaultListenerName);
+CListener g_previewListener(g_previewListenerId, false, g_szPreviewListenerName);
 Objects g_constructedObjects;
-CGlobalObject g_object("Global Object");
-CGlobalObject g_previewObject("Preview Object");
+CObject g_previewObject(CTransformation::GetEmptyObject(), "Preview Object");
 CPreviewTrigger g_previewTrigger;
 SPoolSizes g_debugPoolSizes;
+ContextInfo g_contextInfo;
+ContextDebugInfo g_contextDebugInfo;
+ParameterValues g_parameters;
+ParameterValues g_parametersGlobally;
+SwitchStateIds g_switchStates;
+SwitchStateIds g_switchStatesGlobally;
 #else
-CGlobalObject g_object;
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+CListener g_defaultListener(DefaultListenerId, false);
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 }      // namespace CryAudio

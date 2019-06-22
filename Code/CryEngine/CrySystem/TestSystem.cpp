@@ -5,7 +5,7 @@
 	#include <setjmp.h>
 #endif
 #include <CrySystem/ISystem.h>
-#include <CrySystem/IConsole.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CryGame/IGameFramework.h>
 #include <CryCore/optional.h>
 #include "UnitTestExcelReporter.h"
@@ -488,15 +488,15 @@ void CTestSystem::SignalStopWork()
 void CTestSystem::SaveAndDisableAssertDialogSetting()
 {
 #ifdef USE_CRY_ASSERT
-	m_wasNoAssertDialog = gEnv->noAssertDialog;
-	gEnv->noAssertDialog = true;
+	m_wasShowAssertDialog = Cry::Assert::ShowDialogOnAssert();
+	Cry::Assert::ShowDialogOnAssert(false);
 #endif
 }
 
 void CTestSystem::RestoreAssertDialogSetting()
 {
 #ifdef USE_CRY_ASSERT
-	gEnv->noAssertDialog = m_wasNoAssertDialog;
+	Cry::Assert::ShowDialogOnAssert(m_wasShowAssertDialog);
 #endif
 }
 
@@ -537,7 +537,7 @@ void CTestSystem::ReportCriticalError(const char* szExpression, const char* szFi
 		// The flag has to be set here, since the majority of engine code does not use exceptions
 		// but we are using exception or longjmp here, so it no longer returns to the assert caller
 		// which would otherwise reset the flag.
-		gEnv->stoppedOnAssert = false;
+		Cry::Assert::Detail::IsInAssert(false);
 #endif
 		m_currentTestInstance->AddFailure(SError{ szExpression, szFile, line });
 #if defined(CRY_TESTING_USE_EXCEPTIONS)

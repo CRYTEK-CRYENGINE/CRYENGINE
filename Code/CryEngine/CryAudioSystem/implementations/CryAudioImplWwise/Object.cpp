@@ -3,17 +3,17 @@
 #include "stdafx.h"
 #include "Object.h"
 #include "CVars.h"
+#include "Event.h"
 #include "EventInstance.h"
 #include "Impl.h"
 #include "Listener.h"
 
 #include <AK/SoundEngine/Common/AkSoundEngine.h>
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 	#include <Logger.h>
 	#include <DebugStyle.h>
-	#include <CryRenderer/IRenderAuxGeom.h>
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 namespace CryAudio
 {
@@ -28,20 +28,34 @@ constexpr char const* g_szRelativeVelocityParameterName = "relative_velocity";
 static AkRtpcID const s_relativeVelocityParameterId = AK::SoundEngine::GetIDFromString(g_szRelativeVelocityParameterName);
 
 //////////////////////////////////////////////////////////////////////////
-CObject::CObject(AkGameObjectID const id, CTransformation const& transformation, char const* const szName)
-	: CBaseObject(id, szName, transformation.GetPosition())
+CObject::CObject(
+	AkGameObjectID const id,
+	CTransformation const& transformation,
+	ListenerInfos const& listenerInfos,
+	char const* const szName)
+	: m_id(id)
+	, m_flags(EObjectFlags::None)
 	, m_needsToUpdateAuxSends(false)
+	, m_shortestDistanceToListener(0.0f)
 	, m_previousRelativeVelocity(0.0f)
 	, m_previousAbsoluteVelocity(0.0f)
 	, m_transformation(transformation)
+	, m_position(transformation.GetPosition())
 	, m_previousPosition(transformation.GetPosition())
 	, m_velocity(ZERO)
+	, m_listenerInfos(listenerInfos)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
+	, m_name(szName)
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 {
+	m_eventInstances.reserve(2);
 	m_auxSendValues.reserve(4);
 
 	AkSoundPosition soundPos;
 	FillAKObjectPosition(transformation, soundPos);
 	AK::SoundEngine::SetPosition(id, soundPos);
+
+	SetListeners();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -49,7 +63,7 @@ CObject::~CObject()
 {
 	if ((m_flags& EObjectFlags::TrackRelativeVelocity) != 0)
 	{
-		CRY_ASSERT_MESSAGE(g_numObjectsWithRelativeVelocity > 0, "g_numObjectsWithRelativeVelocity is 0 but an object with relative velocity tracking still exists during %s", __FUNCTION__);
+		CRY_ASSERT_MESSAGE(g_numObjectsWithRelativeVelocity > 0, "g_numObjectsWithRelativeVelocity is 0 but object \"%s\"with relative velocity tracking still exists during %s", m_name.c_str(), __FUNCTION__);
 		g_numObjectsWithRelativeVelocity--;
 	}
 }
@@ -62,7 +76,72 @@ void CObject::Update(float const deltaTime)
 		SetAuxSendValues();
 	}
 
-	CBaseObject::Update(deltaTime);
+	SetDistanceToListener();
+
+	EObjectFlags const previousFlags = m_flags;
+
+	if (!m_eventInstances.empty())
+	{
+		m_flags |= EObjectFlags::IsVirtual;
+	}
+
+	auto iter(m_eventInstances.begin());
+	auto iterEnd(m_eventInstances.end());
+
+	while (iter != iterEnd)
+	{
+		CEventInstance* const pEventInstance = *iter;
+
+		if (pEventInstance->IsToBeRemoved())
+		{
+			gEnv->pAudioSystem->ReportFinishedTriggerConnectionInstance(pEventInstance->GetTriggerInstanceId(), ETriggerResult::Playing);
+			g_pImpl->DestructEventInstance(pEventInstance);
+
+			if (iter != (iterEnd - 1))
+			{
+				(*iter) = m_eventInstances.back();
+			}
+
+			m_eventInstances.pop_back();
+			iter = m_eventInstances.begin();
+			iterEnd = m_eventInstances.end();
+		}
+		else
+		{
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
+			// Always update in production code for debug draw.
+			pEventInstance->UpdateVirtualState(m_shortestDistanceToListener);
+
+			if (pEventInstance->GetState() != EEventInstanceState::Virtual)
+			{
+				m_flags &= ~EObjectFlags::IsVirtual;
+			}
+#else
+			if (((m_flags& EObjectFlags::IsVirtual) != 0) && ((m_flags& EObjectFlags::UpdateVirtualStates) != 0))
+			{
+				pEventInstance->UpdateVirtualState(m_shortestDistanceToListener);
+
+				if (pEventInstance->GetState() != EEventInstanceState::Virtual)
+				{
+					m_flags &= ~EObjectFlags::IsVirtual;
+				}
+			}
+#endif      // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
+			++iter;
+		}
+	}
+
+	if ((previousFlags != m_flags) && !m_eventInstances.empty())
+	{
+		if (((previousFlags& EObjectFlags::IsVirtual) != 0) && ((m_flags& EObjectFlags::IsVirtual) == 0))
+		{
+			gEnv->pAudioSystem->ReportPhysicalizedObject(this);
+		}
+		else if (((previousFlags& EObjectFlags::IsVirtual) == 0) && ((m_flags& EObjectFlags::IsVirtual) != 0))
+		{
+			gEnv->pAudioSystem->ReportVirtualizedObject(this);
+		}
+	}
 
 	if (deltaTime > 0.0f)
 	{
@@ -84,7 +163,7 @@ void CObject::SetTransformation(CTransformation const& transformation)
 		m_previousPosition = m_position;
 	}
 
-	float const threshold = m_distanceToListener * g_cvars.m_positionUpdateThresholdMultiplier;
+	float const threshold = m_shortestDistanceToListener * g_cvars.m_positionUpdateThresholdMultiplier;
 
 	if (!m_transformation.IsEquivalent(transformation, threshold))
 	{
@@ -97,22 +176,15 @@ void CObject::SetTransformation(CTransformation const& transformation)
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CObject::SetOcclusion(float const occlusion)
+void CObject::SetOcclusion(IListener* const pIListener, float const occlusion, uint8 const numRemainingListeners)
 {
-	if (g_listenerId != AK_INVALID_GAME_OBJECT)
-	{
-		AK::SoundEngine::SetObjectObstructionAndOcclusion(
-			m_id,
-			g_listenerId,                     // Set occlusion for only the default listener for now.
-			static_cast<AkReal32>(occlusion), // The occlusion value is currently used on obstruction as well until a correct obstruction value is calculated.
-			static_cast<AkReal32>(occlusion));
-	}
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
-	else
-	{
-		Cry::Audio::Log(ELogType::Warning, "Wwise - invalid listener Id during %s!", __FUNCTION__);
-	}
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+	auto const pListener = static_cast<CListener*>(pIListener);
+
+	AK::SoundEngine::SetObjectObstructionAndOcclusion(
+		m_id,
+		pListener->GetId(),               // Set occlusion for only the default listener for now.
+		static_cast<AkReal32>(occlusion), // The occlusion value is currently used on obstruction as well until a correct obstruction value is calculated.
+		static_cast<AkReal32>(occlusion));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -126,6 +198,112 @@ void CObject::SetOcclusionType(EOcclusionType const occlusionType)
 	else
 	{
 		m_flags &= ~EObjectFlags::UpdateVirtualStates;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::StopAllTriggers()
+{
+	AK::SoundEngine::StopAll(m_id);
+}
+
+//////////////////////////////////////////////////////////////////////////
+ERequestStatus CObject::SetName(char const* const szName)
+{
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
+	StopAllTriggers();
+
+	AKRESULT wwiseResult = AK::SoundEngine::UnregisterGameObj(m_id);
+	CRY_ASSERT(wwiseResult == AK_Success);
+
+	wwiseResult = AK::SoundEngine::RegisterGameObj(m_id, szName);
+	CRY_ASSERT(wwiseResult == AK_Success);
+
+	m_name = szName;
+
+	return ERequestStatus::SuccessNeedsRefresh;
+#else
+	return ERequestStatus::Success;
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::AddListener(IListener* const pIListener)
+{
+	auto const pListener = static_cast<CListener*>(pIListener);
+	float const distance = m_position.GetDistance(pListener->GetPosition());
+
+	m_listenerInfos.emplace_back(pListener, distance);
+
+	SetListeners();
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::RemoveListener(IListener* const pIListener)
+{
+	auto const pListener = static_cast<CListener*>(pIListener);
+	bool wasRemoved = false;
+
+	auto iter(m_listenerInfos.begin());
+	auto const iterEnd(m_listenerInfos.cend());
+
+	for (; iter != iterEnd; ++iter)
+	{
+		SListenerInfo const& info = *iter;
+
+		if (info.pListener == pListener)
+		{
+			if (iter != (iterEnd - 1))
+			{
+				(*iter) = m_listenerInfos.back();
+			}
+
+			m_listenerInfos.pop_back();
+			wasRemoved = true;
+			break;
+		}
+	}
+
+	if (wasRemoved)
+	{
+		SetListeners();
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::AddEventInstance(CEventInstance* const pEventInstance)
+{
+	SetDistanceToListener();
+
+	pEventInstance->UpdateVirtualState(m_shortestDistanceToListener);
+
+	if ((m_flags& EObjectFlags::IsVirtual) != 0)
+	{
+		if (pEventInstance->GetState() != EEventInstanceState::Virtual)
+		{
+			m_flags &= ~EObjectFlags::IsVirtual;
+		}
+	}
+	else if (m_eventInstances.empty())
+	{
+		if (pEventInstance->GetState() == EEventInstanceState::Virtual)
+		{
+			m_flags |= EObjectFlags::IsVirtual;
+		}
+	}
+
+	m_eventInstances.push_back(pEventInstance);
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::StopEvent(AkUniqueID const eventId)
+{
+	for (auto const pEventInstance : m_eventInstances)
+	{
+		if (pEventInstance->GetEvent().GetId() == eventId)
+		{
+			pEventInstance->Stop();
+		}
 	}
 }
 
@@ -176,7 +354,7 @@ void CObject::SetAuxBusSend(AkAuxBusID const busId, float const amount)
 	if (addAuxSendValue)
 	{
 		// This temporary copy is needed until AK equips AkAuxSendValue with a ctor.
-		m_auxSendValues.emplace_back(AkAuxSendValue{ g_listenerId, busId, amount });
+		m_auxSendValues.emplace_back(AkAuxSendValue{ AK_INVALID_GAME_OBJECT, busId, amount });
 		m_needsToUpdateAuxSends = true;
 	}
 }
@@ -213,7 +391,7 @@ void CObject::UpdateVelocities(float const deltaTime)
 			{
 				m_previousAbsoluteVelocity = absoluteVelocity;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 				AKRESULT const wwiseResult = AK::SoundEngine::SetRTPCValue(s_absoluteVelocityParameterId, static_cast<AkRtpcValue>(absoluteVelocity), m_id);
 
 				if (CRY_AUDIO_IMPL_WWISE_IS_OK(wwiseResult))
@@ -222,23 +400,37 @@ void CObject::UpdateVelocities(float const deltaTime)
 				}
 #else
 				AK::SoundEngine::SetRTPCValue(s_absoluteVelocityParameterId, static_cast<AkRtpcValue>(absoluteVelocity), m_id);
-#endif        // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif        // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 			}
 		}
 
 		if ((m_flags& EObjectFlags::TrackRelativeVelocity) != 0)
 		{
-			// Approaching positive, departing negative value.
+			// Approaching positive, departing negative value. Highest value of all listeners is used.
 			float relativeVelocity = 0.0f;
 
-			if (((m_flags& EObjectFlags::MovingOrDecaying) != 0) && !g_pListener->HasMoved())
+			for (auto const& info : m_listenerInfos)
 			{
-				relativeVelocity = -m_velocity.Dot((m_position - g_pListener->GetPosition()).GetNormalized());
-			}
-			else if (((m_flags& EObjectFlags::MovingOrDecaying) != 0) && g_pListener->HasMoved())
-			{
-				Vec3 const relativeVelocityVec(m_velocity - g_pListener->GetVelocity());
-				relativeVelocity = -relativeVelocityVec.Dot((m_position - g_pListener->GetPosition()).GetNormalized());
+				if (((m_flags& EObjectFlags::MovingOrDecaying) != 0) && !info.pListener->HasMoved())
+				{
+					float const tempRelativeVelocity = -m_velocity.Dot((m_position - info.pListener->GetPosition()).GetNormalized());
+
+					if (fabs(tempRelativeVelocity) > fabs(relativeVelocity))
+					{
+						relativeVelocity = tempRelativeVelocity;
+					}
+				}
+				else if (((m_flags& EObjectFlags::MovingOrDecaying) != 0) && info.pListener->HasMoved())
+				{
+					Vec3 const relativeVelocityVec(m_velocity - info.pListener->GetVelocity());
+
+					float const tempRelativeVelocity = -relativeVelocityVec.Dot((m_position - info.pListener->GetPosition()).GetNormalized());
+
+					if (fabs(tempRelativeVelocity) > fabs(relativeVelocity))
+					{
+						relativeVelocity = tempRelativeVelocity;
+					}
+				}
 			}
 
 			TryToSetRelativeVelocity(relativeVelocity);
@@ -246,15 +438,26 @@ void CObject::UpdateVelocities(float const deltaTime)
 	}
 	else if ((m_flags& EObjectFlags::TrackRelativeVelocity) != 0)
 	{
-		// Approaching positive, departing negative value.
-		if (g_pListener->HasMoved())
+		for (auto const& info : m_listenerInfos)
 		{
-			float const relativeVelocity = g_pListener->GetVelocity().Dot((m_position - g_pListener->GetPosition()).GetNormalized());
-			TryToSetRelativeVelocity(relativeVelocity);
-		}
-		else if (m_previousRelativeVelocity != 0.0f)
-		{
-			TryToSetRelativeVelocity(0.0f);
+			// Approaching positive, departing negative value. Highest value of all listeners is used.
+			float relativeVelocity = 0.0f;
+
+			if (info.pListener->HasMoved())
+			{
+				float const tempRelativeVelocity = info.pListener->GetVelocity().Dot((m_position - info.pListener->GetPosition()).GetNormalized());
+
+				if (fabs(tempRelativeVelocity) > fabs(relativeVelocity))
+				{
+					relativeVelocity = tempRelativeVelocity;
+				}
+
+				TryToSetRelativeVelocity(relativeVelocity);
+			}
+			else if (m_previousRelativeVelocity != 0.0f)
+			{
+				TryToSetRelativeVelocity(0.0f);
+			}
 		}
 	}
 }
@@ -266,7 +469,7 @@ void CObject::TryToSetRelativeVelocity(float const relativeVelocity)
 	{
 		m_previousRelativeVelocity = relativeVelocity;
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 		AKRESULT const wwiseResult = AK::SoundEngine::SetRTPCValue(s_relativeVelocityParameterId, static_cast<AkRtpcValue>(relativeVelocity), m_id);
 
 		if (CRY_AUDIO_IMPL_WWISE_IS_OK(wwiseResult))
@@ -275,9 +478,67 @@ void CObject::TryToSetRelativeVelocity(float const relativeVelocity)
 		}
 #else
 		AK::SoundEngine::SetRTPCValue(s_relativeVelocityParameterId, static_cast<AkRtpcValue>(relativeVelocity), m_id);
-#endif    // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif    // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 	}
 }
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::SetDistanceToListener()
+{
+	m_shortestDistanceToListener = std::numeric_limits<float>::max();
+
+	for (auto& listenerInfo : m_listenerInfos)
+	{
+		listenerInfo.distance = m_position.GetDistance(listenerInfo.pListener->GetPosition());
+		m_shortestDistanceToListener = std::min(m_shortestDistanceToListener, listenerInfo.distance);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+void CObject::SetListeners()
+{
+	size_t const numListeners = m_listenerInfos.size();
+	AkGameObjectID* const listenerIds = new AkGameObjectID[numListeners];
+
+	for (size_t i = 0; i < numListeners; ++i)
+	{
+		AkGameObjectID const id = m_listenerInfos[i].pListener->GetId();
+		listenerIds[i] = id;
+	}
+
+	AK::SoundEngine::SetListeners(m_id, listenerIds, static_cast<AkUInt32>(numListeners));
+	delete[] listenerIds;
+
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
+	UpdateListenerNames();
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
+}
+
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
+//////////////////////////////////////////////////////////////////////////
+void CObject::UpdateListenerNames()
+{
+	m_listenerNames.clear();
+	size_t const numListeners = m_listenerInfos.size();
+
+	if (numListeners != 0)
+	{
+		for (size_t i = 0; i < numListeners; ++i)
+		{
+			m_listenerNames += m_listenerInfos[i].pListener->GetName();
+
+			if (i != (numListeners - 1))
+			{
+				m_listenerNames += ", ";
+			}
+		}
+	}
+	else
+	{
+		m_listenerNames = "No Listener!";
+	}
+}
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 //////////////////////////////////////////////////////////////////////////
 void CObject::ToggleFunctionality(EObjectFunctionality const type, bool const enable)
@@ -297,7 +558,7 @@ void CObject::ToggleFunctionality(EObjectFunctionality const type, bool const en
 				AK::SoundEngine::SetRTPCValue(s_absoluteVelocityParameterId, 0.0f, m_id);
 			}
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 			if (enable)
 			{
 				m_parameterInfo[g_szAbsoluteVelocityParameterName] = 0.0f;
@@ -306,7 +567,7 @@ void CObject::ToggleFunctionality(EObjectFunctionality const type, bool const en
 			{
 				m_parameterInfo.erase(g_szAbsoluteVelocityParameterName);
 			}
-#endif          // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif          // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 			break;
 		}
@@ -333,7 +594,7 @@ void CObject::ToggleFunctionality(EObjectFunctionality const type, bool const en
 				}
 			}
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 			if (enable)
 			{
 				m_parameterInfo[g_szRelativeVelocityParameterName] = 0.0f;
@@ -342,19 +603,21 @@ void CObject::ToggleFunctionality(EObjectFunctionality const type, bool const en
 			{
 				m_parameterInfo.erase(g_szRelativeVelocityParameterName);
 			}
-#endif          // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif          // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 			break;
 		}
 	default:
-		break;
+		{
+			break;
+		}
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 void CObject::DrawDebugInfo(IRenderAuxGeom& auxGeom, float const posX, float posY, char const* const szTextFilter)
 {
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 
 	if (!m_parameterInfo.empty())
 	{
@@ -401,7 +664,7 @@ void CObject::DrawDebugInfo(IRenderAuxGeom& auxGeom, float const posX, float pos
 		}
 	}
 
-#endif  // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 }
 } // namespace Wwise
 } // namespace Impl

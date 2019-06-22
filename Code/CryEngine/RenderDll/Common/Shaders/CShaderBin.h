@@ -1,10 +1,9 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __CSHADERBIN_H__
-#define __CSHADERBIN_H__
+#pragma once
 
-#include <map>
 #include "ParserBin.h"
+#include <map>
 
 #ifndef FOURCC
 typedef DWORD FOURCC;
@@ -55,7 +54,7 @@ struct SParamCacheInfo
 	AffectedParamsVec m_AffectedSamplers;
 	AffectedParamsVec m_AffectedTextures;
 
-	SParamCacheInfo() : m_dwName(0), m_nMaskGenFX(0) {};
+	SParamCacheInfo() : m_dwName(0), m_nMaskGenFX(0) {}
 
 	int Size()
 	{
@@ -316,7 +315,3 @@ public:
 	int  Size();
 	void GetMemoryUsage(ICrySizer* pSizer) const;
 };
-
-//=====================================================================
-
-#endif  // __CSHADERBIN_H__

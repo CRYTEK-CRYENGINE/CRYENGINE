@@ -15,7 +15,7 @@ class CParticleEmitter;
 class CParticleComponent;
 struct SComponentParams;
 class CParticleComponentRuntime;
-struct SInstance;
+struct SSpawnerDesc;
 
 enum EFeatureType
 {
@@ -26,7 +26,7 @@ enum EFeatureType
 	EFT_Effect  = BIT(3),     // this feature creates non-rendering effects.
 	EFT_Size    = BIT(4),     // this feature changes particles sizes. At least one is required per component.
 	EFT_Motion  = BIT(5),     // this feature moves particles around. Each component can only have either none or just one of this.
-	EFT_Child   = BIT(6),     // this feature spawns instances from parent particles. At least one is needed for child components
+	EFT_Child   = BIT(6),     // this feature creates spawners from parent particles. At least one is needed for child components
 
 	EFT_END     = BIT(7)
 };
@@ -52,27 +52,31 @@ public:
 	// Parameters
 	static bool HasConnector()   { return false; }
 	static uint DefaultForType() { return 0; }
+	const SParticleFeatureParams& GetFeatureParams() const override
+	{
+		static SParticleFeatureParams s_params; return s_params;
+	}
 
 	// Initialization
+	virtual int               Priority() const                                                          { return 0; }
 	virtual CParticleFeature* ResolveDependency(CParticleComponent* pComponent)                         { return this; }
 	virtual void              AddToComponent(CParticleComponent* pComponent, SComponentParams* pParams) {}
 	virtual EFeatureType      GetFeatureType()                                                          { return EFT_Generic; }
 	virtual bool              CanMakeRuntime(CParticleEmitter* pEmitter) const                          { return true; }
+	virtual void              LoadResources(CParticleComponent& component)                              {}
 
-	// Runtime and instance initialization
+	// Runtime and spawner initialization
 	virtual void OnEdit(CParticleComponentRuntime& runtime) {}
-
-	virtual void OnPreRun(CParticleComponentRuntime& runtime) {}
 
 	virtual void GetDynamicData(const CParticleComponentRuntime& runtime, EParticleDataType type, void* data, EDataDomain domain, SUpdateRange range) {}
 
 	virtual void MainPreUpdate(CParticleComponentRuntime& runtime) {}
 
-	virtual void AddSubInstances(CParticleComponentRuntime& runtime) {}
+	virtual void UpdateSpawners(CParticleComponentRuntime& runtime) {}
 
-	virtual void CullSubInstances(CParticleComponentRuntime& runtime, TVarArray<SInstance>& instances) {}
+	virtual void CullSpawners(CParticleComponentRuntime& runtime, TVarArray<SSpawnerDesc>& spawners) {}
 
-	virtual void InitSubInstances(CParticleComponentRuntime& runtime, SUpdateRange instanceRange) {}
+	virtual void InitSpawners(CParticleComponentRuntime& runtime) {}
 
 	// Particle initialization
 	virtual void KillParticles(CParticleComponentRuntime& runtime) {}
@@ -119,14 +123,14 @@ private:
 
 struct SFeatureDispatchers
 {
+	FEATURE_DISPATCHER(LoadResources);
 	FEATURE_DISPATCHER(OnEdit);
-	FEATURE_DISPATCHER(OnPreRun);
 	FEATURE_DISPATCHER(MainPreUpdate);
 	FEATURE_DISPATCHER(GetDynamicData);
 
-	FEATURE_DISPATCHER(AddSubInstances);
-	FEATURE_DISPATCHER(CullSubInstances);
-	FEATURE_DISPATCHER(InitSubInstances);
+	FEATURE_DISPATCHER(UpdateSpawners);
+	FEATURE_DISPATCHER(CullSpawners);
+	FEATURE_DISPATCHER(InitSpawners);
 	FEATURE_DISPATCHER(KillParticles);
 	FEATURE_DISPATCHER(SpawnParticles);
 

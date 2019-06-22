@@ -42,7 +42,7 @@ private:
 	// cachelines crossed by the temporary pool
 	static bool Initialize(size_t poolSize)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Init 3dEngine Temporary Pool");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Init 3dEngine Temporary Pool");
 		// Create the object instance
 		s_Instance = new CTemporaryPool();
 		if (!s_Instance)

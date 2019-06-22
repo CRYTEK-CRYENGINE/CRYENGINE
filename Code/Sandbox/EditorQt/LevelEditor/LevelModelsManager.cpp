@@ -118,7 +118,7 @@ static QVariant FullLevel_GetHeaderData(int section, Qt::Orientation orientation
 		if (section == eFullLevelColumns_Visible)
 			return CryIcon("icons:General/Visibility_True.ico");
 		if (section == eFullLevelColumns_Frozen)
-			return CryIcon("icons:General/editable.ico");
+			return CryIcon("icons:general_lock_true.ico");
 		if (section == eFullLevelColumns_VCS)
 			return CryIcon("icons:VersionControl/icon.ico");
 	}
@@ -266,7 +266,7 @@ void CLevelModelsManager::DeleteLayerModels()
 
 void CLevelModelsManager::CreateLayerModels()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	const auto& layers = GetIEditorImpl()->GetObjectManager()->GetLayersManager()->GetLayers();
 	for (IObjectLayer* pLayer : layers)
 	{

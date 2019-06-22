@@ -2,10 +2,8 @@
 
 #include "StdAfx.h"
 #include "AssetImporterImage.h"
-#include "SandboxPlugin.h"
 #include "TextureHelpers.h"
 #include "ImporterUtil.h"
-#include "RcCaller.h"
 
 #include <AssetSystem/AssetImportContext.h>
 #include <PathUtils.h>
@@ -103,7 +101,7 @@ std::vector<CAsset*> CAssetImporterImage::ImportAssets(const std::vector<string>
 	const string absOutputSourceFilePath = PathUtil::Make(PathUtil::GetGameProjectAssetsPath(), ctx.GetOutputSourceFilePath());
 	if (!fileImporter.Import(ctx.GetInputFilePath(), absOutputSourceFilePath))
 	{
-		return{};
+		return {};
 	}
 
 	// If the source file is a TIF, we make it writable, as we might call the RC and store settings
@@ -113,27 +111,9 @@ std::vector<CAsset*> CAssetImporterImage::ImportAssets(const std::vector<string>
 		MakeFileWritable(absOutputSourceFilePath);
 	}
 
-	const string tifFilePath = TextureHelpers::CreateCryTif(absOutputSourceFilePath);
-	if (!tifFilePath)
-	{
-		return {};
-	}
+	TextureHelpers::CreateCryTif(PathUtil::AdjustCasing(absOutputSourceFilePath));
 
-	// Create DDS.
-	CRcCaller rcCaller;
-	rcCaller.SetAdditionalOptions(CRcCaller::OptionOverwriteFilename(ctx.GetAssetName()));
-	if (!rcCaller.Call(tifFilePath))
-	{
-		return {};
-	}
-
-	CAsset* const pTextureAsset = ctx.LoadAsset(ctx.GetOutputFilePath("dds.cryasset"));
-	if (pTextureAsset)
-	{
-		return { pTextureAsset };
-	}
-	else
-	{
-		return {};
-	}
+	// there is no need to call RC here for tif file and then to load the asset from cryasset file since
+	// file monitor will detect the changes and trigger it anyway.
+	return {};
 }

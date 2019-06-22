@@ -25,12 +25,12 @@ public:
 
 	~CMemoryHandle()
 	{
-		VK_ASSERT(handle == 0 && "Must deallocate memory handle before destroying it");
+		VK_ASSERT(handle == 0, "Must deallocate memory handle before destroying it");
 	}
 
 	CMemoryHandle& operator=(CMemoryHandle&& other)
 	{
-		VK_ASSERT(handle == 0 && "Must deallocate memory handle before overwriting it");
+		VK_ASSERT(handle == 0, "Must deallocate memory handle before overwriting it");
 		handle = other.handle;
 		other.handle = 0;
 		return *this;
@@ -113,6 +113,7 @@ public:
 	CHeap() : CGpuHeap(VK_MAX_MEMORY_TYPES) {}
 	CHeap(const CHeap&) = delete;
 	CHeap(CHeap&&) = delete;
+	~CHeap() { Release(); }
 
 	// Initialize the heap for a given physical device.
 	// This sets up preference information for heap types.

@@ -9,6 +9,7 @@
 // - not required when building a .lib
 #include <CryCore/Platform/platform_impl.inl>
 
+#include <CryMath/Cry_Camera.h>
 
 namespace UQS
 {

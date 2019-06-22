@@ -15,6 +15,21 @@ namespace Cry
 		//
 		//===================================================================================
 
+		CRenderPrimitiveBase::CRenderPrimitiveBase()
+		{
+			m_metadata.Initialize();
+		}
+
+		const CTimeMetadata& CRenderPrimitiveBase::GetMetadata() const
+		{
+			return m_metadata;
+		}
+
+		void CRenderPrimitiveBase::Serialize(Serialization::IArchive& ar)
+		{
+			ar(m_metadata, "m_metadata");
+		}
+
 		IRenderAuxGeom* CRenderPrimitiveBase::GetRenderAuxGeom()
 		{
 			return gEnv->pRenderer ? gEnv->pRenderer->GetIRenderAuxGeom() : nullptr;
@@ -142,6 +157,8 @@ namespace Cry
 
 		void CRenderPrimitive_Sphere::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_pos, "pos");
 			ar(m_radius, "radius");
 			ar(m_color, "color");
@@ -182,6 +199,8 @@ namespace Cry
 
 		void CRenderPrimitive_Line::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_pos1, "pos1");
 			ar(m_pos2, "pos2");
 			ar(m_color, "color");
@@ -225,6 +244,8 @@ namespace Cry
 
 		void CRenderPrimitive_Triangle::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_vtx1, "vtx1");
 			ar(m_vtx2, "vtx2");
 			ar(m_vtx3, "vtx3");
@@ -279,6 +300,8 @@ namespace Cry
 
 		void CRenderPrimitive_Text::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_pos, "pos");
 			ar(m_size, "size");
 			ar(m_text, "text");
@@ -328,6 +351,8 @@ namespace Cry
 
 		void CRenderPrimitive_Arrow::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_from, "from");
 			ar(m_to, "to");
 			ar(m_coneRadius, "coneRadius");
@@ -370,6 +395,8 @@ namespace Cry
 
 		void CRenderPrimitive_AABB::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_aabb, "aabb");
 			ar(m_color, "color");
 		}
@@ -411,6 +438,8 @@ namespace Cry
 
 		void CRenderPrimitive_OBB::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_obb.m33, "rotation");
 			ar(m_obb.h, "half-vector");
 			ar(m_obb.c, "center");
@@ -460,6 +489,8 @@ namespace Cry
 
 		void CRenderPrimitive_Cylinder::Serialize(Serialization::IArchive& ar)
 		{
+			CRenderPrimitiveBase::Serialize(ar);
+
 			ar(m_pos, "pos");
 			ar(m_dir, "dir");
 			ar(m_radius, "radius");

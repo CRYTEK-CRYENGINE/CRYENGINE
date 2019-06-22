@@ -4,7 +4,7 @@
 #include "ViewportHelperWnd.h"
 
 #include "Serialization/Decorators/EditorActionButton.h"
-#include "Serialization/QPropertyTree/QPropertyTree.h"
+#include "Serialization/QPropertyTreeLegacy/QPropertyTreeLegacy.h"
 #include "Viewport.h"
 #include <QLabel>
 #include <QPushButton>
@@ -13,7 +13,7 @@ CViewportHelperWnd::CViewportHelperWnd(QWidget* pParent, CViewport* pViewport)
 	: CDockableWidgetT<QScrollableBox>{pParent}
 	, m_pViewport{pViewport}
 {
-	m_propertyTree = new QPropertyTree(this);
+	m_propertyTree = new QPropertyTreeLegacy(this);
 	m_propertyTree->setAutoRevert(false);
 	m_propertyTree->setAggregateMouseEvents(false);
 	m_propertyTree->setFullRowContainers(true);

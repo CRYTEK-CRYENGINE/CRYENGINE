@@ -1,7 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _SPATIAL_HASH_GRID_
-#define _SPATIAL_HASH_GRID_
 #pragma once
 
 #if GLASSCFG_USE_HASH_GRID
@@ -276,4 +274,3 @@ void CSpatialHashGrid<T, GridSize, BucketSize >::DebugDraw()
 	#endif // !RELEASE
 
 #endif // GLASSCFG_USE_HASH_GRID
-#endif // _SPATIAL_HASH_GRID_

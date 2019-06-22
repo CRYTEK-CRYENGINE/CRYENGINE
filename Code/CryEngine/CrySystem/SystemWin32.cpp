@@ -30,7 +30,6 @@
 	#include <float.h>
 	#include <CryCore/Platform/CryWindows.h>
 	#include <shellapi.h> // Needed for ShellExecute.
-	#include <Psapi.h>
 	#include <Aclapi.h>
 	#include <tlhelp32.h>
 

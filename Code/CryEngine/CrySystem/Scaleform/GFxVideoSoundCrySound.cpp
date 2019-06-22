@@ -5,7 +5,7 @@
 #ifdef INCLUDE_SCALEFORM_SDK
 
 	#include "GFxVideoSoundCrySound.h"
-	#include <CrySystem/IConsole.h>
+	#include <CrySystem/ConsoleRegistration.h>
 
 static float s_sys_flash_video_soundvolume = 1.0f;
 static float s_sys_flash_video_subaudiovolume = 1.0f;

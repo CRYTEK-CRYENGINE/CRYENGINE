@@ -47,10 +47,10 @@ static uint32 MapResourceFlags(NCryVulkan::CMemoryResource* pResource)
 CDeviceResourceView* CDeviceResource::CreateResourceView(const SResourceView pView)
 {
 	NCryVulkan::CMemoryResource* const pResource = GetNativeResource();
-	VK_ASSERT(pResource && "Attempt to create view on nullptr");
+	VK_ASSERT(pResource, "Attempt to create view on nullptr");
 	NCryVulkan::CImageResource* const pImage = pResource->AsImage();
 	NCryVulkan::CBufferResource* const pBuffer = pResource->AsBuffer();
-	VK_ASSERT((m_bFilterable ? pImage != nullptr : pBuffer != nullptr) && "Filterable property requires an image resource");
+	VK_ASSERT((m_bFilterable ? pImage != nullptr : pBuffer != nullptr), "Filterable property requires an image resource");
 
 	DXGI_FORMAT dxgiFormat = DXGI_FORMAT(pView.m_Desc.nFormat);
 	if (pView.m_Desc.bSrgbRead && DeviceFormats::IsSRGBReadable(dxgiFormat))
@@ -65,8 +65,7 @@ CDeviceResourceView* CDeviceResource::CreateResourceView(const SResourceView pVi
 		const SResourceView oneView(~0ULL);
 		const bool bAllMips = pView.m_Desc.nMipCount == zeroView.m_Desc.nMipCount || pView.m_Desc.nMipCount == oneView.m_Desc.nMipCount;
 		const bool bAllSlices = pView.m_Desc.nSliceCount == zeroView.m_Desc.nSliceCount || pView.m_Desc.nSliceCount == oneView.m_Desc.nSliceCount;
-		const bool bMultiSampled = pView.m_Desc.bMultisample != 0;
-		VK_ASSERT(bMultiSampled == pResource->GetFlag(NCryVulkan::kImageFlagMultiSampled) && "Cannot create non-multi-sampled view on a multi-sampled resource");
+		VK_ASSERT((pView.m_Desc.bMultisample != 0) == pResource->GetFlag(NCryVulkan::kImageFlagMultiSampled), "Cannot create non-multi-sampled view on a multi-sampled resource");
 
 		uint32_t firstMip = pView.m_Desc.nMostDetailedMip;
 		uint32_t numMips = bAllMips ? pImage->GetMipCount() - firstMip : static_cast<uint32_t>(pView.m_Desc.nMipCount);
@@ -165,7 +164,7 @@ CDeviceResourceView* CDeviceResource::CreateResourceView(const SResourceView pVi
 		}
 		else
 		{
-			VK_ASSERT(size != 0 && "Cannot create 0-byte view on non-null-buffer");
+			VK_ASSERT(size != 0, "Cannot create 0-byte view on non-null-buffer");
 			offset *= pBuffer->GetStride();
 			size *= pBuffer->GetStride();
 		}
@@ -182,7 +181,7 @@ CDeviceResourceView* CDeviceResource::CreateResourceView(const SResourceView pVi
 	}
 	else
 	{
-		VK_ASSERT("Unsupported resource type for view creation");
+		VK_ASSERT(false, "Unsupported resource type for view creation");
 	}
 	return nullptr;
 }
@@ -253,7 +252,7 @@ CDeviceResource::ESubstitutionResult CDeviceResource::SubstituteUsedResource()
 SBufferLayout CDeviceBuffer::GetLayout() const
 {
 	NCryVulkan::CBufferResource* const pBuffer = m_pNativeResource->AsBuffer();
-	VK_ASSERT(pBuffer && "Invalid cast to buffer");
+	VK_ASSERT(pBuffer, "Invalid cast to buffer");
 
 	SBufferLayout result;
 	result.m_eFormat = DXGI_FORMAT_UNKNOWN; // Vk buffers are not typed, that's a property of the view.
@@ -409,10 +408,10 @@ void CDeviceTexture::DownloadToStagingResource(uint32 nSubRes, StagingHook cbTra
 	const bool bCreateStaging = !pStaging || pStaging->GetStride() * pStaging->GetElementCount() < mapping.MemoryLayout.volumeStride;
 	if (bCreateStaging)
 	{
-		VK_ASSERT(cbTransfer && "Invalid persistent download staging resource size");
+		VK_ASSERT(cbTransfer, "Invalid persistent download staging resource size");
 		if (pImage->GetDevice()->CreateOrReuseStagingResource(pImage, mapping.MemoryLayout.volumeStride, &pStaging, false) != VK_SUCCESS)
 		{
-			VK_ASSERT(false && "Skipping resource download because no staging buffer is available");
+			VK_ASSERT(false, "Skipping resource download because no staging buffer is available");
 			return;
 		}
 	}
@@ -434,7 +433,7 @@ void CDeviceTexture::DownloadToStagingResource(uint32 nSubRes, StagingHook cbTra
 			}
 			else
 			{
-				VK_ASSERT(false && "Unable to map staging resource used for download");
+				VK_ASSERT(false, "Unable to map staging resource used for download");
 			}
 
 			pStaging->Release();
@@ -447,13 +446,13 @@ void CDeviceTexture::DownloadToStagingResource(uint32 nSubRes, StagingHook cbTra
 	else
 	{
 		HRESULT ret = GetDeviceObjectFactory().IssueFence(m_hStagingFence[0]);
-		VK_ASSERT(ret == S_OK && "Failed to issue fence");
+		CRY_VULKAN_VERIFY(ret == S_OK, "Failed to issue fence");
 	}
 }
 
 void CDeviceTexture::DownloadToStagingResource(uint32 nSubRes)
 {
-	VK_ASSERT(m_pStagingResource[0] && "Cannot issue non-callback download without a persistent staging buffer");
+	VK_ASSERT(m_pStagingResource[0], "Cannot issue non-callback download without a persistent staging buffer");
 
 	DownloadToStagingResource(nSubRes, nullptr);
 }
@@ -468,10 +467,10 @@ void CDeviceTexture::UploadFromStagingResource(uint32 nSubRes, StagingHook cbTra
 	const bool bCreateStaging = !pStaging || pStaging->GetStride() * pStaging->GetElementCount() < mapping.MemoryLayout.volumeStride;
 	if (bCreateStaging)
 	{
-		VK_ASSERT(cbTransfer && "Invalid persistent upload staging resource size");
+		VK_ASSERT(cbTransfer, "Invalid persistent upload staging resource size");
 		if (pImage->GetDevice()->CreateOrReuseStagingResource(pImage, mapping.MemoryLayout.volumeStride, &pStaging, true) != VK_SUCCESS)
 		{
-			VK_ASSERT(false && "Skipping resource upload because no staging buffer is available");
+			VK_ASSERT(false, "Skipping resource upload because no staging buffer is available");
 			return;
 		}
 	}
@@ -488,7 +487,7 @@ void CDeviceTexture::UploadFromStagingResource(uint32 nSubRes, StagingHook cbTra
 			}
 			else
 			{
-				VK_ASSERT(false && "Unable to map staging resource used for download");
+				VK_ASSERT(false, "Unable to map staging resource used for download");
 			}
 		}
 		else
@@ -509,13 +508,13 @@ void CDeviceTexture::UploadFromStagingResource(uint32 nSubRes, StagingHook cbTra
 	else
 	{
 		HRESULT ret = GetDeviceObjectFactory().IssueFence(m_hStagingFence[1]);
-		VK_ASSERT(ret == S_OK && "Failed to issue fence");
+		CRY_VULKAN_VERIFY(ret == S_OK, "Failed to issue fence");
 	}
 }
 
 void CDeviceTexture::UploadFromStagingResource(uint32 nSubRes)
 {
-	VK_ASSERT(m_pStagingResource[1] && "Cannot issue non-callback upload without a persistent staging buffer");
+	VK_ASSERT(m_pStagingResource[1], "Cannot issue non-callback upload without a persistent staging buffer");
 
 	UploadFromStagingResource(nSubRes, nullptr);
 }
@@ -523,7 +522,7 @@ void CDeviceTexture::UploadFromStagingResource(uint32 nSubRes)
 void CDeviceTexture::AccessCurrStagingResource(uint32 nSubRes, bool forUpload, StagingHook cbTransfer)
 {
 	NCryVulkan::CImageResource* const pImage = Get2DTexture(); // On Vulkan, also safe if 1D or 3D
-	VK_ASSERT(pImage && m_pStagingResource[forUpload] && m_pStagingMemory[forUpload] && "No persistent staging buffer associated");
+	VK_ASSERT(pImage && m_pStagingResource[forUpload] && m_pStagingMemory[forUpload], "No persistent staging buffer associated");
 
 	// We have to wait for a previous UploadFromStaging/DownloadToStaging to have finished on the GPU, before we can access the staging resource again on CPU.
 	GetDeviceObjectFactory().SyncFence(m_hStagingFence[forUpload], true, true);

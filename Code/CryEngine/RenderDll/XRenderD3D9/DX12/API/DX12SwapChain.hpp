@@ -85,6 +85,7 @@ public:
 	void    UnblockBuffers(NCryDX12::CCommandList* pCommandList);
 	void    VerifyBufferCounters();
 	void    ForfeitBuffers();
+	void    FlushAndWaitForBuffers();
 
 private:
 	CAsyncCommandQueue&  m_asyncQueue;

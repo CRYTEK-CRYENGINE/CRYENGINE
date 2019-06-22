@@ -64,7 +64,7 @@ bool CHRParamsLoader::Save(EntryBase* entryBase, const char* filename)
 	if (!root)
 		return false;
 
-	char path[ICryPak::g_nMaxPath] = "";
+	CryPathString path;
 	gEnv->pCryPak->AdjustFileName(filename, path, 0);
 	if (!root->saveToFile(path))
 		return false;

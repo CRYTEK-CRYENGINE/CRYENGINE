@@ -1,6 +1,7 @@
+// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+
 #pragma once
-#include <CryEntitySystem/IEntityComponent.h>
-#include <CryEntitySystem/IEntity.h>
+
 #include <CryEntitySystem/IEntitySystem.h>
 
 ////////////////////////////////////////////////////////
@@ -10,7 +11,7 @@ class CSpawnPointComponent final : public IEntityComponent
 {
 public:
 	CSpawnPointComponent() = default;
-	virtual ~CSpawnPointComponent() {}
+	virtual ~CSpawnPointComponent() = default;
 
 	// Reflect type to set a unique identifier for this component
 	// and provide additional information to expose it in the sandbox
@@ -22,9 +23,10 @@ public:
 		desc.SetDescription("This spawn point can be used to spawn entities");
 		desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach });
 	}
-
-	static Vec3 GetFirstSpawnPointPos()
+	
+	static Matrix34 GetFirstSpawnPointTransform()
 	{
+		// Spawn at first default spawner
 		IEntityItPtr pEntityIterator = gEnv->pEntitySystem->GetEntityIterator();
 		pEntityIterator->MoveFirst();
 
@@ -32,11 +34,12 @@ public:
 		{
 			IEntity *pEntity = pEntityIterator->Next();
 
-			if (IEntityComponent* pSpawner = pEntity->GetComponent<CSpawnPointComponent>())
+			if (CSpawnPointComponent* pSpawner = pEntity->GetComponent<CSpawnPointComponent>())
 			{
-				return pSpawner->GetEntity()->GetPos();
+				return pSpawner->GetWorldTransformMatrix();
 			}
 		}
-		return Vec3(ZERO);
+		
+		return IDENTITY;
 	}
 };

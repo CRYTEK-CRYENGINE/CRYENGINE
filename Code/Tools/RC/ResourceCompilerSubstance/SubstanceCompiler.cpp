@@ -91,8 +91,6 @@ static string AutoselectPreset(const ConvertContext& CC, const uint32 width, con
 	const char* const defaultNormalmap  = "Normals";
 	const char* const defaultNormalmapGloss  = "NormalsWithSmoothness";
 	const char* const defaultReflectance = "Reflectance";
-	const char* const defaultCubemap    = "EnvironmentProbeHDR";
-	const char* const defaultHDRCubemap = "EnvironmentProbeHDR";
 	const char* const defaultPow2       = "Albedo";
 	const char* const defaultPow2Alpha  = "AlbedoWithGenericAlpha";
 	const char* const defaultNonpow2    = "ReferenceImage";

@@ -125,17 +125,17 @@ namespace Schematyc2
 			}
 			m_pLogFileOutput = m_log.CreateFileOutput(logFileName.c_str());
 			SCHEMATYC2_SYSTEM_ASSERT(m_pLogFileOutput);
-			CVars::sc_LogToFile->AddOnChange(OnLogToFileChange);
+			CVars::sc2_LogToFile->AddOnChange(OnLogToFileChange);
 			RefreshLogFileStreams();
-			CVars::sc_LogFileStreams->AddOnChange(OnLogFileStreamsChange);
+			CVars::sc2_LogFileStreams->AddOnChange(OnLogFileStreamsChange);
 			RefreshLogFileMessageTypes();
-			CVars::sc_LogFileMessageTypes->AddOnChange(OnLogFileMessageTypesChange);
+			CVars::sc2_LogFileMessageTypes->AddOnChange(OnLogFileMessageTypesChange);
 		}
 		SCHEMATYC2_SYSTEM_COMMENT("Initializing Schematyc framework");
 		// Refresh environment.
 		RefreshEnv();
 		// Run unit tests.
-		if(CVars::sc_RunUnitTests)
+		if(CVars::sc2_RunUnitTests)
 		{
 			CUnitTestRegistrar::RunUnitTests();
 		}
@@ -199,13 +199,13 @@ void CFramework::SetEnvRegistryBridge(IEnvRegistry* pEnvRegistry)
 	//////////////////////////////////////////////////////////////////////////
 	const char* CFramework::GetFileFormat() const
 	{
-		return CVars::GetStringSafe(CVars::sc_FileFormat);
+		return CVars::GetStringSafe(CVars::sc2_FileFormat);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	const char* CFramework::GetRootFolder() const
 	{
-		return CVars::GetStringSafe(CVars::sc_RootFolder);
+		return CVars::GetStringSafe(CVars::sc2_RootFolder);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -250,7 +250,7 @@ void CFramework::SetEnvRegistryBridge(IEnvRegistry* pEnvRegistry)
 	//////////////////////////////////////////////////////////////////////////
 	bool CFramework::IsExperimentalFeatureEnabled(const char* szFeatureName) const
 	{
-		return CryStringUtils::stristr(CVars::GetStringSafe(CVars::sc_ExperimentalFeatures), szFeatureName) != nullptr;
+		return CryStringUtils::stristr(CVars::GetStringSafe(CVars::sc2_ExperimentalFeatures), szFeatureName) != nullptr;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -371,14 +371,14 @@ void CFramework::SetEnvRegistryBridge(IEnvRegistry* pEnvRegistry)
 	//////////////////////////////////////////////////////////////////////////
 	void CFramework::PrePhysicsUpdate()
 	{
-		MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+		MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 		m_pBaseEnv->PrePhysicsUpdate();
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 	void CFramework::Update()
 	{
-		MEMSTAT_FUNCTION_CONTEXT(EMemStatContextTypes::MSC_Other);
+		MEMSTAT_FUNCTION_CONTEXT(EMemStatContextType::Other);
 		m_pBaseEnv->Update(&m_updateRelevanceContext);
 	}
 
@@ -387,7 +387,7 @@ void CFramework::SetEnvRegistryBridge(IEnvRegistry* pEnvRegistry)
 	{
 		if (m_pLogFileOutput)
 		{
-			int sc_LogToFile = CVars::sc_LogToFile->GetIVal();
+			int sc_LogToFile = CVars::sc2_LogToFile->GetIVal();
 			m_pLogFileOutput->ConfigureFileOutput(sc_LogToFile == 1, sc_LogToFile == 2);
 		}
 	}
@@ -399,7 +399,7 @@ void CFramework::SetEnvRegistryBridge(IEnvRegistry* pEnvRegistry)
 		{
 			m_pLogFileOutput->ClearStreams();
 
-			stack_string logFileStreams = CVars::GetStringSafe(CVars::sc_LogFileStreams);
+			stack_string logFileStreams = CVars::GetStringSafe(CVars::sc2_LogFileStreams);
 			const size_t length = logFileStreams.length();
 			int          pos = 0;
 			do
@@ -422,7 +422,7 @@ void CFramework::SetEnvRegistryBridge(IEnvRegistry* pEnvRegistry)
 		{
 			m_pLogFileOutput->ClearMessageTypes();
 
-			stack_string logFileMessageTypes = CVars::GetStringSafe(CVars::sc_LogFileMessageTypes);
+			stack_string logFileMessageTypes = CVars::GetStringSafe(CVars::sc2_LogFileMessageTypes);
 			const size_t length = logFileMessageTypes.length();
 			int          pos = 0;
 			do

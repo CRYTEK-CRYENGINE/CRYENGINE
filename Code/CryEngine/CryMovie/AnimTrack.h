@@ -15,6 +15,7 @@
 /** General templated track for event type keys.
     KeyType class must be derived from IKey.
  */
+
 template<class KeyType>
 class TAnimTrack : public IAnimTrack
 {
@@ -90,7 +91,7 @@ public:
 
 	/** Serialize the keys of this animation track to XML.
 	 */
-	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time = SAnimTime(0)) override;
+	virtual bool SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, AnimTrackKeysIndices& keysIndices, const SAnimTime time = SAnimTime(0)) override;
 
 	/** Serialize single key of this track.
 	    override this in derived classes.
@@ -273,11 +274,10 @@ inline bool TAnimTrack<KeyType >::Serialize(XmlNodeRef& xmlNode, bool bLoading, 
 }
 
 template<class KeyType>
-inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, std::vector<SAnimTime>& keys, const SAnimTime time)
+inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoading, AnimTrackKeysIndices& keysIndices, const SAnimTime time)
 {
 	if (bLoading)
 	{
-		int numCur = GetNumKeys();
 		int numNew = xmlNode->getChildCount();
 
 		TRange<SAnimTime> timeRange;
@@ -289,25 +289,28 @@ inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoadi
 		SetTimeRange(timeRange);
 
 		SAnimTime timeOffset(0);
-		m_keys.resize(numCur + numNew);
 		for (int i = 0; i < numNew; i++)
 		{
 			XmlNodeRef keyNode = xmlNode->getChild(i);
-			m_keys[numCur + i].m_time.Serialize(keyNode, bLoading, "timeTicks", "time");
-			if ((i == 0) && (numNew == 1))		//numNew == 1 condition means: place a new key under mouse only during single key selection
-												//during multiple selection - place key as it is
-			{
-				timeOffset = (time - m_keys[numCur + i].m_time);
-			}
-			m_keys[numCur + i].m_time += timeOffset;
-			if (keys.size() < keys.capacity())
-			{
-				keys.push_back(m_keys[numCur + i].m_time);
-			}
-			SerializeKey(m_keys[numCur + i], keyNode, bLoading);
-		}
+			KeyType newKey;
 
-		std::sort(m_keys.begin(), m_keys.end());
+			newKey.m_time.Serialize(keyNode, bLoading, "timeTicks", "time");
+			
+			int32 ticks = time.GetTicks();
+			if ((i == 0) && (ticks > 0))
+			{
+				timeOffset = (time - newKey.m_time);
+			}
+			newKey.m_time += timeOffset;
+
+			SerializeKey(newKey, keyNode, bLoading);
+
+			auto it = std::lower_bound(m_keys.begin(), m_keys.end(), newKey, std::less<KeyType>());
+			const size_t newKeyIndex = it - m_keys.begin();
+
+			m_keys.insert(it, newKey);
+			keysIndices.push_back(newKeyIndex);
+		}
 
 		if ((!numNew))
 		{
@@ -323,15 +326,11 @@ inline bool TAnimTrack<KeyType >::SerializeKeys(XmlNodeRef& xmlNode, bool bLoadi
 
 		for (int i = 0; i < numCur; i++)
 		{
-			for (int j = 0; j < keys.size(); ++j)
+			if (std::find(keysIndices.begin(), keysIndices.end(), i) != keysIndices.end())
 			{
-				if (m_keys[i].m_time == keys[j])
-				{
-					XmlNodeRef keyNode = xmlNode->newChild("Key");
-					m_keys[i].m_time.Serialize(keyNode, bLoading, "timeTicks", "time");
-					SerializeKey(m_keys[i], keyNode, bLoading);
-					break;
-				}
+				XmlNodeRef keyNode = xmlNode->newChild("Key");
+				m_keys[i].m_time.Serialize(keyNode, bLoading, "timeTicks", "time");
+				SerializeKey(m_keys[i], keyNode, bLoading);
 			}
 		}
 	}

@@ -110,11 +110,11 @@ void CUnitImg::ExecuteTask()
 			switch (m_pCurrentAction->m_Action)
 			{
 			case UA_SIGNAL:
-				 pSignal = GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, m_pCurrentAction->m_SignalText, pUnit->GetAIObjectID(), new AISignals::AISignalExtraData(m_pCurrentAction->m_SignalData));
+				 pSignal = GetAISystem()->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_DEFAULT, m_pCurrentAction->m_SignalText, pUnit->GetEntityID(), new AISignals::AISignalExtraData(m_pCurrentAction->m_SignalData));
 				GetAISystem()->SendSignal(0, pSignal);
 				break;
 			case UA_ACQUIRETARGET:
-				pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnOrderAcquireTarget_DEPRECATED(), pUnit->GetAIObjectID(), new AISignals::AISignalExtraData(m_pCurrentAction->m_SignalData));
+				pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnOrderAcquireTarget_DEPRECATED(), pUnit->GetEntityID(), new AISignals::AISignalExtraData(m_pCurrentAction->m_SignalData));
 				GetAISystem()->SendSignal(0, pSignal);
 				break;
 			case UA_SEARCH:
@@ -138,7 +138,7 @@ void CUnitImg::ExecuteTask()
 						pData->point = hidePosition;
 						pData->iValue = m_pCurrentAction->m_Tag;
 
-						pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnOrderSearch_DEPRECATED(), pUnit->GetAIObjectID(), pData);
+						pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnOrderSearch_DEPRECATED(), pUnit->GetEntityID(), pData);
 						GetAISystem()->SendSignal(0, pSignal);
 
 						CCCPOINT(CUnitImg_TaskExecuted_A);
@@ -150,7 +150,7 @@ void CUnitImg::ExecuteTask()
 						pData->point2 = m_pCurrentAction->m_Direction;
 						pData->iValue = m_pCurrentAction->m_Tag;
 
-						pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnOrderSearch_DEPRECATED(), pUnit->GetAIObjectID(), pData);
+						pSignal = GetAISystem()->GetSignalManager()->CreateSignal(AISIGNAL_ALLOW_DUPLICATES, GetAISystem()->GetSignalManager()->GetBuiltInSignalDescriptions().GetOnOrderSearch_DEPRECATED(), pUnit->GetEntityID(), pData);
 						GetAISystem()->SendSignal(0, pSignal);
 					}
 					bContinue = false; // force blocking

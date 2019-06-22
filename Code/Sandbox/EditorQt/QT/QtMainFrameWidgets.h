@@ -2,10 +2,10 @@
 #pragma once
 
 #include "AI/AIManager.h"
-#include "Commands/QCommandAction.h"
 #include "Objects/ObjectManager.h"
 #include "ViewManager.h"
 
+#include <Commands/QCommandAction.h>
 #include <Preferences/SnappingPreferences.h>
 #include <Preferences/ViewportPreferences.h>
 #include <QControls.h>
@@ -158,7 +158,7 @@ protected:
 
 	virtual void OnPopulateMenu() override
 	{
-		const float scalesArray[] = { 0.1, 0.25, 0.5, 1, 2, 5, 10 };
+		const float scalesArray[] = { 0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
 		const int steps = CRY_ARRAY_COUNT(scalesArray);
 		for (int i = 0; i < steps; i++)
 		{
@@ -294,7 +294,7 @@ protected:
 		}
 
 		addSeparator();
-		
+
 		QAction* pRegenerateAllAction = pCommandManager->GetAction("ai.regenerate_agent_type_all");
 		if (pRegenerateAllAction)
 		{

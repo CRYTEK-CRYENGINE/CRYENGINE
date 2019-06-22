@@ -120,7 +120,7 @@ pixout LightingMobilePS(vtxOutWPOS IN)
 		lightIndex = GetNextTileLightIndex(curMask, lightIndex);
 		[branch] if (lightIndex < 0) break;
 			
-		if (TiledLightsShadeInfo[lightIndex].lightType >= TILEDLIGHT_TYPE_REGULAR_POINT)
+		if (TiledLightsShadeInfo[lightIndex].lightType >= LIGHT_TYPE_REGULAR_POINT)
 		{
 			STiledLightShadeInfo light = TiledLightsShadeInfo[lightIndex];
 			
@@ -130,7 +130,7 @@ pixout LightingMobilePS(vtxOutWPOS IN)
 			float attenuation = GetPhysicalLightAttenuation(length(lightVec), 1.0 / light.posRad.w, light.attenuationParams.x);
 			illuminance *= attenuation;
 			
-			if (light.lightType == TILEDLIGHT_TYPE_REGULAR_PROJECTOR)
+			if (light.lightType == LIGHT_TYPE_REGULAR_PROJECTOR)
 			{
 				float4 projTC = mul(light.projectorMatrix, float4(worldPos + GetWorldViewPos(), 1.0f));  
 				projTC.xy /= projTC.w;

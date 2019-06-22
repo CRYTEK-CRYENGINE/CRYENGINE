@@ -7,7 +7,7 @@
 #include "RenderDisplayContext.h"
 #include "RenderOutput.h"
 
-std::string GenerateUniqueTextureName(const std::string prefix, uint32 id, const std::string name)
+std::string GenerateUniqueTextureName(const std::string& prefix, uint32 id, const std::string& name)
 {
 	return prefix + "-" + std::to_string(id) + (name.empty() ? "" : "-" + name);
 }
@@ -126,23 +126,14 @@ void CSwapChainBackedRenderDisplayContext::CreateSwapChain(CRY_HWND hWnd, bool i
 	m_hWnd = hWnd;
 	m_fullscreen = isFullscreen;
 
+	// TODO: make m_desc a function parameter
+	m_nSSSamplesX = m_desc.superSamplingFactor.x;
+	m_nSSSamplesY = m_desc.superSamplingFactor.y;
+
 #if !CRY_PLATFORM_CONSOLE
-	CreateOutput();
-	CreateSwapChain(GetWindowHandle(),
-		m_pOutput,
-		GetDisplayResolution().x,
-		GetDisplayResolution().y,
-		IsFullscreen(),
-		IsMainContext(),
-		vsync);
+	auto w = m_desc.screenResolution.x,
+	     h = m_desc.screenResolution.y;
 
-#if (CRY_RENDERER_VULKAN >= 10)
-	m_bVSync = vsync;
-#endif
-#endif
-
-	auto w = m_DisplayWidth,
-	     h = m_DisplayHeight;
 #if CRY_PLATFORM_WINDOWS
 	if (TRUE == ::IsWindow((HWND)hWnd))
 	{
@@ -154,6 +145,20 @@ void CSwapChainBackedRenderDisplayContext::CreateSwapChain(CRY_HWND hWnd, bool i
 			h = rc.bottom - rc.top;
 		}
 	}
+#endif
+
+	CreateOutput();
+	CreateSwapChain(GetWindowHandle(),
+		m_pOutput,
+		w,
+		h,
+		IsMainContext(),
+		IsFullscreen(),
+		vsync);
+
+#if (CRY_RENDERER_VULKAN >= 10)
+	m_bVSync = vsync;
+#endif
 #endif
 
 	// Create the output
@@ -313,7 +318,7 @@ void CSwapChainBackedRenderDisplayContext::AllocateBackBuffers()
 #else
 			D3DTexture* pBackBuffer = nullptr;
 			HRESULT hr = m_swapChain.GetSwapChain()->GetBuffer(i, IID_GFX_ARGS(&pBackBuffer));
-			CRY_ASSERT(SUCCEEDED(hr) && pBackBuffer != nullptr);
+			CRY_VERIFY(SUCCEEDED(hr) && pBackBuffer != nullptr);
 #endif
 
 			const auto &layout = m_backBuffersArray[i]->GetLayout();
@@ -348,8 +353,7 @@ void CSwapChainBackedRenderDisplayContext::CreateOutput()
 
 	if (m_pOutput != nullptr)
 	{
-		unsigned long numRemainingReferences = m_pOutput->Release();
-		CRY_ASSERT(numRemainingReferences == 0);
+		CRY_VERIFY(m_pOutput->Release() == 0);
 		m_pOutput = nullptr;
 	}
 
@@ -421,15 +425,17 @@ void CSwapChainBackedRenderDisplayContext::ChangeOutputIfNecessary(bool isFullsc
 	// Output will need to be recreated if we switched to fullscreen on a different monitor
 	if (recreateSwapChain)
 	{
+		auto w = m_swapChain.GetSurfaceDesc().Width,
+		     h = m_swapChain.GetSurfaceDesc().Height;
+
 		ReleaseBackBuffers();
 
 		// Swap chain needs to be recreated with the new output in mind
-		CreateSwapChain(GetWindowHandle(), m_pOutput, GetDisplayResolution().x, GetDisplayResolution().y, isFullscreen, IsMainContext(), vsync);
+		CreateSwapChain(GetWindowHandle(), m_pOutput, w, h, isFullscreen, IsMainContext(), vsync);
 
 		if (m_pOutput != nullptr)
 		{
-			unsigned long numRemainingReferences = m_pOutput->Release();
-			CRY_ASSERT(numRemainingReferences == 0);
+			CRY_VERIFY(m_pOutput->Release() == 0);
 			m_pOutput = nullptr;
 		}
 	}
@@ -629,13 +635,14 @@ CCustomRenderDisplayContext::CCustomRenderDisplayContext(IRenderer::SDisplayCont
 	CRY_ASSERT(m_pBackBufferProxy->GetSrcFormat() == displayFormat);
 	// ------------------------------------------------------------------------------
 
-	this->m_backBuffersArray = std::move(backBuffersArray);
+	m_backBuffersArray = std::move(backBuffersArray);
 
 	// Assign first back-buffer on initialization
 	m_pBackBufferProxy->RefDevTexture(GetCurrentBackBuffer()->GetDevTexture());
 	m_bSwapProxy = false;
 
-	this->ChangeDisplayResolution(displayWidth, displayHeight);
+	// Create the targets
+	ChangeDisplayResolution(displayWidth, displayHeight);
 }
 
 void CCustomRenderDisplayContext::ShutDown()

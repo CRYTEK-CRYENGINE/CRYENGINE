@@ -31,12 +31,13 @@ struct ICommandManager
 	virtual void                             SetChecked(const char* cmdFullName, bool checked) = 0;
 	// Searches for a registered command and returns an action. If no UI command is found, we create a new action and use text to set the action text
 	virtual QAction*                         GetAction(const char* cmdFullName, const char* text = nullptr) const = 0;
+	virtual QCommandAction*                  GetCommandAction(const char* command, const char* text = nullptr) const = 0;
+	virtual QCommandAction*                  CreateNewAction(const char* cmdFullName) const = 0;
 	virtual string                           Execute(const string& cmdLine) = 0;
 	virtual void                             GetCommandList(std::vector<string>& cmds) const = 0;
 	virtual void                             GetCommandList(std::vector<CCommand*>& cmds) const = 0;
 	virtual void                             RemapCommand(const char* oldModule, const char* oldName, const char* newModule, const char* newName) = 0;
 	// Creates a new action for the given command, this action is already populated with predefined icons, text, etc but has independent state
-	virtual QAction*                         CreateNewAction(const char* cmdFullName) const = 0;
 	virtual void                             AddCustomCommand(CCustomCommand* pCommand) = 0;
 	virtual void                             RemoveCustomCommand(CCustomCommand* pCommand) = 0;
 
@@ -180,6 +181,20 @@ typedef CAutoRegister<ICommandManager> CAutoRegisterCommandHelper;
 	}                                                                                                                                             \
 	CAutoRegisterCommandHelper g_AutoRegCmdHelper ## moduleName ## functionName(RegisterCommand ## moduleName ## functionName);                   \
 	}
+
+#define KEYBOARD_FOCUS_COMMAND_CALLBACK(moduleName, functionName)         \
+	namespace Private_EditorFocusCommand                                    \
+	{                                                                       \
+	void EditorFocusCommand ## moduleName ## functionName()                 \
+	{                                                                       \
+		CommandEvent( # moduleName "." # functionName).SendToKeyboardFocus(); \
+	}                                                                       \
+	}                                                                       \
+
+#define REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(moduleName, functionName, description)                                               \
+	KEYBOARD_FOCUS_COMMAND_CALLBACK(moduleName, functionName)                                                                                    \
+	REGISTER_EDITOR_COMMAND(Private_EditorFocusCommand::EditorFocusCommand ## moduleName ## functionName, moduleName, functionName, description) \
+	REGISTER_ONLY_PYTHON_COMMAND(Private_EditorFocusCommand::EditorFocusCommand ## moduleName ## functionName, moduleName, functionName, description.GetDescription())
 
 #define REGISTER_EDITOR_AND_SCRIPT_COMMAND(functionPtr, moduleName, functionName, description) \
 	REGISTER_EDITOR_COMMAND(functionPtr, moduleName, functionName, description)                  \

@@ -5,7 +5,6 @@
 
 #if RENDERER_SUPPORT_SCALEFORM
 #include "ScaleformRender.h"
-#include "DeviceManager/TempDynBuffer.h"
 
 static const D3D11_INPUT_ELEMENT_DESC VertexDeclXY16i[] =
 {

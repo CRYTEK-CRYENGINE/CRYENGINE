@@ -256,7 +256,7 @@ class CColorInherit : public IColorFieldModifier
 public:
 	virtual EDataDomain GetDomain() const
 	{
-		return m_spawnOnly ? EDD_PerInstance : EDD_InstanceUpdate;
+		return m_spawnOnly ? EDD_Spawner : EDD_SpawnerUpdate;
 	}
 
 	virtual void Serialize(Serialization::IArchive& ar)

@@ -9,6 +9,7 @@
 #include <CrySerialization/STL.h>
 #include <CrySchematyc2/TemplateUtils/TemplateUtils_ScopedConnection.h>
 #include <CrySystem/File/ICryPak.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #include "CVars.h"
 
@@ -217,8 +218,7 @@ namespace Schematyc2
 						stack_string backupFileName("LogBackups/");
 						backupFileName.append(m_fileName.c_str());
 #if CRY_PLATFORM_DURANGO
-						HRESULT result = CopyFile2(CryStringUtils::UTF8ToWStrSafe(m_fileName), CryStringUtils::UTF8ToWStrSafe(backupFileName), nullptr);
-						CRY_ASSERT_MESSAGE(result == S_OK, "Error copying schematyc log backup file");
+						CRY_VERIFY_WITH_MESSAGE(CopyFile2(CryStringUtils::UTF8ToWStrSafe(m_fileName), CryStringUtils::UTF8ToWStrSafe(backupFileName), nullptr) == S_OK, "Error copying schematyc log backup file");
 #else
 						CopyFile(m_fileName.c_str(), backupFileName.c_str(), true);
 #endif
@@ -306,8 +306,8 @@ namespace Schematyc2
 		CreateStream("Compiler", LOG_STREAM_COMPILER);
 		CreateStream("Game", LOG_STREAM_GAME);
 		gEnv->pSchematyc2->GetEnvRegistry().RegisterSettings("log_settings", m_pSettings);
-		REGISTER_COMMAND("sc_CriticalError", LogUtils::CriticalErrorCommand, VF_NULL, "Trigger Schematyc critical error");
-		REGISTER_COMMAND("sc_FatalError", LogUtils::FatalErrorCommand, VF_NULL, "Trigger Schematyc fatal error");
+		REGISTER_COMMAND("sc2_CriticalError", LogUtils::CriticalErrorCommand, VF_NULL, "Trigger Schematyc critical error");
+		REGISTER_COMMAND("sc2_FatalError", LogUtils::FatalErrorCommand, VF_NULL, "Trigger Schematyc fatal error");
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -459,7 +459,7 @@ namespace Schematyc2
 		LogUtils::FormatMessage(messageBuffer, szFormat, va_args);
 		va_end(va_args);
 		m_signals.message.Send(SLogMessageData(streamId, ELogMessageType::CriticalError, metaInfo, messageBuffer));
-		if(CVars::sc_DisplayCriticalErrors)
+		if(CVars::sc2_DisplayCriticalErrors)
 		{
 			return LogUtils::DisplayCriticalErrorMessage(messageBuffer);
 		}
@@ -549,7 +549,7 @@ namespace Schematyc2
 	{
 		fileName = gEnv->pSystem->GetIPak()->GetGameFolder();
 		fileName.append("/");
-		fileName.append(CVars::GetStringSafe(CVars::sc_RootFolder));
+		fileName.append(CVars::GetStringSafe(CVars::sc2_RootFolder));
 		fileName.append("/");
 		fileName.append("log_user_streams.xml");
 	}
@@ -557,7 +557,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	bool CLog::IsLoggingEnabled() const
 	{
-		return CVars::sc_LogToFile != nullptr && CVars::sc_LogToFile->GetIVal() != 0;
+		return CVars::sc2_LogToFile != nullptr && CVars::sc2_LogToFile->GetIVal() != 0;
 	}
 
 	//////////////////////////////////////////////////////////////////////////

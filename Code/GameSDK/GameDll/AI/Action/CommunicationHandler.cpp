@@ -319,7 +319,7 @@ SCommunicationSound CommunicationHandler::PlaySound(CommPlayID playID, const cha
 			}
 
 			CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::DoneCallbackOnExternalThread, this, reinterpret_cast<void*>(static_cast<UINT_PTR>(m_entityId)), this);
-			pIEntityAudioComponent->ExecuteTrigger(playCommunicationControlId, CryAudio::DefaultAuxObjectId, userData);
+			pIEntityAudioComponent->ExecuteTrigger(playCommunicationControlId, CryAudio::DefaultAuxObjectId, INVALID_ENTITYID, userData);
 
 			SCommunicationSound soundInfo;
 			soundInfo.playSoundControlId = playCommunicationControlId;

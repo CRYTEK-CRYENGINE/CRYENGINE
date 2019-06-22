@@ -1,7 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _POLYGON_MATH_2D_
-#define _POLYGON_MATH_2D_
 #pragma once
 
 #include <CryCore/Containers/CryFixedArray.h>
@@ -137,5 +135,3 @@ enum EPolygonInCircle2D
 };
 
 EPolygonInCircle2D PolygonInCircle2D(const Vec2& center, const float radius, const Vec2* pPolygon, const int numPts);
-
-#endif // _POLYGON_MATH_2D_

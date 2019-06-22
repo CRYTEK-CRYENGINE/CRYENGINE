@@ -14,6 +14,8 @@
 #include "UI/UICVars.h"
 #include "UI/UIManager.h"
 
+#include <CrySystem/ConsoleRegistration.h>
+
 #define LOCAL_WARNING(cond, msg)  do { if (!(cond)) { CryWarning(VALIDATOR_MODULE_GAME, VALIDATOR_WARNING, "%s", msg); } } while(0)
 //#define LOCAL_WARNING(cond, msg)  CRY_ASSERT_MESSAGE(cond, msg)
 

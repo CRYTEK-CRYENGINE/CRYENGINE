@@ -296,7 +296,7 @@ bool CPuppet::AdjustFireTarget(CAIObject* targetObject, const Vec3& target, bool
 		{
 			bool found = false;
 
-			if (targetObject && gAIEnv.CVars.EnableCoolMisses && cry_random(0.0f, 1.0f) < gAIEnv.CVars.CoolMissesProbability)
+			if (targetObject && gAIEnv.CVars.legacyFiring.EnableCoolMisses && cry_random(0.0f, 1.0f) < gAIEnv.CVars.legacyFiring.CoolMissesProbability)
 			{
 				if (CAIPlayer* player = targetObject->CastToCAIPlayer())
 				{
@@ -305,7 +305,7 @@ bool CPuppet::AdjustFireTarget(CAIObject* targetObject, const Vec3& target, bool
 
 					float distance = dir.NormalizeSafe();
 
-					if (distance >= gAIEnv.CVars.CoolMissesMinMissDistance)
+					if (distance >= gAIEnv.CVars.legacyFiring.CoolMissesMinMissDistance)
 						found = player->GetMissLocation(fireLocation, dir, clampAngle, out);
 				}
 			}

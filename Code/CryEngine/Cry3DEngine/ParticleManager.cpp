@@ -15,13 +15,12 @@
 #include <CryThreading/IJobManager_JobDelegator.h>
 #include <CrySystem/ZLib/IZLibCompressor.h>
 #include <CrySerialization/ClassFactory.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define LIBRARY_PATH    "Libs/"
 #define EFFECTS_SUBPATH LIBRARY_PATH "Particles/"
 
 using namespace minigui;
-
-CRY_PFX2_DBG
 
 ParticleAllocator::TPoolsList ParticleAllocator::s_pools;
 
@@ -40,12 +39,28 @@ void DestroyParticleManager(IParticleManager* pParticleManager)
 //////////////////////////////////////////////////////////////////////////
 // CParticleBatchDataManager implementation
 
+SAddParticlesToSceneJob& CParticleBatchDataManager::GetParticlesToSceneJob(const SRenderingPassInfo& passInfo)
+{
+	SAddParticlesToSceneJob& job = *m_ParticlesToScene[passInfo.ThreadID()].push_back();
+	if (passInfo.IsShadowPass())
+	{
+		const auto* pFrustum = passInfo.GetIRenderView()->GetShadowFrustumOwner();
+		job.pCamera = &pFrustum->FrustumPlanes[passInfo.ShadowFrustumSide()];
+	}
+	else
+	{
+		job.pCamera = &passInfo.GetCamera();
+	}
+	return job;
+}
+
 void CParticleBatchDataManager::PrepareForRender(const SRenderingPassInfo& passInfo)
 {
 	if (passInfo.GetRecursiveLevel() == 0)
 		m_ParticlesToScene[passInfo.ThreadID()].resize(0);
 	m_ParticlesJobStart[passInfo.ThreadID()][passInfo.GetRecursiveLevel()] = m_ParticlesToScene[passInfo.ThreadID()].size();
 }
+
 void CParticleBatchDataManager::FinishParticleRenderTasks(const SRenderingPassInfo& passInfo)
 {
 	FUNCTION_PROFILER_CONTAINER(this);
@@ -233,8 +248,12 @@ void CParticleManager::PrintParticleMemory()
 
 void CParticleManager::Reset()
 {
+	ClearData();
 	m_pParticleSystem->Reset();
-	
+}
+
+void CParticleManager::ClearData()
+{
 	m_bRegisteredListener = false;
 
 	for (auto& e : m_Emitters)
@@ -282,7 +301,7 @@ void CParticleManager::ClearRenderResources(bool bForceClear)
 	if (GetCVars()->e_ParticlesDebug & AlphaBit('m'))
 		PrintParticleMemory();
 
-	Reset();
+	ClearData();
 
 	if (bClearEmitters)
 	{
@@ -414,7 +433,7 @@ IParticleEffect* CParticleManager::FindEffect(cstr sEffectName, cstr sSource, bo
 	if (!m_bEnabled || !sEffectName || !*sEffectName)
 		return NULL;
 
-	LOADING_TIME_PROFILE_SECTION(gEnv->pSystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(gEnv->pSystem);
 
 	pfx2::PParticleEffect pPfx2 = m_pParticleSystem->FindEffect(sEffectName);
 	if (pPfx2)
@@ -449,8 +468,8 @@ IParticleEffect* CParticleManager::FindEffect(cstr sEffectName, cstr sSource, bo
 		}
 	}
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Particles");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ParticleEffect, EMemStatContextFlags::MSF_Instance, "%s", sEffectName);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Particles");
+	MEMSTAT_CONTEXT(EMemStatContextType::ParticleEffect, sEffectName);
 
 	assert(pEffect);
 	if (pEffect->IsEnabled() || pEffect->GetChildCount())
@@ -641,7 +660,7 @@ void CParticleManager::OnFrameStart()
 
 void CParticleManager::Update()
 {
-	CRY_PROFILE_REGION(PROFILE_3DENGINE, "ParticleManager Update");
+	CRY_PROFILE_SECTION(PROFILE_3DENGINE, "ParticleManager Update");
 
 	if (m_bEnabled && GetCVars()->e_Particles)
 	{
@@ -650,7 +669,7 @@ void CParticleManager::Update()
 		PARTICLE_LIGHT_PROFILER();
 
 		{
-			CRY_PROFILE_REGION(PROFILE_PARTICLE, "SyncComputeVerticesJobs");
+			CRY_PROFILE_SECTION(PROFILE_PARTICLE, "SyncComputeVerticesJobs");
 			GetRenderer()->SyncComputeVerticesJobs();
 		}
 
@@ -773,7 +792,7 @@ void CParticleManager::EraseEmitter(CParticleEmitter* pEmitter)
 		// Free resources.
 		pEmitter->Reset();
 
-		if (pEmitter->Unique() == 1 && !pEmitter->m_pOcNode)
+		if (pEmitter->Unique() == 1 && !pEmitter->GetParent())
 		{
 			// Free object itself if no other refs.
 			for (auto& pListener : m_ListenersList)
@@ -882,6 +901,12 @@ void CParticleManager::UpdateEngineData()
 
 		bInvalidateCachedRenderObjects = (m_bParticleTessellation != bParticleTesselation);
 		m_bParticleTessellation = bParticleTesselation;
+	}
+
+	if (ICVar* pZPass = GetConsole()->GetCVar("r_UseZPass"))
+	{
+		if (pZPass->GetIVal() < 2)
+			m_RenderFlags.SetState(-1, FOB_ZPREPASS);
 	}
 
 	if (m_pLastDefaultParams != &GetDefaultParams() || bInvalidateCachedRenderObjects)
@@ -1102,8 +1127,8 @@ bool CParticleManager::LoadLibrary(cstr sParticlesLibrary, cstr sParticlesLibrar
 
 XmlNodeRef CParticleManager::ReadLibrary(cstr sParticlesLibrary)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "ParticleLibraries");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ParticleLibrary, 0, "Particle lib (%s)", sParticlesLibrary);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "ParticleLibraries");
+	MEMSTAT_CONTEXT(EMemStatContextType::ParticleLibrary, sParticlesLibrary);
 
 	string sLibSubPath = PathUtil::Make(EFFECTS_SUBPATH, sParticlesLibrary, "xml");
 	if (GetCVars()->e_ParticlesUseLevelSpecificLibs)
@@ -1170,8 +1195,8 @@ bool CParticleManager::LoadLibrary(cstr sParticlesLibrary, XmlNodeRef& libNode, 
 	if (!m_bEnabled)
 		return false;
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "ParticleLibraries");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ParticleLibrary, 0, "Particle lib (%s)", sParticlesLibrary);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "ParticleLibraries");
+	MEMSTAT_CONTEXT(EMemStatContextType::ParticleLibrary, sParticlesLibrary);
 
 	CRY_DEFINE_ASSET_SCOPE("ParticleLibrary", sParticlesLibrary);
 
@@ -1203,7 +1228,7 @@ IParticleEffect* CParticleManager::LoadEffect(cstr sEffectName, XmlNodeRef& effe
 	if (!m_bEnabled)
 		return NULL;
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_ParticleEffect, 0, "%s", sEffectName);
+	MEMSTAT_CONTEXT(EMemStatContextType::ParticleEffect, sEffectName);
 
 	CParticleEffect* pEffect = FindLoadedEffect(sEffectName);
 	if (!pEffect)
@@ -1280,7 +1305,7 @@ int CParticleManager::AddEventTiming(cstr sEvent, const CParticleContainer* pCon
 //////////////////////////////////////////////////////////////////////////
 void CParticleManager::Serialize(TSerialize ser)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	ser.BeginGroup("ParticleEmitters");
 
 	if (ser.IsWriting())

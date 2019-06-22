@@ -1292,6 +1292,11 @@ struct SCVars
 	int ai_DebugSignalTimers;
 	int ai_DebugRangeSignaling;
 
+#ifdef AI_LOG_SIGNALS
+	int   aiLogSignals;
+	float aiMaxSignalDuration;
+#endif
+
 	int g_actorViewDistRatio;
 	int g_playerLodRatio;
 	float g_itemsLodRatioScale;

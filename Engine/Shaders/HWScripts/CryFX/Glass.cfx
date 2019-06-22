@@ -248,9 +248,18 @@ void Callback_ShadingDirect(in ForwardShadingAttribs attribs, in ForwardLightPar
 
 	NdotL = saturate(NdotL);
 
-	half3 finalIlluminance = NdotL * light.illuminance * NdotLBackLight;
-	diffuseAcc = finalIlluminance;
-	specularAcc = SpecularBRDF(attribs.normal, -normalize(attribs.worldPos), light.lightVec, attribs.smoothness, attribs.reflectance) * finalIlluminance;
+	if (light.type == LIGHT_TYPE_REGULAR_AREA)
+    {
+        AreaLightLTC_GGX(attribs.normal, -normalize(attribs.areaAttribs.position), attribs.smoothness, attribs.reflectance, attribs.areaAttribs.position,
+		                 attribs.areaAttribs.lightPos, attribs.areaAttribs.lightArrayIdx, attribs.areaAttribs.transform, Fwd_SpotTexArray, diffuseAcc, specularAcc);
+    }
+	else
+    {
+		half3 finalIlluminance = NdotL * light.illuminance * NdotLBackLight;
+		diffuseAcc = finalIlluminance;
+		specularAcc = SpecularBRDF(attribs.normal, -normalize(attribs.worldPos), light.lightVec, attribs.smoothness, attribs.reflectance) * finalIlluminance;
+    }
+
 #else
 	diffuseAcc = 0;
 	specularAcc = 0;
@@ -491,7 +500,7 @@ pixout GlassPS(vert2FragGeneral IN, bool bIsFrontFace : SV_IsFrontFace)
 		float sunShadow = 1 - Fwd_SampleSunShadowMaps(attribs.worldPos + GetWorldViewPos());
 
 		ForwardLightParams lightParams;
-		lightParams.type = LT_DIRECTIONAL;
+        lightParams.type = LIGHT_TYPE_SUN;
 		lightParams.lightVec = CV_SunLightDir.xyz;
 		lightParams.illuminance = CV_SunColor.xyz * sunShadow;
 		

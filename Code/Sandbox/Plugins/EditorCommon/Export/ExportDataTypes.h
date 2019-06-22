@@ -29,7 +29,18 @@ struct UV
 
 struct Face
 {
-	uint32 idx[3];
+	Face(uint32 i0, uint32 i1, uint32 i2)
+		: vertex{i0, i1, i2}
+		, normal{i0, i1, i2}
+		, texCoord{i0, i1, i2}
+		, color{i0, i1, i2}
+	{
+	}
+
+	uint32 vertex[3];
+	uint32 normal[3];
+	uint32 texCoord[3];
+	uint32 color[3];
 };
 
 struct Color
@@ -107,7 +118,6 @@ public:
 
 struct EDITOR_COMMON_API SExportObject : public _i_reference_target_t
 {
-public:
 	SExportObject(const char* pName);
 
 	int                           GetVertexCount() const    { return m_vertices.size(); }
@@ -135,6 +145,9 @@ public:
 	void                          AddEntityAnimationData(Export::EntityAnimData entityData) { m_entityAnimData.push_back(entityData); }
 	void                          SetLastPtr(CBaseObject* pObject)                          { m_pLastObject = pObject; }
 	CBaseObject*                  GetLastObjectPtr()                                        { return m_pLastObject; }
+
+	// Updates meshes topology so that faces can have shared vertices, normals, and texture coordinates, if any.
+	void Weld();
 
 	Export::Quat                         rot;
 	Export::Vector3D                     pos;

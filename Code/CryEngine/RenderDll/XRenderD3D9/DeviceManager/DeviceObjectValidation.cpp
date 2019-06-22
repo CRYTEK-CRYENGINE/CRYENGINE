@@ -97,14 +97,14 @@ bool CDeviceObjectValidator::ValidateResourceLayout(const SDeviceResourceLayoutD
 	//   -> Due to dx12, even things like tex0 => (t0, EShaderStage_Vertex), tex1 => (t0, EShaderStage_Pixel) are invalid
 	// * Check against device limits stored in Limits struct
 
-	std::bitset<32> usedBindSlots(0);
-	SDeviceLimits::SPerDraw  perDrawResources;
+	SDeviceLimits::SPerDraw perDrawResources;
 	SDeviceLimits::SPerDraw::SPerStageLimits perStageResources[eHWSC_Num];
 
 	ZeroStruct(perDrawResources);
 	ZeroArray(perStageResources);
 
 	///////////////////////////////////////////// Stage 1: record all bindings and check for overlaps /////////////////////////////////////////////
+#if defined(USE_CRY_ASSERT)
 	auto GetResourceName = [](const SResourceBinding& resource)
 	{
 		switch (resource.type)
@@ -127,7 +127,7 @@ bool CDeviceObjectValidator::ValidateResourceLayout(const SDeviceResourceLayoutD
 
 		return buffer;
 	};
-
+#endif
 	std::set<uint32> usedLayoutBindSlots;
 	std::map<int16, SResourceBinding> usedShaderBindSlotsS[(uint8)SResourceBindPoint::ESlotType::Count][eHWSC_Num]; // used slot numbers per slot type and shader stage
 	std::map<int16, SResourceBinding> usedShaderBindSlotsL[(uint8)SResourceBindPoint::ESlotType::Count][EResourceLayoutSlot_Max + 1];
@@ -180,11 +180,13 @@ bool CDeviceObjectValidator::ValidateResourceLayout(const SDeviceResourceLayoutD
 				auto insertResultS = usedShaderBindSlotsS[uint8(bindPoint.slotType)][shaderClass].insert(std::make_pair(bindPoint.slotNumber, resource));
 				if (insertResultS.second == false)
 				{
+#if defined(USE_CRY_ASSERT)
 					auto& existingResource = insertResultS.first->second;
 					auto& currentResource = resource;
 
 					CRY_ASSERT_TRACE(false, ("Invalid Resource Layout : Multiple resources bound to shader slot %s across multiple layoutSlots: A: %s - B: %s",
 						GetBindPointName(bindPoint), GetResourceName(existingResource), GetResourceName(currentResource)));
+#endif
 
 					SDeviceLimits::SPerDraw::SPerStageLimits& shadeStageResource = perStageResources[shaderClass];
 					// *INDENT-OFF*
@@ -205,11 +207,13 @@ bool CDeviceObjectValidator::ValidateResourceLayout(const SDeviceResourceLayoutD
 		auto insertResultL = usedShaderBindSlotsL[uint8(bindPoint.slotType)][layoutSlot].insert(std::make_pair(bindPoint.slotNumber, resource));
 		if (insertResultL.second == false)
 		{
+#if defined(USE_CRY_ASSERT)
 			auto& existingResource = insertResultL.first->second;
 			auto& currentResource = resource;
 
 			CRY_ASSERT_TRACE(false, ("Invalid Resource Layout : Multiple resources bound to shader slot %s within the same layoutSlot: A: %s - B: %s",
 				GetBindPointName(bindPoint), GetResourceName(existingResource), GetResourceName(currentResource)));
+#endif
 
 			return false;
 		}

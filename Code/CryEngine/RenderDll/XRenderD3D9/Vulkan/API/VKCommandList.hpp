@@ -151,7 +151,7 @@ public:
 	ILINE void WaitForFenceOnGPU(const T64 (&fenceValues)[CMDQUEUE_NUM], INT& numPendingWSemaphores, std::array<VkSemaphore, 64>& PendingWSemaphoreHeap) threadsafe
 	{
 		// Mask in-order queues, preventing a Wait()-command being generated
-		const bool bMasked = PERSP_GPU && IsInOrder();
+		//const bool bMasked = PERSP_GPU && IsInOrder();
 
 		// The pool which waits for the fence can be omitted (in-order-execution)
 		UINT64 fenceValuesMasked[CMDQUEUE_NUM];
@@ -179,11 +179,11 @@ public:
 			m_NumWaitsGPU += 2;
 	#endif // VK_STATS
 
-			VK_ASSERT(fenceValuesMasked[CMDQUEUE_GRAPHICS] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_GRAPHICS) && "Waiting for unsubmitted gfx CL, deadlock imminent!");
-			VK_ASSERT(fenceValuesMasked[CMDQUEUE_COMPUTE] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COMPUTE) && "Waiting for unsubmitted cmp CL, deadlock imminent!");
-			VK_ASSERT(fenceValuesMasked[CMDQUEUE_COPY] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COPY) && "Waiting for unsubmitted cpy CL, deadlock imminent!");
+			VK_ASSERT(fenceValuesMasked[CMDQUEUE_GRAPHICS] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_GRAPHICS), "Waiting for unsubmitted gfx CL, deadlock imminent!");
+			VK_ASSERT(fenceValuesMasked[CMDQUEUE_COMPUTE] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COMPUTE), "Waiting for unsubmitted cmp CL, deadlock imminent!");
+			VK_ASSERT(fenceValuesMasked[CMDQUEUE_COPY] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COPY), "Waiting for unsubmitted cpy CL, deadlock imminent!");
 
-			VK_ASSERT(numPendingWSemaphores < PendingWSemaphoreHeap.size() && "Too many other CLs to synchronize with!");
+			VK_ASSERT(numPendingWSemaphores < PendingWSemaphoreHeap.size(), "Too many other CLs to synchronize with!");
 
 		//	m_AsyncCommandQueue.Wait(m_rCmdFences.GetVkFences(), fenceValuesMasked);
 			const VkNaryFence* pFence = m_rCmdFences.GetVkFences();
@@ -218,9 +218,9 @@ public:
 			m_NumWaitsGPU++;
 	#endif // VK_STATS
 
-			VK_ASSERT(fenceValue <= m_rCmdFences.GetSubmittedValue(id) && "Waiting for unsubmitted CL, deadlock imminent!");
+			VK_ASSERT(fenceValue <= m_rCmdFences.GetSubmittedValue(id), "Waiting for unsubmitted CL, deadlock imminent!");
 
-			VK_ASSERT(numPendingWSemaphores < PendingWSemaphoreHeap.size() && "Too many other CLs to synchronize with!");
+			VK_ASSERT(numPendingWSemaphores < PendingWSemaphoreHeap.size(), "Too many other CLs to synchronize with!");
 
 		//	m_AsyncCommandQueue.Wait(m_rCmdFences.GetVkFence(id), fenceValue);
 			VkNaryFence* const pFence = m_rCmdFences.GetVkFence(id);
@@ -244,10 +244,10 @@ public:
 			m_NumWaitsGPU++;
 #endif // VK_STATS
 
-			VK_ASSERT(numPendingWSemaphores < PendingWSemaphoreHeap.size() && "Too many other CLs to synchronize with!");
+			VK_ASSERT(numPendingWSemaphores < PendingWSemaphoreHeap.size(), "Too many other CLs to synchronize with!");
 
 			//	m_AsyncCommandQueue.Wait(m_rCmdFences.GetVkFence(id), fenceValue);
-			VkNaryFence* const pFence = m_rCmdFences.GetVkFence(id);
+			//VkNaryFence* const pFence = m_rCmdFences.GetVkFence(id);
 			if (true)
 				PendingWSemaphoreHeap[numPendingWSemaphores++] = semaphoreObject;
 		}
@@ -278,9 +278,9 @@ public:
 			m_NumWaitsCPU += 2;
 	#endif // VK_STATS
 
-			VK_ASSERT(fenceValuesCopied[CMDQUEUE_GRAPHICS] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_GRAPHICS) && "Waiting for unsubmitted gfx CL, deadlock imminent!");
-			VK_ASSERT(fenceValuesCopied[CMDQUEUE_COMPUTE] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COMPUTE) && "Waiting for unsubmitted cmp CL, deadlock imminent!");
-			VK_ASSERT(fenceValuesCopied[CMDQUEUE_COPY] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COPY) && "Waiting for unsubmitted cpy CL, deadlock imminent!");
+			VK_ASSERT(fenceValuesCopied[CMDQUEUE_GRAPHICS] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_GRAPHICS), "Waiting for unsubmitted gfx CL, deadlock imminent!");
+			VK_ASSERT(fenceValuesCopied[CMDQUEUE_COMPUTE] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COMPUTE), "Waiting for unsubmitted cmp CL, deadlock imminent!");
+			VK_ASSERT(fenceValuesCopied[CMDQUEUE_COPY] <= m_rCmdFences.GetSubmittedValue(CMDQUEUE_COPY), "Waiting for unsubmitted cpy CL, deadlock imminent!");
 
 			m_rCmdFences.WaitForFence(fenceValuesCopied);
 		}
@@ -294,7 +294,7 @@ public:
 			m_NumWaitsCPU++;
 	#endif // VK_STATS
 
-			VK_ASSERT(fenceValue <= m_rCmdFences.GetSubmittedValue(id) && "Waiting for unsubmitted CL, deadlock imminent!");
+			VK_ASSERT(fenceValue <= m_rCmdFences.GetSubmittedValue(id), "Waiting for unsubmitted CL, deadlock imminent!");
 
 			m_rCmdFences.WaitForFence(fenceValue, id);
 		}
@@ -354,7 +354,7 @@ public:
 	ILINE VkSemaphore AcquireLastSignalledSemaphore() threadsafe
 	{
 		UINT64 lastSignalledFenceValue = m_LastSignalledFenceValue.exchange(0);
-		VK_ASSERT(lastSignalledFenceValue != 0);
+		VK_ASSERT(lastSignalledFenceValue != 0, "");
 		VkNaryFence* const pFence = m_rCmdFences.GetVkFence(m_nPoolFenceId);
 		return pFence->second[lastSignalledFenceValue % pFence->second.size()];
 	}
@@ -386,7 +386,7 @@ private:
 
 public:
 	static VkQueueFlagBits m_MapQueueType[CMDQUEUE_NUM];
-	static std::pair<uint32, uint32> m_MapQueueBits[1U << 4];
+	static std::pair<uint32, uint32> m_MapQueueBits[1U << 5];  // One element per each permutation of VkQueueFlagBits (VK1.1)
 	static uint32 m_MapQueueIndices[32];
 };
 
@@ -493,13 +493,13 @@ public:
 
 	void WaitForFinishOnGPU()
 	{
-		VK_ASSERT(m_eState == CLSTATE_SUBMITTED && "GPU fence waits for itself to be complete: deadlock imminent!");
+		VK_ASSERT(m_eState == CLSTATE_SUBMITTED, "GPU fence waits for itself to be complete: deadlock imminent!");
 		m_rPool.WaitForFenceOnGPU(m_CurrentFenceValue, m_CurrentNumPendingWSemaphores, m_PendingWSemaphoreHeap);
 	}
 
 	void WaitForFinishOnCPU() const
 	{
-		VK_ASSERT(m_eState == CLSTATE_SUBMITTED && "CPU fence waits for itself to be complete: deadlock imminent!");
+		VK_ASSERT(m_eState == CLSTATE_SUBMITTED, "CPU fence waits for itself to be complete: deadlock imminent!");
 		m_rPool.WaitForFenceOnCPU(m_CurrentFenceValue);
 	}
 

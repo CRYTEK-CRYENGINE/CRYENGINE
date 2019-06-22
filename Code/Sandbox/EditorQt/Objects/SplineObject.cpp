@@ -59,7 +59,7 @@ private:
 
 	void SelectPoint(int index);
 	void SetCursor(EStdCursor cursor, bool bForce = false);
-	bool HandleSelectedPointMove(CViewport* pView, CPoint& point);
+	bool SnapPointToTerrainOrGeometry(CViewport* pView, CPoint& point);
 
 private:
 	CSplineObject*         m_pSpline;
@@ -264,7 +264,7 @@ bool CEditSplineObjectTool::MouseCallback(CViewport* view, EMouseEvent event, CP
 
 	if ((event == eMouseLDown) && (flags & MK_CONTROL ) && (flags & MK_SHIFT))
 	{
-		return HandleSelectedPointMove(view, point);
+		return SnapPointToTerrainOrGeometry(view, point);
 	}
 
 	if (event == eMouseLDown)
@@ -377,7 +377,7 @@ void CEditSplineObjectTool::SetCursor(EStdCursor cursor, bool bForce)
 	}
 }
 
-bool CEditSplineObjectTool::HandleSelectedPointMove(CViewport* pView, CPoint& point)
+bool CEditSplineObjectTool::SnapPointToTerrainOrGeometry(CViewport* pView, CPoint& point)
 {
 	CRY_ASSERT(m_pSpline);
 
@@ -394,7 +394,8 @@ bool CEditSplineObjectTool::HandleSelectedPointMove(CViewport* pView, CPoint& po
 	CRY_ASSERT(pWorld);
 
 	ray_hit hit{};
-	int col = pWorld->RayWorldIntersection(raySrc, rayDir * 1000.0f, ent_all, 0, &hit, 1);
+	// rwi_stop_at_pierceable flag makes sure that all ray hits are treated as solid regardless of surface type pierceability settings
+	int col = pWorld->RayWorldIntersection(raySrc, rayDir * 1000.0f, ent_all, rwi_stop_at_pierceable, &hit, 1);
 	if (col == 0)
 	{
 		return false;
@@ -1085,7 +1086,7 @@ bool CSplineObject::Init(CBaseObject* prev, const string& file)
 
 void CSplineObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 	m_points.clear();
 	__super::Done();
 }

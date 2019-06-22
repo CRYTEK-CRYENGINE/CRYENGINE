@@ -23,7 +23,7 @@ namespace Cry
 			//! Sets the user's rich status
 			virtual void SetPresence(const SRichPresence& presence) = 0;
 			//! Gets the user's avatar of the requested size as a texture
-			virtual ITexture* GetAvatar(EAvatarSize size) const = 0;
+			virtual TextureId GetAvatar(EAvatarSize size) const = 0;
 			//! Gets the account associated with a specific service, if any
 			virtual IAccount* GetAccount(const ServiceIdentifier& svcId) const = 0;
 			//! Checks if an account belongs to this user

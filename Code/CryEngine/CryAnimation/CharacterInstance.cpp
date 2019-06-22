@@ -15,8 +15,8 @@ DECLARE_JOB("SkinningTransformationsComputation", TSkinningTransformationsComput
 
 CCharInstance::CCharInstance(const string& strFileName, CDefaultSkeleton* pDefaultSkeleton) : m_skinningTransformationsCount(0), m_skinningTransformationsMovement(0)
 {
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Character Instance");
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Character Instance");
 
 	g_pCharacterManager->RegisterInstanceSkel(pDefaultSkeleton, this);
 	m_pDefaultSkeleton = pDefaultSkeleton;
@@ -136,11 +136,22 @@ void CCharInstance::StartAnimationProcessing(const SAnimationProcessParams& para
 {
 	DEFINE_PROFILER_FUNCTION();
 	ANIMATION_LIGHT_PROFILER();
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Animation, 0, "CCharInstance::StartAnimationProcessing");
+	MEMSTAT_CONTEXT(EMemStatContextType::Animation, "CCharInstance::StartAnimationProcessing");
 
 	// execute only if start animation processing has not been started for this character
 	if (GetProcessingContext())
 		return;
+
+	SetupThroughParams(&params);
+
+	// Anticipated skip for quasi-static objects
+	// This allows to skip the animation update for those objects which just stay in the same pose / animation loop for a long time
+	AdvanceQuasiStaticSleepTimer();
+	if (IsQuasiStaticSleeping())
+	{
+		g_pCharacterManager->Debug_IncreaseQuasiStaticCullCounter();
+		return;
+	}
 
 	CharacterInstanceProcessing::CContextQueue& queue = g_pCharacterManager->GetContextSyncQueue();
 
@@ -154,13 +165,16 @@ void CCharInstance::StartAnimationProcessing(const SAnimationProcessParams& para
 
 	bool bImmediate = (Console::GetInst().ca_thread == 0);
 
-	WaitForSkinningJob();
-	ctx.job.Begin(bImmediate);
+	if (ctx.state == CharacterInstanceProcessing::SContext::EState::StartAnimationProcessed)
+	{
+		WaitForSkinningJob();
+		ctx.job.Begin(bImmediate);
+	}
 
 	if (bImmediate)
 	{
 		m_SkeletonAnim.FinishAnimationComputations();
-	}
+	}	
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -179,6 +193,28 @@ void CCharInstance::CopyPoseFrom(const ICharacterInstance& rICharInstance)
 
 		const CSkeletonPose* srcPose = (CSkeletonPose*)srcIPose;
 		m_SkeletonPose.GetPoseDataForceWriteable().Initialize(srcPose->GetPoseData());
+	}
+}
+
+void CCharInstance::SetParentRenderNode(ICharacterRenderNode* pRenderNode)
+{
+	if (m_pParentRenderNode != pRenderNode)
+	{
+		m_pParentRenderNode = pRenderNode;
+
+		// This is a temporary workaround to make sure that reassignment of a render node
+		// propagates properties of the new render node through the attachment hierarchy.
+		SmallFunction<void(CCharInstance*)> recursivelyUpdateAttachedObjects = [&](CCharInstance* pCharacter)
+		{
+			pCharacter->m_AttachmentManager.UpdateAttachedObjects();
+
+			for (CCharInstance* pDependentCharacter : pCharacter->m_AttachmentManager.GetAttachedCharacterInstances())
+			{
+				recursivelyUpdateAttachedObjects(pDependentCharacter);
+			}
+		};
+
+		recursivelyUpdateAttachedObjects(this);
 	}
 }
 
@@ -513,7 +549,7 @@ void CCharInstance::Serialize(TSerialize ser)
 {
 	if (ser.GetSerializationTarget() != eST_Network)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Character instance serialization");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "Character instance serialization");
 
 		ser.BeginGroup("CCharInstance");
 		ser.Value("fPlaybackScale", (float&)(m_fPlaybackScale));
@@ -807,6 +843,7 @@ void CCharInstance::SetupThroughParent(const CCharInstance* pParent)
 	m_fOriginalDeltaTime = pParent->m_fOriginalDeltaTime;
 	m_fDeltaTime = pParent->m_fDeltaTime;
 	m_nAnimationLOD = pParent->GetAnimationLOD();
+	m_SkeletonPose.m_bVisibleLastFrame = m_SkeletonPose.m_bInstanceVisible;
 	m_SkeletonPose.m_bFullSkeletonUpdate = pParent->m_SkeletonPose.m_bFullSkeletonUpdate;
 	m_SkeletonPose.m_bInstanceVisible = pParent->m_SkeletonPose.m_bInstanceVisible;
 }
@@ -843,6 +880,10 @@ void CCharInstance::SetupThroughParams(const SAnimationProcessParams* pParams)
 	  (float)__fsel(pParams->overrideDeltaTime, pParams->overrideDeltaTime, fNewDeltaTime);
 	m_fOriginalDeltaTime = fNewDeltaTime;
 	m_fDeltaTime = fNewDeltaTime * m_fPlaybackScale;
+
+	//---------------------------------------------------------------------------------
+
+	m_SkeletonPose.m_bVisibleLastFrame = m_SkeletonPose.m_bInstanceVisible;
 
 	//---------------------------------------------------------------------------------
 

@@ -190,7 +190,7 @@ CCryDX12Buffer* CCryDX12Buffer::Create(CCryDX12Device* pDevice, const D3D11_BUFF
 
 	if ((hresult != S_OK) || !resource)
 	{
-		DX12_ASSERT(0, "Could not create buffer resource!");
+		DX12_ERROR("Could not create buffer resource!");
 		return NULL;
 	}
 

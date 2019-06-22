@@ -1,13 +1,10 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
+#pragma once
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // A wrapper around Scaleform's GRenderer interface to delegate all rendering to CryEngine's IRenderer interface
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#ifndef _GRENDERER_XRENDER_H_
-#define _GRENDERER_XRENDER_H_
-
-#pragma once
 
 #ifdef INCLUDE_SCALEFORM_SDK
 
@@ -26,8 +23,8 @@
 
 #define ENABLE_FLASH_FILTERS
 
-class ITexture;
 class GTextureXRender;
+struct ITexture;
 struct GRendererCommandBuffer;
 
 class CCachedDataStore;
@@ -394,5 +391,3 @@ private:
 };
 
 #endif // #ifdef INCLUDE_SCALEFORM_SDK
-
-#endif // #ifndef _GRENDERER_XRENDER_H_

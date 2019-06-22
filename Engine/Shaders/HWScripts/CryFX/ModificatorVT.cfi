@@ -175,8 +175,8 @@ int Get_PerInstanceTessellationPatchId()
 // 8 weights skinning. this structure contains the extra 4 weights
 struct SSkinExtraBlendWeights
 {
-	uint  BlendWeights;  // ubyte[4] -> R8G8B8A8_UNORM
-	uint2 BlendIndices;  // short[4] -> R16G16B16A16_SINT
+	uint  BlendWeights;     // ubyte[4] -> R8G8B8A8_UNORM
+	uint  BlendIndices[2];  // short[4] -> R16G16B16A16_SINT
 };
 
 StructuredBuffer<SSkinExtraBlendWeights> SkinExtraBlendWeights : register(t14); // !%_RT_COMPUTE_SKINNING
@@ -342,7 +342,7 @@ float4 D3DX_R8G8B8A8_UNORM_TO_FLOAT4(uint packedInput)
 	return unpackedOutput;
 }
 
-uint4 D3DX_R16G16B16A16_SINT_TO_UINT4(uint2 packedInput)
+uint4 D3DX_R16G16B16A16_SINT_TO_UINT4(uint packedInput[2])
 {
 	int4 unpackedOutput;
 	unpackedOutput.x =  (packedInput[0]		& 0x0000ffff);

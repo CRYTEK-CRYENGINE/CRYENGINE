@@ -384,11 +384,15 @@ pixout SSRRaytracePS(vtxOutWPOS IN)
 	const float fDepth = GetLinearDepth( SSRRay_LinDepth, int2(ScreenTC * g_mSSRParams.xy * g_ScreenSize.xy) ); // read from full size buffer even in halfres mode
 	
 	if (fDepth == 1.0)
-		return OUT; // Ignore sky pixels
+		discard; // Ignore sky pixels
 
 	const float3 vPositionWS = GetWorldPos( fDepth, IN.CamVec ) + CV_WorldViewPosition.xyz;
 	const float2 halfTexel = g_ScreenSize.zw;
+#if !%_RT_SECONDARY_VIEW
 	const float fLum  = GetTexture2DLod( SSRRay_HDRLum, SSRRay_LinDepth_Sampler, float4( ScreenTC, 0, 0 ) ).x * 100; // Limit brightness to reduce aliasing of specular highlights
+#else
+    const float fLum = 1.0f; // We don't have auto exposure running in secondary viewports
+#endif
 
 	MaterialAttribsCommon attribs = DecodeGBuffer(
 		GetTexture2D( SSRRay_Norms, SSRRay_Norms_Sampler, ScreenTC + halfTexel ), 0,
@@ -560,6 +564,9 @@ pixout SSDO_Sampling_PS(vtxOut IN)
 	
     float2 linearUV = IN.baseTC.xy;
     float fCenterDepth = GetLinearDepth(SSDOSamp_LinZ, int2(linearUV * cbSSDO.screenSize.xy));
+
+	if (fCenterDepth == 1.0f)
+		discard; // Ignore sky pixels
 
 	float3 vReceiverPos = float3( linearUV.xy * cbSSDO.viewSpaceParams.xy + cbSSDO.viewSpaceParams.zw, 1 ) * fCenterDepth * cbSSDO.nearFarClipDist.y;
 	

@@ -38,6 +38,8 @@ public:
 	virtual void OnEntityAdded(IEntity const* const pIEntity);
 	virtual void OnEntityRemoved(IEntity const* const pIEntity);
 
+	virtual void ClearArea() override final;
+
 	virtual void CreateInspectorWidgets(CInspectorWidgetCreator& creator) override;
 
 private:

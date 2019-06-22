@@ -1,4 +1,4 @@
-// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2015-2018 Crytek GmbH / Crytek Group. All rights reserved. 
 
 #pragma once
 
@@ -10,9 +10,9 @@
 namespace pfx2
 {
 
-struct SInstance
+struct SSpawnerDesc
 {
-	SInstance(TParticleId id = 0, float delay = 0.0f)
+	SSpawnerDesc(TParticleId id = 0, float delay = 0.0f)
 		: m_parentId(id), m_startDelay(delay) {}
 
 	TParticleId m_parentId;
@@ -40,10 +40,10 @@ public:
 	uint                          GetNumParticles() const;
 	void                          AddBounds(const AABB& bounds);
 	bool                          IsChild() const        { return m_pComponent->GetParentComponent() != nullptr; }
-	void                          ReparentParticles(TConstArray<TParticleId> swapIds);
-	void                          AddInstances(TVarArray<SInstance> instances);
-	void                          RemoveAllSubInstances();
-	void                          RenderAll(const SRenderContext& renderContext);
+	void                          Reparent(TConstArray<TParticleId> swapIds);
+	void                          AddSpawners(TVarArray<SSpawnerDesc> descs, bool cull = true);
+	void                          RemoveAllSpawners();
+	void                          RunParticles(uint count, float deltaTime);
 
 	void                          ComputeVertices(const SCameraInfo& camInfo, CREParticle* pRE, uint64 uRenderFlags, float fMaxPixels) override;
 
@@ -53,29 +53,23 @@ public:
 	CParticleEmitter*         GetEmitter() const         { return m_pEmitter; }
 
 	CParticleComponentRuntime* ParentRuntime() const;
-	CParticleContainer&       GetParentContainer();
-	const CParticleContainer& GetParentContainer() const;
-	CParticleContainer&       GetContainer()            { return m_container; }
-	const CParticleContainer& GetContainer() const      { return m_container; }
+	
+	CParticleContainer&       ParentContainer(EDataDomain domain = EDD_Particle);
+	const CParticleContainer& ParentContainer(EDataDomain domain = EDD_Particle) const;
+	CParticleContainer&       Container(EDataDomain domain = EDD_Particle)       { return m_containers[domain]; }
+	const CParticleContainer& Container(EDataDomain domain = EDD_Particle) const { return m_containers[domain]; }
+
+	template<typename T> TIStream<T>  IStream(TDataType<T> type, const T& defaultVal = T()) const    { return Container(type.info().domain).IStream(type, defaultVal); }
+	template<typename T> TIOStream<T> IOStream(TDataType<T> type)                                    { return Container(type.info().domain).IOStream(type); }
+
+	template<typename T> void FillData(TDataType<T> type, const T& data, SUpdateRange range) { Container(type.info().domain).FillData(type, data, range); }
 
 	void                      UpdateAll();
 	void                      AddParticles(TConstArray<SSpawnEntry> spawnEntries);
 
-	bool                      IsAlive() const               { return m_alive; }
-	void                      SetAlive()                    { m_alive = true; }
-	uint                      GetNumInstances() const       { return m_subInstances.size(); }
-	uint                      GetDomainSize(EDataDomain domain) const;
-	const SInstance&          GetInstance(uint idx) const   { return m_subInstances[idx]; }
-	SInstance&                GetInstance(uint idx)         { return m_subInstances[idx]; }
-	TParticleId               GetParentId(uint idx) const   { return GetInstance(idx).m_parentId; }
-	template<typename T> T&   GetInstanceData(uint idx, TDataOffset<T> offset)
-	{
-		const auto stride = ComponentParams().m_instanceDataStride;
-		CRY_PFX2_ASSERT(offset + sizeof(T) <= stride);
-		CRY_PFX2_ASSERT(idx < m_subInstances.size());
-		byte* addr = m_subInstanceData.data() + stride * idx + offset;
-		return *reinterpret_cast<T*>(addr);
-	}
+	bool                      IsAlive() const         { return m_alive; }
+	void                      SetAlive()              { m_alive = true; }
+	uint                      DomainSize(EDataDomain domain) const;
 
 	void                      GetMaxParticleCounts(int& total, int& perFrame, float minFPS = 4.0f, float maxFPS = 120.0f) const;
 	void                      GetEmitLocations(TVarArray<QuatTS> locations, uint firstInstance) const;
@@ -87,20 +81,32 @@ public:
 	SChaosKey&                Chaos() const           { return m_chaos; }
 	SChaosKeyV&               ChaosV() const          { return m_chaosV; }
 
-	SUpdateRange              FullRange() const       { return m_container.GetFullRange(); }
-	SGroupRange               FullRangeV() const      { return SGroupRange(m_container.GetFullRange()); }
-	SUpdateRange              SpawnedRange() const    { return m_container.GetSpawnedRange(); }
-	SGroupRange               SpawnedRangeV() const   { return SGroupRange(m_container.GetSpawnedRange()); }
+	SUpdateRange              FullRange(EDataDomain domain = EDD_Particle) const     { return Container(domain).FullRange(); }
+	SGroupRange               FullRangeV(EDataDomain domain = EDD_Particle) const    { return SGroupRange(Container(domain).FullRange()); }
+	SUpdateRange              SpawnedRange(EDataDomain domain = EDD_Particle) const  { return Container(domain).SpawnedRange(); }
+	SGroupRange               SpawnedRangeV(EDataDomain domain = EDD_Particle) const { return SGroupRange(Container(domain).SpawnedRange()); }
+
 	const SComponentParams&   ComponentParams() const { return m_pComponent->GetComponentParams(); }
+	STimingParams             GetMaxTimings() const;
 
 	static TParticleHeap&     MemHeap();
 	float                     DeltaTime() const;
-	bool                      IsPreRunning() const    { return m_isPreRunning; }
+	bool                      IsPreRunning() const              { return m_isPreRunning; }
+
+	void                      ClearRenderObjects(uint threadId) { m_renderObjects[threadId].clear(); }
+	void                      ResetRenderObjects(uint threadId) { m_renderObjects[threadId].reset(); }
+	CRenderObject*            GetRenderObject(uint threadId, ERenderObjectFlags extraFlags);
+	CRenderObject*            CreateRenderObject(uint64 renderFlags) const;
+
+	// Legacy names
+	CParticleContainer&       GetParentContainer()       { return ParentContainer(); }
+	const CParticleContainer& GetParentContainer() const { return ParentContainer(); }
+	CParticleContainer&       GetContainer()             { return Container(); }
+	const CParticleContainer& GetContainer() const       { return Container(); }
 
 private:
-	void PreRun();
-	void AddInstances();
 	void AddRemoveParticles();
+	void UpdateSpawners();
 	void RemoveParticles();
 	void InitParticles();
 	void AgeUpdate();
@@ -109,19 +115,55 @@ private:
 	void DebugStabilityCheck();
 	void UpdateGPURuntime();
 
-	_smart_ptr<CParticleComponent> m_pComponent;
-	CParticleEmitter*              m_pEmitter;
-	CParticleContainer             m_container;
-	TDynArray<SInstance>           m_subInstances;
-	TDynArray<byte>                m_subInstanceData;
-	AABB                           m_bounds;
-	bool                           m_alive;
-	bool                           m_isPreRunning;
-	float                          m_deltaTime;
-	SChaosKey mutable              m_chaos;
-	SChaosKeyV mutable             m_chaosV;
+	struct PRenderObject
+	{
+		~PRenderObject()
+		{
+			if (m_ptr)
+			{
+				if (m_ptr->m_pRE)
+					m_ptr->m_pRE->Release();
+				if (gEnv->pRenderer)
+					gEnv->pRenderer->EF_FreeObject(m_ptr);
+			}
+		}
+		PRenderObject() {}
+		PRenderObject(PRenderObject&& m)
+			: m_ptr(m.m_ptr)
+		{
+			m.m_ptr = nullptr;
+		}
+		PRenderObject(const PRenderObject&) = delete;
+		void operator=(const PRenderObject&) = delete;
+
+		PRenderObject(CRenderObject* ptr)
+			: m_ptr(ptr) {}
+		void operator=(CRenderObject* ptr)
+		{
+			this->~PRenderObject();
+			m_ptr = ptr;
+		}
+
+		operator CRenderObject*() const { return m_ptr; }
+		CRenderObject* operator->() const { return m_ptr; }
+
+	private:
+		CRenderObject* m_ptr = nullptr;
+	};
+
+	_smart_ptr<CParticleComponent>       m_pComponent;
+	CParticleEmitter*                    m_pEmitter;
+	ElementTypeArray<CParticleContainer> m_containers;
+	TReuseArray<PRenderObject>           m_renderObjects[RT_COMMAND_BUF_COUNT];
+	AABB                                 m_bounds;
+	bool                                 m_alive;
+	bool                                 m_isPreRunning;
+	float                                m_deltaTime;
+	SChaosKey mutable                    m_chaos;
+	SChaosKeyV mutable                   m_chaosV;
 
 	_smart_ptr<gpu_pfx2::IParticleComponentRuntime> m_pGpuRuntime;
+	TSmallArray<SSpawnEntry>             m_GPUSpawnEntries;
 };
 
 template<typename T>

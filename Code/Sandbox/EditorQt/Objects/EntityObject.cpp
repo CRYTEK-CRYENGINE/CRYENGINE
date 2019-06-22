@@ -326,18 +326,21 @@ void CEntityObject::SetScriptName(const string& file, CBaseObject* pPrev)
 
 void CEntityObject::Done()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	//Somehow this crashes the profiler, because entity names may be malformed at times. This would be very nice if it was fixed, meanwhile using the version without name.
-	//LOADING_TIME_PROFILE_SECTION_NAMED(GetName().c_str());
+	//CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, GetName().c_str());
 	if (m_pFlowGraph)
 	{
 		GetIEditorImpl()->GetFlowGraphManager()->UnregisterGraph(m_pFlowGraph);
 	}
 	SAFE_RELEASE(m_pFlowGraph);
 
+	//Remove the entity from the entity system, this does not clean some of the editor side structures (for example entity links)
 	DeleteEntity();
 	UnloadScript();
 
+	//We need to remove all the editor side entity links and disconnect all the observers
+	RemoveAllEntityLinks();
 	ReleaseEventTargets();
 
 	for (CListenerSet<IEntityObjectListener*>::Notifier notifier(m_listeners); notifier.IsValid(); notifier.Next())
@@ -1624,7 +1627,7 @@ float CEntityObject::GetCreationOffsetFromTerrain() const
 
 bool CEntityObject::CreateGameObject()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!m_pEntityScript && !m_pEntityClass)
 	{
 		if (!m_entityClass.IsEmpty())
@@ -1645,7 +1648,7 @@ bool CEntityObject::CreateGameObject()
 
 bool CEntityObject::SetClass(const string& entityClass, bool bForceReload, XmlNodeRef xmlEntityNode)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (entityClass == m_entityClass && (m_pEntityScript || (m_pEntityClass && strlen(m_pEntityClass->GetScriptFile()) == 0)) && !bForceReload)
 	{
 		return true;
@@ -1903,7 +1906,7 @@ IVariable* CEntityObject::FindVariableInSubBlock(CVarBlockPtr& properties, IVari
 
 void CEntityObject::SpawnEntity()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (!m_pEntityClass)
 	{
 		return;
@@ -2084,7 +2087,7 @@ void CEntityObject::SpawnEntity()
 		// the entity can already have a FG if it is being reloaded
 		if (m_pFlowGraph)
 		{
-			LOADING_TIME_PROFILE_SECTION_NAMED("Reloading Associated FlowGraph");
+			CRY_PROFILE_SECTION(PROFILE_LOADING_ONLY, "Reloading Associated FlowGraph");
 
 			// Re-apply entity for flow graph.
 			m_pFlowGraph->SetEntity(this, true);
@@ -2245,16 +2248,7 @@ void CEntityObject::SetSelected(bool bSelect)
 		IRenderNode* pRenderNode = m_pEntity->GetRenderNode();
 		if (pRenderNode)
 		{
-			uint64 flags = pRenderNode->GetRndFlags();
-			if (bSelect)
-			{
-				flags |= ERF_SELECTED;
-			}
-			else
-			{
-				flags &= ~ERF_SELECTED;
-			}
-			pRenderNode->SetRndFlags(flags);
+			pRenderNode->SetRndFlags(ERF_SELECTED, bSelect);
 		}
 	}
 
@@ -2725,6 +2719,8 @@ void CEntityObject::Display(CObjectRenderHelper& objRenderHelper)
 		preview.bNoRenderNodes = true;
 		preview.bSelected = IsSelected();
 		preview.bRenderSlots = false;
+		preview.pPassInfo = &objRenderHelper.GetPassInfo();
+
 		m_pEntity->PreviewRender(preview);
 	}
 
@@ -2993,7 +2989,7 @@ void CEntityObject::Serialize(CObjectArchive& ar)
 
 void CEntityObject::PostLoad(CObjectArchive& ar)
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	if (m_pEntity)
 	{
 		// Force entities to register them-self in sectors.

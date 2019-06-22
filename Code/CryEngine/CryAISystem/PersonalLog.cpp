@@ -10,7 +10,7 @@ void PersonalLog::AddMessage(const EntityId entityId, const char* message)
 
 	m_messages.push_back(message);
 
-	if (gAIEnv.CVars.OutputPersonalLogToConsole)
+	if (gAIEnv.CVars.LegacyOutputPersonalLogToConsole)
 	{
 		const char* name = "(null)";
 

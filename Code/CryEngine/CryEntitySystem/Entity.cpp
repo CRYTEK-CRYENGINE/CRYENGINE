@@ -307,7 +307,7 @@ void CEntity::RemoveSimpleEventListener(EEntityEvent event, ISimpleEntityEventLi
 /////////////////////////////////////////////////////////////////////////
 bool CEntity::Init(SEntitySpawnParams& params)
 {
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Entity, 0, "Init: %s", params.sName ? params.sName : "(noname)");
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::Entity, "Init: %s", params.sName ? params.sName : "(noname)");
 
 	bool bIsPreview = (params.nFlagsExtended & ENTITY_FLAG_EXTENDED_PREVIEW) != 0;
 
@@ -772,7 +772,7 @@ void CEntity::OnRellocate(EntityTransformationFlagsMask transformReasons)
 	//////////////////////////////////////////////////////////////////////////
 	// Reposition entity in the partition grid.
 	//////////////////////////////////////////////////////////////////////////
-	if ((m_flags & ENTITY_FLAG_NO_PROXIMITY) == 0 && (!IsHidden() || (transformReasons & ENTITY_XFORM_EDITOR)) && !IsGarbage())
+	if (CVar::es_UseProximityTriggerSystem && (m_flags & ENTITY_FLAG_NO_PROXIMITY) == 0 && (!IsHidden() || (transformReasons & ENTITY_XFORM_EDITOR)) && !IsGarbage())
 	{
 		if (transformReasons & ENTITY_XFORM_POS)
 		{
@@ -1097,7 +1097,7 @@ void CEntity::UpdateComponentEventListeners(const SEntityComponentRecord& compon
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntity::SetTimer(ISimpleEntityEventListener* pListener, EntityId id, const CryGUID& componentInstanceGUID, uint8 timerId, int timeInMilliseconds)
+void CEntity::SetTimer(ISimpleEntityEventListener* pListener, EntityId id, const CryGUID& componentInstanceGUID, uint32 timerId, int timeInMilliseconds)
 {
 	KillTimer(pListener, timerId);
 	SEntityTimerEvent timeEvent;
@@ -1110,7 +1110,7 @@ void CEntity::SetTimer(ISimpleEntityEventListener* pListener, EntityId id, const
 }
 
 //////////////////////////////////////////////////////////////////////////
-void CEntity::KillTimer(ISimpleEntityEventListener* pListener, uint8 timerId)
+void CEntity::KillTimer(ISimpleEntityEventListener* pListener, uint32 timerId)
 {
 	g_pIEntitySystem->RemoveTimerEvent(pListener, timerId);
 }
@@ -2016,8 +2016,8 @@ void CEntity::VisitComponents(const ComponentsVisitor& visitor)
 //////////////////////////////////////////////////////////////////////////
 void CEntity::Serialize(TSerialize ser, int nFlags)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Entity serialization");
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_Other, 0, "%s", GetClass() ? GetClass()->GetName() : "<UNKNOWN>");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Entity serialization");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, GetClass() ? GetClass()->GetName() : "<UNKNOWN>");
 	if (nFlags & ENTITY_SERIALIZE_POSITION)
 	{
 		ser.Value("position", m_position, 'wrld');
@@ -2740,7 +2740,7 @@ int CEntity::LoadGeometry(int nSlot, const char* sFilename, const char* sGeomNam
 //////////////////////////////////////////////////////////////////////////
 int CEntity::LoadCharacter(int nSlot, const char* sFilename, int nLoadFlags)
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(sFilename);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, sFilename);
 
 	ICharacterInstance* pChar;
 

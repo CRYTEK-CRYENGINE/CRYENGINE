@@ -430,9 +430,6 @@ bool CRootSignature::Serialize(bool bGfx, UINT nodeMask)
 		{
 			if (pErrorBlob)
 			{
-				void* pError = pErrorBlob->GetBufferPointer();
-				size_t sizeError = pErrorBlob->GetBufferSize();
-
 				DX12_ERROR("Could not serialize root signature: %s", pErrorBlob->GetBufferPointer());
 
 				pErrorBlob->Release();

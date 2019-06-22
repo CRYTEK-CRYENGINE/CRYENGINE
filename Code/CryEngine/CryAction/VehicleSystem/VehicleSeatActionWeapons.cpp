@@ -384,7 +384,7 @@ void CVehicleSeatActionWeapons::StartUsing(EntityId passengerId)
 {
 
 	IEntity* ent = gEnv->pEntitySystem->GetEntity(passengerId);
-	m_Forced = m_Forced && (!ent || !ent->GetAI());
+	m_Forced = m_Forced && (!ent || !ent->HasAI());
 
 	if (!passengerId && !m_Forced)
 		return;
@@ -1186,17 +1186,10 @@ void CVehicleSeatActionWeapons::OnVehicleEvent(EVehicleEvent event, const SVehic
 			StopFire();
 		}
 
-		// set AI state
-		IAISystem* pAISystem = gEnv->pAISystem;
-
 		for (TVehicleWeaponVector::iterator ite = m_weapons.begin(); ite != m_weapons.end(); ++ite)
 		{
 			if (IEntity* pEntity = GetEntity(*ite))
 			{
-				if (pAISystem && pAISystem->IsEnabled())
-				{
-					pAISystem->GetSmartObjectManager()->SetSmartObjectState(pEntity, "Busy");
-				}
 				pEntity->Hide(true);
 			}
 		}

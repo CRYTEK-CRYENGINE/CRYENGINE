@@ -10,7 +10,7 @@
 ACE::Impl::Adx2::CImpl* g_pAdx2Interface;
 
 //------------------------------------------------------------------
-extern "C" ACE_API ACE::Impl::IImpl* GetAudioInterface(ISystem * pSystem)
+extern "C" ACE_API ACE::Impl::IImpl* GetAudioInterface(ISystem * const pSystem)
 {
 	ModuleInitISystem(pSystem, "EditorAdx2");
 
@@ -29,15 +29,26 @@ BOOL __stdcall DllMain(HINSTANCE hinstDLL, ULONG fdwReason, LPVOID lpvReserved)
 	switch (fdwReason)
 	{
 	case DLL_PROCESS_ATTACH:
-		g_hInstance = hinstDLL;
-		break;
-	case DLL_PROCESS_DETACH:
-		if (g_pAdx2Interface != nullptr)
 		{
-			delete g_pAdx2Interface;
-			g_pAdx2Interface = nullptr;
+			g_hInstance = hinstDLL;
+			break;
 		}
-		break;
+
+	case DLL_PROCESS_DETACH:
+		{
+			if (g_pAdx2Interface != nullptr)
+			{
+				delete g_pAdx2Interface;
+				g_pAdx2Interface = nullptr;
+			}
+
+			break;
+		}
+	default:
+		{
+			break;
+		}
 	}
+
 	return TRUE;
 }

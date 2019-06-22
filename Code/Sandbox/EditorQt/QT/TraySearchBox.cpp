@@ -20,9 +20,9 @@
 #include "QtMainFrame.h"
 #include "IEditorImpl.h"
 #include "Commands/CommandManager.h"
-#include "Commands/QCommandAction.h"
 
 // EditorCommon
+#include <Commands/QCommandAction.h>
 #include <Controls/QPopupWidget.h>
 #include <ProxyModels/DeepFilterProxyModel.h>
 #include <Notifications/NotificationCenter.h>

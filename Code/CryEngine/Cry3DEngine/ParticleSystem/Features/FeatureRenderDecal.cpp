@@ -167,14 +167,16 @@ void CFeatureRenderDecals::RenderDeferred(const CParticleComponentRuntime& runti
 			decal.fAlpha *= culling.DistanceFade(size, invDist);
 		}
 
-		pRenderer->EF_AddDeferredDecal(decal, passInfo);
+		if (decal.fAlpha)
+			pRenderer->EF_AddDeferredDecal(decal, passInfo);
 
 		if (hasBlending)
 		{
 			decal.rectTexture.x = texBlend.x;
 			decal.rectTexture.y = texBlend.y;
 			decal.fAlpha = alpha * texBlend.z;
-			pRenderer->EF_AddDeferredDecal(decal, passInfo);
+			if (decal.fAlpha)
+				pRenderer->EF_AddDeferredDecal(decal, passInfo);
 		}
 	}
 }

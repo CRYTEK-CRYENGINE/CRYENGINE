@@ -69,19 +69,17 @@ public:
 			InputPortConfig_Void("audioSwitchState_SetState2",           _HELP("Sets the switch to the corresponding state"), "SetState2"),
 			InputPortConfig_Void("audioSwitchState_SetState3",           _HELP("Sets the switch to the corresponding state"), "SetState3"),
 			InputPortConfig_Void("audioSwitchState_SetState4",           _HELP("Sets the switch to the corresponding state"), "SetState4"),
-			{ 0 }
-		};
+			{ 0 } };
 
 		static const SOutputPortConfig outputs[] =
 		{
-			{ 0 }
-		};
+			{ 0 } };
 
 		config.pInputPorts = inputs;
 		config.pOutputPorts = outputs;
 		config.sDescription = _HELP("This node allows one to set Audio Switches.");
 		config.nFlags |= EFLN_TARGET_ENTITY;
-		config.SetCategory(EFLN_APPROVED);
+		config.SetCategory(EFLN_OBSOLETE);
 	}
 
 	//////////////////////////////////////////////////////////////////////////

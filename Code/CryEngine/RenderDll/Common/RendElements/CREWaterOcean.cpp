@@ -73,10 +73,10 @@ struct SCompiledWaterOcean : NoCopy
 };
 
 bool CreatePipelineStates(
-  DevicePipelineStatesArray& stateArray,
-  CGraphicsPipelineStateLocalCache* pStateCache,
-  const SGraphicsPipelineStateDescription& stateDesc,
-  CWaterStage& waterStage)
+	DevicePipelineStatesArray& stateArray,
+	CGraphicsPipelineStateLocalCache* pStateCache,
+	const SGraphicsPipelineStateDescription& stateDesc,
+	CWaterStage& waterStage)
 {
 	if (pStateCache->Find(stateDesc, stateArray))
 		return true;
@@ -194,9 +194,7 @@ bool CREWaterOcean::RequestVerticesBuffer(SVF_P3F_C4B_T2F** pOutputVertices, uin
 		return false;
 	}
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
-	auto nThreadID = gRenDev->GetMainThreadID();
-	CRY_ASSERT(rd->m_pRT->IsMainThread());
+	CRY_ASSERT(gcpRendD3D->m_pRT->IsMainThread());
 
 	*pOutputVertices = new SVF_P3F_C4B_T2F[nVerticesCount];
 	*pOutputIndices = new uint8[nIndicesCount * nIndexSizeof];
@@ -225,9 +223,8 @@ bool CREWaterOcean::SubmitVerticesBuffer(uint32 nVerticesCount, uint32 nIndicesC
 		return false;
 	}
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	auto nThreadID = gRenDev->GetMainThreadID();
-	CRY_ASSERT(rd->m_pRT->IsMainThread());
+	CRY_ASSERT(gcpRendD3D->m_pRT->IsMainThread());
 
 	auto& requests = m_verticesUpdateRequests[nThreadID];
 
@@ -251,7 +248,6 @@ void CREWaterOcean::Create(uint32 nVerticesCount, SVF_P3F_C4B_T2F* pVertices, ui
 	if (!nVerticesCount || !pVertices || !nIndicesCount || !pIndices || (nIndexSizeof != 2 && nIndexSizeof != 4))
 		return;
 
-	CD3D9Renderer* rd(gcpRendD3D);
 	ReleaseOcean();
 
 	m_nVerticesCount = nVerticesCount;
@@ -356,13 +352,12 @@ void CREWaterOcean::FrameUpdate()
 		if (pDispGrid == NULL)
 			return;
 
-		const uint32 pitch = 4 * sizeof(f32) * nGridSize;
 		const uint32 width = nGridSize;
 		const uint32 height = nGridSize;
 
-		CRY_PROFILE_REGION_WAITING(PROFILE_RENDERER, "update subresource");
+		CRY_PROFILE_SECTION_WAITING(PROFILE_RENDERER, "update subresource");
 
-		CDeviceTexture * pDevTex = pTexture->GetDevTexture();
+		CDeviceTexture* pDevTex = pTexture->GetDevTexture();
 		pDevTex->UploadFromStagingResource(0, [=](void* pData, uint32 rowPitch, uint32 slicePitch)
 		{
 			cryMemcpy(pData, pDispGrid, 4 * width * height * sizeof(f32));
@@ -391,7 +386,7 @@ void CREWaterOcean::ReleaseOcean()
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool CREWaterOcean::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElementFlags elmFlags, const AABB &localAABB, CRenderView *pRenderView, bool updateInstanceDataOnly)
+bool CREWaterOcean::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElementFlags elmFlags, const AABB& localAABB, CRenderView* pRenderView, bool updateInstanceDataOnly)
 {
 	if (!m_pCompiledObject)
 	{
@@ -401,10 +396,11 @@ bool CREWaterOcean::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElement
 	auto& compiledObj = *(m_pCompiledObject);
 	compiledObj.m_bValid = 0;
 
+	auto threadID = gRenDev->GetRenderThreadID();
 	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	auto nThreadID = gRenDev->GetRenderThreadID();
 	CRY_ASSERT(rd->m_pRT->IsRenderThread());
-	auto* pWaterStage = rd->GetGraphicsPipeline().GetWaterStage();
+	auto* pWaterStage = pRenderView->GetGraphicsPipeline()->GetStage<CWaterStage>();
 
 	if (!pWaterStage
 	    || !pObj
@@ -443,11 +439,11 @@ bool CREWaterOcean::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElement
 		FrameUpdate();
 	}
 
-	N3DEngineCommon::SOceanInfo& OceanInfo = gRenDev->m_p3DEngineCommon.m_OceanInfo;
+	N3DEngineCommon::SOceanInfo& OceanInfo = gRenDev->m_p3DEngineCommon[threadID].m_OceanInfo;
 	const bool bAboveWater = pRenderView->GetCamera(CCamera::eEye_Left).GetPosition().z > OceanInfo.m_fWaterLevel;
 	compiledObj.m_bAboveWater = bAboveWater ? 1 : 0;
 
-	const InputLayoutHandle vertexFormat =  EDefaultInputLayouts::P3F_C4B_T2F;
+	const InputLayoutHandle vertexFormat = EDefaultInputLayouts::P3F_C4B_T2F;
 
 	// need to check mesh is ready for tessellation because m_bUseWaterTessHW is enabled but CREWaterOcean::Create() isn't called yet.
 	const bool bTessellationMesh = ((m_nIndicesCount % 3) == 0);
@@ -469,15 +465,15 @@ bool CREWaterOcean::Compile(CRenderObject* pObj, uint64 objFlags, ERenderElement
 
 	// create PSOs which match to specific material.
 	SGraphicsPipelineStateDescription psoDescription(
-	  pObj,
-	  objFlags,
-	  elmFlags,
-	  shaderItem,
-	  TTYPE_GENERAL, // set as default, this may be overwritten in CreatePipelineStates().
-	  vertexFormat,
-	  VSM_NONE /*geomInfo.CalcStreamMask()*/,
-	  primType // tessellation is handled in CreatePipelineStates(). ept3ControlPointPatchList is used in that case.
-	  );
+		pObj,
+		objFlags,
+		elmFlags,
+		shaderItem,
+		TTYPE_GENERAL, // set as default, this may be overwritten in CreatePipelineStates().
+		vertexFormat,
+		VSM_NONE /*geomInfo.CalcStreamMask()*/,
+		primType // tessellation is handled in CreatePipelineStates(). ept3ControlPointPatchList is used in that case.
+		);
 
 	// apply shader quality
 	{
@@ -575,7 +571,6 @@ void CREWaterOcean::DrawToCommandList(CRenderObject* pObj, const struct SGraphic
 	CRY_ASSERT(compiledObj.m_pPerDrawCB);
 	CRY_ASSERT(compiledObj.m_pPerDrawRS && compiledObj.m_pPerDrawRS->IsValid());
 
-	CD3D9Renderer* const RESTRICT_POINTER rd = gcpRendD3D;
 	CDeviceGraphicsCommandInterface& RESTRICT_REFERENCE commandInterface = *(commandList->GetGraphicsInterface());
 
 	// Set states
@@ -584,8 +579,8 @@ void CREWaterOcean::DrawToCommandList(CRenderObject* pObj, const struct SGraphic
 	commandInterface.SetResources(EResourceLayoutSlot_PerDrawExtraRS, compiledObj.m_pPerDrawRS.get());
 
 	EShaderStage perDrawInlineShaderStages = compiledObj.m_bHasTessellation
-		? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
-		: (EShaderStage_Vertex | EShaderStage_Pixel);
+	                                         ? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
+	                                         : (EShaderStage_Vertex | EShaderStage_Pixel);
 
 	commandInterface.SetInlineConstantBuffer(EResourceLayoutSlot_PerDrawCB, compiledObj.m_pPerDrawCB, eConstantBufferShaderSlot_PerDraw, perDrawInlineShaderStages);
 
@@ -621,8 +616,8 @@ void CREWaterOcean::PrepareForUse(water::SCompiledWaterOcean& compiledObj, bool 
 	pCommandInterface->PrepareResourcesForUse(EResourceLayoutSlot_PerDrawExtraRS, compiledObj.m_pPerDrawRS.get());
 
 	EShaderStage perDrawInlineShaderStages = compiledObj.m_bHasTessellation
-		? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
-		: (EShaderStage_Vertex | EShaderStage_Pixel);
+	                                         ? (EShaderStage_Vertex | EShaderStage_Pixel | EShaderStage_Domain)
+	                                         : (EShaderStage_Vertex | EShaderStage_Pixel);
 
 	pCommandInterface->PrepareInlineConstantBufferForUse(EResourceLayoutSlot_PerDrawCB, compiledObj.m_pPerDrawCB, eConstantBufferShaderSlot_PerDraw, perDrawInlineShaderStages);
 

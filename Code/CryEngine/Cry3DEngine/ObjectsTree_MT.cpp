@@ -12,11 +12,11 @@
 #include "LightEntity.h"
 
 //////////////////////////////////////////////////////////////////////////
-void CObjManager::PrepareCullbufferAsync(const CCamera& rCamera)
+void CObjManager::PrepareCullbufferAsync(const CCamera& rCamera, const SGraphicsPipelineKey& cullGraphicsContextKey)
 {
 	if (gEnv->pRenderer)
 	{
-		m_CullThread.PrepareCullbufferAsync(rCamera);
+		m_CullThread.PrepareCullbufferAsync(rCamera, cullGraphicsContextKey);
 	}
 }
 
@@ -41,8 +41,8 @@ void CObjManager::EndOcclusionCulling()
 //////////////////////////////////////////////////////////////////////////
 void CObjManager::RenderNonJobObjects(const SRenderingPassInfo& passInfo)
 {
-	CRY_PROFILE_REGION(PROFILE_3DENGINE, "3DEngine: RenderNonJobObjects");
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CObjManager::RenderNonJobObjects");
+	CRY_PROFILE_SECTION(PROFILE_3DENGINE, "3DEngine: RenderNonJobObjects");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CObjManager::RenderNonJobObjects");
 
 	bool hasWaited = false;
 	while (1)

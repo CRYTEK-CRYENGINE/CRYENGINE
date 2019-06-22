@@ -1,5 +1,7 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
+#pragma once
+
 #include <CryCore/TypeInfo_impl.h>
 
 #include <CryAISystem/NavigationSystem/MNMFixedAABB.h>

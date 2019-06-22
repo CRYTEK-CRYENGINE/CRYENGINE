@@ -244,8 +244,8 @@ void CAudioAreaAmbienceEntity::SerializeProperties(Serialization::IArchive& arch
 	archive(Serialization::AudioTrigger(m_stopTriggerName), "StopTrigger", "StopTrigger");
 	archive(m_bTriggerAreasOnMove, "TriggerAreasOnMove", "TriggerAreasOnMove");
 
-	archive(Serialization::AudioRTPC(m_rtpcName), "Rtpc", "Rtpc");
-	archive(Serialization::AudioRTPC(m_globalRtpcName), "GlobalRtpc", "GlobalRtpc");
+	archive(Serialization::AudioParameter(m_rtpcName), "Rtpc", "Rtpc");
+	archive(Serialization::AudioParameter(m_globalRtpcName), "GlobalRtpc", "GlobalRtpc");
 	archive(m_rtpcDistance, "RtpcDistance", "RtpcDistance");
 
 	archive(Serialization::AudioEnvironment(m_environmentName), "Environment", "Environment");

@@ -1,7 +1,7 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _PROCEDURALVEGETATION_GEOMETRY_
-#define _PROCEDURALVEGETATION_GEOMETRY_
+#pragma once
+
 #include "MergedMeshRenderNode.h"
 #include <Cry3DEngine/IIndexedMesh.h>
 
@@ -373,7 +373,7 @@ struct CRY_ALIGN(16) SMMRMGeometry
 		memset(pChunks, 0, sizeof(pChunks));
 		memset(numChunks, 0, sizeof(numChunks));
 		aabb.max = aabb.min = Vec3(0, 0, 0);
-	};
+	}
 
 	SMMRMGeometry(uint32 groupId)
 		: srcGroupId(groupId)
@@ -611,7 +611,7 @@ struct CRY_ALIGN(16) SMergedRMChunk
 	~SMergedRMChunk()
 	{
 		new(this)SMergedRMChunk;
-	};
+	}
 };
 
 struct SMMRMUpdateContext
@@ -831,4 +831,3 @@ inline Matrix34 CreateRotationQ(const Quat& q, const Vec3& t)
 
 extern Vec3        SampleWind(const Vec3& pos, const Vec3 (&samples)[MMRM_WIND_DIM][MMRM_WIND_DIM][MMRM_WIND_DIM]);
 extern inline Vec3 SampleWind(const Vec3& pos, const Vec3* samples);
-#endif

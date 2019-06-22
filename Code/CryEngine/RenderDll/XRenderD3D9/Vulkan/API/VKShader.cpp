@@ -28,8 +28,7 @@ namespace NCryVulkan
 		memcpy(shaderCode.data(), pShaderCode, shaderCodeSize);
 		if (stripReflections)
 		{
-			bool success = VkSpvHelper::StripGoogleExtensionsFromShader(shaderCode);
-			CRY_ASSERT(success == true);
+			CRY_VERIFY(VkSpvHelper::StripGoogleExtensionsFromShader(shaderCode));
 			shaderCodeSize = static_cast<uint32_t>(shaderCode.size());
 		}
 

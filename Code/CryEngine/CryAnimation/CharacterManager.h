@@ -6,6 +6,7 @@
 #include "ChrParamLoader.h"
 #include "AttachmentVCloth.h"
 #include "CharacterInstanceProcessing.h"
+#include "CryCore/CryEnumMacro.h"
 
 class CSkin;              //default skinning
 class CAttachmentSKIN;    //skin-instance
@@ -139,6 +140,15 @@ struct CharacterDefinition
 	CPoseModifierSetupPtr         m_pPoseModifierSetup;
 };
 
+enum class EIMGLoadedFlags
+{
+	None =		0,
+	IMGLoaded = BIT(0),
+	CAFLoaded = BIT(1),
+	AIMLoaded = BIT(2)
+};
+CRY_CREATE_ENUM_FLAG_OPERATORS(EIMGLoadedFlags);
+
 //////////////////////////////////////////////////////////////////////
 // This class contains a list of character bodies and list of character instances.
 // On attempt to create same character second time only new instance will be created.
@@ -198,16 +208,16 @@ public:
 	IFacialAnimation*        GetIFacialAnimation();
 	const IFacialAnimation*  GetIFacialAnimation() const;
 
-	IAnimEvents*             GetIAnimEvents()            { return &g_AnimationManager; };
-	const IAnimEvents*       GetIAnimEvents() const      { return &g_AnimationManager; };
+	IAnimEvents*             GetIAnimEvents() { return &g_AnimationManager; };
+	const IAnimEvents*       GetIAnimEvents() const { return &g_AnimationManager; };
 
-	CAnimationManager&       GetAnimationManager()       { return m_AnimationManager; };
+	CAnimationManager&       GetAnimationManager() { return m_AnimationManager; };
 	const CAnimationManager& GetAnimationManager() const { return m_AnimationManager; };
 
-	CChrParamLoader&            GetParamLoader()            { return m_ParamLoader; };
+	CChrParamLoader&            GetParamLoader() { return m_ParamLoader; };
 
-	CFacialAnimation*        GetFacialAnimation()        { return m_pFacialAnimation; }
-	const CFacialAnimation*  GetFacialAnimation() const  { return m_pFacialAnimation; }
+	CFacialAnimation*        GetFacialAnimation() { return m_pFacialAnimation; }
+	const CFacialAnimation*  GetFacialAnimation() const { return m_pFacialAnimation; }
 
 	//a list with model-names that use "ForceSkeletonUpdates"
 	std::vector<string>          m_arrSkeletonUpdates;
@@ -263,12 +273,12 @@ public:
 	virtual void      SetStreamingListener(IAnimationStreamingListener* pListener) { m_pStreamingListener = pListener; };
 
 	// light profiler functions
-	virtual void                AddFrameTicks(uint64 nTicks)     { m_nFrameTicks += nTicks; }
+	virtual void                AddFrameTicks(uint64 nTicks) { m_nFrameTicks += nTicks; }
 	virtual void                AddFrameSyncTicks(uint64 nTicks) { m_nFrameSyncTicks += nTicks; }
-	virtual void                ResetFrameTicks()                { m_nFrameTicks = 0; m_nFrameSyncTicks = 0; }
-	virtual uint64              NumFrameTicks() const            { return m_nFrameTicks; }
-	virtual uint64              NumFrameSyncTicks() const        { return m_nFrameSyncTicks; }
-	virtual uint32              NumCharacters() const            { return m_nActiveCharactersLastFrame; }
+	virtual void                ResetFrameTicks() { m_nFrameTicks = 0; m_nFrameSyncTicks = 0; }
+	virtual uint64              NumFrameTicks() const { return m_nFrameTicks; }
+	virtual uint64              NumFrameSyncTicks() const { return m_nFrameSyncTicks; }
+	virtual uint32              NumCharacters() const { return m_nActiveCharactersLastFrame; }
 
 	void                        UpdateDatabaseUnloadTimeStamp();
 	uint32                      GetDatabaseUnloadTimeDelta() const;
@@ -281,16 +291,16 @@ public:
 	uint32                      GetOrLoadCDFId(const string& pathname);
 	bool                        StreamKeepCDFResident(const char* szFilePath, int nLod, int nRefAdj, bool bUrgent);
 	CDefaultSkinningReferences* GetDefaultSkinningReferences(CSkin* pDefaultSkinning);
-
+	void                        Debug_IncreaseQuasiStaticCullCounter();
 private:
 	void UpdateInstances(bool bPause);
-
+	
 	uint32 m_StartGAH_Iterator;
 	void   LoadAnimationImageFile(const char* filenameCAF, const char* filenameAIM);
 	bool   LoadAnimationImageFileCAF(const char* filenameCAF);
 	bool   LoadAnimationImageFileAIM(const char* filenameAIM);
-	uint32 IsInitializedByIMG() { return m_InitializedByIMG;  };
-	uint32 m_InitializedByIMG;
+	EIMGLoadedFlags GetIMGLoadedFlags() const { return m_IMGLoadedFlags; };
+	EIMGLoadedFlags m_IMGLoadedFlags;
 
 	void DumpAssetStatistics();
 	f32  GetAverageFrameTime(f32 sec, f32 FrameTime, f32 TimeScale, f32 LastAverageFrameTime);
@@ -406,4 +416,6 @@ private:
 	SClothGeometry* LoadVClothGeometry(const CAttachmentVCLOTH& pRendAtt, _smart_ptr<IRenderMesh> pRenderMeshes[]);
 	typedef std::map<uint64, SClothGeometry> TClothGeomCache;
 	TClothGeomCache m_clothGeometries;
+
+	uint32 m_nQuasiStaticAnimationUpdateCulls = 0; //number of quasi static objects culled in the last frame
 };

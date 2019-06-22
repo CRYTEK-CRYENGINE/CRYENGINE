@@ -137,7 +137,6 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 
 			const auto& inputLayoutPair = CDeviceObjectFactory::GetOrCreateInputLayout(&pVsInstance->m_Shader, streamMask, psoDesc.m_VertexFormat);
 			const auto& inputLayout = inputLayoutPair->first;
-			const unsigned int declarationCount = inputLayout.m_Declaration.size();
 
 			// match shader inputs to input layout by semantic
 			for (const auto& declInputElement : inputLayout.m_Declaration)
@@ -262,6 +261,13 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 	rasterizationStateCreateInfo.depthBiasSlopeFactor = 0;
 	rasterizationStateCreateInfo.lineWidth = 1.0f;
 
+	VkPipelineRasterizationStateRasterizationOrderAMD rasterizationOrderAMD = {};
+	rasterizationOrderAMD.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD;
+	rasterizationOrderAMD.rasterizationOrder = psoDesc.m_bRelaxedRasterizationOrder ? VK_RASTERIZATION_ORDER_RELAXED_AMD : VK_RASTERIZATION_ORDER_STRICT_AMD;
+
+	if (Extensions::EXT_rasterization_order::IsSupported)
+		rasterizationStateCreateInfo.pNext = &rasterizationOrderAMD;
+
 	VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = {};
 	multisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampleStateCreateInfo.pNext = nullptr;
@@ -363,6 +369,7 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_ZERO,					true },		// GS_BLSRC_SRCALPHA_A_ZERO
 		{ VK_BLEND_FACTOR_SRC1_ALPHA,          VK_BLEND_FACTOR_SRC1_ALPHA,				false },	// GS_BLSRC_SRC1ALPHA
 		{ VK_BLEND_FACTOR_SRC1_ALPHA,          VK_BLEND_FACTOR_ONE,						false },	// GS_BLSRC_SRC1ALPHA_A_ONE
+		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_ONE,						true },		// GS_BLSRC_SRCALPHA_A_ONE
 	};
 
 	static SBlendFactors DstBlendFactors[GS_BLDST_MASK >> GS_BLDST_SHIFT] =

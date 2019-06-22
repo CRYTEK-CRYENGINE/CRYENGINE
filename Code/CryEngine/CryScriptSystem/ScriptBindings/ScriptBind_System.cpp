@@ -25,16 +25,16 @@
 #include <CryEntitySystem/IEntitySystem.h>
 #include <CrySystem/ITimer.h>
 #include <CrySystem/IConsole.h>
-#include <CryAISystem/IAISystem.h>
-#include <CryAISystem/IAgent.h>
 #include <CrySystem/File/ICryPak.h>
 #include <CrySystem/Testing/CryTest.h>
 #include <CryGame/IGameFramework.h>
 #include <CryMath/Cry_Camera.h>
 #include <CryMath/Cry_Geo.h>
+#include <CryPhysics/physinterface.h>
 #include <CryRenderer/IRenderAuxGeom.h>
 #include <CrySystem/IBudgetingSystem.h>
 #include <CrySystem/ILocalizationManager.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <time.h>
 
 //////////////////////////////////////////////////////////////////////
@@ -114,6 +114,15 @@ static unsigned int sGetBlendState(int nMode)
 /////////////////////////////////////////////////////////////////////////////////
 CScriptBind_System::~CScriptBind_System()
 {
+	IConsole* pConsole = gEnv->pConsole;
+	for (const string& command : m_registeredCommands)
+	{
+#if (defined(_LAUNCHER) && defined(CRY_IS_MONOLITHIC_BUILD)) || !defined(_LIB)
+		// Manually remove commands from g_moduleCommands - strings were allocated dynamically.
+		stl::find_and_erase(g_moduleCommands, command.c_str());
+#endif
+		pConsole->RemoveCommand(command.c_str());
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -462,8 +471,6 @@ int CScriptBind_System::Log(IFunctionHandler* pH)
 void CScriptBind_System::LogString(IFunctionHandler* pH, bool bToConsoleOnly)
 {
 	const char* sParam = NULL;
-	string szText;
-
 	pH->GetParam(1, sParam);
 
 	if (sParam)
@@ -475,12 +482,12 @@ void CScriptBind_System::LogString(IFunctionHandler* pH, bool bToConsoleOnly)
 		if (sParam[0] <= 5 && sParam[0] != 0)
 		{
 			sLogMessage[0] = sParam[0];
-			cry_strcpy(&sLogMessage[1], sizeof(sLogMessage) - 1, "<Lua> ");
+			cry_strcpy(&sLogMessage[1], sizeof(sLogMessage) - 1, "<Lua> ", sizeof("<Lua> ") + 1);
 			cry_strcat(sLogMessage, &sParam[1]);
 		}
 		else
 		{
-			cry_strcpy(sLogMessage, "<Lua> ");
+			cry_fixed_size_strcpy(sLogMessage, "<Lua> ");
 			cry_strcat(sLogMessage, sParam);
 		}
 
@@ -1482,7 +1489,10 @@ int CScriptBind_System::AddCCommand(IFunctionHandler* pH)
 	pH->GetParam(3, sHelp);
 	assert(sHelp);
 
-	REGISTER_COMMAND(sCCommandName, sCommand, 0, sHelp);
+	// sCCommandName is deallocated by lua afterwards - hold string copy in m_registeredCommands
+	string name = sCCommandName;
+	REGISTER_COMMAND(name.c_str(), sCommand, 0, sHelp);
+	m_registeredCommands.insert(name);
 
 	return pH->EndFunction();
 }

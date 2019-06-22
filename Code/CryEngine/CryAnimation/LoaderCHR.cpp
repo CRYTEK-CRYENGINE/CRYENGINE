@@ -53,11 +53,11 @@ bool CryCHRLoader::BeginLoadCHRRenderMesh(CDefaultSkeleton* pSkel, const DynArra
 {
 	const char* szFilePath = pSkel->GetModelFilePath();
 
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	static_assert(sizeof(TFace) == 6, "Invalid type size!");
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_CHR, 0, "LoadCharacter %s", szFilePath);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::CHR, "LoadCharacter %s", szFilePath);
 
 	CRY_DEFINE_ASSET_SCOPE(CRY_SKEL_FILE_EXT, szFilePath);
 
@@ -144,7 +144,7 @@ void CryCHRLoader::EndStreamSkel(IReadStream* pStream)
 
 void CryCHRLoader::StreamOnComplete(IReadStream* pStream, unsigned nError)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_CHR, 0, "CryCHRLoader::StreamOnComplete");
+	MEMSTAT_CONTEXT(EMemStatContextType::CHR, "CryCHRLoader::StreamOnComplete");
 
 	if (m_pModelSkel)
 	{
@@ -376,11 +376,11 @@ bool CDefaultSkeleton::LoadNewSKEL(const char* szFilePath, uint32 nLoadingFlags)
 {
 	using namespace SkelLoader_Helpers;
 
-	LOADING_TIME_PROFILE_SECTION_ARGS(szFilePath);
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, szFilePath);
 
 	static_assert(sizeof(TFace) == 6, "Invalid type size!");
 
-	MEMSTAT_CONTEXT_FMT(EMemStatContextTypes::MSC_CHR, 0, "LoadCharacter %s", szFilePath);
+	MEMSTAT_CONTEXT_FMT(EMemStatContextType::CHR, "LoadCharacter %s", szFilePath);
 
 	CRY_DEFINE_ASSET_SCOPE(CRY_SKEL_FILE_EXT, szFilePath);
 
@@ -552,7 +552,7 @@ void CDefaultSkeleton::LoadCHRPARAMS(const char* paramFileName)
 //------------------------------------------------------------------------------------------------------------
 bool CDefaultSkeleton::LoadAnimations(CChrParamLoader& paramLoader)
 {
-	//LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	//CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	// the number of animations loaded
 	uint32 numAnimAssets = 0;
@@ -720,7 +720,7 @@ void CDefaultSkeleton::LoadFaceLib(const char* faceLibFile, const char* animDirN
 	stack_string strGeomFileNameNoExt;
 	strGeomFileNameNoExt.assign(pFilePath, *szExt ? szExt - 1 : szExt);
 
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 	// Facial expressions library.
 	_smart_ptr<IFacialEffectorsLibrary> pLib;
 
@@ -755,7 +755,7 @@ void CDefaultSkeleton::LoadFaceLib(const char* faceLibFile, const char* animDirN
 
 uint32 CDefaultSkeleton::ReuseAnimationFiles(CChrParamLoader& paramLoader, uint32 listID)
 {
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 
 	const SAnimListInfo& animList = paramLoader.GetParsedList(listID);
 	int32 numAnims = animList.arrLoadedAnimFiles.size();
@@ -781,7 +781,7 @@ uint32 CDefaultSkeleton::LoadAnimationFiles(CChrParamLoader& paramLoader, uint32
 	stack_string strGeomFileNameNoExt;
 	strGeomFileNameNoExt.assign(szFullModelFilePath, *szModelExtension ? szModelExtension - 1 : szModelExtension);
 
-	LOADING_TIME_PROFILE_SECTION(g_pISystem);
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)(g_pISystem);
 	// go through all Anims on stack and load them
 	uint32 nAnimID = 0;
 

@@ -5,7 +5,7 @@
 #include "Common.h"
 #include <QWidget>
 
-class QPropertyTree;
+class QPropertyTreeLegacy;
 class QLabel;
 
 namespace ACE
@@ -30,14 +30,17 @@ public:
 	void Reset();
 	void OnBeforeReload();
 	void OnAfterReload();
+	void OnFileImporterOpened();
+	void OnFileImporterClosed();
 	void OnSetSelectedAssets(Assets const& selectedAssets, bool const restoreSelection);
+	void OnConnectionAdded(ControlId const id);
 
 private:
 
 	void RevertPropertyTree();
 
 	CConnectionsWidget* const m_pConnectionsWidget;
-	QPropertyTree* const      m_pPropertyTree;
+	QPropertyTreeLegacy* const      m_pPropertyTree;
 	QLabel*                   m_pConnectionsLabel;
 	std::unique_ptr<QString>  m_pUsageHint;
 	bool                      m_suppressUpdates;

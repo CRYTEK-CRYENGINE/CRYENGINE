@@ -40,25 +40,28 @@ public:
 	virtual void        StopAllSounds(SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) override;
 	virtual void        PreloadSingleRequest(PreloadRequestId const id, bool const bAutoLoadOnly, SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) override;
 	virtual void        UnloadSingleRequest(PreloadRequestId const id, SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) override;
+	virtual void        ActivateContext(ContextId const contextId) override;
+	virtual void        DeactivateContext(ContextId const contextId) override;
 	virtual void        LoadSetting(ControlId const id, SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) override;
 	virtual void        UnloadSetting(ControlId const id, SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) override;
-	virtual void        ReloadControlsData(char const* const szFolderPath, char const* const szLevelName, SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) override;
+	virtual void        ReloadControlsData(SRequestUserData const& userData = SRequestUserData::GetEmptyObject()) override;
 	virtual void        AddRequestListener(void (*func)(SRequestInfo const* const), void* const pObjectToListenTo, ESystemEvents const eventMask) override;
 	virtual void        RemoveRequestListener(void (*func)(SRequestInfo const* const), void* const pObjectToListenTo) override;
 	virtual void        ExternalUpdate() override;
 	virtual char const* GetConfigPath() const override;
-	virtual IListener*  CreateListener(CTransformation const& transformation, char const* const szName = nullptr) override;
+	virtual IListener*  CreateListener(CTransformation const& transformation, char const* const szName) override;
 	virtual void        ReleaseListener(IListener* const pIListener) override;
+	virtual IListener*  GetListener(ListenerId const id = DefaultListenerId) override;
 	virtual IObject*    CreateObject(SCreateObjectData const& objectData = SCreateObjectData::GetEmptyObject()) override;
 	virtual void        ReleaseObject(IObject* const pIObject) override;
 	virtual void        GetTriggerData(ControlId const triggerId, STriggerData& triggerData) override;
 	virtual void        GetImplInfo(SImplInfo& implInfo) override;
 	virtual void        Log(ELogType const type, char const* const szFormat, ...) override;
 
-	// Below data is only used when CRY_AUDIO_USE_PRODUCTION_CODE is defined!
+	// Below data is only used when CRY_AUDIO_USE_DEBUG_CODE is defined!
 	virtual void ExecutePreviewTrigger(ControlId const triggerId) override;
 	virtual void ExecutePreviewTriggerEx(Impl::ITriggerInfo const& triggerInfo) override;
-	virtual void ExecutePreviewTriggerEx(XmlNodeRef const pNode) override;
+	virtual void ExecutePreviewTriggerEx(XmlNodeRef const& node) override;
 	virtual void StopPreviewTrigger() override;
 	// ~CryAudio::IAudioSystem
 
@@ -72,9 +75,9 @@ public:
 
 	bool Initialize();
 	void PushRequest(CRequest const& request);
-	void ParseControlsData(char const* const szFolderPath, EDataScope const dataScope, SRequestUserData const& userData = SRequestUserData::GetEmptyObject());
-	void ParsePreloadsData(char const* const szFolderPath, EDataScope const dataScope, SRequestUserData const& userData = SRequestUserData::GetEmptyObject());
-	void AutoLoadSetting(EDataScope const dataScope, SRequestUserData const& userData = SRequestUserData::GetEmptyObject());
+	void ParseControlsData(char const* const szFolderPath, char const* const szContextName, ContextId const contextId, SRequestUserData const& userData = SRequestUserData::GetEmptyObject());
+	void ParsePreloadsData(char const* const szFolderPath, ContextId const contextId, SRequestUserData const& userData = SRequestUserData::GetEmptyObject());
+	void AutoLoadSetting(ContextId const contextId, SRequestUserData const& userData = SRequestUserData::GetEmptyObject());
 
 	void InternalUpdate();
 
@@ -94,6 +97,10 @@ private:
 	void           NotifyListener(CRequest const& request);
 	ERequestStatus HandleSetImpl(Impl::IImpl* const pIImpl);
 	void           SetImplLanguage();
+	void           HandleActivateContext(ContextId const contextId);
+	void           HandleDeactivateContext(ContextId const contextId);
+	void           ReportContextActivated(ContextId const id);
+	void           ReportContextDeactivated(ContextId const id);
 	void           SetCurrentEnvironmentsOnObject(CObject* const pObject, EntityId const entityToIgnore);
 #if defined(CRY_AUDIO_USE_OCCLUSION)
 	void           SetOcclusionType(CObject& object, EOcclusionType const occlusionType) const;
@@ -117,12 +124,13 @@ private:
 	CryEvent              m_mainEvent;
 	CryEvent              m_audioThreadWakeupEvent;
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
 public:
 
 	void RetriggerControls(SRequestUserData const& userData = SRequestUserData::GetEmptyObject());
 	void ResetRequestCount();
 	void ScheduleIRenderAuxGeomForRendering(IRenderAuxGeom* pRenderAuxGeom);
+	void UpdateDebugInfo();
 
 private:
 
@@ -130,11 +138,11 @@ private:
 	void DrawDebug();
 	void HandleDrawDebug();
 	void HandleRetriggerControls();
-	void HandleRefresh(char const* const szLevelName);
+	void HandleRefresh();
 
 	std::atomic<IRenderAuxGeom*> m_currentRenderAuxGeom{ nullptr };
 	std::atomic<IRenderAuxGeom*> m_lastRenderAuxGeom{ nullptr };
 	std::atomic_bool             m_canDraw{ true };
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 };
 } // namespace CryAudio

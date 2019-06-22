@@ -15,6 +15,7 @@
 #include "MatMan.h"
 #include <CryRenderer/IRenderer.h>
 #include "VisAreas.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 DEFINE_INTRUSIVE_LINKED_LIST(CMatInfo)
 
@@ -812,7 +813,7 @@ const char* CMatInfo::GetLoadingCallstack()
 void CMatInfo::PrecacheMaterial(const float _fEntDistance, IRenderMesh* pRenderMesh, bool bFullUpdate, bool bDrawNear)
 {
 	//	FUNCTION_PROFILER_3DENGINE;
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	int nFlags = 0;
 	float fEntDistance;
@@ -888,12 +889,12 @@ void CMatInfo::PrecacheTextures(const float fMipFactor, const int nFlags, bool b
 			if (rZone.nRoundId == (nRoundId - 1))
 			{
 				nCurrentFlags |= rZone.bHighPriority ? FPR_HIGHPRIORITY : 0;
-				GetRenderer()->EF_PrecacheResource(&rSI, rZone.fMinMipFactor, 0, nCurrentFlags, nRoundId, 1); // accumulated value is valid
+				GetRenderer()->EF_PrecacheResource(&rSI, rZone.fMinMipFactor, 0, nCurrentFlags, nRoundId); // accumulated value is valid
 			}
 			else
 			{
 				nCurrentFlags |= (nFlags & FPR_HIGHPRIORITY);
-				GetRenderer()->EF_PrecacheResource(&rSI, fMipFactor, 0, nCurrentFlags, nRoundId, 1); // accumulated value is not valid, pass current value
+				GetRenderer()->EF_PrecacheResource(&rSI, fMipFactor, 0, nCurrentFlags, nRoundId); // accumulated value is not valid, pass current value
 			}
 		}
 
@@ -918,7 +919,7 @@ void CMatInfo::PrecacheTextures(const int iScreenTexels, const int nFlags, bool 
 		{
 			{
 				nCurrentFlags |= (nFlags & FPR_HIGHPRIORITY);
-				GetRenderer()->EF_PrecacheResource(&rSI, iScreenTexels, 0, nCurrentFlags, nRoundId, 1); // accumulated value is not valid, pass current value
+				GetRenderer()->EF_PrecacheResource(&rSI, iScreenTexels, 0, nCurrentFlags, nRoundId); // accumulated value is not valid, pass current value
 			}
 		}
 	}

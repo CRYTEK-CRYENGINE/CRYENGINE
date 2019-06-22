@@ -279,6 +279,7 @@ void CRoadObject::UpdateSectors()
 		int renderFlags = 0;
 		if (CheckFlags(OBJFLAG_INVISIBLE) || IsHiddenBySpec())
 			renderFlags = ERF_HIDDEN;
+
 		sectorFirst.m_pRoadSector->SetRndFlags(renderFlags);
 		sectorFirst.m_pRoadSector->SetViewDistRatio(mv_ratioViewDist);
 		sectorFirst.m_pRoadSector->SetMinSpec(GetMinSpec());
@@ -806,10 +807,7 @@ void CRoadObject::SetPhysics(bool isPhysics)
 		IRenderNode* pRenderNode = m_sectors[i].m_pRoadSector;
 		if (pRenderNode)
 		{
-			if (isPhysics)
-				pRenderNode->SetRndFlags(pRenderNode->GetRndFlags() & ~ERF_NO_PHYSICS);
-			else
-				pRenderNode->SetRndFlags(pRenderNode->GetRndFlags() | ERF_NO_PHYSICS);
+			pRenderNode->SetRndFlags(ERF_NO_PHYSICS, !isPhysics);
 		}
 	}
 }

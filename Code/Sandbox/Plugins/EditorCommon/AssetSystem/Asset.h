@@ -197,6 +197,11 @@ public:
 	//! \sa AssetChangeFlags
 	CCrySignal<void(CAsset&, int /*changeFlags*/)> signalChanged;
 
+	//! Signal sent before this asset is removed from asset manager
+	CCrySignal<void(CAsset*)> signalBeforeRemoved;
+	//! Signal sent after this asset is removed from asset manager
+	CCrySignal<void(CAsset*)> signalAfterRemoved;
+
 private:
 	//Filter string is how we handle "smart searching" in the content browser. All data aggregated into this string is going to be searchable in the main search bar. 
 	const QString& GetFilterString(bool forceCompute = false) const;

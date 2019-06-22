@@ -24,10 +24,18 @@ public:
 	CAisacState& operator=(CAisacState const&) = delete;
 	CAisacState& operator=(CAisacState&&) = delete;
 
-	explicit CAisacState(char const* const szName, CriFloat32 const value)
-		: m_name(szName)
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
+	explicit CAisacState(CriAtomExAisacControlId const id, CriFloat32 const value, char const* const szName)
+		: m_id(id)
+		, m_value(value)
+		, m_name(szName)
+	{}
+#else
+	explicit CAisacState(CriAtomExAisacControlId const id, CriFloat32 const value)
+		: m_id(id)
 		, m_value(value)
 	{}
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 
 	virtual ~CAisacState() override = default;
 
@@ -38,8 +46,12 @@ public:
 
 private:
 
+	CriAtomExAisacControlId const m_id;
+	CriFloat32 const              m_value;
+
+#if defined(CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE)
 	CryFixedStringT<MaxControlNameLength> const m_name;
-	CriFloat32 const                            m_value;
+#endif  // CRY_AUDIO_IMPL_ADX2_USE_DEBUG_CODE
 };
 } // namespace Adx2
 } // namespace Impl

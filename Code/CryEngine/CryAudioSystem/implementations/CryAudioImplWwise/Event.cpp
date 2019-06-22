@@ -5,7 +5,7 @@
 #include "Common.h"
 #include "EventInstance.h"
 #include "Impl.h"
-#include "BaseObject.h"
+#include "Object.h"
 
 #include <AK/SoundEngine/Common/AkSoundEngine.h>
 
@@ -46,29 +46,29 @@ ETriggerResult CEvent::Execute(IObject* const pIObject, TriggerInstanceId const 
 {
 	ETriggerResult result = ETriggerResult::Failure;
 
-	auto const pBaseObject = static_cast<CBaseObject*>(pIObject);
+	auto const pObject = static_cast<CObject*>(pIObject);
 
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
-	CEventInstance* const pEventInstance = g_pImpl->ConstructEventInstance(triggerInstanceId, *this, *pBaseObject);
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
+	CEventInstance* const pEventInstance = g_pImpl->ConstructEventInstance(triggerInstanceId, *this, *pObject);
 #else
 	CEventInstance* const pEventInstance = g_pImpl->ConstructEventInstance(triggerInstanceId, *this);
-#endif      // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif      // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
-	pBaseObject->SetAuxSendValues();
+	pObject->SetAuxSendValues();
 
-	AkPlayingID const playingId = AK::SoundEngine::PostEvent(m_id, pBaseObject->GetId(), AK_EndOfEvent, &EndEventCallback, pEventInstance);
+	AkPlayingID const playingId = AK::SoundEngine::PostEvent(m_id, pObject->GetId(), AK_EndOfEvent, &EndEventCallback, pEventInstance);
 
 	if (playingId != AK_INVALID_PLAYING_ID)
 	{
-#if defined(CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE)
 		{
 			CryAutoLock<CryCriticalSection> const lock(CryAudio::Impl::Wwise::g_cs);
 			g_playingIds[playingId] = pEventInstance;
 		}
-#endif      // CRY_AUDIO_IMPL_WWISE_USE_PRODUCTION_CODE
+#endif      // CRY_AUDIO_IMPL_WWISE_USE_DEBUG_CODE
 
 		pEventInstance->SetPlayingId(playingId);
-		pBaseObject->AddEventInstance(pEventInstance);
+		pObject->AddEventInstance(pEventInstance);
 
 		result = (pEventInstance->GetState() == EEventInstanceState::Virtual) ? ETriggerResult::Virtual : ETriggerResult::Playing;
 	}
@@ -83,8 +83,8 @@ ETriggerResult CEvent::Execute(IObject* const pIObject, TriggerInstanceId const 
 //////////////////////////////////////////////////////////////////////////
 void CEvent::Stop(IObject* const pIObject)
 {
-	auto const pBaseObject = static_cast<CBaseObject*>(pIObject);
-	pBaseObject->StopEvent(m_id);
+	auto const pObject = static_cast<CObject*>(pIObject);
+	pObject->StopEvent(m_id);
 }
 
 //////////////////////////////////////////////////////////////////////////

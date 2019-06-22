@@ -1,4 +1,4 @@
-// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,13 +10,10 @@
 namespace Cry
 {
 	namespace UDR
-	{
-
-		struct IUDR : public Cry::IDefaultModule
+	{	
+		struct IUDREngineModule : public Cry::IDefaultModule
 		{
-			CRYINTERFACE_DECLARE_GUID(IUDR, "560ddced-bd31-44c0-96ba-550cc1317a39"_cry_guid);
-
-			virtual Cry::UDR::IHub& GetHub() = 0;
+			CRYINTERFACE_DECLARE_GUID(IUDREngineModule, "560ddced-bd31-44c0-96ba-550cc1317a39"_cry_guid);
 		};
 
 	}

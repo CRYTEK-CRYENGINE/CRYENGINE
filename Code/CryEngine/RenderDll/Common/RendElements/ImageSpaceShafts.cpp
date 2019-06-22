@@ -60,8 +60,9 @@ void ImageSpaceShafts::Load(IXmlNode* pNode)
 		{
 			if (pGoboTexName && pGoboTexName[0])
 			{
-				ITexture* pTexture = std::move(gEnv->pRenderer->EF_LoadTexture(pGoboTexName));
-				SetGoboTex((CTexture*)pTexture);
+				ITexture* pTexture = gEnv->pRenderer->EF_LoadTexture(pGoboTexName);
+				m_pGoboTex.reset();
+				m_pGoboTex.Assign_NoAddRef(static_cast<CTexture*>(pTexture));
 			}
 		}
 		else
@@ -103,7 +104,7 @@ void ImageSpaceShafts::InitTextures()
 	m_bTexDirty = false;
 }
 
-bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, SamplerStateHandle samplerState)
+bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, SamplerStateHandle samplerState, const SPreparePrimitivesContext& context)
 {
 	// prepare pass
 	D3DViewPort viewport;
@@ -133,7 +134,7 @@ bool ImageSpaceShafts::PrepareOcclusion(CTexture* pDestRT, CTexture* pGoboTex, S
 	m_occlusionPrimitive.SetRenderState(GS_NODEPTHTEST | GS_BLSRC_ONE | GS_BLDST_ONE);
 	m_occlusionPrimitive.SetPrimitiveType(CRenderPrimitive::ePrim_FullscreenQuadCentered);
 	m_occlusionPrimitive.SetTexture(0, pGoboTex ? pGoboTex : CRendererResources::s_ptexBlack);
-	m_occlusionPrimitive.SetTexture(1, CRendererResources::s_ptexLinearDepthScaled[0]);
+	m_occlusionPrimitive.SetTexture(1, context.pGraphicsPipeline->GetPipelineResources().m_pTexLinearDepthScaled[0]);
 	m_occlusionPrimitive.SetSampler(0, samplerState);
 	m_occlusionPrimitive.Compile(m_occlusionPass);
 
@@ -225,7 +226,7 @@ bool ImageSpaceShafts::PreparePrimitives(const SPreparePrimitivesContext& contex
 	// prepare occlusion and shaft gen prepasses first
 	if (!context.auxParams.bIgnoreOcclusionQueries)
 	{
-		if (PrepareOcclusion(m_pOccBuffer, m_pGoboTex.get(), EDefaultSamplerStates::BilinearClamp))
+		if (PrepareOcclusion(m_pOccBuffer, m_pGoboTex.get(), EDefaultSamplerStates::BilinearClamp, context))
 			context.prePasses.push_back(&m_occlusionPass);
 
 		if (PrepareShaftGen(m_pDraftBuffer, m_pOccBuffer, EDefaultSamplerStates::BilinearClamp))

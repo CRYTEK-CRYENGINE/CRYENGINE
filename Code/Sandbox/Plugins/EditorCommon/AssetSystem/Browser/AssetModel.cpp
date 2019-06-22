@@ -34,6 +34,30 @@ QStringList CAssetModel::GetStatusesList()
 	return list;
 }
 
+std::vector<int> CAssetModel::GetColumnsByAssetTypes(const std::vector<CAssetType*>& assetTypes)
+{
+	std::vector<int> columns;
+
+	std::set<const CItemModelAttribute*> attributes;
+	for (const CAssetType* pType : assetTypes)
+	{
+		const std::vector<CItemModelAttribute*> details = pType->GetDetails();
+		attributes.insert(details.cbegin(), details.cend());
+	}
+
+	const int columnCount = CAssetModel::GetColumnCount();
+	columns.reserve(columnCount);
+	for (int i = 0; i < columnCount; ++i)
+	{
+		const CItemModelAttribute* const pAttribute = CAssetModel::GetColumnAttribute(i);
+		if (i < eAssetColumns_Details || attributes.find(pAttribute) != attributes.end())
+		{
+			columns.push_back(i);
+		}
+	}
+	return columns;
+}
+
 namespace AssetModelAttributes
 {
 
@@ -264,12 +288,23 @@ int CAssetModel::columnCount(const QModelIndex& parent) const
 	return GetColumnCount();
 }
 
+bool CAssetModel::IsAsset(const QModelIndex& index)
+{
+	bool ok = false;
+	return index.data((int)CAssetModel::Roles::TypeCheckRole).toUInt(&ok) == eAssetModelRow_Asset && ok;
+}
+
 CAsset* CAssetModel::ToAsset(const QModelIndex& index)
+{
+	return reinterpret_cast<CAsset*>(index.data((int)CAssetModel::Roles::InternalPointerRole).value<intptr_t>());
+}
+
+CAsset* CAssetModel::ToAssetInternal(const QModelIndex& index)
 {
 	return static_cast<CAsset*>(index.internalPointer());
 }
 
-const CAsset* CAssetModel::ToAsset(const QModelIndex& index) const
+const CAsset* CAssetModel::ToAssetInternal(const QModelIndex& index) const
 {
 	return static_cast<const CAsset*>(index.internalPointer());
 }
@@ -292,7 +327,7 @@ QVariant CAssetModel::data(const QModelIndex& index, int role) const
 		return QVariant();
 	}
 
-	const CAsset* pAsset = ToAsset(index);
+	const CAsset* pAsset = ToAssetInternal(index);
 	
 	switch (role)
 	{
@@ -458,7 +493,7 @@ bool CAssetModel::setData(const QModelIndex& index, const QVariant& value, int r
 {
 	if (index.isValid() && (index.column() == eAssetColumns_Name || index.column() == eAssetColumns_Thumbnail) && role == Qt::EditRole)
 	{
-		CAsset* pAsset = ToAsset(index);
+		CAsset* pAsset = ToAssetInternal(index);
 
 		QString stringValue = value.toString();
 
@@ -517,25 +552,17 @@ QVariant CAssetModel::GetHeaderData(int section, Qt::Orientation orientation, in
 	}
 	else if (role == Attributes::s_attributeMenuPathRole)
 	{
-		auto it = std::find_if(GetInstance()->m_detailAttributes.begin(), GetInstance()->m_detailAttributes.end(), [pAttribute](const SDetailAttribute& attrib)
+		const int detailColumn = section - static_cast<int>(eAssetColumns_Details);
+		if (detailColumn >= 0 && detailColumn < static_cast<int>(GetInstance()->m_detailAttributes.size()))
 		{
-			return attrib.pAttribute == pAttribute;
-		});
-		if (it == GetInstance()->m_detailAttributes.end())
-		{
-			return "";  // Should not happen.
+			const SDetailAttribute& attrib = GetInstance()->m_detailAttributes[detailColumn];
+			if (attrib.assetTypes.size() == 1)
+			{
+				return QtUtil::ToQString(attrib.assetTypes[0]->GetTypeName());
+			}
 		}
-
-		const SDetailAttribute& attrib = *it;
-
-		if (attrib.assetTypes.size() == 1)
-		{
-			return QtUtil::ToQString(attrib.assetTypes[0]->GetTypeName());
-		}
-		else
-		{
-			return "";  // Shared details are in top-level category.
-		}
+		// Shared details are in top-level category.
+		return "";  
 	}
 	return QVariant();
 }
@@ -663,7 +690,7 @@ QMimeData* CAssetModel::mimeData(const QModelIndexList& indexes) const
 			continue;
 		}
 
-		const CAsset* const pAsset = ToAsset(index);
+		const CAsset* const pAsset = ToAssetInternal(index);
 		CRY_ASSERT(pAsset);
 
 		if (!pAsset->GetFilesCount())

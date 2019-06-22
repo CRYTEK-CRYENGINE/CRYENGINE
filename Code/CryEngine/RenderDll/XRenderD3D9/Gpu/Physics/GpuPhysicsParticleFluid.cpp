@@ -2,7 +2,7 @@
 
 #include "StdAfx.h"
 #include "GpuPhysicsParticleFluid.h"
-
+#include "../Particles/GpuParticleFeatureBase.h"
 #include <CryPhysics/physinterface.h>
 
 namespace gpu_physics
@@ -17,8 +17,21 @@ void SetupAdjacency(int* adjescency, int resX, int resY)
 				adjescency[cell++] = (z * resY + y) * resX + x;
 }
 
-CParticleFluidSimulation::CParticleFluidSimulation(const int maxBodies)
+CParticleFluidSimulation::CParticleFluidSimulation(CGraphicsPipeline* pGraphicsPipeline, const int maxBodies)
 	: m_maxBodies(maxBodies)
+	, m_passCalcLambda(pGraphicsPipeline)
+	, m_passPredictDensity(pGraphicsPipeline)
+	, m_passCorrectDensityError(pGraphicsPipeline)
+	, m_passCorrectDivergenceError(pGraphicsPipeline)
+	, m_passPositionUpdate(pGraphicsPipeline)
+	, m_passBodiesInject(pGraphicsPipeline)
+	, m_passClearGrid(pGraphicsPipeline)
+	, m_passAssignAndCount(pGraphicsPipeline)
+	, m_passPrefixSumBlocks(pGraphicsPipeline)
+	, m_passBuildGridIndices(pGraphicsPipeline)
+	, m_passRearrangeParticles(pGraphicsPipeline)
+	, m_passEvolveExternalParticles(pGraphicsPipeline)
+	, m_passCollisionsScreenSpace(pGraphicsPipeline)
 {
 	assert(maxBodies % kThreadsInBlock == 0);
 	m_points.resize(maxBodies);
@@ -226,11 +239,13 @@ void CParticleFluidSimulation::EvolveParticles(CDeviceCommandListRef RESTRICT_RE
 	m_passEvolveExternalParticles.Execute(commandList);
 }
 
-void CParticleFluidSimulation::FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList, CConstantBufferPtr parameterBuffer, int constantBufferSlot)
+void CParticleFluidSimulation::FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const gpu_pfx2::SUpdateContext& context, CConstantBufferPtr parameterBuffer, int constantBufferSlot)
 {
+	CTexture* pLinearZDepthTex = context.pRenderView->GetGraphicsPipeline()->GetPipelineResources().m_pTexLinearDepth;
+
 	const uint blocks = gpu::GetNumberOfBlocksForArbitaryNumberOfThreads(m_params->numberOfBodies, kThreadsInBlock);
 	m_passCollisionsScreenSpace.SetBuffer(0, &m_pData->adjacencyList.GetBuffer());
-	m_passCollisionsScreenSpace.SetTexture(1, CRendererResources::s_ptexLinearDepth);
+	m_passCollisionsScreenSpace.SetTexture(1, pLinearZDepthTex);
 	m_passCollisionsScreenSpace.SetOutputUAV(0, &m_pData->bodies.GetBuffer());
 	m_passCollisionsScreenSpace.SetOutputUAV(1, &m_pData->bodiesTemp.GetBuffer());
 	m_passCollisionsScreenSpace.SetOutputUAV(2, &m_pData->bodiesOffsets.GetBuffer());

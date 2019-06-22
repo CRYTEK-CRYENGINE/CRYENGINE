@@ -51,8 +51,7 @@ REGISTER_CLASS_DESC(CShapeObjectClassDesc);
 REGISTER_CLASS_DESC(CNavigationAreaObjectDesc);
 REGISTER_CLASS_DESC(CAITerritoryObjectClassDesc);
 
-#define SHAPE_CLOSE_DISTANCE     0.8f
-#define SHAPE_POINT_MIN_DISTANCE 0.1f // Set to 10 cm (this number has been found in cooperation with C2 level designers)
+#define SHAPE_CLOSE_DISTANCE 0.8f
 
 CNavigation* GetNavigation()
 {
@@ -70,6 +69,7 @@ public:
 	virtual string GetDisplayName() const override { return "Edit Shape"; }
 	// Overrides from CEditTool
 	bool           MouseCallback(CViewport* view, EMouseEvent event, CPoint& point, int flags);
+	bool           SnapSelectedPointToTerrainOrGeometry(CViewport* pView, CPoint& point);
 
 	virtual void   SetUserData(const char* key, void* userData);
 
@@ -254,10 +254,15 @@ void CEditShapeTool::OnShapePropertyChange(const CBaseObject* pObject, const COb
 	}
 }
 
-bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& point, int flags)
+bool CEditShapeTool::MouseCallback(CViewport* pView, EMouseEvent event, CPoint& point, int flags)
 {
 	if (!m_shape)
 		return false;
+
+	if ((event == eMouseLDown) && (flags & MK_CONTROL) && (flags & MK_SHIFT))
+	{
+		return SnapSelectedPointToTerrainOrGeometry(pView, point);
+	}
 
 	if (event == eMouseLDown)
 	{
@@ -268,37 +273,24 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 	{
 		const Matrix34& shapeTM = m_shape->GetWorldTM();
 
-		/*
-		   float fShapeCloseDistance = SHAPE_CLOSE_DISTANCE;
-		   Vec3 pos = view->ViewToWorld( point );
-		   if (pos.x == 0 && pos.y == 0 && pos.z == 0)
-		   {
-		   // Find closest point on the shape.
-		   fShapeCloseDistance = SHAPE_CLOSE_DISTANCE * view->GetScreenScaleFactor(pos) * 0.01f;
-		   }
-		   else
-		   fShapeCloseDistance = SHAPE_CLOSE_DISTANCE * view->GetScreenScaleFactor(pos) * 0.01f;
-		 */
-
-		float dist;
-
 		Vec3 raySrc, rayDir;
-		view->ViewToWorldRay(point, raySrc, rayDir);
+		pView->ViewToWorldRay(point, raySrc, rayDir);
 
 		// Find closest point on the shape.
 		int p1, p2;
+		float dist;
 		Vec3 intPnt;
 		m_shape->GetNearestEdge(raySrc, rayDir, p1, p2, dist, intPnt);
 
-		float fShapeCloseDistance = SHAPE_CLOSE_DISTANCE * view->GetScreenScaleFactor(intPnt) * 0.01f;
+		float fShapeCloseDistance = SHAPE_CLOSE_DISTANCE * pView->GetScreenScaleFactor(intPnt) * 0.01f;
 
 		if ((flags & MK_CONTROL) && !m_modifying)
 		{
 			// If control we are editing edges..
-			if (p1 >= 0 && p2 >= 0 && dist < fShapeCloseDistance + view->GetSelectionTolerance())
+			if (p1 >= 0 && p2 >= 0 && dist < fShapeCloseDistance + pView->GetSelectionTolerance())
 			{
 				// Cursor near one of edited shape edges.
-				view->ResetCursor();
+				pView->ResetCursor();
 				if (event == eMouseLDown)
 				{
 					m_modifying = true;
@@ -323,14 +315,14 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 					Matrix34 tm;
 					tm.SetIdentity();
 					tm.SetTranslation(m_pointPos);
-					view->SetConstructionMatrix(tm);
+					pView->SetConstructionMatrix(tm);
 				}
 			}
 			return true;
 		}
 
 		int index = m_shape->GetNearestPoint(raySrc, rayDir, dist);
-		if (dist > fShapeCloseDistance + view->GetSelectionTolerance())
+		if (dist > fShapeCloseDistance + pView->GetSelectionTolerance())
 			index = -1;
 		bool hitPoint(index != -1);
 
@@ -350,12 +342,12 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 					if (GetIEditorImpl()->GetIUndoManager()->IsUndoRecording())
 						m_shape->StoreUndo("Move Point");
 
-					// Set construction plance for view.
+					// Set construction plane for view.
 					m_pointPos = shapeTM.TransformPoint(m_shape->GetPoint(index));
 					Matrix34 tm;
 					tm.SetIdentity();
 					tm.SetTranslation(m_pointPos);
-					view->SetConstructionMatrix(tm);
+					pView->SetConstructionMatrix(tm);
 				}
 			}
 
@@ -380,7 +372,7 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 			}
 
 			if (hitPoint)
-				view->SetCurrentCursor(STD_CURSOR_HIT);
+				pView->SetCurrentCursor(STD_CURSOR_HIT);
 		}
 		else
 		{
@@ -389,7 +381,7 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 				// Missed a point, deselect all.
 				m_shape->SelectPoint(-1);
 			}
-			view->ResetCursor();
+			pView->ResetCursor();
 		}
 
 		if (m_modifying && event == eMouseLUp)
@@ -406,9 +398,9 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 		if (m_modifying && event == eMouseMove)
 		{
 			// Move selected point point.
-			Vec3 p1 = view->MapViewToCP(m_mouseDownPos);
-			Vec3 p2 = view->MapViewToCP(point);
-			Vec3 v = view->GetCPVector(p1, p2);
+			Vec3 p1 = pView->MapViewToCP(m_mouseDownPos);
+			Vec3 p2 = pView->MapViewToCP(point);
+			Vec3 v = pView->GetCPVector(p1, p2);
 
 			if (m_shape->GetSelectedPoint() >= 0)
 			{
@@ -417,7 +409,7 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 				if (gSnappingPreferences.IsSnapToTerrainEnabled())
 				{
 					// Keep height.
-					newp = view->MapViewToCP(point);
+					newp = pView->MapViewToCP(point);
 					//float z = wp.z - GetIEditorImpl()->GetTerrainElevation(wp.x,wp.y);
 					//newp.z = GetIEditorImpl()->GetTerrainElevation(newp.x,newp.y) + z;
 					//newp.z = GetIEditorImpl()->GetTerrainElevation(newp.x,newp.y) + SHAPE_Z_OFFSET;
@@ -426,7 +418,7 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 
 				if (newp.x != 0 && newp.y != 0 && newp.z != 0)
 				{
-					newp = view->SnapToGrid(newp);
+					newp = pView->SnapToGrid(newp);
 
 					// Put newp into local space of shape.
 					Matrix34 invShapeTM = shapeTM;
@@ -437,18 +429,43 @@ bool CEditShapeTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& p
 					m_shape->UpdatePrefab();
 				}
 
-				view->SetCurrentCursor(STD_CURSOR_MOVE);
+				pView->SetCurrentCursor(STD_CURSOR_MOVE);
 			}
 		}
-
-		/*
-		   Vec3 raySrc,rayDir;
-		   view->ViewToWorldRay( point,raySrc,rayDir );
-		   CBaseObject *hitObj = GetIEditorImpl()->GetObjectManager()->HitTest( raySrc,rayDir,view->GetSelectionTolerance() );
-		 */
 		return true;
 	}
 	return false;
+}
+
+bool CEditShapeTool::SnapSelectedPointToTerrainOrGeometry(CViewport* pView, CPoint& point)
+{
+	CRY_ASSERT(m_shape);
+
+	const int pointIndex = m_shape->GetSelectedPoint();
+	if (pointIndex == -1)
+	{
+		return false;
+	}
+
+	Vec3 raySrc, rayDir;
+	pView->ViewToWorldRay(point, raySrc, rayDir);
+
+	IPhysicalWorld* pWorld = GetIEditor()->GetSystem()->GetIPhysicalWorld();
+	CRY_ASSERT(pWorld);
+
+	ray_hit hit{};
+	// rwi_stop_at_pierceable flag makes sure that all ray hits are treated as solid regardless of surface type pierceability settings
+	int col = pWorld->RayWorldIntersection(raySrc, rayDir * 1000.0f, ent_all, rwi_stop_at_pierceable, &hit, 1);
+	if (col == 0)
+	{
+		return false;
+	}
+
+	CUndo undo("Snap selected Point");
+	m_shape->StoreUndo("Snap selected Point");
+	m_shape->SetPoint(pointIndex, hit.pt - m_shape->GetWorldPos());
+
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -890,7 +907,6 @@ CShapeObject::CShapeObject()
 	m_selectedPoint = -1;
 	m_lowestHeight = 0;
 	m_zOffset = m_defaultZOffset;
-	m_shapePointMinDistance = SHAPE_POINT_MIN_DISTANCE;
 	m_bIgnoreGameUpdate = true;
 	m_bAreaModified = true;
 	m_bDisplayFilledWhenSelected = true;
@@ -2055,7 +2071,7 @@ int CShapeObject::InsertPoint(int index, const Vec3& point, bool const bModifyin
 			float const fDiffY = fabs_tpl(m_points[nIdx].y - point.y);
 			float const fDiffZ = fabs_tpl(m_points[nIdx].z - point.z);
 
-			if (fDiffX < SHAPE_POINT_MIN_DISTANCE && fDiffY < SHAPE_POINT_MIN_DISTANCE && fDiffZ < SHAPE_POINT_MIN_DISTANCE)
+			if (fDiffX < FLT_EPSILON && fDiffY < FLT_EPSILON && fDiffZ < FLT_EPSILON)
 			{
 				CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "The point is too close to another point!");
 				return nIdx;
@@ -2217,6 +2233,13 @@ void CShapeObject::ClearPoints()
 void CShapeObject::PostClone(CBaseObject* pFromObject, CObjectCloneContext& ctx)
 {
 	__super::PostClone(pFromObject, ctx);
+	
+	// Make sure that the area has no entities in it.
+	IEntityAreaComponent* const pAreaProxy = GetAreaProxy();
+	if (pAreaProxy)
+	{
+		pAreaProxy->RemoveEntities();
+	}
 
 	CShapeObject* pFromShape = (CShapeObject*)pFromObject;
 	// Clone event targets.
@@ -2383,7 +2406,7 @@ void CShapeObject::SetPoint(int index, const Vec3& pos)
 				float const fDiffY = fabs_tpl(m_points[nIdx].y - p.y);
 				float const fDiffZ = fabs_tpl(m_points[nIdx].z - p.z);
 
-				if ((m_shapePointMinDistance > FLT_EPSILON) && (fDiffX < m_shapePointMinDistance && fDiffY < m_shapePointMinDistance && fDiffZ < m_shapePointMinDistance))
+				if (fDiffX < FLT_EPSILON && fDiffY < FLT_EPSILON && fDiffZ < FLT_EPSILON)
 				{
 					// Prevent points from being placed too close to each other.
 					return;
@@ -3836,11 +3859,6 @@ bool CGameShapeObject::GetZOffset(float& zOffset) const
 	return GetParameterValue(zOffset, "GetZOffset");
 }
 
-bool CGameShapeObject::GetMinPointDistance(float& minDistance) const
-{
-	return GetParameterValue(minDistance, "GetMinPointDistance");
-}
-
 bool CGameShapeObject::GetIsClosedShape(bool& isClosed) const
 {
 	return GetParameterValue(isClosed, "IsClosed");
@@ -3914,9 +3932,6 @@ void CGameShapeObject::RefreshVariables()
 
 	m_zOffset = m_defaultZOffset;
 	GetZOffset(m_zOffset);
-
-	m_shapePointMinDistance = SHAPE_POINT_MIN_DISTANCE;
-	GetMinPointDistance(m_shapePointMinDistance);
 
 	if (m_pLuaProperties)
 	{
@@ -4232,6 +4247,15 @@ void CNavigationAreaObject::CreateInspectorWidgets(CInspectorWidgetCreator& crea
 	{
 		pObject->m_pVarObject->SerializeVariable(&pObject->mv_height, ar);
 		pObject->m_pVarObject->SerializeVariable(&pObject->mv_exclusion, ar);
+
+		bool removeInaccessibleTriangles = pObject->mv_removeInaccessibleTriangles;
+		ar(removeInaccessibleTriangles, pObject->mv_removeInaccessibleTriangles.GetHumanName(), pObject->mv_exclusion ? "!Remove Inaccessible Triangles" : "Remove Inaccessible Triangles");
+		ar.doc("Remove inaccessible triangles from the NavMesh after level is loaded in the launcher.");
+		if (ar.isInput())
+		{
+			pObject->mv_removeInaccessibleTriangles = removeInaccessibleTriangles;
+		}
+
 		pObject->m_pVarObject->SerializeVariable(&pObject->mv_displayFilled, ar);
 
 		for (int i = 0, n = pObject->mv_agentTypes.GetNumVariables(); i < n; ++i)
@@ -4270,7 +4294,16 @@ void CNavigationAreaObject::Display(CObjectRenderHelper& objRenderHelper)
 
 	if (IsSelected() || gAINavigationPreferences.navigationShowAreas())
 	{
-		SetColor(mv_exclusion ? ColorB(200, 0, 0) : ColorB(0, 126, 255));
+		ColorB color(0, 126, 255);
+		if (mv_exclusion)
+		{
+			color = ColorB(200, 0, 0);
+		}
+		else if (mv_removeInaccessibleTriangles)
+		{
+			color = ColorB(0, 64, 150);
+		}		
+		SetColor(color);
 
 		float lineWidth = dc.GetLineWidth();
 		dc.SetLineWidth(8.0f);
@@ -4331,6 +4364,7 @@ void CNavigationAreaObject::InitVariables()
 	mv_height = 16;
 	mv_exclusion = false;
 	mv_displayFilled = false;
+	mv_removeInaccessibleTriangles = true;
 
 	if (m_pVarObject == nullptr)
 	{
@@ -4339,6 +4373,7 @@ void CNavigationAreaObject::InitVariables()
 
 	m_pVarObject->AddVariable(mv_height, "Height", functor(*this, &CNavigationAreaObject::OnSizeChange));
 	m_pVarObject->AddVariable(mv_exclusion, "Exclusion", functor(*this, &CNavigationAreaObject::OnShapeTypeChange));
+	m_pVarObject->AddVariable(mv_removeInaccessibleTriangles, "RemoveInaccessibleTriangles", functor(*this, &CNavigationAreaObject::OnRemoveInaccessibleTrianglesChange));
 	m_pVarObject->AddVariable(mv_displayFilled, "DisplayFilled");
 
 	CAIManager* manager = GetIEditorImpl()->GetAI();
@@ -4355,6 +4390,32 @@ void CNavigationAreaObject::InitVariables()
 			const char* name = manager->GetNavigationAgentTypeName(i);
 			m_pVarObject->AddVariable(mv_agentTypes, mv_agentTypeVars[i], name, name, functor(*this, &CNavigationAreaObject::OnShapeAgentTypeChange));
 			mv_agentTypeVars[i].Set(true);
+		}
+	}
+}
+
+void CNavigationAreaObject::OnRemoveInaccessibleTrianglesChange(IVariable* var)
+{
+	if (m_bIgnoreGameUpdate || !m_bRegistered)
+		return;
+
+	IAISystem* pAISystem = GetIEditorImpl()->GetSystem()->GetAISystem();
+	INavigationSystem* pNavigationSystem = pAISystem ? pAISystem->GetNavigationSystem() : nullptr;
+	if (!pNavigationSystem)
+		return;
+
+	for (const NavigationMeshID meshID : m_meshes)
+	{
+		if (meshID.IsValid())
+		{
+			if (mv_removeInaccessibleTriangles)
+			{
+				pNavigationSystem->SetMeshFlags(meshID, INavigationSystem::EMeshFlag::RemoveInaccessibleTriangles);
+			}
+			else
+			{
+				pNavigationSystem->RemoveMeshFlags(meshID, INavigationSystem::EMeshFlag::RemoveInaccessibleTriangles);
+			}
 		}
 	}
 }
@@ -4392,20 +4453,24 @@ void CNavigationAreaObject::OnNavigationEvent(const INavigationSystem::ENavigati
 {
 	switch (event)
 	{
-	case INavigationSystem::MeshReloaded:
+	case INavigationSystem::ENavigationEvent::MeshReloaded:
 		ReregisterNavigationAreaAfterReload();
 		RelinkWithMesh(eUpdateGameArea);
 		break;
-	case INavigationSystem::MeshReloadedAfterExporting:
+	case INavigationSystem::ENavigationEvent::MeshReloadedAfterExporting:
 		ReregisterNavigationAreaAfterReload();
 		RelinkWithMesh(eRelinkOnly);
 		break;
-	case INavigationSystem::NavigationCleared:
+	case INavigationSystem::ENavigationEvent::NavigationCleared:
 		ReregisterNavigationAreaAfterReload();
 		RelinkWithMesh(eUpdateGameArea);
 		break;
+	case INavigationSystem::ENavigationEvent::WorkingStateSetToIdle:
+	case INavigationSystem::ENavigationEvent::WorkingStateSetToWorking:
+		// No need to handle these
+		break;
 	default:
-		CRY_ASSERT(0);
+		CRY_ASSERT_MESSAGE(false, "Unhandled ENavigationEvent type");
 		break;
 	}
 }
@@ -4453,7 +4518,11 @@ void CNavigationAreaObject::UpdateMeshes()
 			{
 				NavigationAgentTypeID agentTypeID = aiSystem->GetNavigationSystem()->GetAgentTypeID(i);
 
-				INavigationSystem::CreateMeshParams params; // TODO: expose at least the tile size
+				INavigationSystem::SCreateMeshParams params; // TODO: expose at least the tile size
+				if (mv_removeInaccessibleTriangles)
+				{
+					params.flags.Add(INavigationSystem::EMeshFlag::RemoveInaccessibleTriangles);
+				}
 				m_meshes[i] = aiSystem->GetNavigationSystem()->CreateMeshForVolumeAndUpdate(GetName().GetString(), agentTypeID, params, m_volume);
 			}
 			else if (!mv_agentTypeVars[i] && meshID)
@@ -4530,6 +4599,19 @@ void CNavigationAreaObject::RelinkWithMesh(const ERelinkWithMeshesMode relinkMod
 		{
 			const NavigationAgentTypeID agentTypeID = pAINavigation->GetAgentTypeID(i);
 			m_meshes[i] = pAINavigation->GetMeshID(navigationAreaName, agentTypeID);
+
+			// Reset the flags in case the exported flags don't correspond to the saved ones.
+			if (m_meshes[i].IsValid())
+			{
+				if (mv_removeInaccessibleTriangles)
+				{
+					pAINavigation->SetMeshFlags(m_meshes[i], INavigationSystem::EMeshFlag::RemoveInaccessibleTriangles);
+				}
+				else
+				{
+					pAINavigation->RemoveMeshFlags(m_meshes[i], INavigationSystem::EMeshFlag::RemoveInaccessibleTriangles);
+				}
+			}
 		}
 	}
 	else if (relinkMode & ePostLoad)

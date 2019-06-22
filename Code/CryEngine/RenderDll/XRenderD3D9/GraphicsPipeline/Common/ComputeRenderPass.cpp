@@ -21,6 +21,25 @@ CComputeRenderPass::CComputeRenderPass(EPassFlags flags)
 	SetLabel("COMPUTE_PASS");
 }
 
+CComputeRenderPass::CComputeRenderPass(CGraphicsPipeline* pGraphicsPipeline, EPassFlags flags)
+	: m_flags(flags)
+	, m_dirtyMask(eDirty_All)
+	, m_pShader(nullptr)
+	, m_rtMask(0)
+	, m_dispatchSizeX(1)
+	, m_dispatchSizeY(1)
+	, m_dispatchSizeZ(1)
+	, m_resourceDesc()
+	, m_currentPsoUpdateCount(0)
+	, m_pGraphicsPipeline(pGraphicsPipeline)
+	, m_bPendingConstantUpdate(false)
+	, m_bCompiled(false)
+{
+	m_pResourceSet = GetDeviceObjectFactory().CreateResourceSet(CDeviceResourceSet::EFlags_ForceSetAllState);
+
+	SetLabel("COMPUTE_PASS");
+}
+
 bool CComputeRenderPass::IsDirty() const
 {
 	// Merge local and remote dirty flags to test for changes
@@ -44,9 +63,8 @@ CComputeRenderPass::EDirtyFlags CComputeRenderPass::Compile()
 	{
 		EDirtyFlags revertMask = dirtyMask;
 
-		CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
 		m_bCompiled = false;
+		m_constantManager.EnableConstantUpdate(false);
 
 		if (dirtyMask & (eDirty_Resources))
 		{
@@ -92,6 +110,7 @@ CComputeRenderPass::EDirtyFlags CComputeRenderPass::Compile()
 				m_constantManager.InitShaderReflection(*m_pPipelineState);
 		}
 
+		m_constantManager.EnableConstantUpdate(true);
 		m_bCompiled = true;
 
 		m_dirtyMask = dirtyMask = eDirty_None;
@@ -118,15 +137,14 @@ void CComputeRenderPass::BeginConstantUpdate()
 
 void CComputeRenderPass::PrepareResourcesForUse(CDeviceCommandListRef RESTRICT_REFERENCE commandList)
 {
-	CD3D9Renderer* const __restrict rd = gcpRendD3D;
-
 	if (m_bPendingConstantUpdate)
 	{
 		// Shader reflection might not be initialized if a compile failed
 		if (m_bCompiled)
 		{
 			// Unmap constant buffers and mark as bound
-			m_constantManager.EndNamedConstantUpdate(nullptr);
+			CRY_ASSERT(m_pGraphicsPipeline);
+			m_constantManager.EndNamedConstantUpdate(nullptr, m_pGraphicsPipeline->GetCurrentRenderView());
 
 			CRY_ASSERT(!IsDirty()); // compute pass modified AFTER call to BeginConstantUpdate
 		}
@@ -194,12 +212,6 @@ void CComputeRenderPass::Dispatch(CDeviceCommandListRef RESTRICT_REFERENCE comma
 
 void CComputeRenderPass::Execute(CDeviceCommandListRef RESTRICT_REFERENCE commandList, ::EShaderStage srvUsage)
 {
-	if (gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().IsActive())
-	{
-		gcpRendD3D->GetGraphicsPipeline().GetRenderPassScheduler().AddPass(this);
-		return;
-	}
-	
 	BeginRenderPass(commandList);
 	Dispatch(commandList, srvUsage);
 	EndRenderPass(commandList);
@@ -231,4 +243,3 @@ void CComputeRenderPass::Reset()
 
 	m_profilingStats.Reset();
 }
-

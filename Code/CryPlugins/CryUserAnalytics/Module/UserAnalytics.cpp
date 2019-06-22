@@ -6,7 +6,7 @@
 
 #if !defined(_RELEASE) && CRY_PLATFORM_WINDOWS
 	#include <CrySystem/ISystem.h>
-	#include <CrySystem/IConsole.h>
+	#include <CrySystem/ConsoleRegistration.h>
 	#include <CryThreading/IThreadManager.h>
 	#include <CryExtension/CryGUID.h>
 	#include <CrySystem/CryVersion.h>

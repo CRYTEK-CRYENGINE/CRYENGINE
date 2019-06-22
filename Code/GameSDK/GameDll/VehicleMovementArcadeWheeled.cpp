@@ -3675,7 +3675,7 @@ void CVehicleMovementArcadeWheeled::EnableMovementProcessing(bool enable)
 //------------------------------------------------------------------------
 void CVehicleMovementArcadeWheeled::Serialize(TSerialize ser, EEntityAspects aspects) 
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "Vehicle movement arcade wheeled serialization");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "Vehicle movement arcade wheeled serialization");
 	
 	if(ser.GetSerializationTarget() != eST_Network && ser.IsReading() && m_pVehicle && m_pVehicle->GetEntity())
 	{

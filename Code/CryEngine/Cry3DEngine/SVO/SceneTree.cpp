@@ -113,7 +113,7 @@ bool CSvoEnv::Render()
 
 	if (Get3DEngine()->m_pObjectsTree)
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_FindProbe");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CSvoEnv::Render_FindProbe");
 
 		AUTO_LOCK(m_csLockGlobalEnvProbe);
 
@@ -163,8 +163,8 @@ bool CSvoEnv::Render()
 	CRenderObject* pObjVox = 0;
 	{
 		pObjVox = Cry3DEngineBase::GetIdentityCRenderObject((*CVoxelSegment::m_pCurrPassInfo));
-		pObjVox->SetAmbientColor(Cry3DEngineBase::Get3DEngine()->GetSkyColor(), (*CVoxelSegment::m_pCurrPassInfo));
-		pObjVox->SetMatrix(Matrix34::CreateIdentity(), (*CVoxelSegment::m_pCurrPassInfo));
+		pObjVox->SetAmbientColor(Cry3DEngineBase::Get3DEngine()->GetSkyColor());
+		pObjVox->SetMatrix(Matrix34::CreateIdentity());
 		pObjVox->m_nSort = 0;
 		pObjVox->m_ObjFlags |= (/*FOB_NO_Z_PASS | */ FOB_NO_FOG);
 
@@ -179,7 +179,7 @@ bool CSvoEnv::Render()
 
 	if (m_bReady && m_pSvoRoot)
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Traverse SVO");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CSvoEnv::Traverse SVO");
 
 		//		UpdatePVS();
 
@@ -228,7 +228,7 @@ bool CSvoEnv::Render()
 
 	//	if(GetCVars()->e_rsMode != RS_FAT_CLIENT)
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_StartStreaming");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CSvoEnv::Render_StartStreaming");
 
 		for (int treeLevel = 0; (treeLevel < SVO_STREAM_QUEUE_MAX_SIZE); treeLevel++)
 		{
@@ -254,13 +254,13 @@ bool CSvoEnv::Render()
 	if (CVoxelSegment::m_arrLoadedSegments.Count() > (maxLoadedNodes - Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests))
 	{
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_UnloadStreamable_Sort");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CSvoEnv::Render_UnloadStreamable_Sort");
 
 			qsort(CVoxelSegment::m_arrLoadedSegments.GetElements(), CVoxelSegment::m_arrLoadedSegments.Count(), sizeof(CVoxelSegment::m_arrLoadedSegments[0]), CVoxelSegment::ComparemLastVisFrameID);
 		}
 
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_UnloadStreamable_FreeRenderData");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CSvoEnv::Render_UnloadStreamable_FreeRenderData");
 
 			int numNodesToDelete = 4 + Cry3DEngineBase::GetCVars()->e_svoMaxStreamRequests;//CVoxelSegment::m_arrLoadedSegments.Count()/1000;
 
@@ -302,7 +302,7 @@ bool CSvoEnv::Render()
 
 	//if(nUserId == 0 || !bMultiUserMode)
 	{
-		CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_BrickUpdate");
+		CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CSvoEnv::Render_BrickUpdate");
 
 		CVoxelSegment::m_updatesInProgressTex = 0;
 		CVoxelSegment::m_updatesInProgressBri = 0;
@@ -334,7 +334,7 @@ bool CSvoEnv::Render()
 
 		if (m_texNodePoolId)
 		{
-			CRY_PROFILE_REGION(PROFILE_3DENGINE, "CSvoEnv::Render_UpdateNodeRenderDataPtrs");
+			CRY_PROFILE_SECTION(PROFILE_3DENGINE, "CSvoEnv::Render_UpdateNodeRenderDataPtrs");
 
 			m_pSvoRoot->UpdateNodeRenderDataPtrs();
 		}

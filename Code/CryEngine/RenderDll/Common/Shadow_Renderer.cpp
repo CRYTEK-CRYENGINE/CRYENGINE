@@ -62,7 +62,7 @@ std::bitset<6> ShadowMapFrustum::GenerateTimeSlicedUpdateCacheMask(uint32 frameI
 	return frustumSideCacheMask;
 }
 
-void CRenderer::PrepareShadowFrustumForShadowPool(ShadowMapFrustum* pFrustum, uint32 frameID, const SRenderLight& light, uint32 *timeSlicedShadowsUpdated)
+void CRenderer::PrepareShadowFrustumForShadowPool(IRenderView* pMainRenderView, ShadowMapFrustum* pFrustum, uint32 frameID, const SRenderLight& light, uint32 *timeSlicedShadowsUpdated)
 {
 #if defined(ENABLE_PROFILING_CODE)
 	uint32& numShadowPoolAllocsThisFrame = m_frameRenderStats[m_nFillThreadID].m_NumShadowPoolAllocsThisFrame;
@@ -70,11 +70,13 @@ void CRenderer::PrepareShadowFrustumForShadowPool(ShadowMapFrustum* pFrustum, ui
 	uint32  numShadowPoolAllocsThisFrame = 0;
 #endif
 
+	CDeferredShading* pDeferredShading = pMainRenderView->GetGraphicsPipeline()->GetDeferredShading();
+
 	pFrustum->PrepareForShadowPool(
 		frameID,
 		numShadowPoolAllocsThisFrame,
-		CDeferredShading::Instance().m_blockPack, 
-		CDeferredShading::Instance().m_shadowPoolAlloc, 
+		pDeferredShading->m_blockPack, 
+		pDeferredShading->m_shadowPoolAlloc, 
 		light, 
 		static_cast<uint32>(CRenderer::CV_r_ShadowPoolMaxTimeslicedUpdatesPerFrame),
 		timeSlicedShadowsUpdated);
@@ -94,7 +96,6 @@ void ShadowMapFrustum::PrepareForShadowPool(uint32 frameID, uint32& numShadowPoo
 
 	const auto lightID = light.m_nEntityId;
 	int nBlockW = nTexSize >> TEX_POOL_BLOCKLOGSIZE;
-	int nBlockH = nTexSize >> TEX_POOL_BLOCKLOGSIZE;
 	int nLogBlockW = IntegerLog2((uint32)nBlockW);
 	int nLogBlockH = nLogBlockW;
 

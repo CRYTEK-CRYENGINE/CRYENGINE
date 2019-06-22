@@ -215,7 +215,7 @@ void CAudioAreaRandom::Play()
 			pIEntityAudioComponent->SetAudioAuxObjectOffset(Matrix34(IDENTITY, GenerateOffset()));
 
 			CryAudio::SRequestUserData const userData(CryAudio::ERequestFlags::None, this);
-			pIEntityAudioComponent->ExecuteTrigger(m_playTriggerId, CryAudio::DefaultAuxObjectId, userData);
+			pIEntityAudioComponent->ExecuteTrigger(m_playTriggerId, CryAudio::DefaultAuxObjectId, INVALID_ENTITYID, userData);
 		}
 
 		m_currentlyPlayingTriggerId = m_playTriggerId;
@@ -287,7 +287,7 @@ void CAudioAreaRandom::SerializeProperties(Serialization::IArchive& archive)
 
 	archive(m_occlusionType, "OcclusionType", "Occlusion Type");
 
-	archive(Serialization::AudioRTPC(m_parameterName), "Rtpc", "Rtpc");
+	archive(Serialization::AudioParameter(m_parameterName), "Rtpc", "Rtpc");
 	archive(m_parameterDistance, "RTPCDistance", "RTPC Distance");
 	archive(m_radius, "RadiusRandom", "Radius Random");
 

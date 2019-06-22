@@ -707,8 +707,6 @@ protected:
 
 	int FindMatchingNodeInScene(const std::vector<string>& path) const
 	{
-		int foundNode = -1;
-
 		std::vector<string> candidatePath;
 		for (int i = 0, n = m_pScene->GetNodeCount(); i < n; ++i)
 		{
@@ -932,8 +930,6 @@ private:
 		const std::vector<int>& mapSceneNodesToBoneId,
 		ESceneType sceneType) const
 	{
-		size_t rootNodesCount = 0;
-
 		const bool bIgnoreMeshes = (sceneType == ESceneType::Skeleton);
 
 		// We enforce identity transform for root node If is the only root node in the .cgf (then the root index == 0).
@@ -1022,6 +1018,25 @@ private:
 			pCGFNode->properties = ni.pProperties ? *ni.pProperties : "";
 
 			cgf.AddNode(pCGFNode);
+		}
+
+		// Create BlendShapes/MorphTargets dummy nodes
+		for (size_t i = 0; i < m_pScene->GetMeshCount(); ++i)
+		{
+			string name;
+			const MeshUtils::Mesh* pMesh = m_pScene->GetMesh(i);
+			for (size_t j = 0; j < pMesh->m_morphTargets.size(); ++j)
+			{
+				name.Format("%s_blendWeightVertex", pMesh->m_morphTargets[j].name.c_str());
+				const unsigned int controllerID = SkeletonHelpers::ComputeControllerId(name.c_str());
+
+				CNodeCGF* const pCGFNode = new CNodeCGF();
+				pCGFNode->type = CNodeCGF::NODE_HELPER;
+				cry_strcpy(pCGFNode->name, name.c_str());
+
+				// AddNode transfers ownership to the cgf, so we should not delete the node instance.
+				cgf.AddNode(pCGFNode); 
+			}
 		}
 
 		return true;
@@ -1200,7 +1215,8 @@ private:
 		}
 
 		pp.m_arrMaterials.reserve(mesh.m_faceMatIds.size());
-		for (const auto& id : mesh.m_faceMatIds)
+		for (size_t num = mesh.m_faceMatIds.size(), i = 0; i < num; ++i)
+		//for (const auto& id : mesh.m_faceMatIds)
 		{
 			// pp.m_arrMaterials.push_back(id);
 			pp.m_arrMaterials.push_back(0);
@@ -1292,6 +1308,61 @@ private:
 				}
 			}
 		}
+	}
+
+	void SetMorphTargetJoints(CSkinningInfo* const pSkinningInfo) const
+	{
+		size_t morphTargetJointsCount = 0;
+		for (size_t i = 0; i < m_pScene->GetMeshCount(); ++i)
+		{
+			morphTargetJointsCount += m_pScene->GetMesh(i)->m_morphTargets.size();
+		}
+
+		if (!morphTargetJointsCount)
+		{
+			return;
+		}
+
+		const int firstMorphTargetJointIndex = pSkinningInfo->m_arrBoneEntities.size();
+		const int newBonesCount = pSkinningInfo->m_arrBoneEntities.size() + morphTargetJointsCount;
+		pSkinningInfo->m_arrBoneEntities.resize(newBonesCount);
+		pSkinningInfo->m_arrBonesDesc.resize(newBonesCount);
+
+		int boneId = firstMorphTargetJointIndex;
+
+		for (size_t i = 0; i < m_pScene->GetMeshCount(); ++i)
+		{
+			const MeshUtils::Mesh* pMesh = m_pScene->GetMesh(i);
+			string name;
+			for (size_t j = 0; j < pMesh->m_morphTargets.size(); ++j)
+			{
+				name.Format("%s_blendWeightVertex", pMesh->m_morphTargets[j].name.c_str());
+
+				const unsigned int controllerID = SkeletonHelpers::ComputeControllerId(name.c_str());
+
+				BONE_ENTITY& boneEntity = pSkinningInfo->m_arrBoneEntities[boneId];
+				memset(&boneEntity, 0, sizeof(boneEntity));
+				boneEntity.BoneID = boneId;
+				boneEntity.ParentID = 0; // Morph target joints are children of the skeleton root.
+				boneEntity.nChildren = 0;
+				boneEntity.ControllerID = controllerID;
+				boneEntity.prop[0] = 0;
+				WriteBoneDefaults(boneEntity);
+				boneEntity.phys.nPhysGeom = -1;
+
+				CryBoneDescData& boneDesc = pSkinningInfo->m_arrBonesDesc[boneId];
+				memset(&boneDesc, 0, sizeof(boneDesc));
+				cry_strcpy(boneDesc.m_arrBoneName, name.c_str());
+				boneDesc.m_nControllerID = controllerID;
+				boneDesc.m_DefaultB2W = Matrix34(IDENTITY);
+				boneDesc.m_DefaultW2B = Matrix34(IDENTITY);
+				boneDesc.m_nOffsetParent = -boneId;
+
+				++boneId;
+			}
+		}
+
+		pSkinningInfo->m_arrBoneEntities[0].nChildren += morphTargetJointsCount;
 	}
 
 	bool SetCgfSkinningInfo(
@@ -1432,6 +1503,8 @@ private:
 				}
 			}
 		}
+
+		SetMorphTargetJoints(pSkinningInfo);
 		return true;
 	}
 
@@ -1662,30 +1735,22 @@ private:
 		}
 
 		CSkeletonInfo skeleton;
-		{
-			skeleton = CSkeletonInfo();
-			skeleton.m_SkinningInfo = *cgf.GetSkinningInfo();
-		}
-
-		SPlatformAnimationSetup platform;
-		{
-			platform = SPlatformAnimationSetup();
-		}
+		skeleton.m_SkinningInfo = *cgf.GetSkinningInfo();
+		skeleton.m_SkinningInfo.m_arrMorphTargets.clear();
 
 		SAnimationDesc animDesc;
-		{
-			animDesc = SAnimationDesc();
-			animDesc.m_bSkipSaveToDatabase = true;
-			animDesc.m_bAdditiveAnimation = false;
-			animDesc.m_skeletonName = "";
-			animDesc.m_bNewFormat = true;
-			animDesc.newFmt.m_autodeletePosEps = 0.0f;
-			animDesc.newFmt.m_autodeleteRotEps = 0.0f;
-			animDesc.newFmt.m_autodeleteSclEps = 0.0f;
-			animDesc.newFmt.m_compressPosMul = 1.0f;
-			animDesc.newFmt.m_compressRotMul = 1.0f;
-			animDesc.newFmt.m_compressSclMul = 1.0f;
-		}
+		animDesc.m_bSkipSaveToDatabase = true;
+		animDesc.m_bAdditiveAnimation = false;
+		animDesc.m_skeletonName = "";
+		animDesc.m_bNewFormat = true;
+		animDesc.newFmt.m_autodeletePosEps = 0.0f;
+		animDesc.newFmt.m_autodeleteRotEps = 0.0f;
+		animDesc.newFmt.m_autodeleteSclEps = 0.0f;
+		animDesc.newFmt.m_compressPosMul = 1.0f;
+		animDesc.newFmt.m_compressRotMul = 1.0f;
+		animDesc.newFmt.m_compressSclMul = 1.0f;
+
+		SPlatformAnimationSetup platform;
 
 		CAnimationCompressor compressor(skeleton);
 		if (!compressor.LoadCAF(cgf.GetFilename(), platform, animDesc, eCAFLoadUncompressedOnly))
@@ -1819,6 +1884,27 @@ private:
 				frames[frame].scale = s;
 			}
 			cafSaver.SaveController(&chunkFile, frames, pSkinningInfo->m_arrBoneEntities[boneId].ControllerID);
+		}
+
+		// Save morph target joints, if any
+		for (size_t i = 0; i < m_pScene->GetMeshCount(); ++i)
+		{
+			const MeshUtils::Mesh* pMesh = m_pScene->GetMesh(i);
+			for (size_t j = 0; j < pMesh->m_morphTargets.size(); ++j)
+			{
+				string name;
+				name.Format("%s_blendWeightVertex", pMesh->m_morphTargets[j].name.c_str());
+				const unsigned int controllerID = SkeletonHelpers::ComputeControllerId(name.c_str());
+				for (int frame = 0; frame < frameCount; ++frame)
+				{
+					float weight = m_pScene->EvaluateMorphTargetWeight(i, pMesh->m_morphTargets[j].name.c_str(), startFrame + frame);
+
+					frames[frame].position = Vec3(weight, 0, 0);
+					frames[frame].rotation.SetIdentity();
+					frames[frame].scale.SetIdentity();
+				}
+				cafSaver.SaveController(&chunkFile, frames, controllerID);
+			}
 		}
 
 		CSaverCGF cgfSaver(chunkFile);

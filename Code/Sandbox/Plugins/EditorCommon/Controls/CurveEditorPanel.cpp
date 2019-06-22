@@ -16,25 +16,10 @@
 CCurveEditorPanel::CCurveEditorPanel(QWidget* pParent /* = nullptr */)
 	: CDockableWidget(pParent)
 {
-	m_pTitle = new QLabel();
-	auto font = m_pTitle->font();
-	font.setBold(true);
-	m_pTitle->setFont(font);
-
-	SetTitle(nullptr);
-
-	const auto pSpacer = new QWidget();
-	pSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
 	QVBoxLayout* const pLayout = new QVBoxLayout();
 	pLayout->setContentsMargins(1, 1, 1, 1);
 	pLayout->setSpacing(0);
-
-	QToolBar* const pHeaderBar = new QToolBar();
-	pHeaderBar->addWidget(m_pTitle);
-	pHeaderBar->addWidget(pSpacer);
-	pLayout->addWidget(pHeaderBar);
-
+	
 	QToolBar* pToolbar = new QToolBar(this);
 	pLayout->addWidget(pToolbar);
 
@@ -57,14 +42,11 @@ CCurveEditorPanel::~CCurveEditorPanel()
 
 void CCurveEditorPanel::SetTitle(const char* szTitle)
 {
+	setWindowTitle("Curve Editor");
+
 	if (szTitle && szTitle[0])
 	{
-		QString title = QString("Curve Editor: ") + szTitle;
-		m_pTitle->setText(title);
-	}
-	else
-	{
-		m_pTitle->setText("Curve Editor");
+		setWindowTitle(QString("Curve Editor: %1").arg(szTitle));
 	}
 }
 

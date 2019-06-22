@@ -88,7 +88,6 @@ bool CAnimationManager::SaveCAFImage(const char* name, FILETIME timeStamp, bool 
 	}
 	std::sort(sortedHeaders.begin(), sortedHeaders.end(), &HeaderLessFuncCAF);
 
-	uint32 numGAH = m_arrGlobalAnimations.size();
 	for (size_t i = 0; i < numHeaders; ++i)
 	{
 		GlobalAnimationHeaderCAF* header = sortedHeaders[i];

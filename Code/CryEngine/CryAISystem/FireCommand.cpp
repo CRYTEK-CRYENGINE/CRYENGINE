@@ -68,7 +68,7 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 {
 	float dt = GetAISystem()->GetFrameDeltaTime();
 
-	m_coverFireTime = descriptor.coverFireTime * gAIEnv.CVars.RODCoverFireTimeMod;
+	m_coverFireTime = descriptor.coverFireTime * gAIEnv.CVars.legacyPuppetRod.RODCoverFireTimeMod;
 
 	if (!canFire || !pITarget)
 	{
@@ -88,7 +88,7 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 	if (!canFire)
 		return eAIFS_Off;
 
-	float FakeHitChance = gAIEnv.CVars.RODFakeHitChance;
+	float FakeHitChance = gAIEnv.CVars.legacyPuppetRod.RODFakeHitChance;
 	if (m_pShooter->m_targetZone == AIZONE_KILL)
 		FakeHitChance = 1.0f;
 	else if (gAIEnv.configuration.eCompatibilityMode != ECCM_GAME04)
@@ -99,7 +99,7 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 
 	if (m_drawFire.GetState() != DrawFireEffect::Finished)
 	{
-		if (gAIEnv.CVars.DebugDrawFireCommand)
+		if (gAIEnv.CVars.legacyDebugDraw.DebugDrawFireCommand)
 		{
 			CDebugDrawContext dc;
 
@@ -122,7 +122,7 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 		CAIPlayer* player = pITarget ? pITarget->CastToCAIPlayer() : 0;
 
 		const bool canFakeHit = cry_random(0.0f, 1.0f) <= FakeHitChance;
-		const bool allowedToHit = gAIEnv.CVars.AllowedToHit && (!player || gAIEnv.CVars.AllowedToHitPlayer) && m_pShooter->IsAllowedToHitTarget();
+		const bool allowedToHit = gAIEnv.CVars.legacyFiring.AllowedToHit && (!player || gAIEnv.CVars.legacyFiring.AllowedToHitPlayer) && m_pShooter->IsAllowedToHitTarget();
 		const bool shouldHit = m_pShooter->CanDamageTarget() || canFakeHit;
 
 		if (m_pShooter->AdjustFireTarget(targetObject, outShootTargetPos, allowedToHit && shouldHit, descriptor.spreadRadius,
@@ -267,7 +267,7 @@ EAIFireState CFireCommandInstant::Update(IAIObject* pITarget, bool canFire, EFir
 
 	const size_t burstFirstHit = (size_t)((m_curBurstBulletCount * burstCanStartHitPercent) + 0.5f);
 	const bool canFakeHit = cry_random(0.0f, 1.0f) <= FakeHitChance;
-	const bool allowedToHit = gAIEnv.CVars.AllowedToHit && (!player || gAIEnv.CVars.AllowedToHitPlayer) && m_pShooter->IsAllowedToHitTarget();
+	const bool allowedToHit = gAIEnv.CVars.legacyFiring.AllowedToHit && (!player || gAIEnv.CVars.legacyFiring.AllowedToHitPlayer) && m_pShooter->IsAllowedToHitTarget();
 	const bool shouldHit = m_pShooter->CanDamageTarget() || canFakeHit;
 	const bool burstHit = (size_t)m_weaponBurstBulletCount >= burstFirstHit;
 
@@ -307,7 +307,7 @@ CFireCommandInstant::DrawFireEffect::EState CFireCommandInstant::DrawFireEffect:
 bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pShooter, IAIObject* pTarget, const AIWeaponDescriptor& descriptor,
                                                  Vec3& aimTarget, bool canFire)
 {
-	if (gAIEnv.CVars.DrawFireEffectEnabled < 1)
+	if (gAIEnv.CVars.legacyFiring.DrawFireEffectEnabled < 1)
 	{
 		m_state.state = Finished;
 		return true;
@@ -319,7 +319,7 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 		return true;
 	}
 
-	const float tooClose = gAIEnv.CVars.DrawFireEffectMinDistance;
+	const float tooClose = gAIEnv.CVars.legacyFiring.DrawFireEffectMinDistance;
 	const Vec3& firePos = pShooter->GetFirePos();
 	const Vec3& targetPos = pTarget->GetPos();
 	float distanceSq = Distance::Point_PointSq(targetPos, firePos);
@@ -330,12 +330,12 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 		return true;
 	}
 
-	float denom = gAIEnv.CVars.DrawFireEffectDecayRange - tooClose;
+	float denom = gAIEnv.CVars.legacyFiring.DrawFireEffectDecayRange - tooClose;
 	float distance = sqrt_tpl(distanceSq);
 	float distanceFactor = (distance - tooClose) / max(denom, 1.0f);
 	distanceFactor = clamp_tpl(distanceFactor, 0.0f, 1.0f);
 
-	float fovCos = cos_tpl(DEG2RAD(gAIEnv.CVars.DrawFireEffectMinTargetFOV * 0.5f));
+	float fovCos = cos_tpl(DEG2RAD(gAIEnv.CVars.legacyFiring.DrawFireEffectMinTargetFOV * 0.5f));
 
 	Vec3 viewTarget = (firePos - targetPos) * (1.0f / distance);
 	Vec3 targetViewDir = pTarget->GetViewDir();
@@ -346,7 +346,7 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 		fovFactor = 2.5f * (1.0f - viewAngleCos) / fovCos;
 	fovFactor = clamp_tpl(fovFactor, 0.0f, 1.0f);
 
-	float drawTime = gAIEnv.CVars.DrawFireEffectTimeScale * descriptor.drawTime;
+	float drawTime = gAIEnv.CVars.legacyFiring.DrawFireEffectTimeScale * descriptor.drawTime;
 	drawTime = (0.75f * distanceFactor) * drawTime + (0.25f * fovFactor) * drawTime;
 
 	if (drawTime < 0.125f)
@@ -395,8 +395,8 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 		front.Normalize();
 
 		float startDistance = distance2D - 5.0f;
-		float angleDecay = clamp_tpl((distance - gAIEnv.CVars.DrawFireEffectMinDistance) / gAIEnv.CVars.DrawFireEffectDecayRange, 0.0f, 1.0f);
-		float maxAngle = DEG2RAD(gAIEnv.CVars.DrawFireEffectMaxAngle) * angleDecay;
+		float angleDecay = clamp_tpl((distance - gAIEnv.CVars.legacyFiring.DrawFireEffectMinDistance) / gAIEnv.CVars.legacyFiring.DrawFireEffectDecayRange, 0.0f, 1.0f);
+		float maxAngle = DEG2RAD(gAIEnv.CVars.legacyFiring.DrawFireEffectMaxAngle) * angleDecay;
 
 		float angle = fabs_tpl(atan2_tpl(targetHeight, startDistance));
 		angle = clamp_tpl(angle, 0.0f, maxAngle);
@@ -420,7 +420,7 @@ bool CFireCommandInstant::DrawFireEffect::Update(float updateTime, CPuppet* pSho
 
 		m_state.state = Running;
 
-		if (gAIEnv.CVars.DebugDrawAmbientFire)
+		if (gAIEnv.CVars.legacyFiring.DebugDrawAmbientFire)
 		{
 			float terrainZ = gEnv->p3DEngine->GetTerrainElevation(aimTarget.x, aimTarget.y);
 
@@ -577,12 +577,12 @@ EAIFireState CFireCommandLob::GetBestLob(IAIObject* pTarget, const AIWeaponDescr
 		 */
 		const float distScale = m_pShooter->GetParameters().m_fProjectileLaunchDistScale;
 		const float distToTarget = targetDir2D.NormalizeSafe();
-		const float inaccuracyRadius = distToTarget * gAIEnv.CVars.LobThrowPercentageOfDistanceToTargetUsedForInaccuracySimulation;
+		const float inaccuracyRadius = distToTarget * gAIEnv.CVars.legacyFiring.LobThrowPercentageOfDistanceToTargetUsedForInaccuracySimulation;
 
-		const float randomPercentageForPerpendicularRadius = gAIEnv.CVars.LobThrowSimulateRandomInaccuracy ? cry_random(0.0f, 1.0f) : 0.0f;
+		const float randomPercentageForPerpendicularRadius = gAIEnv.CVars.legacyFiring.LobThrowSimulateRandomInaccuracy ? cry_random(0.0f, 1.0f) : 0.0f;
 		float perpendicularRadius = -inaccuracyRadius + randomPercentageForPerpendicularRadius * (2 * inaccuracyRadius);
 
-		const float randomPercentageForParallelRadius = gAIEnv.CVars.LobThrowSimulateRandomInaccuracy ? cry_random(0.0f, 1.0f) : 0.0f;
+		const float randomPercentageForParallelRadius = gAIEnv.CVars.legacyFiring.LobThrowSimulateRandomInaccuracy ? cry_random(0.0f, 1.0f) : 0.0f;
 		float parallelRadius = randomPercentageForParallelRadius * inaccuracyRadius + (1.0f - distScale) * distToTarget;
 
 		Vec3 targetRightDirection(-targetDir2D.y, targetDir2D.x, 0.0f);
@@ -604,7 +604,7 @@ EAIFireState CFireCommandLob::GetBestLob(IAIObject* pTarget, const AIWeaponDescr
 	const float distToTarget = targetDir2D.NormalizeSafe();
 
 	const float minimumDistanceToFriendsSq = sqr(descriptor.minimumDistanceFromFriends >= 0.0f ?
-	                                             descriptor.minimumDistanceFromFriends : gAIEnv.CVars.LobThrowMinAllowedDistanceFromFriends);
+	                                             descriptor.minimumDistanceFromFriends : gAIEnv.CVars.legacyFiring.LobThrowMinAllowedDistanceFromFriends);
 
 	const unsigned maxStepsPerUpdate = 1;
 	const unsigned maxSteps = 5;
@@ -808,7 +808,7 @@ bool CFireCommandLob::IsValidDestination(ERequestedGrenadeType eReqGrenadeType, 
 		}
 
 		// Check friendly distance
-		const float timePrediction = gAIEnv.CVars.LobThrowTimePredictionForFriendPositions;
+		const float timePrediction = gAIEnv.CVars.legacyFiring.LobThrowTimePredictionForFriendPositions;
 		AutoAIObjectIter itFriend(gAIEnv.pAIObjectManager->GetFirstAIObject(OBJFILTER_FACTION, m_pShooter->GetFactionID()));
 		IAIObject* pFriend = itFriend->GetObject();
 		while (bValid && (pFriend != NULL))

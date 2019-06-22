@@ -16,7 +16,7 @@ void AISendSignal(IEntity* const pEntity, const AISignals::ISignalDescription& s
 	IAIObject* const pAiObject = pEntity->GetAI();
 	if (pAiObject)
 	{
-		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, signalDescription, pAiObject->GetAIObjectID()));
+		gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_DEFAULT, signalDescription, pAiObject->GetEntityID()));
 	}
 }
 }

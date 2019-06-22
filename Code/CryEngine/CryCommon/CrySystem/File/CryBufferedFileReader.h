@@ -29,9 +29,9 @@ class CCryBufferedFileReader
 public:
 	CCryBufferedFileReader()
 		: m_maxbuffersize(64 * 1024)
-		, m_file_offset(0)
 		, m_file_size(0)
 		, m_buffer_offset(0)
+		, m_file_offset(0)
 	{
 	}
 	inline bool Open(const char* filename, const char* mode, int nOpenFlagsEx = 0)
@@ -61,7 +61,7 @@ public:
 		//we might be trying to read past what is buffered.  Copy what is buffered, then read more and copy that too if needed
 		do
 		{
-			size_t size_to_read = min(m_buffer.size() - m_buffer_offset, total_size_to_read);
+			size_t size_to_read = min(BytesAvailable(), total_size_to_read);
 			if (size_to_read)
 			{
 				memcpy(&(reinterpret_cast<uint8*>(lpBuf)[dest_offset]), &m_buffer[m_buffer_offset], size_to_read);
@@ -85,10 +85,34 @@ public:
 		SwapEndian(pDest, nCount);
 		return nRead / sizeof(T);
 	}
+
+	inline size_t Seek(size_t seek, int mode)
+	{
+		size_t returnValue = m_file.Seek(seek, mode);
+		if (returnValue == 0)
+		{
+			m_buffer.resize(0);
+			m_buffer_offset = 0;
+			m_file_offset = m_file.GetPosition();
+		}
+		return returnValue;
+	}
+
+	inline size_t GetPosition() const
+	{
+		return m_file.GetPosition() - BytesAvailable();
+	}
+
 private:
+
+	size_t BytesAvailable() const
+	{
+		return m_buffer.size() - m_buffer_offset;
+	}
 
 	void StreamData()
 	{
+		CRY_ASSERT(BytesAvailable() == 0);
 		size_t total_size_to_read = min(m_maxbuffersize, m_file_size - m_file_offset);
 		m_buffer.resize(total_size_to_read);
 		m_file_offset += total_size_to_read;
@@ -99,7 +123,7 @@ private:
 			read += m_file.ReadRaw(&m_buffer[read], total_size_to_read - read);
 		}
 		while (read < total_size_to_read);
-		assert(read == total_size_to_read);
+		CRY_ASSERT(read == total_size_to_read);
 
 		m_buffer_offset = 0;
 	}

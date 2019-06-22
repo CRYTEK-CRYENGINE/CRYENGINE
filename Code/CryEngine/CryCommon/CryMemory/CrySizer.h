@@ -26,7 +26,7 @@ struct SVF_P3S_C4B_T2S;
 struct SPipTangents;
 
 #if CRY_PLATFORM_WINDOWS
-	#include <string.h> // workaround for Amd64 compiler
+	#include <cstring> // workaround for Amd64 compiler
 #endif
 
 #include <CrySystem/IResourceCollector.h>       // <> required for Interfuscator. IResourceCollector
@@ -371,6 +371,8 @@ public:
 	{
 		return AddObject(&rObject, sizeof(T));
 	}
+
+	virtual int GetMode() const { return 0; }
 
 	//! Used to collect the assets needed for streaming and to gather statistics always returns a valid reference.
 	virtual IResourceCollector* GetResourceCollector() = 0;

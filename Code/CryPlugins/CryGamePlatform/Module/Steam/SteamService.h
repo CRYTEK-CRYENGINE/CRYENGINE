@@ -52,7 +52,14 @@ namespace Cry
 				virtual CAccount* GetLocalAccount() const override;
 
 				virtual const DynArray<IAccount*>& GetFriendAccounts() const override;
+#if CRY_GAMEPLATFORM_EXPERIMENTAL
+				virtual const DynArray<IAccount*>& GetBlockedAccounts() const override;
+				virtual const DynArray<IAccount*>& GetMutedAccounts() const override;
+				virtual bool GetEnvironmentValue(const char* szVarName, string& valueOut) const override;
+#endif // CRY_GAMEPLATFORM_EXPERIMENTAL
 				virtual CAccount* GetAccountById(const AccountIdentifier& accountId) const override;
+				virtual void AddAccountToLocalSession(const AccountIdentifier& accountId) override {};
+				virtual void RemoveAccountFromLocalSession(const AccountIdentifier& accountId) override {};
 				virtual bool IsFriendWith(const AccountIdentifier& accountId) const override;
 				virtual EFriendRelationship GetFriendRelationship(const AccountIdentifier& accountId) const override;
 
@@ -83,6 +90,9 @@ namespace Cry
 
 				virtual bool RequestUserInformation(const AccountIdentifier& accountId, UserInformationMask info) override;
 				virtual bool IsLoggedIn() const override;
+
+				virtual bool HasPermission(const AccountIdentifier& accountId, EPermission permission) const override { return true; }
+				virtual bool HasPrivacyPermission(const AccountIdentifier& accountId, const AccountIdentifier& targetAccountId, EPrivacyPermission permission) const override { return true; };
 				// ~IService
 
 			protected:
@@ -116,10 +126,16 @@ namespace Cry
 
 				mutable std::vector<std::unique_ptr<CAccount>> m_accounts;
 				mutable DynArray<IAccount*> m_friends;
+#if CRY_GAMEPLATFORM_EXPERIMENTAL
+				mutable DynArray<IAccount*> m_blockedAccounts;
+				mutable DynArray<IAccount*> m_mutedAccounts;
+				std::unordered_map<string, string, stl::hash_strcmp<string>, stl::hash_strcmp<string>> m_environment;
+#endif // CRY_GAMEPLATFORM_EXPERIMENTAL
 
 				std::vector<IListener*> m_listeners;
 
-				uint32 m_authTicketHandle;
+				using HAuthTicket = uint32;
+				std::set<HAuthTicket> m_pendingAuthTicketHandles;
 			};
 		}
 	}

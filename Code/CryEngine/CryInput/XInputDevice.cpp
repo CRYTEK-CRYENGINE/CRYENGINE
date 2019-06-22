@@ -495,6 +495,7 @@ void CXInputDevice::ClearAnalogKeyState(TInputSymbols& clearedSymbols)
 
 void CXInputDevice::UpdateConnectedState(bool isConnected)
 {
+
 	if (m_connected != isConnected)
 	{
 		SInputEvent event;
@@ -507,21 +508,19 @@ void CXInputDevice::UpdateConnectedState(bool isConnected)
 		if (isConnected)
 		{
 			// connect
-			event.keyId = eKI_XI_Connect;
+			event.keyId = eKI_SYS_ConnectDevice;
 			event.keyName = "connect";
 		}
 		else
 		{
 			// disconnect
-			event.keyId = eKI_XI_Disconnect;
+			event.keyId = eKI_SYS_DisconnectDevice;
 			event.keyName = "disconnect";
 		}
-		m_connected = isConnected;
-		GetIInput().PostInputEvent(event);
 
-		// Send generalized keyId connect/disconnect
-		// eKI_XI_Connect & eKI_XI_Disconnect should be deprecated because all devices can be connected/disconnected
-		event.keyId = (isConnected) ? eKI_SYS_ConnectDevice : eKI_SYS_DisconnectDevice;
+		m_connected = isConnected;
+
+		// Send connect/disconnect
 		GetIInput().PostInputEvent(event, true);
 	}
 }

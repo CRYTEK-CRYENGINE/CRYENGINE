@@ -2,22 +2,14 @@
 #include "StdAfx.h"
 #include "NewLevelDialog.h"
 
-#include "LevelFileUtils.h"
 #include "Terrain/Ui/GenerateHeightmapUi.h"
 #include "Terrain/Ui/GenerateTerrainTextureUi.h"
 
-#include "Controls/QMenuComboBox.h"
-
-#include <QButtonGroup>
 #include <QDialogButtonBox>
 #include <QFormLayout>
-#include <QGroupBox>
 #include <QHeaderView>
-#include <QLabel>
-#include <QLineEdit>
 #include <QSpacerItem>
 #include <QVBoxLayout>
-#include <QPushButton>
 #include <QDir>
 
 struct CNewLevelDialog::Implementation

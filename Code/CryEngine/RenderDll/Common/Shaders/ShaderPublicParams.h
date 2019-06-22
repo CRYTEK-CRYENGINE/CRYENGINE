@@ -2,16 +2,13 @@
 
 #pragma once
 
-//////////////////////////////////////////////////////////////////////////
-// IShaderPublicParams implementation class.
-//////////////////////////////////////////////////////////////////////////
 class CShaderPublicParams : public IShaderPublicParams
 {
 public:
 	CShaderPublicParams() {}
 
 	virtual void          SetParamCount(int nParam) { m_shaderParams.resize(nParam); }
-	virtual int           GetParamCount() const { return m_shaderParams.size(); };
+	virtual int           GetParamCount() const { return m_shaderParams.size(); }
 
 	virtual SShaderParam& GetParam(int nIndex);
 

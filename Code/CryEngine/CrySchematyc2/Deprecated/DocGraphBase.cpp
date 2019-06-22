@@ -143,7 +143,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CScriptGraphLink::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 		if(!archive.isEdit())
 		{
 			archive(m_srcNodeGUID, "src_node_guid");
@@ -223,7 +223,7 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CDocGraphBase::Serialize(Serialization::IArchive& archive)
 	{
-		LOADING_TIME_PROFILE_SECTION;
+		CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 		SerializationContext::SetValidatorLink(archive, SValidatorLink(m_guid)); // #SchematycTODO : This should be handled by derived classes!
 

@@ -18,6 +18,7 @@
 #pragma warning(disable: 4244)
 
 PodArray<SPlaneObject> CLightEntity::s_lstTmpCastersHull;
+SShadowFrustumMGPUCache CLightEntity::s_shadowFrustumCache;
 std::vector<std::pair<ShadowMapFrustum*, const CLightEntity*>>* CLightEntity::s_pShadowFrustumsCollector;
 
 #define MIN_SHADOW_RES_OMNI_LIGHT 64
@@ -123,8 +124,6 @@ void CLightEntity::SetMatrix(const Matrix34& mat)
 		if (!(m_light.m_Flags & DLF_DEFERRED_CUBEMAPS))
 		{
 			float fRadius = m_light.m_fRadius;
-			if (m_light.m_Flags & DLF_AREA_LIGHT) // Use max for area lights.
-				fRadius += max(m_light.m_fAreaWidth, m_light.m_fAreaHeight);
 			SetBBox(AABB(worldPosition - Vec3(fRadius), worldPosition + Vec3(fRadius)));
 		}
 		else
@@ -326,8 +325,6 @@ int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount,
 		else
 		{
 			float fRadius = m_light.m_fRadius;
-			if (m_light.m_Flags & DLF_AREA_LIGHT) // Use max for area lights.
-				fRadius += max(m_light.m_fAreaWidth, m_light.m_fAreaHeight);
 			SetBBox(AABB(m_light.m_Origin - Vec3(fRadius), m_light.m_Origin + Vec3(fRadius)));
 		}
 
@@ -364,11 +361,8 @@ int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount,
 
 int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLodCount, bool isHeightMapAOEnabled, float& fDistFromViewDynamicLod, float fRadiusDynamicLod, const SRenderingPassInfo& passInfo)
 {
-	ShadowFrustumMGPUCache* pFrustumCache = GetRenderer()->GetShadowFrustumMGPUCache();
-	assert(pFrustumCache);
-
 	const int firstCachedFrustumIndex = nFirstLod + nLodCount;
-	const bool bRestoreFromCache = GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->nUpdateMaskMT != 0 && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex];
+	const bool bRestoreFromCache = GetRenderer()->GetActiveGPUCount() > 1 && GetRenderer()->GetShadowCacheUdapteMasks()->nUpdateMaskMT != 0 && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex];
 
 	int nLod = 0;
 
@@ -376,10 +370,10 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 	{
 		for (nLod = 0; nLod < nLodCount; ++nLod)
 		{
-			assert(pFrustumCache->m_staticShadowMapFrustums[nLod] && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
+			CRY_ASSERT(s_shadowFrustumCache.m_staticShadowMapFrustums[nLod] && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
 
 			ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod];
-			*pFr = *pFrustumCache->m_staticShadowMapFrustums[nLod];
+			*pFr = *s_shadowFrustumCache.m_staticShadowMapFrustums[nLod];
 			pFr->bIsMGPUCopy = true;
 
 			CollectShadowCascadeForOnePassTraversal(pFr);
@@ -387,10 +381,10 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 
 		if (isHeightMapAOEnabled)
 		{
-			assert(pFrustumCache->m_pHeightMapAOFrustum && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
+			CRY_ASSERT(s_shadowFrustumCache.m_pHeightMapAOFrustum && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
 
 			ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod];
-			*pFr = *pFrustumCache->m_pHeightMapAOFrustum;
+			*pFr = *s_shadowFrustumCache.m_pHeightMapAOFrustum;
 			pFr->bIsMGPUCopy = true;
 
 			CollectShadowCascadeForOnePassTraversal(pFr);
@@ -408,7 +402,7 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 
 		if (s_lstTmpCastersHull.empty())
 		{
-			assert(m_light.m_Flags & DLF_SUN);
+			CRY_ASSERT(m_light.m_Flags & DLF_SUN);
 			MakeShadowCastersHull(s_lstTmpCastersHull, passInfo);
 		}
 
@@ -422,8 +416,8 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 			pFr->bIsMGPUCopy = false;
 
 			// update MGPU frustum cache
-			if (GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->m_staticShadowMapFrustums[nLod])
-				*pFrustumCache->m_staticShadowMapFrustums[nLod] = *pFr;
+			if (GetRenderer()->GetActiveGPUCount() > 1 && s_shadowFrustumCache.m_staticShadowMapFrustums[nLod])
+				*s_shadowFrustumCache.m_staticShadowMapFrustums[nLod] = *pFr;
 
 			// update distance from view
 			Vec3 vEdgeScreen = GSM_GetNextScreenEdge(fRadiusDynamicLod, fDistFromViewDynamicLod, passInfo);
@@ -439,8 +433,8 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 
 			shadowCache.InitHeightMapAOFrustum(pFr, nFirstLod + nLod, nFirstLod, passInfo);
 			pFr->bIsMGPUCopy = false;
-			if (GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->m_pHeightMapAOFrustum)
-				*pFrustumCache->m_pHeightMapAOFrustum = *pFr;
+			if (GetRenderer()->GetActiveGPUCount() > 1 && s_shadowFrustumCache.m_pHeightMapAOFrustum)
+				*s_shadowFrustumCache.m_pHeightMapAOFrustum = *pFr;
 
 			CollectShadowCascadeForOnePassTraversal(pFr);
 
@@ -453,7 +447,7 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 		Get3DEngine()->m_nCachedShadowsUpdateStrategy = ShadowMapFrustum::ShadowCacheData::eIncrementalUpdate;
 
 		int nActiveGPUCount = GetRenderer()->GetActiveGPUCount();
-		pFrustumCache->nUpdateMaskMT = (1 << nActiveGPUCount) - 1;
+		GetRenderer()->GetShadowCacheUdapteMasks()->nUpdateMaskMT = (1 << nActiveGPUCount) - 1;
 	}
 
 	return nLod;
@@ -511,7 +505,7 @@ bool CLightEntity::ProcessFrustum(int nLod, float fGSMBoxSize, float fDistanceFr
 		const uint32 renderNodeFlags = pFr->m_eFrustumType == ShadowMapFrustum::e_GsmDynamicDistance ? ERF_DYNAMIC_DISTANCESHADOWS : 0xFFFFFFFF;
 		SetupShadowFrustumCamera_SUN(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, renderNodeFlags, lstCastersHull, nLod, passInfo);
 	}
-	else if (m_light.m_Flags & (DLF_PROJECT | DLF_AREA_LIGHT))
+	else if (m_light.m_Flags & DLF_PROJECT)
 	{
 		InitShadowFrustum_PROJECTOR(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
 		SetupShadowFrustumCamera_PROJECTOR(pFr, SMC_EXTEND_FRUSTUM | SMC_SHADOW_FRUSTUM_TEST, passInfo);
@@ -648,7 +642,6 @@ void CLightEntity::InitShadowFrustum_SUN_Conserv(ShadowMapFrustum* pFr, int dwAl
 
 	//if(pFr->isUpdateRequested(-1))
 	pFr->vProjTranslation = passInfo.GetCamera().GetPosition() + fDistance * vViewDir;
-	;
 
 	// local jitter amount depends on frustum size
 	pFr->fFrustrumSize = 1.0f / (fGSMBoxSize * (float)Get3DEngine()->m_fGsmRange);
@@ -1303,7 +1296,6 @@ bool CLightEntity::CheckFrustumsIntersect(CLightEntity* lightEnt)
 		{
 			CCamera shadowFrust1 = pFr1->FrustumPlanes[nS1];
 			CCamera shadowFrust2 = pFr2->FrustumPlanes[nS2];
-			;
 
 			if (FrustumIntersection(shadowFrust1, shadowFrust2))
 			{
@@ -1425,7 +1417,7 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 		fSMZ1 /= fCamFactor;
 
 		float fCoverageScaleFactor = GetCVars()->e_ShadowsResScale;
-		if (!(m_light.m_Flags & (DLF_PROJECT | DLF_AREA_LIGHT)))
+		if (!(m_light.m_Flags & DLF_PROJECT))
 			fCoverageScaleFactor /= 3.5f;
 
 		nTexSize = int((fSMZ1 - fSMZ0) * ((float)GetCVars()->e_ShadowsMaxTexRes * fCoverageScaleFactor /*/(7*cCam.GetFarPlane())*/));
@@ -1435,7 +1427,7 @@ void CLightEntity::InitShadowFrustum_PROJECTOR(ShadowMapFrustum* pFr, int dwAllo
 
 		uint32 nMinRes, nMaxRes, nPhysicalMaxRes;
 
-		if (m_light.m_Flags & (DLF_PROJECT | DLF_AREA_LIGHT))
+		if (m_light.m_Flags & DLF_PROJECT)
 		{
 			nMinRes = MIN_SHADOW_RES_PROJ_LIGHT;
 			nMaxRes = nMaxTexRes;
@@ -1815,15 +1807,14 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 
 	DBG_LOCK_TO_THREAD(this);
 
+	CRY_ASSERT(!(m_light.m_Flags & DLF_DISABLED));
+
 #if defined(FEATURE_SVO_GI)
 	if (GetCVars()->e_svoTI_SkipNonGILights && GetCVars()->e_svoTI_Apply && !GetGIMode())
 		return;
 	if (GetCVars()->e_svoTI_Apply && (IRenderNode::GetGIMode() == eGM_HideIfGiIsActive))
 		return;
 #endif
-
-	if (m_layerId != uint16(~0) && m_dwRndFlags & ERF_HIDDEN)
-		return;
 
 	if (!(m_light.m_Flags & DLF_DEFERRED_LIGHT) || passInfo.IsRecursivePass())
 		return;
@@ -1857,15 +1848,6 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 		OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_light.m_ObjMatrix), AABB(-m_light.m_ProbeExtents, m_light.m_ProbeExtents)));
 		bIsVisible = passInfo.GetCamera().IsOBBVisible_F(m_light.m_Origin, obb);
 	}
-	else if (m_light.m_Flags & DLF_AREA_LIGHT)
-	{
-		// OBB test for area lights.
-		Vec3 vBoxMax(m_light.m_fRadius, m_light.m_fRadius + m_light.m_fAreaWidth, m_light.m_fRadius + m_light.m_fAreaHeight);
-		Vec3 vBoxMin(-0.1f, -(m_light.m_fRadius + m_light.m_fAreaWidth), -(m_light.m_fRadius + m_light.m_fAreaHeight));
-
-		OBB obb(OBB::CreateOBBfromAABB(Matrix33(m_light.m_ObjMatrix), AABB(vBoxMin, vBoxMax)));
-		bIsVisible = passInfo.GetCamera().IsOBBVisible_F(m_light.m_BaseOrigin, obb);
-	}
 	else
 		bIsVisible = passInfo.GetCamera().IsSphereVisible_F(sp);
 
@@ -1873,9 +1855,6 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 		return;
 
 	//assert(m_light.IsOk());
-
-	if ((m_light.m_Flags & DLF_DISABLED) || (!GetCVars()->e_DynamicLights))
-		return;
 
 	if ((m_light.m_Flags & DLF_PROJECT) && (m_light.m_fLightFrustumAngle < 90.f) && (m_light.m_pLightImage || m_light.m_pLightDynTexSource))
 #if defined(FEATURE_SVO_GI)
@@ -2037,8 +2016,7 @@ void CLightEntity::Render(const SRendParams& rParams, const SRenderingPassInfo& 
 
 void CLightEntity::Hide(bool bHide)
 {
-	SetRndFlags(ERF_HIDDEN, bHide);
-
+	ILightSource::Hide(bHide);
 	if (bHide)
 	{
 		m_light.m_Flags |= DLF_DISABLED;
@@ -2060,7 +2038,7 @@ IRenderNode::EGIMode CLightEntity::GetGIMode() const
 {
 	if (IRenderNode::GetGIMode() == eGM_StaticVoxelization || IRenderNode::GetGIMode() == eGM_DynamicVoxelization || m_light.m_Flags & DLF_SUN)
 	{
-		if (!(m_light.m_Flags & (DLF_DISABLED | DLF_FAKE | DLF_VOLUMETRIC_FOG_ONLY | DLF_AMBIENT | DLF_DEFERRED_CUBEMAPS)) && !(m_dwRndFlags & ERF_HIDDEN))
+		if (!(m_light.m_Flags & (DLF_DISABLED | DLF_FAKE | DLF_VOLUMETRIC_FOG_ONLY | DLF_AMBIENT | DLF_DEFERRED_CUBEMAPS)) && !IsHidden())
 		{
 			if (m_light.m_BaseColor.Luminance() > .01f && m_light.m_fRadius > 0.5f)
 			{
@@ -2170,6 +2148,25 @@ Vec3 CLightEntity::GetPos(bool bWorldOnly) const
 {
 	assert(bWorldOnly);
 	return m_light.m_Origin;
+}
+
+SShadowFrustumMGPUCache::SShadowFrustumMGPUCache()
+{
+	m_pHeightMapAOFrustum = new ShadowMapFrustum;
+
+	for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
+	{
+		m_staticShadowMapFrustums[i] = new ShadowMapFrustum;
+	}
+};
+
+SShadowFrustumMGPUCache::~SShadowFrustumMGPUCache()
+{
+	m_pHeightMapAOFrustum = nullptr;
+	for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
+	{
+		m_staticShadowMapFrustums[i] = nullptr;
+	}
 }
 
 #pragma warning(pop)

@@ -33,10 +33,10 @@ public:
 	float m_dopplerScale = 1.0f;
 	float m_rolloffScale = 1.0f;
 
-#if defined(CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE)
+#if defined(CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE)
 	int m_enableLiveUpdate = 0;
 	int m_debugListFilter = 0;
-#endif  // CRY_AUDIO_IMPL_FMOD_USE_PRODUCTION_CODE
+#endif  // CRY_AUDIO_IMPL_FMOD_USE_DEBUG_CODE
 };
 
 extern CCVars g_cvars;

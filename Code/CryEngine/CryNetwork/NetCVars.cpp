@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "NetCVars.h"
 #include "NetDebugInfo.h"
+#include <CrySystem/ConsoleRegistration.h>
 #if NEW_BANDWIDTH_MANAGEMENT
 	#include <CryGame/IGameFramework.h>
 	#include "Protocol/NetNub.h"
@@ -112,6 +113,7 @@ CNetCVars::CNetCVars()
 
 #if CRY_PLATFORM_DURANGO
 	REGISTER_CVAR2_DEV_ONLY("net_threadAffinity", &networkThreadAffinity, 5, VF_DUMPTODISK, "Xbox network thread affinity");
+	REGISTER_CVAR(net_xboxAssociationTemplateName, "CryNetworkTraffic", VF_REQUIRE_APP_RESTART, _HELP("Xbox secure device association template set in the application manifest"));
 #endif
 
 #if LOCK_NETWORK_FREQUENCY == 0

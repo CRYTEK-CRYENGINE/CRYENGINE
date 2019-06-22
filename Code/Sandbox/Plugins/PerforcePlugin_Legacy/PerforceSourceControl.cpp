@@ -20,6 +20,8 @@
 #include <QLineEdit>
 #include <QtUtil.h>
 
+#define CRY_PAK_LEGACY_MAX_PATH 2048
+
 extern CPerforceSourceControl* g_pPerforceControl;
 
 REGISTER_TRAY_AREA_WIDGET(CPerforceTrayWidget, 100)
@@ -103,7 +105,6 @@ private:
 
 CPerforceTrayWidget::CPerforceTrayWidget(QWidget* pParent /*= nullptr*/)
 {
-	CMyClientApi& clientApi = g_pPerforceControl->GetClientApi();
 	m_pPopUpMenu = new QPopupWidget("PerforceSettingsPopUp", QtUtil::MakeScrollable(new PerforceSettings()), QSize(340, 150), true);
 	m_pPopUpMenu->SetFocusShareWidget(this);
 	connect(this, &QToolButton::clicked, this, &CPerforceTrayWidget::OnClicked);
@@ -460,13 +461,13 @@ void CPerforceSourceControl::ConvertFileNameCS(char* sDst, const char* sSrcFilen
 	*sDst = 0;
 	bool bFinded = true;
 
-	char szAdjustedFile[ICryPak::g_nMaxPath];
+	char szAdjustedFile[CRY_PAK_LEGACY_MAX_PATH];
 	cry_strcpy(szAdjustedFile, sSrcFilename);
 
 	//_finddata_t fd;
 	WIN32_FIND_DATA fd;
 
-	char csPath[ICryPak::g_nMaxPath] = { 0 };
+	char csPath[CRY_PAK_LEGACY_MAX_PATH] = { 0 };
 
 	char* ch, * ch1;
 
@@ -487,7 +488,7 @@ void CPerforceSourceControl::ConvertFileNameCS(char* sDst, const char* sSrcFilen
 		//if (handle != -1)
 		if (handle != INVALID_HANDLE_VALUE)
 		{
-			char tmp[ICryPak::g_nMaxPath];
+			char tmp[CRY_PAK_LEGACY_MAX_PATH];
 			cry_strcpy(tmp, csPath);
 			//cry_strcpy(csPath, fd.name);
 			cry_strcpy(csPath, fd.cFileName);
@@ -553,8 +554,8 @@ void CPerforceSourceControl::ConvertFileNameCS(char* sDst, const char* sSrcFilen
 
 void CPerforceSourceControl::MakePathCS(char* sDst, const char* sSrcFilename)
 {
-	char szAdjustedFile[ICryPak::g_nMaxPath];
-	char szCheckedPath[ICryPak::g_nMaxPath];
+	char szAdjustedFile[CRY_PAK_LEGACY_MAX_PATH];
+	char szCheckedPath[CRY_PAK_LEGACY_MAX_PATH];
 	cry_strcpy(szAdjustedFile, sSrcFilename);
 
 	char* ch = &szAdjustedFile[0];
@@ -638,8 +639,8 @@ void CPerforceSourceControl::RenameFolders(const char* path, const char* pathOld
 		const char* const ch1 = strchr(ch, '\\');
 		if (ch1 && strncmp(ch, &path[ch - pathOld], ch1 - ch))
 		{
-			char newpath[ICryPak::g_nMaxPath];
-			char newpathOld[ICryPak::g_nMaxPath];
+			char newpath[CRY_PAK_LEGACY_MAX_PATH];
+			char newpathOld[CRY_PAK_LEGACY_MAX_PATH];
 			cry_strcpy(newpath, path, (size_t)(ch1 - pathOld));
 			cry_strcpy(newpathOld, pathOld, (size_t)(ch1 - pathOld));
 			MoveFile(newpathOld, newpath);
@@ -872,7 +873,7 @@ uint32 CPerforceSourceControl::GetFileAttributesAndFullFileName(const char* file
 	else
 		cry_strcat(sFullFilenameLC, filename);
 
-	char sFullFilename[ICryPak::g_nMaxPath];
+	char sFullFilename[CRY_PAK_LEGACY_MAX_PATH];
 	ConvertFileNameCS(sFullFilename, sFullFilenameLC);
 
 	if (FullFileName)
@@ -1062,7 +1063,7 @@ bool CPerforceSourceControl::IsFolder(const char* filename, char* FullFileName)
 {
 	bool bFolder = false;
 
-	char sFullFilename[ICryPak::g_nMaxPath];
+	char sFullFilename[CRY_PAK_LEGACY_MAX_PATH];
 	ConvertFileNameCS(sFullFilename, filename);
 
 	uint32 attr = ::GetFileAttributes(sFullFilename);
@@ -1264,7 +1265,7 @@ bool CPerforceSourceControl::Add(const char* filename, const char* desc, int nFl
 		if (file.Trim().IsEmpty())
 			continue;
 		uint32 attrib = GetFileAttributesAndFullFileName(file, FullFileName);
-		char sFullFilename[ICryPak::g_nMaxPath];
+		char sFullFilename[CRY_PAK_LEGACY_MAX_PATH];
 		if (attrib & SCC_FILE_ATTRIBUTE_FOLDER)
 		{
 			cry_strcpy(sFullFilename, filename);

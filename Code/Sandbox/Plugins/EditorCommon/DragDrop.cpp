@@ -13,7 +13,7 @@
 #include <unordered_map>
 
 //Notes for future usage:
-//CDrag object can be retrived from a drag event
+//CDrag object can be retrieved from a drag event
 // QDrag* const pDrag = pDragEvent->source()->findChild<QDrag*>();
 
 namespace Private_DragDrop
@@ -33,8 +33,8 @@ private:
 	struct SScope
 	{
 		EDisplayMode m_displayMode;
-		QString m_text;
-		QPixmap m_pixmap;
+		QString      m_text;
+		QPixmap      m_pixmap;
 
 		SScope()
 			: m_displayMode(EDisplayMode::Clear)
@@ -71,7 +71,7 @@ public:
 		scope.m_displayMode = EDisplayMode::Text;
 		scope.m_text = text;
 	}
-	
+
 	void SetPixmap(QWidget* pWidget, const QPixmap& pixmap)
 	{
 		SScope& scope = GetScope(pWidget);
@@ -98,14 +98,6 @@ public:
 
 	void Update()
 	{
-		if (!m_bDragging)
-		{
-			/*
-			QTrackingTooltip::HideTooltip(&m_trackingTooltip);
-			return;
-			*/
-		}
-
 		QWidget* const pSubject = qApp->widgetAt(QCursor::pos());
 		const SScope& scope = pSubject ? GetScope(pSubject) : m_defaultScope;
 
@@ -149,12 +141,15 @@ private:
 private:
 	std::unordered_map<const QObject*, std::unique_ptr<SScope>> m_scopes;
 	SScope m_defaultScope;
-	QSharedPointer<QTrackingTooltip> m_trackingTooltip;
+	QSharedPointer<QTrackingTooltip>                            m_trackingTooltip;
 	QTimer m_timer;
-	bool m_bDragging;
+	bool   m_bDragging;
 };
 
 } // namespace PrivateDragDrop
+
+CCrySignal<void(QMimeData*)> CDragDropData::signalDragStart;
+CCrySignal<void(QMimeData*)> CDragDropData::signalDragEnd;
 
 QString CDragDropData::GetMimeFormatForType(const char* type)
 {
@@ -192,10 +187,10 @@ bool CDragDropData::HasFilePaths() const
 	// List of accepted MIME formats (in this order).
 	return hasUrls();
 	//These formats are not currently supported but are part of the mime types you get when drag&dropping from Windows explorer
-/*
-		|| hasFormat(QStringLiteral("application/x-qt-windows-mime;value=\"FileName\""))
-		|| hasFormat(QStringLiteral("application/x-qt-windows-mime;value=\"FileNameW\""));
-*/
+	/*
+	|| hasFormat(QStringLiteral("application/x-qt-windows-mime;value=\"FileName\""))
+	|| hasFormat(QStringLiteral("application/x-qt-windows-mime;value=\"FileNameW\""));
+	*/
 }
 
 QStringList CDragDropData::GetFilePaths() const
@@ -209,8 +204,10 @@ QStringList CDragDropData::GetFilePaths() const
 		QList<QUrl> urls = QMimeData::urls();
 		QList<QUrl>::const_iterator it = urls.constBegin();
 
-		for (; it != urls.constEnd(); ++it) 
+		for (; it != urls.constEnd(); ++it)
+		{
 			filePaths.append((*it).toLocalFile());
+		}
 	}
 
 	return filePaths;
@@ -237,8 +234,10 @@ void CDragDropData::ShowDragPixmap(QWidget* pWidget, const QPixmap& what, const 
 	using namespace Private_DragDrop;
 	CDragTooltip::GetInstance().SetPixmap(pWidget, what);
 
-	if(!pixmapCursorOffset.isNull())
+	if (!pixmapCursorOffset.isNull())
+	{
 		CDragTooltip::GetInstance().SetCursorOffset(pixmapCursorOffset);
+	}
 }
 
 void CDragDropData::ClearDragTooltip(QWidget* pWidget)
@@ -259,8 +258,14 @@ void CDragDropData::StartDrag(QObject* pDragSource, Qt::DropActions supportedAct
 	{
 		tooltip.SetDefaultPixmap(*pPixmap);
 		if (!pixmapCursorOffset.isNull())
+		{
 			tooltip.SetCursorOffset(pixmapCursorOffset);
+		}
 	}
+
+	signalDragStart(pMimeData);
 	pDrag->exec(supportedActions);
+	signalDragEnd(pMimeData);
+
 	tooltip.StopDrag();
 }

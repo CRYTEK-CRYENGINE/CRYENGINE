@@ -3560,7 +3560,7 @@ void CItem::UnRegisterAs3pAudioCacheUser()
 
 void CItem::AudioCacheItemAndAccessories(const bool enable, const char* type)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CItem::AudioCacheItem");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CItem::AudioCacheItem");
 	IEntityClass* pClass = GetEntity()->GetClass();
 	g_pGame->GetWeaponSystem()->GetWeaponAlias().UpdateClass(&pClass);
 	AudioCacheItem(enable, pClass, "", type);

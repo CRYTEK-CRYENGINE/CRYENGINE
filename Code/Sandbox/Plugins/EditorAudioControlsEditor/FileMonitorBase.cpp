@@ -3,8 +3,7 @@
 #include "StdAfx.h"
 #include "FileMonitorBase.h"
 
-#include "AudioControlsEditorPlugin.h"
-
+#include <IEditor.h>
 #include <CryString/CryPath.h>
 
 namespace ACE

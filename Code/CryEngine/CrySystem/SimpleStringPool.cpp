@@ -94,7 +94,7 @@ void CSimpleStringPool::Clear()
 char * CSimpleStringPool::Append(const char * ptr, int nStrLen)
 {
 
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "StringPool");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "StringPool");
 
 	assert(nStrLen <= 100000);
 
@@ -126,7 +126,7 @@ char * CSimpleStringPool::Append(const char * ptr, int nStrLen)
 
 	if (m_reuseStrings)
 	{
-		MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "String map");
+		MEMSTAT_CONTEXT(EMemStatContextType::Other, "String map");
 		assert(!FindExistingString(ptr, nStrLen));
 		m_stringToExistingStringMap[SStringData(ret, nStrLen)] = ret;
 	}

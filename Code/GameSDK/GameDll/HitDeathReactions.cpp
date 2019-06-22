@@ -1794,13 +1794,13 @@ bool CHitDeathReactions::SendAISignal(const AISignals::ISignalDescription& signa
 	{
 		if (!bWaitOpOnly)
 		{
-			const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, signalDesc, pAI->GetAIObjectID(), pData);
+			const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_INCLUDE_DISABLED, signalDesc, pAI->GetEntityID(), pData);
 			gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 			bResult = true;
 		}
 		else if (IAIActor *pAIActor = CastToIAIActorSafe(pAI))
 		{
-			pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_NOTIFY_ONLY, signalDesc, m_actor.GetEntity()->GetAIObjectID(), pData));
+			pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal(AISIGNAL_NOTIFY_ONLY, signalDesc, m_actor.GetEntity()->GetId(), pData));
 			bResult = true;
 		}
 	}
@@ -1821,13 +1821,13 @@ bool CHitDeathReactions::SendAISignal_DEPRECATED(const char* szSignal, AISignals
 	{
 		if (!bWaitOpOnly)
 		{
-			const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_INCLUDE_DISABLED, szSignal, pAI->GetAIObjectID(), pData);
+			const AISignals::SignalSharedPtr pSignal = gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_INCLUDE_DISABLED, szSignal, pAI->GetEntityID(), pData);
 			gEnv->pAISystem->SendSignal(AISignals::ESignalFilter::SIGNALFILTER_SENDER, pSignal);
 			bResult = true;
 		}
 		else if (IAIActor *pAIActor = CastToIAIActorSafe(pAI))
 		{
-			pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_NOTIFY_ONLY, szSignal, m_actor.GetEntity()->GetAIObjectID(), pData));
+			pAIActor->SetSignal(gEnv->pAISystem->GetSignalManager()->CreateSignal_DEPRECATED(AISIGNAL_NOTIFY_ONLY, szSignal, m_actor.GetEntity()->GetId(), pData));
 			bResult = true;
 		}
 	}

@@ -45,7 +45,7 @@ void TreeVisualizer::Draw(
   const Blackboard& blackboard, 
   const MessageQueue& eventsLog)
 {
-	if (gAIEnv.CVars.ModularBehaviorTreeDebugTree)
+	if (gAIEnv.CVars.behaviorTree.ModularBehaviorTreeDebugTree)
 	{
 		const DebugNode* firstNode = tree.GetFirstNode().get();
 		if (firstNode)
@@ -59,22 +59,22 @@ void TreeVisualizer::Draw(
 		}
 	}
 
-	if (gAIEnv.CVars.ModularBehaviorTreeDebugLog)
+	if (gAIEnv.CVars.behaviorTree.ModularBehaviorTreeDebugLog)
 	{
 		DrawBehaviorLog(behaviorLog);
 	}
 
-	if (gAIEnv.CVars.ModularBehaviorTreeDebugTimestamps)
+	if (gAIEnv.CVars.behaviorTree.ModularBehaviorTreeDebugTimestamps)
 	{
 		DrawTimestampCollection(timestampCollection);
 	}
 
-	if (gAIEnv.CVars.ModularBehaviorTreeDebugBlackboard)
+	if (gAIEnv.CVars.behaviorTree.ModularBehaviorTreeDebugBlackboard)
 	{
 		DrawBlackboard(blackboard);
 	}
 
-	if (gAIEnv.CVars.ModularBehaviorTreeDebugEvents)
+	if (gAIEnv.CVars.behaviorTree.ModularBehaviorTreeDebugEvents)
 	{
 		DrawEventLog(eventsLog);
 	}
@@ -206,17 +206,64 @@ void TreeVisualizer::DrawBlackboard(const Blackboard& blackboard)
 		BlackboardVariableId id = it->first;
 		IBlackboardVariablePtr variable = it->second;
 
+		stack_string variableValue;
 		Serialization::TypeID typeId = variable->GetDataTypeId();
-		if (typeId == Serialization::TypeID::get<Vec3>())
+		if (typeId == Serialization::TypeID::get<int>())
 		{
-			stack_string variableText;
-
+			int data;
+			variable->GetData(data);
+			variableValue.Format("%d", data);
+		}
+		else if (typeId == Serialization::TypeID::get<float>())
+		{
+			float data;
+			variable->GetData(data);
+			variableValue.Format("%.2f", data);
+		}
+		else if (typeId == Serialization::TypeID::get<Vec3>())
+		{
 			Vec3 data;
 			variable->GetData(data);
-			variableText.Format("%s - (%f, %f, %f)", id.name.c_str(), data.x, data.y, data.z);
-
-			DrawLine(variableText.c_str(), Col_White);
+			variableValue.Format("(%.2f, %.2f, %.2f)", data.x, data.y, data.z);
 		}
+		else if (typeId == Serialization::TypeID::get<bool>())
+		{
+			bool data;
+			variable->GetData(data);
+			variableValue.Format("%s", data ? "True" : "False");
+		}
+		else if (typeId == Serialization::TypeID::get<string>())
+		{
+			string data;
+			variable->GetData(data);
+			variableValue.Format("%s", data);
+		}
+		else if (typeId == Serialization::TypeID::get<double>())
+		{
+			double data;
+			variable->GetData(data);
+			variableValue.Format("%.5f", data);
+		}
+		else if (typeId == Serialization::TypeID::get<Vec2>())
+		{
+			Vec2 data;
+			variable->GetData(data);
+			variableValue.Format("(%f, %f)", id.name.c_str(), data.x, data.y);
+		}
+		else if (typeId == Serialization::TypeID::get<char>())
+		{
+			char data;
+			variable->GetData(data);
+			variableValue.Format("%c", data);
+		}
+		else
+		{
+			variableValue = "TYPE NOT SUPPORTED";
+		}
+
+		stack_string variableText;
+		variableText.Format("%s - %s", id.name.c_str(), variableValue.c_str());
+		DrawLine(variableText.c_str(), Col_White);
 	}
 	#endif
 }

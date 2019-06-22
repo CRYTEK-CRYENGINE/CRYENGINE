@@ -13,7 +13,7 @@ namespace Audio
 {
 namespace DefaultComponents
 {
-class CListenerComponent;
+class CDefaultListenerComponent;
 } // namespace DefaultComponents
 } // namespace Audio
 } // namespace Cry
@@ -169,7 +169,7 @@ protected:
 
 	std::vector<SShake> m_shakes;
 
-	Cry::Audio::DefaultComponents::CListenerComponent* m_pAudioListenerComponent;
+	Cry::Audio::DefaultComponents::CDefaultListenerComponent* m_pAudioListenerComponent;
 	IEntity* m_pAudioListenerEntity;
 	Ang3     m_frameAdditiveAngles; // Used mainly for cinematics, where the game can slightly override camera orientation
 

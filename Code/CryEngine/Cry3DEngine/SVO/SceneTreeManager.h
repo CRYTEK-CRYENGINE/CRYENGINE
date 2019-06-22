@@ -1,7 +1,6 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef __SCENETREEMANAGER_H__
-#define __SCENETREEMANAGER_H__
+#pragma once
 
 #if defined(FEATURE_SVO_GI)
 
@@ -22,7 +21,5 @@ public:
 	static void  CheckAllocateGlobalCloud();
 	static void  Release();
 };
-
-#endif
 
 #endif

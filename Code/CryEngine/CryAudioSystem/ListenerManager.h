@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <CryAudio/IAudioInterfacesCommonData.h>
 #include <CryMath/Cry_Math.h>
 
 namespace CryAudio
@@ -18,22 +19,26 @@ public:
 
 	CListenerManager(CListenerManager const&) = delete;
 	CListenerManager(CListenerManager&&) = delete;
-	CListenerManager&      operator=(CListenerManager const&) = delete;
-	CListenerManager&      operator=(CListenerManager&&) = delete;
+	CListenerManager& operator=(CListenerManager const&) = delete;
+	CListenerManager& operator=(CListenerManager&&) = delete;
 
-	void                   Terminate();
-	void                   OnAfterImplChanged();
-	void                   ReleaseImplData();
-	void                   Update(float const deltaTime);
-	CListener*             CreateListener(CTransformation const& transformation, char const* const szName);
-	void                   ReleaseListener(CListener* const pListener);
-	CTransformation const& GetActiveListenerTransformation() const;
+	void              Initialize();
+	void              Terminate();
+	void              ReleaseImplData();
+	void              Update(float const deltaTime);
+	CListener*        CreateListener(CTransformation const& transformation, char const* const szName, bool const isUserCreated);
+	void              ReleaseListener(CListener* const pListener);
+	CListener*        GetListener(ListenerId const id) const;
+	void              GetUniqueListenerName(char const* const szName, CryFixedStringT<MaxObjectNameLength>& newName);
 
-#if defined(CRY_AUDIO_USE_PRODUCTION_CODE)
-	size_t GetNumActiveListeners() const;
-#endif // CRY_AUDIO_USE_PRODUCTION_CODE
+#if defined(CRY_AUDIO_USE_DEBUG_CODE)
+	size_t GetNumListeners() const { return m_constructedListeners.size(); }
+	void   ReconstructImplData();
+#endif // CRY_AUDIO_USE_DEBUG_CODE
 
 private:
+
+	void GenerateUniqueListenerName(CryFixedStringT<MaxObjectNameLength>& name);
 
 	std::vector<CListener*> m_constructedListeners;
 };

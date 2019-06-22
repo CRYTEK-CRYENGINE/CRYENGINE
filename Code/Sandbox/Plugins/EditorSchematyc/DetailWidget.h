@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <QPropertyTree/ContextList.h>
+#include <QPropertyTreeLegacy/ContextList.h>
 #include <CrySchematyc/Env/IEnvRegistry.h>
 #include <CrySchematyc/Services/ISettingsManager.h>
 #include <CrySchematyc/Utils/Signal.h>

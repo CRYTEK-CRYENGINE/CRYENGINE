@@ -209,7 +209,6 @@ ImageObject* ImageObject::CopyImage() const
 	uint32 dwMips = pRet->GetMipCount();
 	for (uint32 dwMip = 0; dwMip < dwMips; ++dwMip)
 	{
-		uint32 dwLocalWidth = GetWidth(dwMip);			// we get error on NVidia with this (assumes input is 4x4 as well)
 		uint32 dwLocalHeight = GetHeight(dwMip);
 
 		uint32 dwLines = dwLocalHeight;
@@ -293,7 +292,6 @@ void ImageObject::ClearImage()
 	uint32 dwMips = GetMipCount();
 	for (uint32 dwMip = 0; dwMip < dwMips; ++dwMip)
 	{
-		uint32 dwLocalWidth = GetWidth(dwMip);			// we get error on NVidia with this (assumes input is 4x4 as well)
 		uint32 dwLocalHeight = GetHeight(dwMip);
 
 		uint32 dwLines = dwLocalHeight;

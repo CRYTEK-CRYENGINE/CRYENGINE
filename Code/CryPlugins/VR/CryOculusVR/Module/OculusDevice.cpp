@@ -887,7 +887,7 @@ void Device::CommitTextureSwapChain(const SHmdSwapChainInfo* pSwapChain)
 
 OculusStatus Device::BeginFrame(uint64_t frameId)
 {
-	CRY_PROFILE_REGION(PROFILE_SYSTEM, "OculusDevice::BeginFrame()");
+	CRY_PROFILE_SECTION(PROFILE_SYSTEM, "OculusDevice::BeginFrame()");
 
 	const auto waitResult = CheckOvrResult(ovr_WaitToBeginFrame(m_pSession, frameId));
 	const auto beginResult = CheckOvrResult(ovr_BeginFrame(m_pSession, frameId));
@@ -952,7 +952,7 @@ OculusStatus Device::SubmitFrame(const SHmdSubmitFrameData &data)
 	this->OnEndFrame();
 
 	{
-		CRY_PROFILE_REGION(PROFILE_SYSTEM, "OculusDevice::ovr_EndFrame");
+		CRY_PROFILE_SECTION(PROFILE_SYSTEM, "OculusDevice::ovr_EndFrame");
 		// Submit all active layers to Oculus runtime
 		// (Is expected to be called after PrepareFrame() on same thread)
 		return CheckOvrResult(ovr_EndFrame(m_pSession, m_currentFrameId, &frameParams.viewScaleDesc, activeLayers, numActiveLayers));

@@ -338,7 +338,7 @@ void CGameRulesAssistScoring::OnEntityKilled(const HitInfo &hitInfo)
 		char weaponClassName[128];
 		if (!g_pGame->GetIGameFramework()->GetNetworkSafeClassName(weaponClassName, sizeof(weaponClassName), hitInfo.weaponClassId))
 		{
-			cry_strcpy(weaponClassName, "unknown weapon");
+			cry_fixed_size_strcpy(weaponClassName, "unknown weapon");
 		}
 
 		EntityId victimId = hitInfo.targetId;

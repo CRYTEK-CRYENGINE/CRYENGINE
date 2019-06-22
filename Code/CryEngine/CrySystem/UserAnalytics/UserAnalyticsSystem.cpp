@@ -8,6 +8,7 @@
 
 	#include <CrySystem/UserAnalytics/IUserAnalytics.h>
 	#include <CrySystem/UserAnalytics/ICryUserAnalyticsPlugin.h>
+	#include <CrySystem/ConsoleRegistration.h>
 	#include "ExtensionSystem/CryPluginManager.h"
 
 int CUserAnalyticsSystem::m_enableUserAnalyticsCollect = 0;

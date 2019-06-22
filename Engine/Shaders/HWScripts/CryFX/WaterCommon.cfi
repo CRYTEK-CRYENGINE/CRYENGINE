@@ -88,8 +88,10 @@ cbuffer CBPerPassWater : register(b5)
 		float4 vfHeightDensityParams; // PB_VolumetricFogHeightDensityParams
 		float4 vfHeightDensityRampParams; // PB_VolumetricFogHeightDensityRampParams
 		float4 vfDistanceParams; // PB_VolumetricFogDistanceParams
+#if %_RT_VOLUMETRIC_FOG
 		float4 vfGlobalEnvProbeParams0; // PB_VolumetricFogGlobalEnvProbe0
 		float4 vfGlobalEnvProbeParams1; // PB_VolumetricFogGlobalEnvProbe1
+#endif
 	} cbVoxVolFog;
 
 	// forward shadow map sampling parameters.
@@ -219,11 +221,13 @@ SVolumetricFogParams GetVolumetricFogParams()
 	params.farDistCenterLeft = cbVoxVolFog.vfDistanceParams.z;
 	params.farDistCenter = cbVoxVolFog.vfDistanceParams.w;
 
+#if %_RT_VOLUMETRIC_FOG
 	params.globalProbeColor0 = cbVoxVolFog.vfGlobalEnvProbeParams0.xyz;
 	params.globalProbeAttenuation0 = cbVoxVolFog.vfGlobalEnvProbeParams0.w;
 
 	params.globalProbeColor1 = cbVoxVolFog.vfGlobalEnvProbeParams1.xyz;
 	params.globalProbeAttenuation1 = cbVoxVolFog.vfGlobalEnvProbeParams1.w;
+#endif
 
 	params.timeParams.x = CV_AnimGenParams.z;
 	params.timeParams.y = CV_AnimGenParams.z * 0.5f;

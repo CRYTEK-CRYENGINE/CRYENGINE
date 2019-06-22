@@ -1126,11 +1126,10 @@ void CTriMesh::GetRandomPoints(Array<PosNorm> points, CRndGen& seed, EGeomForm e
 	}
 	else
 	{
-		CGeomExtent const& extent = m_Extents[eForm];
-		if (!extent.NumParts())
+		if (!m_Extents[eForm].NumParts())
 			return points.fill(ZERO);
 		for (auto& ran : points) {
-			int nPart = extent.RandomPart(seed);
+			int nPart = m_Extents[eForm].RandomPart(seed);
 
 			int aIndices[3];
 			PosNorm aRan[3];

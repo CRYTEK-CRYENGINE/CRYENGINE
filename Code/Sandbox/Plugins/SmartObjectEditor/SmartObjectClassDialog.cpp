@@ -65,10 +65,8 @@ HTREEITEM CSmartObjectClassDialog::ForcePath(const CString& location)
 
 void CSmartObjectClassDialog::RemoveItemAndDummyParents(HTREEITEM item)
 {
-	assert(item && !m_TreeCtrl.ItemHasChildren(item));
-
-	unsigned count = m_mapStringToItem.erase(m_TreeCtrl.GetItemText(item));
-	assert(count == 1);
+	CRY_ASSERT(item && !m_TreeCtrl.ItemHasChildren(item));
+	CRY_VERIFY(m_mapStringToItem.erase(m_TreeCtrl.GetItemText(item)) == 1);
 
 	while (item && !m_TreeCtrl.ItemHasChildren(item))
 	{

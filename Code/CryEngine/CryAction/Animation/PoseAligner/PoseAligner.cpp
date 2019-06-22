@@ -8,6 +8,7 @@
 
 #include "PoseAligner.h"
 #include <CryRenderer/IRenderAuxGeom.h>
+#include <CrySystem/ConsoleRegistration.h>
 
 #define UNKNOWN_GROUND_HEIGHT -1E10f
 

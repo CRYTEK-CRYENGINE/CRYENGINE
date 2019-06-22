@@ -777,7 +777,7 @@ bool CViewport::MouseCallback(EMouseEvent event, CPoint& point, int flags)
 	// it may call the engine again and cause a deadlock.
 	// Concrete example: CryPhysics called from Trackview causing an assert, and moving the cursor over the viewport
 	// would cause the editor to freeze as it calls CryPhysics again for a raycast while it didn't release the lock.
-	if (gEnv->pSystem->IsAssertDialogVisible())
+	if (Cry::Assert::IsInAssert())
 	{
 		return true;
 	}

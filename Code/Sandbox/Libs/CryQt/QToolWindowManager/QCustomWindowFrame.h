@@ -4,8 +4,8 @@
 #include "QToolWindowManagerCommon.h"
 #include <QFrame>
 
+class QBoxLayout;
 class QCustomWindowFrame;
-class QGridLayout;
 class QLabel;
 class QPushButton;
 class QToolButton;
@@ -52,10 +52,12 @@ protected:
 
 class QTOOLWINDOWMANAGER_EXPORT QCustomWindowFrame : public QFrame
 {
+	Q_OBJECT
+	Q_PROPERTY(int resizeMargin READ GetResizeMargin WRITE SetResizeMargin DESIGNABLE true)
+
 public:
 	static QCustomWindowFrame* wrapWidget(QWidget* w);
 
-	Q_OBJECT;
 public:
 	QCustomWindowFrame();
 	virtual ~QCustomWindowFrame();
@@ -84,11 +86,16 @@ protected slots:
 	void                    updateWindowFlags();
 	void                    onIconChange();
 
+private:
+	int GetResizeMargin() const { return m_resizeMargin; }
+	void SetResizeMargin(int resizeMargin) { m_resizeMargin = resizeMargin; }
+
 protected:
 
 	QWidget*         m_contents;
 	QCustomTitleBar* m_titleBar;
-	QGridLayout*     m_grid;
+	QBoxLayout*      m_layout;
+	int              m_resizeMargin;
 
 #if (defined(_WIN32) || defined(_WIN64))
 	// DWM library

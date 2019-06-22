@@ -46,6 +46,16 @@ public:
 	virtual bool OnClientTimingOut(int channelId, EDisconnectionCause cause, const char* description) override { return true; }
 	// ~INetworkedClientListener
 
+	// Helper function to call the specified callback for every player in the game
+	void IterateOverPlayers(std::function<void(CPlayerComponent& player)> func) const;
+
+	// Helper function to get the CGamePlugin instance
+	// Note that CGamePlugin is declared as a singleton, so the CreateClassInstance will always return the same pointer
+	static CGamePlugin* GetInstance()
+	{
+		return cryinterface_cast<CGamePlugin>(CGamePlugin::s_factory.CreateClassInstance().get());
+	}
+
 protected:
 	// Map containing player components, key is the channel id received in OnClientConnectionReceived
 	std::unordered_map<int, EntityId> m_players;

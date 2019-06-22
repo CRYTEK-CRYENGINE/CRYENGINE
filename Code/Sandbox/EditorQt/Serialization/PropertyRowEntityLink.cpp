@@ -15,9 +15,9 @@ struct PropertyRowEntityLink::Picker : IPickObjectCallback
 {
 	PropertyRowEntityLink* row;
 	bool picking;
-	PropertyTree*                           tree;
+	PropertyTreeLegacy*                           tree;
 
-	Picker(PropertyRowEntityLink* row, PropertyTree* tree)
+	Picker(PropertyRowEntityLink* row, PropertyTreeLegacy* tree)
 		: row(row)
 		, picking(false)
 		, tree(tree)
@@ -48,7 +48,7 @@ struct PropertyRowEntityLink::Picker : IPickObjectCallback
 
 // ---------------------------------------------------------------------------
 
-EntityLinkMenuHandler::EntityLinkMenuHandler(PropertyTree* tree, PropertyRowEntityLink* self)
+EntityLinkMenuHandler::EntityLinkMenuHandler(PropertyTreeLegacy* tree, PropertyRowEntityLink* self)
 	: self(self), tree(tree)
 {
 }
@@ -94,7 +94,7 @@ void PropertyRowEntityLink::select()
 		manager->SelectObject(pObject);
 }
 
-void PropertyRowEntityLink::pick(PropertyTree* tree)
+void PropertyRowEntityLink::pick(PropertyTreeLegacy* tree)
 {
 	if (!picker_)
 		picker_.reset(new Picker(this, tree));
@@ -119,7 +119,7 @@ void PropertyRowEntityLink::serializeValue(Serialization::IArchive& ar)
 	ar(name_, "name_");
 }
 
-property_tree::Icon PropertyRowEntityLink::buttonIcon(const PropertyTree* tree, int index) const
+property_tree::Icon PropertyRowEntityLink::buttonIcon(const PropertyTreeLegacy* tree, int index) const
 {
 	return property_tree::Icon("icons:Navigation/Basics_Select.ico");
 }
@@ -143,7 +143,7 @@ void PropertyRowEntityLink::clear()
 	guid_ = CryGUID::Null();
 }
 
-bool PropertyRowEntityLink::onContextMenu(IMenu& menu, PropertyTree* tree)
+bool PropertyRowEntityLink::onContextMenu(IMenu& menu, PropertyTreeLegacy* tree)
 {
 	yasli::SharedPtr<PropertyRow> selfPointer(this);
 

@@ -272,7 +272,7 @@ void CSonarVision::SoundHintsPass()
 	//	-	scissor + depth bounds test for sonar hints
 	//	- could maybe also render at 1/4 lower res
 
-	Vec4 vParamsPS = Vec4(1, 1, 1.0f, 1.0f);
+	//Vec4 vParamsPS = Vec4(1, 1, 1.0f, 1.0f);
 
 	REINST(Iterate over the sonar hints)
 	//SSonarHintsLst pSonarHints = m_pSoundEventsListener->GetSonarHintsLst();

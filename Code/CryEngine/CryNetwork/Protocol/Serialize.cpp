@@ -105,7 +105,7 @@ CNetInputSerializeImpl::CNetInputSerializeImpl(const uint8* pBuffer, size_t nSiz
 
 ESerializeChunkResult CNetInputSerializeImpl::SerializeChunk(ChunkID chunk, uint8 profile, TMemHdl* phData, CTimeValue* pTimeInfo, CMementoMemoryManager& mmm)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Other, 0, "CNetInputSerializeImpl::SerializeChunk");
+	MEMSTAT_CONTEXT(EMemStatContextType::Other, "CNetInputSerializeImpl::SerializeChunk");
 
 	if (!Ok())
 		return eSCR_Failed;

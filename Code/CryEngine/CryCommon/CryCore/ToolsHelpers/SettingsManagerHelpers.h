@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <string.h>     // memcpy
-#include <algorithm>    // std::min
+#include <cstring>   // memcpy
+#include <algorithm> // std::min
 
 namespace SettingsManagerHelpers
 {

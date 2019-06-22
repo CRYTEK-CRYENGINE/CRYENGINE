@@ -65,6 +65,7 @@ void ResetTransforms(CGroup* pParent, const std::vector<CBaseObject*>& children,
 void RestoreTransforms(std::vector<CBaseObject*>& children, bool shouldKeepPos, const std::vector<Matrix34>& worldTMs,
                        const std::vector<ITransformDelegate*>& transformDelegates)
 {
+	CScopedSuspendUndo suspendUndoRestore;
 	if (shouldKeepPos)
 	{
 		// Keep old world space transformation.
@@ -417,14 +418,14 @@ CGroup::CGroup()
 
 void CGroup::Done()
 {
-	LOADING_TIME_PROFILE_SECTION_ARGS(GetName().c_str());
+	CRY_PROFILE_FUNCTION_ARG(PROFILE_LOADING_ONLY, GetName().c_str());
 	DeleteAllMembers();
 	CBaseObject::Done();
 }
 
 void CGroup::DeleteAllMembers()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	std::vector<CBaseObject*> children;
 	for (auto pChild : m_children)
 		children.push_back(pChild);
@@ -538,19 +539,19 @@ bool CGroup::CreateFrom(std::vector<CBaseObject*>& objects)
 	return true;
 }
 
-void CGroup::CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center)
+CGroup* CGroup::CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center)
 {
 	if (objects.empty())
 	{
-		return;
+		return nullptr;
 	}
 
 	CUndo undo("Create Group");
-	CGroup* group = (CGroup*)GetIEditorImpl()->NewObject("Group");
-	if (!group)
+	CGroup* pGroup = (CGroup*)GetIEditorImpl()->NewObject("Group");
+	if (!pGroup)
 	{
 		undo.Cancel();
-		return;
+		return nullptr;
 	}
 
 	if (CBaseObject* pLastParent = objects[objects.size() - 1]->GetGroup())
@@ -560,14 +561,16 @@ void CGroup::CreateFrom(std::vector<CBaseObject*>& objects, Vec3 center)
 		center = m.TransformPoint(center);
 	}
 	// Snap center to grid.
-	group->SetPos(gSnappingPreferences.Snap3D(center));
+	pGroup->SetPos(gSnappingPreferences.Snap3D(center));
 
-	if (!group->CreateFrom(objects))
+	if (!pGroup->CreateFrom(objects))
 	{
 		undo.Cancel();
-		GetIEditorImpl()->DeleteObject(group);
-		return;
+		GetIEditorImpl()->DeleteObject(pGroup);
+		return nullptr;
 	}
+
+	return pGroup;
 }
 
 bool CGroup::Init(CBaseObject* prev, const string& file)
@@ -666,7 +669,7 @@ void CGroup::RemoveMember(CBaseObject* pMember, bool keepPos, bool placeOnRoot)
 
 void CGroup::RemoveMembers(std::vector<CBaseObject*>& members, bool keepPos /*= true*/, bool placeOnRoot /*= false*/)
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	CBaseObject* pPrefab = GetPrefab();
 	if (pPrefab != this)
 	{
@@ -1148,7 +1151,7 @@ void CGroup::OnChildModified()
 
 void CGroup::InvalidateBBox()
 {
-	LOADING_TIME_PROFILE_SECTION
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY)
 	if (CBaseObject* pParent = GetGroup())
 	{
 		CGroup* pParentGroup = static_cast<CGroup*>(pParent);
@@ -1202,7 +1205,7 @@ void CGroup::DetachChildren(std::vector<CBaseObject*>& objects, bool shouldKeepP
 		return;
 
 	using namespace Private_Group;
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
 	auto batchProcessDispatcher = GetObjectManager()->GetBatchProcessDispatcher();
 	batchProcessDispatcher.Start(objects);

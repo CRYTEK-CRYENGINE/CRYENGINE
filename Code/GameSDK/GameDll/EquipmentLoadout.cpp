@@ -2920,7 +2920,7 @@ void CEquipmentLoadout::OnRoundEnded()
 //------------------------------------------------------------------------
 void CEquipmentLoadout::PrecacheLevel()
 {
-	LOADING_TIME_PROFILE_SECTION;
+	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 	CGameSharedParametersStorage* pGameParamsStorage = g_pGame->GetGameSharedParametersStorage();
 	std::vector<SEquipmentItem>::const_iterator it = m_allItems.begin();
 	std::vector<SEquipmentItem>::const_iterator itEnd = m_allItems.end();

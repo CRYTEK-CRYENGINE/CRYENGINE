@@ -136,8 +136,12 @@ void C3dLutColorChart::GenerateDefault()
 		}
 	}
 
+#if !defined(_RELEASE)
 	bool res = m_data.SetColorChartData(mapping);
 	assert(res);
+#else
+	m_data.SetColorChartData(mapping);
+#endif
 }
 
 
@@ -155,7 +159,7 @@ ImageObject* C3dLutColorChart::GenerateChartImage()
 		size_t nSlicePitch = (pitch / C3dLutData::ePS_Blue);
 		const C3dLutData::ColorMapping& mapping = m_data.GetMapping();
 		uint32 src = 0;
-		uint32 dst = 0;
+
 		for (int b = 0; b < C3dLutData::ePS_Blue; ++b)
 		{
 			for (int g = 0; g < C3dLutData::ePS_Green; ++g)

@@ -11,6 +11,7 @@ History:
 #include "AutoTester.h"
 #include "FeatureTester.h"
 #include "GameCVars.h"
+#include <CrySystem/ConsoleRegistration.h>
 
 #if ENABLE_FEATURE_TESTER_MGR
 

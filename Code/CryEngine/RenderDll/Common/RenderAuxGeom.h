@@ -1,33 +1,33 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-#ifndef _RENDERAUXGEOM_H_
-#define _RENDERAUXGEOM_H_
+#pragma once
 
 #if defined(ENABLE_PROFILING_CODE) || !defined(_RELEASE) || defined(ENABLE_DEVELOPER_CONSOLE_IN_RELEASE)
 	#define ENABLE_RENDER_AUX_GEOM
 #endif
 
+#include <CryRenderer/IRenderAuxGeom.h>
+
 #if defined(ENABLE_RENDER_AUX_GEOM)
 
-	#include <CryRenderer/IRenderAuxGeom.h>
-	#include <CryRenderer/VertexFormats.h>
-	#include <CryMemory/CrySizer.h>
-	#include "RenderOutput.h"
-	#include "TextMessages.h"
+#include <CryRenderer/VertexFormats.h>
+#include <CryMemory/CrySizer.h>
+#include "RenderOutput.h"
+#include "TextMessages.h"
 
-class ICrySizer;
-class CAuxGeomCB;
-struct SAuxGeomCBRawDataPackagedConst;
 struct IRenderAuxGeom;
+struct SAuxGeomCBRawDataPackagedConst;
+
+class CAuxGeomCB;
+class CAuxGeomCBCollector;
+class CRenderAuxGeomD3D;
+class ICrySizer;
 
 struct IRenderAuxGeomImpl
 {
-public:
+	virtual ~IRenderAuxGeomImpl() {}
 	virtual void RT_Flush(const SAuxGeomCBRawDataPackagedConst& data) = 0;
 };
-
-class CRenderAuxGeomD3D;
-class CAuxGeomCBCollector;
 
 class CAuxGeomCB : public IRenderAuxGeom
 {
@@ -567,8 +567,7 @@ inline bool CAuxGeomCB::IsThickLine(const SAuxGeomRenderFlags& renderFlags)
 
 inline CAuxGeomCB::EAuxDrawObjType CAuxGeomCB::GetAuxObjType(const SAuxGeomRenderFlags& renderFlags)
 {
-	EPrimType primType(GetPrimType(renderFlags));
-	CRY_ASSERT(e_Obj == primType);
+	CRY_ASSERT(GetPrimType(renderFlags) == e_Obj);
 
 	uint32 objType((renderFlags.m_renderFlags & e_PrivateRenderflagsMask));
 	switch (objType)
@@ -625,7 +624,7 @@ public:
 
 	const CCamera&      GetCamera() const final                                                                                                              { static CCamera camera; return camera; }
 
-	void                SetCurrentDisplayContext(const SDisplayContextKey& displayContextKey) final                                               {};
+	void                SetCurrentDisplayContext(const SDisplayContextKey& displayContextKey) final                                                          {}
 
 	void                DrawPoint(const Vec3& v, const ColorB& col, uint8 size = 1) final                                                                    {}
 	void                DrawPoints(const Vec3* v, uint32 numPoints, const ColorB& col, uint8 size = 1) final                                                 {}
@@ -666,7 +665,7 @@ public:
 
 	void                RenderTextQueued(Vec3 pos, const SDrawTextInfo& ti, const char* text) final                                                          {}
 
-	void                PushImage(const SRender2DImageDescription &image) final                                                                              {};
+	void                PushImage(const SRender2DImageDescription &image) final                                                                              {}
 
 	int                 PushMatrix(const Matrix34& mat) final                                                                                                { return -1; }
 	Matrix34*           GetMatrix() final                                                                                                                    { return nullptr; }
@@ -678,5 +677,3 @@ public:
 public:
 	CAuxGeomCB_Null() = default;
 };
-
-#endif // #ifndef _RENDERAUXGEOM_H_

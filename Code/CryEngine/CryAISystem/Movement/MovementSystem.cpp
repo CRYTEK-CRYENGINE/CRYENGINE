@@ -232,13 +232,13 @@ void MovementSystem::Update(const CTimeValue frameStartTime, const float frameDe
 	UpdateActors();
 
 #if defined(COMPILE_WITH_MOVEMENT_SYSTEM_DEBUG)
-	if (gAIEnv.CVars.DebugMovementSystem)
+	if (gAIEnv.CVars.movement.DebugMovementSystem)
 	{
 		DrawDebugInformation();
 	}
-	if (gAIEnv.CVars.DebugMovementSystemActorRequests)
+	if (gAIEnv.CVars.movement.DebugMovementSystemActorRequests)
 	{
-		if (gAIEnv.CVars.DebugMovementSystemActorRequests == 1)
+		if (gAIEnv.CVars.movement.DebugMovementSystemActorRequests == 1)
 		{
 			Actors::const_iterator itActor = std::find_if(m_actors.begin(), m_actors.end(), ActorMatchesIdPredicate(GetAISystem()->GetAgentDebugTarget()));
 			if (itActor != m_actors.end())
@@ -246,7 +246,7 @@ void MovementSystem::Update(const CTimeValue frameStartTime, const float frameDe
 				DrawMovementRequestsForActor(*itActor);
 			}
 		}
-		else if (gAIEnv.CVars.DebugMovementSystemActorRequests == 2)
+		else if (gAIEnv.CVars.movement.DebugMovementSystemActorRequests == 2)
 		{
 			for (Actors::const_iterator itActor = m_actors.begin(); itActor != m_actors.end(); ++itActor)
 			{

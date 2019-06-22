@@ -15,11 +15,15 @@ CSplitViewport::CSplitViewport(QWidget* parent)
 	, m_bSplit(false)
 	, m_splitDirection(eSplitDirection_Horizontal)
 {
+	IRenderer::SGraphicsPipelineDescription graphicsPipelineDesc;
+	graphicsPipelineDesc.type = EGraphicsPipelineType::Minimum;
+	graphicsPipelineDesc.shaderFlags = SHDF_SECONDARY_VIEWPORT | SHDF_ALLOWHDR | SHDF_FORWARD_MINIMAL;
+
 	setContentsMargins(0, 0, 0, 0);
-	m_pSecondaryViewport = new QViewport(gEnv, parent);
+	m_pSecondaryViewport = new QViewport(gEnv, graphicsPipelineDesc, parent);
 	connect(m_pSecondaryViewport, SIGNAL(SignalCameraMoved(const QuatT &)), this, SLOT(OnCameraMoved(const QuatT &)));
 
-	m_pPrimaryViewport = new QViewport(gEnv, parent);
+	m_pPrimaryViewport = new QViewport(gEnv, graphicsPipelineDesc, parent);
 	connect(m_pPrimaryViewport, SIGNAL(SignalCameraMoved(const QuatT &)), this, SLOT(OnCameraMoved(const QuatT &)));
 
 	ResetLayout();

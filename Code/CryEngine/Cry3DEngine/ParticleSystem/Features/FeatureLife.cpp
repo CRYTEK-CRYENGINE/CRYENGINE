@@ -54,15 +54,7 @@ public:
 		IOFStream invLifeTimes = container.GetIOFStream(EPDT_InvLifeTime);
 		IOFStream normAges = container.GetIOFStream(EPDT_NormalAge);
 
-		if (!m_lifeTime.IsEnabled())
-		{
-			// Infinite lifetime. Store huge lifetime instead, so absolute age can be computed when needed
-			static const float maxLifeTime = 1e9f;
-			lifeTimes.Fill(runtime.SpawnedRange(), maxLifeTime);
-			invLifeTimes.Fill(runtime.SpawnedRange(), rcp(maxLifeTime));
-			normAges.Fill(runtime.SpawnedRange(), 0.0f);
-		}
-		else if (m_lifeTime.GetBaseValue() == 0.0f)
+		if (m_lifeTime.GetBaseValue() == 0.0f)
 		{
 			lifeTimes.Fill(runtime.SpawnedRange(), 0.0f);
 			invLifeTimes.Fill(runtime.SpawnedRange(), 0.0f);
@@ -70,19 +62,29 @@ public:
 		}
 		else
 		{
-			m_lifeTime.Init(runtime, EPDT_LifeTime);
-			if (m_lifeTime.HasModifiers())
+			if (!m_lifeTime.IsEnabled())
 			{
-				for (auto particleGroupId : runtime.SpawnedRangeV())
-				{
-					const floatv lifetime = lifeTimes.Load(particleGroupId);
-					const floatv invLifeTime = rcp(max(lifetime, ToFloatv(FLT_EPSILON)));
-					invLifeTimes.Store(particleGroupId, invLifeTime);
-				}
+				// Infinite lifetime. Store huge lifetime instead, so absolute age can be computed when needed
+				static const float maxLifeTime = float(1 << 30);
+				lifeTimes.Fill(runtime.SpawnedRange(), maxLifeTime);
+				invLifeTimes.Fill(runtime.SpawnedRange(), 1.0f / maxLifeTime);
 			}
 			else
 			{
-				invLifeTimes.Fill(runtime.SpawnedRange(), rcp(m_lifeTime.GetBaseValue()));
+				m_lifeTime.Init(runtime, EPDT_LifeTime);
+				if (m_lifeTime.HasModifiers())
+				{
+					for (auto particleGroupId : runtime.SpawnedRangeV())
+					{
+						const floatv lifetime = lifeTimes.Load(particleGroupId);
+						const floatv invLifeTime = rcp(max(lifetime, ToFloatv(FLT_EPSILON)));
+						invLifeTimes.Store(particleGroupId, invLifeTime);
+					}
+				}
+				else
+				{
+					invLifeTimes.Fill(runtime.SpawnedRange(), 1.0f / m_lifeTime.GetBaseValue());
+				}
 			}
 
 			// Convert ages from absolute to normalized
@@ -119,8 +121,8 @@ public:
 	}
 
 protected:
-	CParamMod<EDD_PerParticle, UInfFloat> m_lifeTime          = 1;
-	bool                                  m_killOnParentDeath = false;
+	CParamMod<EDD_Particle, UInfFloat> m_lifeTime          = 1;
+	bool                               m_killOnParentDeath = false;
 };
 
 CRY_PFX2_IMPLEMENT_FEATURE(CParticleFeature, CFeatureLifeTime, "Life", "Time", colorLife);
@@ -147,15 +149,9 @@ public:
 	{
 		// If another LifeTime feature exists, use it, and set the Kill param.
 		// Otherwise, use this feature, with default LifeTime param.
-		uint num = pComponent->GetNumFeatures();
-		for (uint i = 0; i < num; ++i)
+		if (auto pFeature = pComponent->FindDuplicateFeature(this))
 		{
-			CFeatureKillOnParentDeath* feature = static_cast<CFeatureKillOnParentDeath*>(pComponent->GetFeature(i));
-			if (feature && feature != this && feature->GetFeatureType() == EFT_Life)
-			{
-				feature->m_killOnParentDeath = true;
-				return nullptr;
-			}
+			pFeature->m_killOnParentDeath = true;
 		}
 		return nullptr;
 	}

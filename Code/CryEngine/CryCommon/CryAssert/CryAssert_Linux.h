@@ -1,48 +1,5 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-/*************************************************************************
-   -------------------------------------------------------------------------
-   $Id$
-   $DateTime$
-   Description:
-    Assert dialog box for Linux. The linux assert dialog is based on a
-    small ncurses application which writes the choice to a file. This
-    was chosen since there is no default UI system on Linux. X11 wasn't
-    used due to the possibility of the system running another display
-    protocol (e.g.: WayLand, Mir)
-
-   -------------------------------------------------------------------------
-   History:
-   - 27:01:2014: Created by Leander Beernaert
-*************************************************************************/
-
-#if defined(USE_CRY_ASSERT) && CRY_PLATFORM_LINUX
-
-static char gs_szMessage[MAX_PATH];
-
-void CryAssertTrace(const char* szFormat, ...)
-{
-	if (gEnv == 0)
-	{
-		return;
-	}
-
-	if (!gEnv->ignoreAllAsserts || gEnv->bTesting)
-	{
-		if (szFormat == NULL)
-		{
-			gs_szMessage[0] = '\0';
-		}
-		else
-		{
-			va_list args;
-			va_start(args, szFormat);
-			cry_vsprintf(gs_szMessage, szFormat, args);
-			va_end(args);
-		}
-	}
-}
-
 bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, bool* pIgnore)
 {
 	IF_UNLIKELY (!gEnv || !gEnv->pSystem || !gEnv->pLog)
@@ -55,17 +12,8 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 	size_t file_len = strlen(szSimplifiedFile);
 	size_t file_display_idx = file_len > 60 ? (file_len - 61) : 0; //60 chars is what visually fits in the ncurses dialog
 
-	gEnv->pSystem->OnAssert(szCondition, gs_szMessage, szSimplifiedFile, line);
-	gEnv->pLog->LogError("Assertion Failed! file:%s:%d reason:%s", szSimplifiedFile + file_display_idx, line, gs_szMessage[0] ? gs_szMessage : "<empty>");
-
-	static char gs_command_str[4096];
-	static CryLockT<CRYLOCK_RECURSIVE> lock;
-
-	if (!gEnv->bUnattendedMode && !gEnv->ignoreAllAsserts)
+	if (Cry::Assert::ShowDialogOnAssert())
 	{
-
-		CryAutoLock<CryLockT<CRYLOCK_RECURSIVE>> lk(lock);
-
 		char szExecFilePath[_MAX_PATH];
 		CryGetExecutableFolder(_MAX_PATH, szExecFilePath);
 		if (strchr(szExecFilePath, '"'))
@@ -74,6 +22,7 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 			return false;
 		}
 
+		static char gs_command_str[4096];
 		// the following has many problems with escaping because sh interprets the string
 		// it is currently using shell string literals, which is not good enough.
 		// there are plans to replace this with a new python/tk dialog --ines Nov/15
@@ -82,7 +31,7 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 		            "-T 'Assertion Failed' "
 		            "-e '$\"%sassert_term\" $\"%s\" $\"%s\" %d $\"%s\"; echo \"$?\" > .assert_return'",
 		            szExecFilePath,
-		            szCondition, szFile + file_display_idx, line, gs_szMessage);
+		            szCondition, szFile + file_display_idx, line, tls_szAssertMessage);
 
 		int ret = system(gs_command_str);
 
@@ -103,14 +52,6 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 		fscanf(assert_file, "%d", &result);
 		fclose(assert_file);
 
-#if defined(eCryModule)
-		const char* szModuleName = GetCryModuleName(eCryModule);
-#else
-		const char* szModuleName = "Undefined";
-#endif
-
-		gEnv->pLog->LogError("Assertion Failed! %s:%d reason:%s Module:%s", szFile, line, gs_szMessage[0] ? gs_szMessage : "<empty>", szModuleName);
-
 		switch (result)
 		{
 		case 0:
@@ -119,7 +60,7 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 			*pIgnore = true;
 			break;
 		case 2:
-			gEnv->ignoreAllAsserts = true;
+			Cry::Assert::IgnoreAllAsserts(true);
 			break;
 		case 3:
 			return true;
@@ -132,11 +73,16 @@ bool CryAssert(const char* szCondition, const char* szFile, unsigned int line, b
 			gEnv->pLog->LogError("<CryAssert Linux> Unrecognized option from assert dialog (%d)", result);
 			return false;
 		}
-
+	}
+	else
+	{
+#if defined(eCryModule)
+		const char* szModuleName = GetCryModuleName(eCryModule);
+#else
+		const char* szModuleName = "Undefined";
+#endif
+		gEnv->pLog->LogError("Assertion Failed! file:%s:%d module:%s reason:%s", szSimplifiedFile + file_display_idx, line, szModuleName, tls_szAssertMessage);
 	}
 
 	return false;
-
 }
-
-#endif

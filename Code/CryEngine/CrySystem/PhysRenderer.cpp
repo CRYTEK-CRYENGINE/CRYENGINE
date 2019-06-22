@@ -21,6 +21,7 @@ ColorB CPhysRenderer::g_colorTab[9] = {
 CPhysRenderer::CPhysRenderer()
 	: m_cullDist(100.0f)
 	, m_wireframeDist(40.0f)
+	, m_meridianDist(0.0f)
 	, m_timeRayFadein(0.2f)
 	, m_rayPeakTime(0.0f)
 	, m_maxTris(200)
@@ -502,6 +503,22 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 			primitives::sphere* psph = (primitives::sphere*)pGeomData;
 			if (pgwd->iStartNode >= 0 || (pgwd->offset - campos * (1.0f / 3)).len2() < sqr(pgwd->iStartNode))
 				aux->DrawSphere(pgwd->offset + pgwd->R * psph->center * pgwd->scale, psph->r * pgwd->scale, clr);
+			center = R * psph->center * scale + pos;
+			if (psph->r * pgwd->scale >= 0.1f && (center * 3 - campos).len2() < sqr(m_meridianDist) * 9)
+			{
+				const float cos15 = 0.96592582f, sin15 = 0.25881904f;
+				for(j = 0; j < 3; j++)
+				{
+					Vec3 pt[2] = { Vec3(ZERO), Vec3(ZERO) };
+					pt[0][j] = 1;
+					float x = cos15, y = sin15, t;
+					for (i = 0; i < 24; i++, t = x, x = x * cos15 - y * sin15, y = y * cos15 + t * sin15, pt[0] = pt[1])
+					{
+						pt[1][j] = x; pt[1][incm3(j)] = y;
+						aux->DrawLine(center + R * pt[0] * psph->r * pgwd->scale, clr, center + R * pt[1] * psph->r * pgwd->scale, clr);
+					}
+				}
+			}
 			if (sweepDir.len2() > 0)
 			{
 				pgwd->offset += sweepDir * 0.5f;
@@ -525,7 +542,7 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 			float x, y;
 			Vec3 axes[3];
 			axes[2] = R * pcyl->axis;
-			axes[0] = axes[2].GetOrthogonal().normalized();
+			axes[0] = R * pcyl->axis.GetOrthogonal().normalized();
 			axes[1] = axes[2] ^ axes[0];
 			center = R * pcyl->center * scale + pos;
 			pt[0] = pt[2] = center + axes[0] * (pcyl->r * scale);
@@ -549,6 +566,10 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 				x = x * cos15 - y * sin15;
 				y = y * cos15 + t * sin15;
 			}
+			if ((center * 3 - campos).len2() < sqr(m_meridianDist) * 9)
+				for(i = 0; i < 4; i++)
+					aux->DrawLine(center + axes[i & 1] * pcyl->r * scale + axes[2] * ((i & 2) - 1), clr, center - axes[i & 1] * pcyl->r * scale + axes[2] * ((i & 2) - 1), clr);
+
 			if (sweepDir.len2() > 0)
 			{
 				assert(pgwd);
@@ -599,9 +620,10 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 				Vec3 axes[3], haxis, nxy;
 				int icap;
 				axes[2] = R * pcyl->axis;
-				axes[0] = axes[2].GetOrthogonal().normalized();
+				axes[0] = R * pcyl->axis.GetOrthogonal().normalized();
 				axes[1] = axes[2] ^ axes[0];
 				center = R * pcyl->center * scale + pos;
+				bool drawMeridians = (center * 3 - campos).len2() < sqr(m_meridianDist) * 9;
 				pt[0] = pt[2] = center + axes[0] * (pcyl->r * scale);
 				haxis = axes[2] * (pcyl->hh * scale);
 				n = axes[0];
@@ -637,6 +659,13 @@ void CPhysRenderer::DrawGeometry(int itype, const void* pGeomData, geom_world_da
 							pt[1] = center + haxis + n * (pcyl->r * scale);
 							aux->DrawTriangle(pt[0], clrlit[0], pt[1 + icap], clrlit[1 + icap], pt[2 - icap], clrlit[2 - icap]);
 							aux->DrawTriangle(pt[1], clrlit[1], pt[3 - icap], clrlit[3 - icap], pt[2 + icap], clrlit[2 + icap]);
+							if (drawMeridians)
+							{
+								if (min(fabs(x), fabs(y)) < 0.001f)
+									aux->DrawLine(pt[0], clr, pt[2], clr);
+								if (j == 0)
+									aux->DrawLine(pt[0], clr, pt[1], clr);
+							}
 							t = x;
 							x = x * cos15 - y * sin15;
 							y = y * cos15 + t * sin15;

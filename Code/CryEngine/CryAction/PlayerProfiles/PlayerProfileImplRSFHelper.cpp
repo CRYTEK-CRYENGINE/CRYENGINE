@@ -428,7 +428,7 @@ bool ReadRichGameMediaHeader(const char* filename, FILE* pFile, RichSaveGames::R
 bool ReadRichGameMetaData(const string& filename, CPlayerProfileManager::SSaveGameMetaData& metaData)
 {
 	ICryPak* pCryPak = gEnv->pCryPak;
-	FILE* pFile = pCryPak->FOpen(filename, "rbx"); // x=don't chache full file
+	FILE* pFile = pCryPak->FOpen(filename, "rb");
 	if (!pFile)
 		return false;
 
@@ -880,7 +880,7 @@ public:
 		}
 
 		ICryPak* pCryPak = gEnv->pCryPak;
-		FILE* pFile = pCryPak->FOpen(filename, "rbx"); // x=don't chache full file
+		FILE* pFile = pCryPak->FOpen(filename, "rb");
 		if (!pFile)
 			return false;
 
@@ -1065,7 +1065,7 @@ bool CRichSaveGameHelper::GetSaveGameThumbnail(CPlayerProfileManager::SUserEntry
 	filename.append(strippedName);
 
 	ICryPak* pCryPak = gEnv->pCryPak;
-	FILE* pFile = pCryPak->FOpen(filename, "rbx"); // x=don't chache full file
+	FILE* pFile = pCryPak->FOpen(filename, "rb");
 	if (!pFile)
 		return false;
 

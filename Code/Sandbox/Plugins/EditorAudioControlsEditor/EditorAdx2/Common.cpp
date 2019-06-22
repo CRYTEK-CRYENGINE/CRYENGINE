@@ -9,8 +9,7 @@ namespace Impl
 {
 namespace Adx2
 {
-CryAudio::Impl::Adx2::SPoolSizes g_connections;
-Platforms g_platforms;
+ConnectionsByContext g_connections;
 } // namespace Adx2
 } // namespace Impl
 } // namespace ACE

@@ -79,6 +79,9 @@ protected:
 	THandle AllocateInternal(uint32_t memoryType, uint32_t bytes, uint32_t align, uint32_t bin = ~0U);
 	void    DeallocateInternal(THandle handle);
 
+	// Deallocates all allocated blocks.
+	void    Release();
+
 public:
 	// Allocates a block of memory with the given parameters.
 	// Returns 0 if no block could be allocated.

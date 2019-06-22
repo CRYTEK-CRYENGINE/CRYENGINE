@@ -241,7 +241,7 @@ bool CLevelEditorViewport::HandleDragEvent(EDragEvent eventId, QEvent* event, in
 						return true;
 					}
 					else if (pTimeOfDay->LoadPreset(preset) && pTimeOfDay->SetDefaultPreset(preset))
-					{ 
+					{
 						const char* szMessage = QT_TR_NOOP("Environment Asset added to the level in Level Settings. Default environment now set to");
 						CryWarning(VALIDATOR_MODULE_EDITOR, VALIDATOR_WARNING, "%s %s", szMessage, pAsset->GetName().c_str());
 						return true;
@@ -597,9 +597,9 @@ void CLevelEditorViewport::OnRender(SDisplayContext& context)
 
 			// Display Context handle forces rendering of the world go to the current viewport output window.
 
-			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(tmpCamera, SRenderingPassInfo::DEFAULT_FLAGS, false, this->m_displayContextKey);
+			SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_graphicsPipelineKey, tmpCamera, SRenderingPassInfo::DEFAULT_FLAGS, false, this->m_displayContextKey);
 			RenderAll(CObjectRenderHelper{ context, passInfo });
-			m_engine->RenderWorld(renderFlags | SHDF_ALLOW_AO | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_WATER | SHDF_ALLOWHDR | SHDF_ZPASS | SHDF_NOASYNC, passInfo, __FUNCTION__);
+			m_engine->RenderWorld(renderFlags | m_graphicsPipelineDesc.shaderFlags, passInfo, __FUNCTION__);
 		}
 		m_renderer->EnableSwapBuffers(true);
 	}
@@ -612,9 +612,9 @@ void CLevelEditorViewport::OnRender(SDisplayContext& context)
 
 		// Display Context handle forces rendering of the world go to the current viewport output window.
 
-		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_Camera, SRenderingPassInfo::DEFAULT_FLAGS, false, this->m_displayContextKey);
+		SRenderingPassInfo passInfo = SRenderingPassInfo::CreateGeneralPassRenderingInfo(m_graphicsPipelineKey, m_Camera, SRenderingPassInfo::DEFAULT_FLAGS, false, this->m_displayContextKey);
 		RenderAll(CObjectRenderHelper{ context, passInfo });
-		m_engine->RenderWorld(renderFlags | SHDF_ALLOW_AO | SHDF_ALLOWPOSTPROCESS | SHDF_ALLOW_WATER | SHDF_ALLOWHDR | SHDF_ZPASS, passInfo, __FUNCTION__);
+		m_engine->RenderWorld(renderFlags | m_graphicsPipelineDesc.shaderFlags, passInfo, __FUNCTION__);
 	}
 
 	if (!m_renderer->IsStereoEnabled() && !m_Camera.m_bOmniCamera)

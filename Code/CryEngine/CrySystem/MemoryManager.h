@@ -1,34 +1,26 @@
 // Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
 
-// -------------------------------------------------------------------------
-//  File name:   MemoryManager.h
-//  Version:     v1.00
-//  Created:     27/7/2007 by Timur.
-// -------------------------------------------------------------------------
-//  History:
-//
-////////////////////////////////////////////////////////////////////////////
-
-#ifndef __MemoryManager_h__
-#define __MemoryManager_h__
 #pragma once
 
 #include <CrySystem/ISystem.h>
 
-#if !defined(_RELEASE) && !defined(MEMMAN_STATIC)
-	#define CRYMM_SUPPORT_DEADLIST
+#if CRY_PLATFORM_WINDOWS
+#	include <Psapi.h>
 #endif
 
-//////////////////////////////////////////////////////////////////////////
-// Class that implements IMemoryManager interface.
-//////////////////////////////////////////////////////////////////////////
-#ifndef MEMMAN_STATIC
+#if !defined(_RELEASE)
+#	define CRYMM_SUPPORT_DEADLIST
+#endif
+
 class CCryMemoryManager : public IMemoryManager
 {
 public:
 	static int s_sys_MemoryDeadListSize;
 
 public:
+	CCryMemoryManager();
+	virtual ~CCryMemoryManager();
+
 	// Singleton
 	static CCryMemoryManager* GetInstance();
 	static void               RegisterCVars();
@@ -56,9 +48,11 @@ public:
 
 	virtual void*                    AllocPages(size_t size);
 	virtual void                     FreePages(void* p, size_t size);
-};
-#else
-typedef IMemoryManager CCryMemoryManager;
-#endif
 
-#endif // __MemoryManager_h__
+private:
+#if CRY_PLATFORM_WINDOWS
+	typedef decltype(&GetProcessMemoryInfo) pfGetProcessMemoryInfo;
+	pfGetProcessMemoryInfo m_pGetProcessMemoryInfo;
+	HMODULE m_hPSAPI;
+#endif
+};

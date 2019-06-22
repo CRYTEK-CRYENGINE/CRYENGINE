@@ -20,6 +20,7 @@ namespace EditorSubstance
 		: CDockableEditor(pParent)
 		, m_modified(false)
 	{
+		RegisterActions();
 		std::vector<SSubstanceOutput> outputs = CManager::Instance()->GetProjectDefaultOutputSettings();
 		std::unordered_set<uint32> origOutputCRC;
 		std::vector<SSubstanceOutput> originalOutputs;
@@ -47,7 +48,12 @@ namespace EditorSubstance
 
 	}
 	
-	
+	void CProjectDefaultsPresetsEditor::RegisterActions()
+	{
+		RegisterAction("general.save", &CProjectDefaultsPresetsEditor::OnSave);
+		RegisterAction("general.close", &CProjectDefaultsPresetsEditor::OnClose);
+	}
+
 	bool CProjectDefaultsPresetsEditor::OnSave()
 	{
 		std::vector<SSubstanceOutput> outputs;

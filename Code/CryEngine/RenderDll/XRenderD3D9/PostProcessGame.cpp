@@ -645,7 +645,8 @@ bool CFlashBang::Preprocess(const SRenderViewInfo& viewInfo)
 {
 
 	float fActive = m_pActive->GetParam();
-	if (fActive || m_fSpawnTime)	{
+	if (fActive || m_fSpawnTime)
+	{
 		if (fActive)
 			m_fSpawnTime = 0.0f;
 

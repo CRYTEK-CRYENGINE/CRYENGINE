@@ -20,7 +20,10 @@
 
 #include <CryRenderer/IRenderAuxGeom.h>
 
+#include <CrySystem/TimeValue.h>
+
 #include "CVars.h"
+#include "TimeMetadata.h"
 #include "RenderPrimitives.h"
 #include "RenderPrimitiveCollection.h"
 #include "LogMessageCollection.h"
@@ -29,4 +32,4 @@
 #include "Tree.h"
 #include "TreeManager.h"
 #include "RecursiveSyncObject.h"
-#include "Hub.h"
+#include "UDRSystem.h"

@@ -86,6 +86,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	void                  UpdateRenderNode(bool bForceRecreateNode = false);
 
+	void                  UpdateViewDistRatio(const IEntity::SRenderNodeParams& renderNodeParams);
+
 	void                  SetAsLight(const SRenderLight& lightData, uint16 layerId = 0);
 
 	IRenderNode*          GetRenderNode() const { return m_pRenderNode; }

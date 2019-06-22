@@ -23,12 +23,12 @@
 #endif
 
 QToolWindowManager::QToolWindowManager(QWidget* parent /*= 0*/, QVariant config, QToolWindowManagerClassFactory* factory)
-	: QWidget(parent),
-	m_factory(factory ? factory : new QToolWindowManagerClassFactory()),
-	m_dragHandler(nullptr),
-	m_config(config.toMap()),
-	m_layoutChangeNotifyLocks(0),
-	m_closingWindow(0)
+	: QWidget(parent)
+	, m_factory(factory ? factory : new QToolWindowManagerClassFactory())
+	, m_dragHandler(nullptr)
+	, m_config(config.toMap())
+	, m_layoutChangeNotifyLocks(0)
+	, m_closingWindow(0)
 {
 	if (!m_factory->parent())
 	{
@@ -37,7 +37,8 @@ QToolWindowManager::QToolWindowManager(QWidget* parent /*= 0*/, QVariant config,
 	m_mainWrapper = new QToolWindowWrapper(this);
 	m_mainWrapper->getWidget()->setObjectName("mainWrapper");
 	setLayout(new QVBoxLayout(this));
-	layout()->setMargin(0);
+	layout()->setMargin(2);
+	layout()->setSpacing(0);
 	layout()->addWidget(m_mainWrapper->getWidget());
 	m_lastArea = createArea();
 	m_draggedWrapper = nullptr;
@@ -1099,7 +1100,7 @@ IToolWindowWrapper* QToolWindowManager::restoreWrapperState(const QVariantMap& d
 
 	if (data.contains("geometry"))
 	{
-		// Adjust position of frameless non-maximized windows since Qt will otherwise adjust for a non-existant frame (as of Qt 5.6)
+		// Adjust position of frameless non-maximized windows since Qt will otherwise adjust for a non-existent frame (as of Qt 5.6)
 		if (wrapper->getWidget()->windowFlags().testFlag(Qt::FramelessWindowHint) && !wrapper->getWidget()->windowState().testFlag(Qt::WindowMaximized))
 		{
 			QWidget* w = wrapper->getWidget();

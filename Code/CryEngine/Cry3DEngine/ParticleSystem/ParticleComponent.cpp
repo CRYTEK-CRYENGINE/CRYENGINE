@@ -64,9 +64,7 @@ void STextureAnimation::Update()
 }
 
 //////////////////////////////////////////////////////////////////////////
-// SModuleParams
-
-string SComponentParams::s_defaultDiffuseMap = "%ENGINE%/EngineAssets/Textures/white.dds";
+// SComponentParams
 
 void SComponentParams::Serialize(Serialization::IArchive& ar)
 {
@@ -90,7 +88,7 @@ void SComponentParams::Serialize(Serialization::IArchive& ar)
 	}
 	ar(string(buffer), "", "!Fields used:");
 
-	cry_sprintf(buffer, "%d", pComponent->GetUseData()->totalSize);
+	cry_sprintf(buffer, "%d", pComponent->GetUseData()->totalSizes[EDD_Particle]);
 	ar(string(buffer), "", "!Bytes per Particle:");
 }
 
@@ -165,15 +163,6 @@ void CParticleComponent::SetNodePosition(Vec2 position)
 	m_nodePosition = position;
 }
 
-uint CParticleComponent::AddInstanceData(uint size)
-{
-	CRY_PFX2_ASSERT(size > 0);        // instance data of 0 bytes makes no sense
-	SetChanged();
-	uint offset = m_params.m_instanceDataStride;
-	m_params.m_instanceDataStride += size;
-	return offset;
-}
-
 void CParticleComponent::AddParticleData(EParticleDataType type)
 {
 	SetChanged();
@@ -246,40 +235,6 @@ pfx2::CParticleComponent::TComponents& CParticleComponent::GetParentChildren()
 	return m_parent ? m_parent->m_children : m_pEffect->GetTopComponents();
 }
 
-void CParticleComponent::UpdateTimings()
-{
-	m_params.m_maxTotalLIfe += m_params.m_maxParticleLife;
-	m_params.m_equilibriumTime += FiniteOr(m_params.m_maxParticleLife, 0.0f);
-	m_params.m_stableTime += FiniteOr(m_params.m_maxParticleLife, 0.0f);
-
-	// Adjust parent lifetimes to include child lifetimes
-	if (m_children.size())
-	{
-		float maxChildEq = 0.0f, maxChildLife = 0.0f;
-		for (auto& pChild : m_children)
-		{
-			if (!pChild->IsEnabled())
-				continue;
-			pChild->UpdateTimings();
-			const STimingParams& timingsChild = pChild->ComponentParams();
-			SetMax(maxChildEq, timingsChild.m_equilibriumTime);
-			SetMax(maxChildLife, timingsChild.m_maxTotalLIfe);
-		}
-
-		const float moreEq = maxChildEq - FiniteOr(m_params.m_maxParticleLife, 0.0f);
-		if (moreEq > 0.0f)
-		{
-			m_params.m_stableTime += moreEq;
-			m_params.m_equilibriumTime += moreEq;
-		}
-		const float moreLife = maxChildLife - FiniteOr(m_params.m_maxParticleLife, 0.0f);
-		if (moreLife > 0.0f)
-		{
-			m_params.m_maxTotalLIfe += moreLife;
-		}
-	}
-}
-
 bool CParticleComponent::CanMakeRuntime(CParticleEmitter* pEmitter) const
 {
 	if (!IsEnabled())
@@ -306,17 +261,6 @@ void CParticleComponent::PreCompile()
 
 	static_cast<SFeatureDispatchers&>(*this) = {};
 	m_gpuFeatures.clear();
-
-	// Create new use data array, existing containers reference old array
-	m_pUseData = NewUseData();
-
-	// Add default particle data
-	AddParticleData(EPDT_ParentId);
-	AddParticleData(EPVF_Position);
-	AddParticleData(EPVF_Velocity);
-	AddParticleData(EPDT_NormalAge);
-	AddParticleData(EPDT_InvLifeTime);
-	AddParticleData(EPDT_LifeTime);
 }
 
 void CParticleComponent::ResolveDependencies()
@@ -346,12 +290,28 @@ void CParticleComponent::Compile()
 
 	CRY_PFX2_PROFILE_DETAIL;
 
+	// Create new use data array, existing containers reference old array
+	SUseData usePrev;
+	if (m_pUseData)
+		usePrev = *m_pUseData;
+
+	m_pUseData = NewUseData();
+
+	// Add default particle data
+	AddParticleData(EPDT_ParentId);
+	AddParticleData(EPVF_Position);
+	AddParticleData(EPVF_Velocity);
+	AddParticleData(EPDT_NormalAge);
+	AddParticleData(EPDT_InvLifeTime);
+	AddParticleData(EPDT_LifeTime);
+
+	// Validate feature requirements and exclusivity.
 	uint featureMask = 0;
+	int maxPriority = 0;
 	for (auto& it : m_features)
 	{
 		if (it->IsEnabled())
 		{
-			// Validate feature requirements and exclusivity.
 			EFeatureType type = it->GetFeatureType();
 			if (type & (EFT_Life | EFT_Motion | EFT_Render))
 				if (featureMask & type)
@@ -360,7 +320,21 @@ void CParticleComponent::Compile()
 					continue;
 				}
 			featureMask |= type;
-			it->AddToComponent(this, &m_params);
+			SetMax(maxPriority, it->Priority());
+		}
+	}
+
+	// Init features in priority order
+	for (int pass = 0; pass <= maxPriority; pass++)
+	{
+		for (auto& it : m_features)
+		{
+			if (it->IsEnabled())
+			{
+				int priority = it->Priority();
+				if (priority == pass)
+					it->AddToComponent(this, &m_params);
+			}
 		}
 	}
 
@@ -393,67 +367,13 @@ void CParticleComponent::Compile()
 
 void CParticleComponent::FinalizeCompile()
 {
-	MakeMaterial();
+	if (IsActive() && !m_params.m_pMaterial)
+	{
+		static cstr s_defaultDiffuseMap = "%ENGINE%/EngineAssets/Textures/white.dds";
+		m_params.m_pMaterial = GetPSystem()->GetTextureMaterial(s_defaultDiffuseMap, 
+			m_params.m_usesGPU, m_GPUParams.facingMode);
+	}
 	m_dirty = false;
-}
-
-IMaterial* CParticleComponent::MakeMaterial()
-{
-	CRY_PFX2_PROFILE_DETAIL;
-
-	enum EGpuParticlesVertexShaderFlags
-	{
-		eGpuParticlesVertexShaderFlags_None           = 0x0,
-		eGpuParticlesVertexShaderFlags_FacingVelocity = 0x2000
-	};
-
-	IMaterial* pMaterial = m_params.m_pMaterial;
-	if (m_params.m_requiredShaderType != eST_All)
-	{
-		if (pMaterial)
-		{
-			IShader* pShader = pMaterial->GetShaderItem().m_pShader;
-			if (!pShader || (pShader->GetFlags() & EF_LOADED && pShader->GetShaderType() != m_params.m_requiredShaderType))
-				pMaterial = nullptr;
-		}
-	}
-
-	if (pMaterial)
-		return pMaterial;
-
-	string materialName = string(GetEffect()->GetName()) + ":" + GetName();
-	pMaterial = gEnv->p3DEngine->GetMaterialManager()->CreateMaterial(materialName);
-	if (gEnv->pRenderer)
-	{
-		const char* shaderName = UsesGPU() ? "Particles.ParticlesGpu" : "Particles";
-		const string& diffuseMap = m_params.m_diffuseMap;
-		static uint32 preload = !!GetCVars()->e_ParticlesPrecacheAssets;
-		static uint32 textureLoadFlags = FT_DONT_STREAM * preload;
-		ITexture* pTexture = nullptr;
-		if (GetPSystem()->IsRuntime())
-			pTexture = gEnv->pRenderer->EF_GetTextureByName(diffuseMap.c_str(), textureLoadFlags);
-		if (!pTexture)
-		{
-			GetPSystem()->CheckFileAccess(diffuseMap.c_str());
-			pTexture = gEnv->pRenderer->EF_LoadTexture(diffuseMap.c_str(), textureLoadFlags);
-		}
-		if (pTexture->GetTextureID() <= 0)
-			CryWarning(VALIDATOR_MODULE_3DENGINE, VALIDATOR_WARNING, "Particle effect texture %s not found", diffuseMap.c_str());
-
-		SInputShaderResourcesPtr pResources = gEnv->pRenderer->EF_CreateInputShaderResource();
-		pResources->m_Textures[EFTT_DIFFUSE].m_Name = diffuseMap;
-		uint32 mask = eGpuParticlesVertexShaderFlags_None;
-		if (GPUComponentParams().facingMode == gpu_pfx2::EFacingMode::Velocity)
-			mask |= eGpuParticlesVertexShaderFlags_FacingVelocity;
-		SShaderItem shaderItem = gEnv->pRenderer->EF_LoadShaderItem(shaderName, false, EF_PRECACHESHADER * preload, pResources, mask);
-		pMaterial->AssignShaderItem(shaderItem);
-	}
-	Vec3 white = Vec3(1.0f, 1.0f, 1.0f);
-	float defaultOpacity = 1.0f;
-	pMaterial->SetGetMaterialParamVec3("diffuse", white, false);
-	pMaterial->SetGetMaterialParamFloat("opacity", defaultOpacity, false);
-
-	return m_params.m_pMaterial = pMaterial;
 }
 
 void CParticleComponent::Serialize(Serialization::IArchive& ar)
@@ -502,6 +422,8 @@ void CParticleComponent::Serialize(Serialization::IArchive& ar)
 	ar(m_nodePosition, "nodePos", "Node Position");
 	ar(m_features, "Features", "^");
 	if (ar.isInput())
+		m_features.shrink_to_fit();
+	if (ar.isInput())
 		SetChanged();
 }
 
@@ -511,6 +433,21 @@ void CParticleComponent::SetName(const char* name)
 		m_name = name;
 	else
 		m_name = m_pEffect->MakeUniqueName(this, name);
+}
+
+string CParticleComponent::GetFullName() const
+{
+	return m_pEffect->GetShortName() + "." + m_name;
+}
+
+pfx2::CParticleFeature* CParticleComponent::FindFeature(const SParticleFeatureParams& params, const CParticleFeature* pSkip /*= nullptr*/) const
+{
+	for (const auto& pFeature : m_features)
+	{
+		if (pFeature && pFeature != pSkip && &pFeature->GetFeatureParams() == &params)
+			return pFeature;
+	}
+	return nullptr;
 }
 
 SERIALIZATION_CLASS_NAME(CParticleComponent, CParticleComponent, "Component", "Component");

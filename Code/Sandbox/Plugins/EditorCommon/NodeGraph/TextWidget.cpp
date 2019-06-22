@@ -16,7 +16,7 @@
 #include <QMouseEvent>
 #include <QGraphicsSceneMouseEvent>
 
-#include <Serialization/QPropertyTree2/PropertyTree2.h>
+#include <Serialization/QPropertyTree/PropertyTree.h>
 
 namespace CryGraphEditor {
 

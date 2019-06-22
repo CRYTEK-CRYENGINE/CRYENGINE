@@ -31,8 +31,7 @@
 
 	struct IUnknown
 	{
-	public:
-		virtual ~IUnknown() {};
+		virtual ~IUnknown() {}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) = 0;
 		virtual ULONG STDMETHODCALLTYPE AddRef(void) = 0;

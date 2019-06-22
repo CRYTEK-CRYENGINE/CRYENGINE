@@ -63,7 +63,6 @@ extern IRenderer* g_pIRenderer;
 extern IPhysicalWorld* g_pIPhysicalWorld;
 extern I3DEngine* g_pI3DEngine;
 
-extern bool g_bProfilerOn;
 extern f32 g_fCurrTime;
 extern f32 g_AverageFrameTime;
 extern CAnimation g_DefaultAnim;
@@ -135,4 +134,4 @@ extern AnimStatisticsInfo g_AnimStatisticsInfo;
 #define ENABLE_GET_MEMORY_USAGE 1
 
 #define DEFINE_PROFILER_FUNCTION()     CRY_PROFILE_FUNCTION(PROFILE_ANIMATION)
-#define DEFINE_PROFILER_SECTION(NAME)  CRY_PROFILE_REGION(PROFILE_ANIMATION, NAME)
+#define DEFINE_PROFILER_SECTION(NAME)  CRY_PROFILE_SECTION(PROFILE_ANIMATION, NAME)

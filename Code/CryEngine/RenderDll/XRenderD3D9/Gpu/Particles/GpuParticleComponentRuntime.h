@@ -75,42 +75,42 @@ public:
 	virtual void        UpdateData(const SUpdateParams& params, TConstArray<SSpawnEntry> entries, TConstArray<SParentData> parentData) override;
 	// ~IParticleComponentRuntime
 
-	void                Initialize();
+	void  Initialize(CGraphicsPipeline* pGraphicsPipeline);
 
-	void                SetManagerSlot(int i) { m_parameters->managerSlot = i; }
+	void  SetManagerSlot(int i)       { m_parameters->managerSlot = i; }
 
-	void                SetLifeTime(float lifeTime) { m_parameters->lifeTime = lifeTime; }
+	void  SetLifeTime(float lifeTime) { m_parameters->lifeTime = lifeTime; }
 
-	int                 GetNumParticles() const { return m_parameters->numParticles; };
-	float               GetDeltaTime() const { return m_parameters->deltaTime; }
+	int   GetNumParticles() const     { return m_parameters->numParticles; }
+	float GetDeltaTime() const        { return m_parameters->deltaTime; }
 
 	// this is from the render thread
-	void AddRemoveParticles(SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
-	void UpdateParticles(SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
-	void CalculateBounds(SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
-	void SetBoundsFromManager(const SReadbackData* pData);
-	void SetCounterFromManager(const uint32* pCounter);
-	CGpuBuffer& PrepareForUse();
+	void                                   AddRemoveParticles(SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void                                   UpdateParticles(SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void                                   CalculateBounds(SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void                                   SetBoundsFromManager(const SReadbackData* pData);
+	void                                   SetCounterFromManager(const uint32* pCounter);
+	CGpuBuffer&                            PrepareForUse();
 
-	CParticleContainer*                GetContainer() { return &m_container; }
+	CParticleContainer*                    GetContainer() { return &m_container; }
 
-	void                               SetUpdateTexture(EFeatureUpdateSrvSlot slot, CTexture* pTexture);
-	void                               SetUpdateBuffer(EFeatureUpdateSrvSlot slot, CGpuBuffer* pSRV);
-	void                               SetUpdateFlags(uint64 flags);
-	void                               SetUpdateConstantBuffer(EConstantBufferSlot slot, CConstantBufferPtr pConstantBuffer);
+	void                                   SetUpdateTexture(EFeatureUpdateSrvSlot slot, CTexture* pTexture);
+	void                                   SetUpdateBuffer(EFeatureUpdateSrvSlot slot, CGpuBuffer* pSRV);
+	void                                   SetUpdateFlags(uint64 flags);
+	void                                   SetUpdateConstantBuffer(EConstantBufferSlot slot, CConstantBufferPtr pConstantBuffer);
 
-	SParticleInitializationParameters& GetParticleInitializationParameters() { return m_particleInitializationParameters.GetHostData(); }
-	void                               SetInitializationSRV(EFeatureInitializationSrvSlot slot, CGpuBuffer* pSRV);
+	SParticleInitializationParameters&     GetParticleInitializationParameters() { return m_particleInitializationParameters.GetHostData(); }
+	void                                   SetInitializationSRV(EFeatureInitializationSrvSlot slot, CGpuBuffer* pSRV);
 
 	// currently called from the render element mfDraw, but may go somewhere else
-	void SwapToEnd(const SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void                                   SwapToEnd(const SUpdateContext& context, CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 
-	Vec3                                   GetPos() const { return m_parameters->emitterPosition; };
+	Vec3                                   GetPos() const { return m_parameters->emitterPosition; }
 
-	gpu_physics::CParticleFluidSimulation* CreateFluidSimulation();
+	gpu_physics::CParticleFluidSimulation* CreateFluidSimulation(const gpu_pfx2::SUpdateContext& context);
 	gpu_physics::CParticleFluidSimulation* GetFluidSimulation() { return m_pFluidSimulation.get(); }
-	void FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
-	void EvolveParticles(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
+	void                                   FluidCollisions(CDeviceCommandListRef RESTRICT_REFERENCE commandList, const gpu_pfx2::SUpdateContext& context);
+	void                                   EvolveParticles(CDeviceCommandListRef RESTRICT_REFERENCE commandList);
 
 private:
 	void AddParticles(SUpdateContext& context);
@@ -124,7 +124,7 @@ private:
 	// update passes with varying material flags
 	void UpdatePasses();
 
-	CParticleContainer                                       m_container;
+	CParticleContainer m_container;
 
 	gpu::CStructuredResource<int, gpu::BufferFlagsReadWrite> m_blockSums;
 	gpu::CStructuredResource<int, gpu::BufferFlagsReadWrite> m_killList;
@@ -134,50 +134,50 @@ private:
 	DynArray<_smart_ptr<CFeature>, uint> m_features;
 
 	// Data set by CPU system, double buffered
-	struct SUpdateData: SUpdateParams
+	struct SUpdateData : SUpdateParams
 	{
 		TDynArrayAligned<SParentData> parentData;
 		TDynArrayAligned<SSpawnEntry> spawnEntries;
 	};
 	SUpdateData m_updateData[RT_COMMAND_BUF_COUNT];
-	
+
 	gpu::CStructuredResource<SParentData, gpu::BufferFlagsDynamic> m_parentDataRenderThread;
 	gpu::CTypedConstantBuffer<SParticleInitializationParameters>   m_particleInitializationParameters;
 	gpu::CTypedConstantBuffer<SParticleParameters>                 m_parameters;
 
-	SComponentParams          m_params;
+	SComponentParams m_params;
 
-	AABB                      m_bounds;
+	AABB             m_bounds;
 
 	// these pointers must be declared before the ComputeRenderPasses, for proper destruction order.
 
 	std::unique_ptr<gpu_physics::CParticleFluidSimulation> m_pFluidSimulation;
 	std::unique_ptr<gpu::CMergeSort>                       m_pMergeSort;
 
-	_smart_ptr<CShader>      m_pInitShader;
-	_smart_ptr<CShader>      m_pUpdateShader;
+	_smart_ptr<CShader> m_pInitShader;
+	_smart_ptr<CShader> m_pUpdateShader;
 
-	CGpuBuffer*              m_updateSrvSlots[eFeatureUpdateSrvSlot_COUNT];
-	CTexture*                m_updateTextureSlots[eFeatureUpdateSrvSlot_COUNT];
-	CConstantBufferPtr       m_updateConstantBuffers[eConstantBufferSlot_COUNT];
-	uint64                   m_updateShaderFlags;
+	CGpuBuffer*         m_updateSrvSlots[eFeatureUpdateSrvSlot_COUNT];
+	CTexture*           m_updateTextureSlots[eFeatureUpdateSrvSlot_COUNT];
+	CConstantBufferPtr  m_updateConstantBuffers[eConstantBufferSlot_COUNT];
+	uint64              m_updateShaderFlags;
 
-	CGpuBuffer*              m_initializationSrvSlots[eFeatureInitializationSrvSlot_COUNT];
+	CGpuBuffer*         m_initializationSrvSlots[eFeatureInitializationSrvSlot_COUNT];
 
 	// Compute Passes
-	CComputeRenderPass       m_passCalcBounds;
-	CComputeRenderPass       m_passFeatureInitialization;
-	CComputeRenderPass       m_passFillKillList;
-	CComputeRenderPass       m_passFeatureUpdate;
-	CComputeRenderPass       m_passPrepareSort;
-	CComputeRenderPass       m_passReorderParticles;
-	CComputeRenderPass       m_passSwapToEnd;
+	CComputeRenderPass  m_passCalcBounds;
+	CComputeRenderPass  m_passFeatureInitialization;
+	CComputeRenderPass  m_passFillKillList;
+	CComputeRenderPass  m_passFeatureUpdate;
+	CComputeRenderPass  m_passPrepareSort;
+	CComputeRenderPass  m_passReorderParticles;
+	CComputeRenderPass  m_passSwapToEnd;
 
-	uint64                   m_initializationShaderFlags;
-	uint64                   m_previousInitializationShaderFlags;
-	uint64                   m_previousUpdateShaderShaderFlags;
-	bool                     m_initialized;
+	uint64              m_initializationShaderFlags;
+	uint64              m_previousInitializationShaderFlags;
+	uint64              m_previousUpdateShaderShaderFlags;
+	bool                m_initialized;
 
-	CryCriticalSection       m_cs;
+	CryCriticalSection  m_cs;
 };
 }

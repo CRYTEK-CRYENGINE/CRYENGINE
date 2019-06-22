@@ -17,10 +17,9 @@ public:
 	CResourceFilterProxyModel& operator=(CResourceFilterProxyModel const&) = delete;
 	CResourceFilterProxyModel& operator=(CResourceFilterProxyModel&&) = delete;
 
-	explicit CResourceFilterProxyModel(EAssetType const type, Scope const scope, QObject* const pParent)
+	explicit CResourceFilterProxyModel(EAssetType const type, QObject* const pParent)
 		: QDeepFilterProxyModel(QDeepFilterProxyModel::Behavior::AcceptIfChildMatches, pParent)
 		, m_type(type)
-		, m_scope(scope)
 	{}
 
 	virtual ~CResourceFilterProxyModel() override = default;
@@ -36,6 +35,5 @@ private:
 	// ~QSortFilterProxyModel
 
 	EAssetType const m_type;
-	Scope const      m_scope;
 };
 } // namespace ACE

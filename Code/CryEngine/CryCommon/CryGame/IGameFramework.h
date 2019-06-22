@@ -23,7 +23,6 @@ struct ICustomActionManager;
 struct ICustomEventManager;
 struct IDebrisMgr;
 struct IDebugHistoryManager;
-struct IDialogSystem;
 struct IEffectSystem;
 struct IFlowSystem;
 struct IForceFeedbackSystem;
@@ -58,7 +57,6 @@ struct IRealtimeRemoteUpdate;
 struct ISaveGame;
 struct IScriptTable;
 struct ISerializeHelper;
-struct ISubtitleManager;
 struct ISystem;
 struct ITimeDemoRecorder;
 struct IUIDraw;
@@ -515,6 +513,7 @@ enum EActionEvent
 	eAE_resetBegin,
 	eAE_resetEnd,
 	eAE_resetProgress,
+	eAE_resetLoadedLevel,    //!< m_value -> 1 if loading new level, 0 otherwise
 	eAE_preSaveGame,         //!< m_value -> ESaveGameReason.
 	eAE_postSaveGame,        //!< m_value -> ESaveGameReason, m_description: 0 (failed), != 0 (successful).
 	eAE_inGame,
@@ -725,17 +724,9 @@ struct IGameFramework
 	//! \return Pointer to IMaterialEffects interface.
 	virtual IMaterialEffects* GetIMaterialEffects() = 0;
 
-	//! Returns a pointer to the IDialogSystem interface
-	//! \return Pointer to IDialogSystem interface.
-	virtual IDialogSystem* GetIDialogSystem() = 0;
-
 	//! Returns a pointer to the IPlayerProfileManager interface.
 	//! \return Pointer to IPlayerProfileManager interface.
 	virtual IPlayerProfileManager* GetIPlayerProfileManager() = 0;
-
-	//! Returns a pointer to the ISubtitleManager interface.
-	//! \return Pointer to ISubtitleManager interface.
-	virtual ISubtitleManager* GetISubtitleManager() = 0;
 
 	//! Returns a pointer to the IRealtimeUpdate Interface.
 	virtual IRealtimeRemoteUpdate* GetIRealTimeRemoteUpdate() = 0;

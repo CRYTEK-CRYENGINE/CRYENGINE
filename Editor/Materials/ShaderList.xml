@@ -1,7 +1,8 @@
 <ShaderList>
 	<Shader name="DistanceClouds" />
 	<Shader name="Eye" />
-	<Shader name="Glass" />
+  <Shader name="Glass" />
+  <Shader name="MultiLayeredMaterials" />
 	<Shader name="Hair" />
 	<Shader name="HumanSkin" />
 	<Shader name="Illum" />

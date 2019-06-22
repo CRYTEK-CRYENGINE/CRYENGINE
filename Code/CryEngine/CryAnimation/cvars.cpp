@@ -3,6 +3,7 @@
 #include "stdafx.h"
 #include "cvars.h"
 #include <CrySerialization/Enum.h>
+
 //need global var as the singleton approach is too expensive
 Console g_Consoleself;
 namespace
@@ -115,6 +116,9 @@ void Console::Init()
 #ifndef _RELEASE
 	REGISTER_CVAR(ca_DebugAnimUsageOnFileAccess, 0, 0, "shows what animation assets are used in the level, triggered by key fileAccess events");
 	REGISTER_CVAR(ca_AttachmentTextureMemoryBudget, 100, 0, "texture budget for e_debugdraw 20 - in megabytes");
+	
+	REGISTER_CVAR(ca_debug_attachmentManager_maxUsedMemSize, 0, VF_NULL, "shows how many elements the memory vector of the AttachmentManager held at most");
+	REGISTER_CVAR(ca_debug_attachmentManager_maxUsedOffsetSize, 0, VF_NULL, "shows how many elements the offsets vector of the AttachmentManager held at most");
 #endif
 
 	ca_CharEditModel = "objects/characters/human/sdk_player/sdk_player.cdf";
@@ -239,6 +243,14 @@ void Console::Init()
 
 	DefineConstIntCVar(ca_PreloadAllCAFs, 0, VF_NULL, "Preload all CAFs during level preloading.");
 
+	DefineConstIntCVar(ca_MinAttachmentMemorySize, 4096, VF_NULL, "Default reservation size of the memory vector in the AttachmentManager");
+	DefineConstIntCVar(ca_MinAttachmentOffsetSize, 4096, VF_NULL, "Default reservation size of the offsets vector in the AttachmentManager");
+
+	// Quasi static animation optimization
+	DefineConstIntCVar(ca_CullQuasiStaticAnimationUpdates, 0, VF_NULL, "Drops the animation updates of objects marked as 'quasi-static' when they sleep");
+	DefineConstIntCVar(ca_DebugQuasiStaticAnimationCulling, 0, VF_NULL, "Whether to display debug information about what updates are being culled.");
+	DefineConstIntCVar(ca_QuasiStaticAnimationSleepTimeoutMs, 2500, VF_NULL, "How much to wait (ms) before sleeping on quasi-static objects.");
+
 	// vars in console .cfgs
 	REGISTER_CVAR(ca_DrawVEGInfo, 0.0f, VF_CHEAT, "if set to 1, the VEG debug info is drawn");
 	REGISTER_CVAR(ca_DecalSizeMultiplier, 1.0f, VF_CHEAT, "The multiplier for the decal sizes");
@@ -270,6 +282,7 @@ void Console::Init()
 	REGISTER_CVAR(ca_MotionBlurMovementThreshold, 0.0f, 0, "\"advanced\" Set motion blur movement threshold for discarding skinned object");
 
 	REGISTER_CVAR(ca_DeathBlendTime, 0.3f, VF_CHEAT, "Specifies the blending time between low-detail dead body skeleton and current skeleton");
+	REGISTER_CVAR(ca_OverrideBlendWeightSimulatedSockets, 1.0f, 0, "Override helper joint value for blending between socket simulation and animation pose\n 0.0 - full animation\n 1.0 - full simulation (override disabled)");
 	REGISTER_CVAR(ca_lipsync_vertex_drag, 1.2f, VF_CHEAT, "Vertex drag coefficient when blending morph targets");
 	REGISTER_CVAR(ca_lipsync_phoneme_strength, 1.0f, 0, "LipSync phoneme strength");
 	REGISTER_CVAR(ca_AttachmentCullingRation, 200.0f, 0, "ration between size of attachment and distance to camera");

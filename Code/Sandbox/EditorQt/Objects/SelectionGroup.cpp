@@ -301,6 +301,8 @@ void CSelectionGroup::Move(const Vec3& offset, int moveFlags, const CPoint& poin
 			CPoint screenSpacePos = GetIEditorImpl()->GetActiveView()->WorldToView(newPos);
 
 			CSurfaceInfoPicker surfacePicker;
+			// All movements (with snapping to geometry) should also consider frozen objects
+			surfacePicker.SetPickOptionFlag(CSurfaceInfoPicker::ePickOption_IncludeFrozenObject);
 			bValidFollowGeometryMode = surfacePicker.Pick(screenSpacePos, pickedInfo, &excludeObjects);
 			obj->SetWorldPos(pickedInfo.vHitPos);
 

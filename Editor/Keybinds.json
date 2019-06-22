@@ -261,7 +261,7 @@
         "custom": true,
         "uiName": "Level Design Layout"
     },
-    "level.go_to_selection": {
+    "selection.go_to": {
         "shortcuts": [
             "G",
             "Num+."

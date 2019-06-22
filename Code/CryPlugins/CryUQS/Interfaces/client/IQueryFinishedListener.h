@@ -19,10 +19,9 @@ namespace UQS
 		{
 			struct SQueryInfo
 			{
-				explicit        SQueryInfo(const Core::CQueryID& _queryID, const Core::CQueryID& _parentQueryID, const char* _szQuerierName, const char* _szQueryBlueprintName, int _numGeneratedItems, int _numItemsInFinalResultSet, const CTimeValue& _queryCreatedTimestamp, const CTimeValue& _queryFinishedTimestamp, int _numConsumedFrames, int _numElapsedFrames, bool _bExceptionOccurred, const char* _szPotentialExceptionMessage);
+				explicit        SQueryInfo(const Core::CQueryID& _queryID, const char* _szQuerierName, const char* _szQueryBlueprintName, int _numGeneratedItems, int _numItemsInFinalResultSet, const CTimeValue& _queryCreatedTimestamp, const CTimeValue& _queryFinishedTimestamp, int _numConsumedFrames, int _numElapsedFrames, bool _bExceptionOccurred, const char* _szPotentialExceptionMessage);
 
 				Core::CQueryID  queryID;
-				Core::CQueryID  parentQueryID;
 				const char*     szQuerierName;
 				const char*     szQueryBlueprintName;
 				int             numGeneratedItems;
@@ -42,9 +41,8 @@ namespace UQS
 			~IQueryFinishedListener() {}	// protected non-virtual dtor since deletion through base-class pointers is not intended
 		};
 
-		inline IQueryFinishedListener::SQueryInfo::SQueryInfo(const Core::CQueryID& _queryID, const Core::CQueryID& _parentQueryID, const char* _szQuerierName, const char* _szQueryBlueprintName, int _numGeneratedItems, int _numItemsInFinalResultSet, const CTimeValue& _queryCreatedTimestamp, const CTimeValue& _queryFinishedTimestamp, int _numConsumedFrames, int _numElapsedFrames, bool _bExceptionOccurred, const char* _szPotentialExceptionMessage)
+		inline IQueryFinishedListener::SQueryInfo::SQueryInfo(const Core::CQueryID& _queryID, const char* _szQuerierName, const char* _szQueryBlueprintName, int _numGeneratedItems, int _numItemsInFinalResultSet, const CTimeValue& _queryCreatedTimestamp, const CTimeValue& _queryFinishedTimestamp, int _numConsumedFrames, int _numElapsedFrames, bool _bExceptionOccurred, const char* _szPotentialExceptionMessage)
 			: queryID(_queryID)
-			, parentQueryID(_parentQueryID)
 			, szQuerierName(_szQuerierName)
 			, szQueryBlueprintName(_szQueryBlueprintName)
 			, numGeneratedItems(_numGeneratedItems)

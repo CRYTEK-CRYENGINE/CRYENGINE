@@ -139,11 +139,12 @@ void QToolWindowArea::addToolWindows(const QList<QWidget*>& toolWindows, int ind
 			tabBar()->setTabButton(newIndex, QTabBar::ButtonPosition::RightSide, createCloseButton());
 		}
 
-		connect(toolWindow, &QWidget::windowTitleChanged, this, [this, newIndex, toolWindow](const QString& title)
+		connect(toolWindow, &QWidget::windowTitleChanged, this, [this, toolWindow](const QString& title)
 		{
-			if (indexOf(toolWindow) >= 0)
+			int index = indexOf(toolWindow);
+			if (index >= 0)
 			{
-			  setTabText(newIndex, title);
+			  setTabText(index, title);
 			}
 			if (count() == 1)
 			{
@@ -228,6 +229,10 @@ bool QToolWindowArea::eventFilter(QObject* pObject, QEvent* pEvent)
 	{
 		if (pEvent->type() == QEvent::MouseButtonPress)
 		{
+			// Set default values to not allow dragging
+			m_areaDragCanStart = false;
+			m_tabDragCanStart = false;
+
 			QMouseEvent* me = static_cast<QMouseEvent*>(pEvent);
 			if ((pObject == m_pTabFrame && m_pTabFrame->m_pCaption->rect().contains(me->pos())) || pObject == m_pTabFrame->m_pCaption || (pObject == tabBar() && tabBar()->tabAt(static_cast<QMouseEvent*>(pEvent)->pos()) >= 0))
 			{
@@ -263,6 +268,10 @@ bool QToolWindowArea::eventFilter(QObject* pObject, QEvent* pEvent)
 				if (qobject_cast<QToolWindowSingleTabAreaFrame*>(toolWindow) == m_pTabFrame)
 				{
 					toolWindow = m_pTabFrame->contents();
+				}
+				if (!toolWindow)
+				{
+					return false;
 				}
 				m_tabDragCanStart = false;
 				//stop internal tab drag in QTabBar
@@ -604,6 +613,7 @@ QToolWindowSingleTabAreaFrame::QToolWindowSingleTabAreaFrame(QToolWindowManager*
 	, m_pContents(nullptr)
 {
 	m_pLayout->setContentsMargins(0, 0, 0, 0);
+	m_pLayout->setMargin(0);
 	m_pLayout->setSpacing(0);
 
 	m_pCaption->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -636,8 +646,6 @@ void QToolWindowSingleTabAreaFrame::setContents(QWidget* widget)
 {
 	if (m_pContents)
 	{
-		QObject::disconnect(m_pContents, &QWidget::windowTitleChanged, this, &QWidget::setWindowTitle);
-		QObject::disconnect(m_pContents, &QWidget::windowIconChanged, this, &QWidget::setWindowIcon);
 		m_pLayout->removeWidget(m_pContents);
 	}
 	if (widget)

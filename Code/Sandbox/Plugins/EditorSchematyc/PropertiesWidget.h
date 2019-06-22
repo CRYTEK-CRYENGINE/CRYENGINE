@@ -11,7 +11,7 @@
 
 #include <QWidget>
 
-class QAdvancedPropertyTree;
+class QAdvancedPropertyTreeLegacy;
 
 namespace CrySchematycEditor {
 
@@ -51,7 +51,7 @@ protected:
 	void OnEndUndo(bool acceptUndo);
 
 protected:
-	QAdvancedPropertyTree*       m_pPropertyTree;
+	QAdvancedPropertyTreeLegacy*       m_pPropertyTree;
 	Serialization::SStructs      m_structs;
 	Serialization::CContextList* m_pContextList;
 

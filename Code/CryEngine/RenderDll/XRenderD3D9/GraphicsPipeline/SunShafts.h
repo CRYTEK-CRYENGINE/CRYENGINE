@@ -9,7 +9,15 @@
 class CSunShaftsStage : public CGraphicsPipelineStage
 {
 public:
-	bool      IsStageActive(EShaderRenderingFlags flags) const final
+	static const EGraphicsPipelineStage StageID = eStage_Sunshafts;
+
+	CSunShaftsStage(CGraphicsPipeline& graphicsPipeline)
+		: CGraphicsPipelineStage(graphicsPipeline)
+		, m_passShaftsMask(&graphicsPipeline)
+		, m_passShaftsGen0(&graphicsPipeline)
+		, m_passShaftsGen1(&graphicsPipeline) {}
+
+	bool IsStageActive(EShaderRenderingFlags flags) const final
 	{
 		return CRenderer::CV_r_sunshafts && CRenderer::CV_r_PostProcess;
 	}

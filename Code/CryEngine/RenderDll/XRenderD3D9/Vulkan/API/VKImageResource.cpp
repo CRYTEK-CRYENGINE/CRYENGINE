@@ -21,7 +21,7 @@ CImageResource::~CImageResource()
 
 VkResult CImageResource::InitFromSwapchain(VkImage image, VkImageLayout layout, uint32_t width, uint32_t height, VkFormat format)
 {
-	VK_ASSERT(!m_hVkImageResource && "Image already initialized");
+	VK_ASSERT(!m_hVkImageResource, "Image already initialized");
 
 	m_hVkImageResource = image;
 	m_eCurrentLayout = layout;
@@ -38,14 +38,14 @@ VkResult CImageResource::InitFromSwapchain(VkImage image, VkImageLayout layout, 
 
 VkResult CImageResource::Init(VkImage image, const VkImageCreateInfo& createInfo)
 {
-	VK_ASSERT(!m_hVkImageResource && "Image already initialized");
+	VK_ASSERT(!m_hVkImageResource, "Image already initialized");
 	m_hVkImageResource = image;
 	m_VkCreateInfo = createInfo;
 
-	VK_ASSERT(~createInfo.flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT && "Sparse storage not implemented");
-	VK_ASSERT(createInfo.samples == VK_SAMPLE_COUNT_1_BIT && "Multi-sampled images not implemented");
-	VK_ASSERT(~createInfo.usage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT && "Transient storage not implemented");
-	VK_ASSERT(createInfo.sharingMode == VK_SHARING_MODE_EXCLUSIVE && "Sharing not implemented");
+	VK_ASSERT(~createInfo.flags & VK_IMAGE_CREATE_SPARSE_BINDING_BIT, "Sparse storage not implemented");
+	VK_ASSERT(createInfo.samples == VK_SAMPLE_COUNT_1_BIT, "Multi-sampled images not implemented");
+	VK_ASSERT(~createInfo.usage & VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT, "Transient storage not implemented");
+	VK_ASSERT(createInfo.sharingMode == VK_SHARING_MODE_EXCLUSIVE, "Sharing not implemented");
 
 	{
 		m_eCurrentLayout = createInfo.initialLayout;
@@ -54,7 +54,7 @@ VkResult CImageResource::Init(VkImage image, const VkImageCreateInfo& createInfo
 		m_flags = kResourceFlagNone;
 		if (createInfo.flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
 		{
-			VK_ASSERT((createInfo.imageType == VK_IMAGE_TYPE_2D) && createInfo.arrayLayers >= 6 && "Bad dimensions for cube(-array)");
+			VK_ASSERT((createInfo.imageType == VK_IMAGE_TYPE_2D) && createInfo.arrayLayers >= 6, "Bad dimensions for cube(-array)");
 			m_flags |= kImageFlagCube;
 		}
 		if (createInfo.usage & VK_IMAGE_USAGE_STORAGE_BIT)
@@ -88,7 +88,7 @@ VkResult CImageResource::Init(VkImage image, const VkImageCreateInfo& createInfo
 				}
 				break;
 			}
-			VK_ASSERT((m_flags & (kImageFlagDepthAttachment | kImageFlagStencilAttachment)) && "Invalid format for usage with D/S attachment");
+			VK_ASSERT((m_flags & (kImageFlagDepthAttachment | kImageFlagStencilAttachment)), "Invalid format for usage with D/S attachment");
 		}
 		if (createInfo.usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
 		{
@@ -118,7 +118,7 @@ VkResult CImageResource::Init(VkImage image, const VkImageCreateInfo& createInfo
 			m_flags |= kImageFlag3D;
 			break;
 		default:
-			VK_ASSERT(false && "Unknown image type");
+			VK_ASSERT(false, "Unknown image type");
 			break;
 		}
 	}
@@ -161,50 +161,52 @@ CAutoHandle<VkImageView> CImageResource::CreateView(VkImageViewType viewType, Vk
 	{
 	case VK_IMAGE_VIEW_TYPE_1D:
 	case VK_IMAGE_VIEW_TYPE_1D_ARRAY:
-		VK_ASSERT((m_flags & kImageFlag1D) != 0 && "Cannot create 1D view on non-1D image");
+		VK_ASSERT((m_flags & kImageFlag1D) != 0, "Cannot create 1D view on non-1D image");
 		break;
 	case VK_IMAGE_VIEW_TYPE_2D:
 	case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
-		VK_ASSERT((m_flags & kImageFlag2D) != 0 && "Cannot create 2D view on non-2D image");
+		VK_ASSERT((m_flags & kImageFlag2D) != 0, "Cannot create 2D view on non-2D image");
 		break;
 	case VK_IMAGE_VIEW_TYPE_3D:
-		VK_ASSERT((m_flags & kImageFlag3D) != 0 && "Cannot create 3D view on non-3D image");
+		VK_ASSERT((m_flags & kImageFlag3D) != 0, "Cannot create 3D view on non-3D image");
 		break;
 	case VK_IMAGE_VIEW_TYPE_CUBE:
 	case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
-		VK_ASSERT((m_flags & kImageFlag2D) != 0 && (m_flags & kImageFlagCube) != 0 && "Cannot create Cube view on non-cube image");
+		VK_ASSERT((m_flags & kImageFlag2D) != 0 && (m_flags & kImageFlagCube) != 0, "Cannot create Cube view on non-cube image");
 		break;
 	default:
-		VK_ASSERT(false && "Unknown view type");
+		VK_ASSERT(false, "Unknown view type");
 	}
 	switch (viewType)
 	{
 	case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
-		VK_ASSERT(range.layerCount % 6 == 0 && "Array view is not a multiple of 6 (required for cube array)");
+		VK_ASSERT(range.layerCount % 6 == 0, "Array view is not a multiple of 6 (required for cube array)");
 	// Fall through
 	case VK_IMAGE_VIEW_TYPE_1D_ARRAY:
 	case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
-		VK_ASSERT(range.baseArrayLayer < GetSliceCount() && range.baseArrayLayer + range.layerCount <= GetSliceCount() && "Array view out of range");
+		VK_ASSERT(range.baseArrayLayer < GetSliceCount() && range.baseArrayLayer + range.layerCount <= GetSliceCount(), "Array view out of range");
 		break;
 	case VK_IMAGE_VIEW_TYPE_CUBE:
-		VK_ASSERT(range.baseArrayLayer + 6 <= GetSliceCount() && range.layerCount == 6 && "Array view is 6 slices (required for single cube)");
+		VK_ASSERT(range.baseArrayLayer + 6 <= GetSliceCount() && range.layerCount == 6, "Array view is 6 slices (required for single cube)");
 		break;
 	default:
-		VK_ASSERT(range.baseArrayLayer < GetSliceCount() && range.layerCount == 1 && "Non-array view must contain exactly one slice");
+		VK_ASSERT(range.baseArrayLayer < GetSliceCount() && range.layerCount == 1, "Non-array view must contain exactly one slice");
 		break;
 	}
-	VK_ASSERT(range.baseMipLevel < GetMipCount() && range.baseMipLevel + range.levelCount <= GetMipCount() && "Mip slice does not fit inside texture");
+	VK_ASSERT(range.baseMipLevel < GetMipCount() && range.baseMipLevel + range.levelCount <= GetMipCount(), "Mip slice does not fit inside texture");
+#if !_RELEASE
 	if (range.aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
 	{
 		const EResourceFlag depthFlag = (range.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT) ? kImageFlagDepthAttachment : kResourceFlagNone;
 		const EResourceFlag stencilFlag = (range.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT) ? kImageFlagStencilAttachment : kResourceFlagNone;
-		VK_ASSERT((m_flags & (depthFlag | stencilFlag)) == (depthFlag | stencilFlag) && "Cannot create D/S-view on non-D/S-image");
+		VK_ASSERT((m_flags & (depthFlag | stencilFlag)) == (depthFlag | stencilFlag), "Cannot create D/S-view on non-D/S-image");
 	}
 	else
 	{
-		VK_ASSERT(range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT && "No aspects selected");
-		VK_ASSERT((m_flags & (kImageFlagDepthAttachment | kImageFlagStencilAttachment)) == 0 && "Cannot create color-view on D/S-image");
+		VK_ASSERT(range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT, "No aspects selected");
+		VK_ASSERT((m_flags & (kImageFlagDepthAttachment | kImageFlagStencilAttachment)) == 0, "Cannot create color-view on D/S-image");
 	}
+#endif
 
 	VkImageViewCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

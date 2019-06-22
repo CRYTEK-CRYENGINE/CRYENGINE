@@ -70,6 +70,7 @@ enum EPE_Action
 	ePE_action_move_parts           = 16,
 	ePE_action_batch_parts_update   = 17,
 	ePE_action_slice                = 18,
+	ePE_action_resolve_constraints  = 19,
 
 	ePE_Action_Count
 };
@@ -1312,7 +1313,8 @@ enum constrflags
 	constraint_free_position  = 0x1000, //!< position is unconstrained
 	constraint_no_rotation    = 0x2000, //!< relative rotation is fully constrained
 	constraint_no_enforcement = 0x4000, //!< disables positional enforcement during fast movement (currently disabled unconditionally)
-	constraint_no_tears       = 0x8000  //!< constraint is not deleted when force limit is reached
+	constraint_no_tears       = 0x8000, //!< constraint is not deleted when force limit is reached
+	constraint_instant        = 0x10000	//!< constraint is enforced instantly by adjusting position (currently only supported for rotation on ragdoll parts)
 };
 
 //! Adds a physical constraint on an entity
@@ -1483,6 +1485,21 @@ struct pe_action_slice : pe_action
 	int   partid;
 	Vec3* pt;
 	int   npt; //!< only 3 is supported currently
+};
+
+////////// articulated entity actions
+
+struct pe_action_resolve_constraints : pe_action
+{
+	//! resolves constraints on a ragdoll using energy-based IK (note: will be queued)
+	enum entype { type_id = ePE_action_resolve_constraints };
+	pe_action_resolve_constraints() { type = type_id; stepHardness = 0.5f; lastDist = 0.02f; mode = 0; maxIters = 8; maxItersInner = 250; stopOnContact = 0; }
+	float stepHardness;	 // !< relaxation constant; closer to 1 -> fewer iterations needed, but possibly less smooth
+	float lastDist;			 // !< if constraint violation distance is below this, make full last step with hardness 1
+	int   mode;          // !< stiff mode (1) favors pose preservation, default (0) favors energy minimization
+	int   maxIters;			 // !< maximum number of high-level iterations
+	int   maxItersInner; // !< maximum number of internal solver iterations
+	int   stopOnContact; // !< if 1 free the pose if any collision is detected
 };
 
 ////////// living entity actions
@@ -1760,6 +1777,7 @@ struct pe_status_constraint : pe_status
 	int              idx;
 	int              flags;
 	Vec3             pt[2];
+	int              partid[2];
 	Vec3             n;
 	IPhysicalEntity* pBuddyEntity;
 	IPhysicalEntity* pConstraintEntity;
@@ -3288,7 +3306,16 @@ struct EventPhysBBoxChange : EventPhysMono
 	Vec3  BBoxNew[2];
 };
 
-const int EVENT_TYPES_NUM = 18;
+struct EventPhysSimFinished : EventPhysMono
+{
+	enum entype { id = 18, flagsCall = 0, flagsLog = 0 };
+	EventPhysSimFinished() { idval = id; }
+	float time;
+	void* frameData;
+	int   numColl;
+};
+
+const int EVENT_TYPES_NUM = 19;
 
 //! Physical entity iterator interface. This interface is used to traverse trough all the physical entities in an physical world.
 //! In a way, this iterator works a lot like a stl iterator.
@@ -3456,6 +3483,8 @@ struct IPhysicalWorld
 	virtual int              DestroyPhysicalEntity(IPhysicalEntity* pent, int mode = 0, int bThreadSafe = 0) = 0;
 	enum EDestroyMode { DM_NORMAL = 0, DM_SUSPEND = 1, DM_RESTORE = 2, DM_KEEP_IF_REFERENCED = 4 };
 	int  DestroyPhysicalEntity(IPhysicalEntity* pent, EDestroyMode mode, int bThreadSafe = 0) { return DestroyPhysicalEntity(pent, (int)mode, bThreadSafe); }
+	//! ClonePhysicalEntity - creates a clone of pentSrc
+	virtual IPhysicalEntity* ClonePhysicalEntity(IPhysicalEntity *pentSrc, bool regInWorld = true, int newId = -1) = 0;
 
 	virtual int              SetPhysicalEntityId(IPhysicalEntity* pent, int id, int bReplace = 1, int bThreadSafe = 0) = 0;
 	virtual int              GetPhysicalEntityId(IPhysicalEntity* pent) = 0; //!< special values: NULL : -1, WORLD_ENTITY : -2;

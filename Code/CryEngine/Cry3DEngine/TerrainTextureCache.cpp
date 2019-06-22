@@ -121,7 +121,7 @@ int CTextureCache::GetPoolSize()
 
 void CTextureCache::InitPool(byte* pData, int nDim, ETEX_Format eTexFormat)
 {
-	MEMSTAT_CONTEXT(EMemStatContextTypes::MSC_Texture, 0, "Terrain texture cache");
+	MEMSTAT_CONTEXT(EMemStatContextType::Texture, "Terrain texture cache");
 
 	ResetTexturePool();
 

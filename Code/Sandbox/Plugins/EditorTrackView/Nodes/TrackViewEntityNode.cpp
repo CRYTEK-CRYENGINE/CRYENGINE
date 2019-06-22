@@ -405,9 +405,12 @@ void CTrackViewEntityNode::OnNodeVisibilityChanged(IAnimNode* pNode, const bool 
 	}
 }
 
-void CTrackViewEntityNode::OnNodeReset(IAnimNode* pNode)
+bool CTrackViewEntityNode::OnNodeReset(IAnimNode* pNode)
 {
-	if (gEnv->IsEditing() && m_pNodeEntity)
+	const CTrackViewSequence* pSequence = GetSequence();
+	const bool isAnimating = pSequence ? pSequence->IsAnimating() : false;
+
+	if (gEnv->IsEditing() && !isAnimating && m_pNodeEntity)
 	{
 		// If the node has an event track, one should also reload the script when the node is reset.
 		CTrackViewTrack* pAnimTrack = GetTrackForParameter(eAnimParamType_Event);
@@ -420,7 +423,11 @@ void CTrackViewEntityNode::OnNodeReset(IAnimNode* pNode)
 			}
 			m_pNodeEntity->Reload(true);
 		}
+
+		return true;
 	}
+
+	return false;
 }
 
 void CTrackViewEntityNode::MatrixInvalidated()

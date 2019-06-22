@@ -52,6 +52,51 @@ std::vector<string> GetListOfMetadataFiles(const std::vector<CAsset*>& assets)
 	return result;
 }
 
+QStringList GetUiNamesFromAssetTypeNames(const std::vector<string>& typeNames)
+{
+	CAssetManager* const pManager = CAssetManager::GetInstance();
+	QStringList uiNames;
+	uiNames.reserve(typeNames.size());
+	for (const string& typeName : typeNames)
+	{
+		CAssetType* const pType = pManager->FindAssetType(typeName.c_str());
+		if (pType)
+		{
+			uiNames.push_back(pType->GetUiTypeName());
+		}
+	}
+	return uiNames;
+}
+
+QStringList GetUiNamesFromAssetTypes(const std::vector<CAssetType*>& types)
+{
+	QStringList uiNames;
+	uiNames.reserve(types.size());
+	std::transform(types.cbegin(), types.cend(), std::back_inserter(uiNames), [](const CAssetType* pType)
+	{
+		return pType->GetUiTypeName();
+	});
+	return uiNames;
+}
+
+std::vector<CAssetType*> GetAssetTypesFromTypeNames(const std::vector<string>& typeNames)
+{
+	const CAssetManager* const pManager = CAssetManager::GetInstance();
+	std::vector<CAssetType*> types;
+	types.reserve(typeNames.size());
+
+	for (const string& typeName : typeNames)
+	{
+		CAssetType* const pAssetType = pManager->FindAssetType(typeName);
+		if (!pAssetType)
+		{
+			continue;
+		}
+		types.push_back(pAssetType);
+	}
+	return types;
+}
+
 void RCLogger::OnRCMessage(MessageSeverity severity, const char* szText)
 {
 	if (severity == MessageSeverity_Error)

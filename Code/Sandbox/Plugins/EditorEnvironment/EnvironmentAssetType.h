@@ -1,4 +1,4 @@
-// Copyright 2001-2018 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
 
 #pragma once
 
@@ -10,6 +10,7 @@ class CEnvironmentAssetType : public CAssetType
 public:
 	DECLARE_ASSET_TYPE_DESC(CEnvironmentAssetType);
 
+private:
 	virtual const char*   GetTypeName() const override       { return "Environment"; }
 	virtual const char*   GetUiTypeName() const override     { return QT_TR_NOOP("Environment"); }
 	virtual const char*   GetFileExtension() const override  { return "env"; }
@@ -24,7 +25,5 @@ public:
 	virtual void          OnInit() override;
 	virtual bool          OnCreate(INewAsset& asset, const SCreateParams* pCreateParams) const;
 	virtual CAssetEditor* Edit(CAsset* pAsset) const override;
-
-private:
-	virtual CryIcon GetIconInternal() const override;
+	virtual CryIcon       GetIconInternal() const override;
 };
