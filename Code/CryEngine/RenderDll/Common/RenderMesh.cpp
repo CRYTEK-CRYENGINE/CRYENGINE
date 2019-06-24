@@ -5179,7 +5179,7 @@ void CRenderMesh::Render(CRenderObject* pObj, const SRenderingPassInfo& passInfo
 	if (pObj->m_ObjFlags & FOB_RENDER_AFTER_POSTPROCESSING)
 	{
 		// Check for mesh conditions regarding post processing
-		if (CRenderer::CV_r_PostProcess && CRenderer::CV_r_PostProcessHUD3D)
+		if ((CRenderer::CV_r_PostProcess > 0) && (CRenderer::CV_r_PostProcessHUD3D > 0))
 			AddHUDRenderElement(pObj, pMaterial, passInfo);
 
 		return;

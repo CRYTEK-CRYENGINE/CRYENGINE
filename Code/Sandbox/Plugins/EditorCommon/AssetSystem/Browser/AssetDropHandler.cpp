@@ -174,9 +174,17 @@ std::vector<CAsset*> CAssetDropHandler::Import(const QStringList& filePaths, con
 
 std::future<std::vector<CAsset*>> CAssetDropHandler::ImportAsync(const QStringList& filePaths, const SImportParams& importParams)
 {
-	auto import = [filePaths, importParams] { return Import(filePaths, importParams); };
-	auto merge = [](std::vector<CAsset*>&& assets) { GetIEditor()->GetAssetManager()->MergeAssets(assets); };
-	return ThreadingUtils::AsyncFinalize(import, merge);
+	// The current limitation of the FBX importer is that it is asynchronous, but not thread safe.
+	// Therefore, all import requests must be processed in order, one after the other.
+	return ThreadingUtils::AsyncQueue([filePaths, importParams]()
+	{
+		std::vector<CAsset*> assets = Import(filePaths, importParams);
+		ThreadingUtils::PostOnMainThread([](std::vector<CAsset*>&& assets) 
+		{ 
+			GetIEditor()->GetAssetManager()->MergeAssets(assets); 
+		}, assets);
+		return assets;
+	});
 }
 
 //! Precondition: pAssetImporter->GetAssetTypes() is a sub-set of assetTypes.

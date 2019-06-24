@@ -31,6 +31,11 @@ void CSampleActorComponent::Register(Schematyc::CEnvRegistrationScope& component
 	}
 }
 
+/**
+ * Deconstruct a CSampleActorComponent
+ *
+ * This method will De-Physicalize the Entity and remove the PhysicalWorld Event Listener for `EventPhysPostStep`
+ */
 CSampleActorComponent::~CSampleActorComponent()
 {
 	SEntityPhysicalizeParams pp;
@@ -38,6 +43,17 @@ CSampleActorComponent::~CSampleActorComponent()
 	m_pEntity->Physicalize(pp);
 }
 
+/**
+ * Handle PhysicalWorld Event: OnPostStepWalkingRigid
+ *
+ * This method uses two user-defined velocities, `m_velMove` and `m_velJump`, to modify the velocity of the Entity,
+ * causing it to move in response to keyboard inputs. The user-defined velocities are modified according to the Ground
+ * Slope and will inherit from Ground Velocity.
+ *
+ * @note This method is invoked by `CSampleActorComponent::OnPostStepWalking`
+ *
+ * @param deltaTime | float | The time delta
+ */
 int CSampleActorComponent::OnPostStep(float deltaTime)
 {
 	// immediate post step; is called directly from the physics thread
@@ -54,7 +70,7 @@ int CSampleActorComponent::OnPostStep(float deltaTime)
 	pEntity->GetStatus(&sl);
 	pEntity->GetStatus(&sd);
 	pEntity->GetStatus(&ss);
-	if (sl.pGroundCollider)	
+	if (sl.pGroundCollider)
 	{
 		Vec3 velReq = m_velMove - sl.groundSlope*(sl.groundSlope*m_velMove); // project velMove to the ground
 		velReq += sl.velGround;	// if we stand on something, inherit its velocity
@@ -71,7 +87,7 @@ int CSampleActorComponent::OnPostStep(float deltaTime)
 			m_velJump.zero();
 		}
 		asv.v = sl.vel + dv;
-		if (m_velMove.len2()) 
+		if (m_velMove.len2())
 		{
 			// if we are accelerating, subtract the momentum we gain from the object we stand on
 			// this ensures physical consistency, but can be disabled if it messes too much with the ground objects
@@ -81,14 +97,14 @@ int CSampleActorComponent::OnPostStep(float deltaTime)
 			sl.pGroundCollider->Action(&ai);
 			pwr.legFriction = 0;
 			sp.minEnergy = 0;	// never sleep when accelerating
-		}	
-		else 
+		}
+		else
 		{
 			// when not accelerating, also let the natural friction stop the movement
 			pwr.legFriction = m_friction;
 			sp.minEnergy = sqr(0.07f);
 		}
-	}	
+	}
 	else
 		m_timeFly -= deltaTime;
 	if (m_timeFly <= 0)
@@ -99,6 +115,26 @@ int CSampleActorComponent::OnPostStep(float deltaTime)
 	return 1;
 }
 
+/**
+ * Physicalize the Entity as WalkingRigid
+ *
+ * This method will Physicalize this Entity by creating/attaching a WalkingRigid PhysicalEntity.
+ *
+ * This Component assumes that Geometries have been added by other means. An example of adding Geometry would be
+ * adding a Mesh Collider Component to this Entity via the Sandbox. Characters can also have pre-defined Geometries.
+ *
+ * If you would prefer to not use Geometries and instead use a `pe_living` Entity Style, you can specify these
+ * additional parameters to your Physical Entity to apply a general collider:
+ *
+ * @example Set `pe_player_dimensions`
+    pe_player_dimensions ppdim;
+    ppdim.bUseCapsule = 1;
+    ppdim.sizeCollider = Vec3(0.225f, 1.f, 0.4675f);
+    ppdim.groundContactEps = 0.004f;
+    ppdim.heightPivot = 0;
+    ppdim.heightCollider = 0.4675f;
+    pent->SetParams(&ppdim, 1);
+ */
 void CSampleActorComponent::Physicalize()
 {
 	SEntityPhysicalizeParams epp;
@@ -124,6 +160,25 @@ void CSampleActorComponent::Physicalize()
 	m_velJump.zero();
 }
 
+/**
+ * Setup WalkingRigid Actor Legs
+ *
+ * This method configures and initializes the "legs" of our WalkingRigid Entity.
+ *
+ * The "legs" of this Sample WalkingRigid Component work by using `pe_params_sensors` to cast a ray directly down (-z)
+ * from the Entity to find the ground under the "feet" of this Entity. This ray is used to determine which Object this
+ * Entity is currently standing on (if any).
+ *
+ * Without invoking this method after Physicalization, the Entity will be stuck in an eternal "free-fall" state, even
+ * when on the ground, which will not work as expected. If you have an issue where `pe_status_living::pGroundCollider`
+ * is always `nullptr` in `OnPostStep`, be sure to verify that this method has been invoked after Physicalization and
+ * that the `dir` variable in this method contains a negative `z` value (for a standard Actor with "legs").
+ *
+ * @note Ensure that the length of the ray (`dir`) is long enough, which means that the ray ends lower than the Geometry
+ * and ideally starts inside the Geometry. This is so that the Geometry can protect it from going fully under ground.
+ *
+ * @param immediately | Determines if the operation should occur immediately
+ */
 void CSampleActorComponent::SetupLegs(bool immediately)
 {
 	if (m_pEntity->GetPhysics())
@@ -139,6 +194,11 @@ void CSampleActorComponent::SetupLegs(bool immediately)
 	}
 }
 
+/**
+ * Handle User Input
+ *
+ * This method will execute a `pe_action_awake` on this Entity, and is called whenever there is a change to User Inputs.
+ */
 void CSampleActorComponent::OnInput()
 {
 	if (m_pEntity->GetPhysics() && m_velMove.len2() + m_velJump.len2())

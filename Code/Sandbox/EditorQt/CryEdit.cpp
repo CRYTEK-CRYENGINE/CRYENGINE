@@ -948,7 +948,6 @@ bool CCryEditApp::IdleProcessing(bool bBackgroundUpdate)
 	if (bActive || (bBackgroundUpdate && !bIsAppWindow))
 	{
 		// Start profiling frame.
-		GetIEditorImpl()->GetSystem()->GetProfilingSystem()->StartFrame();
 
 		if (GetIEditorImpl()->IsInGameMode())
 		{
@@ -957,6 +956,7 @@ bool CCryEditApp::IdleProcessing(bool bBackgroundUpdate)
 		}
 		else
 		{
+			GetIEditorImpl()->GetSystem()->GetProfilingSystem()->StartFrame();
 			if (!GetIEditorImpl()->IsInMatEditMode())
 			{
 				//Engine update is disabled during level load
@@ -979,9 +979,9 @@ bool CCryEditApp::IdleProcessing(bool bBackgroundUpdate)
 			}
 
 			GetIEditorImpl()->Notify(eNotify_OnIdleUpdate);
+			GetIEditorImpl()->GetSystem()->GetProfilingSystem()->EndFrame();
 		}
 
-		GetIEditorImpl()->GetSystem()->GetProfilingSystem()->EndFrame();
 	}
 	else if (GetIEditorImpl()->GetSystem() && GetIEditorImpl()->GetSystem()->GetILog())
 		GetIEditorImpl()->GetSystem()->GetILog()->Update(); // print messages from other threads

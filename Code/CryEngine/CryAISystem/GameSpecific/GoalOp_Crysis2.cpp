@@ -932,7 +932,7 @@ EGoalOpResult COPCrysis2Hide::Execute(CPipeUser* pPipeUser)
 			}
 
 			CAIObject* targetObject = 0;
-			if (gAIEnv.CVars.legacyCoverSystem.CoverSystem && gAIEnv.CVars.LegacyCoverExactPositioning)
+			if ((gAIEnv.CVars.legacyCoverSystem.CoverSystem > 0) && (gAIEnv.CVars.LegacyCoverExactPositioning > 0))
 				targetObject = pPipeUser->GetOrCreateSpecialAIObject(CPipeUser::AISPECIAL_ANIM_TARGET);
 			else
 				targetObject = m_refHideTarget.GetAIObject();

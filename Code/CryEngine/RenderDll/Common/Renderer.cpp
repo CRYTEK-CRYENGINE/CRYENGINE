@@ -278,8 +278,8 @@ void CRenderer::InitRenderer()
 	m_pRT = new SRenderThread;
 	m_pRT->StartRenderThread();
 
-	m_ShadowFrustumMGPUCache.Init();
-	RegisterSyncWithMainListener(&m_ShadowFrustumMGPUCache);
+	m_ShadowFrustumUdateMasks.Init();
+	RegisterSyncWithMainListener(&m_ShadowFrustumUdateMasks);
 
 	// on console some float values in vertex formats can be 16 bit
 	iLog->Log("CRenderer sizeof(Vec2f16)=%" PRISIZE_T " sizeof(Vec3f16)=%" PRISIZE_T, sizeof(Vec2f16), sizeof(Vec3f16));
@@ -403,13 +403,9 @@ void CRenderer::Release()
 	//SAFE_DELETE(g_pSDynTexture_PoolAlloc)
 	//g_pSDynTexture_PoolAlloc = NULL;
 
-	RemoveSyncWithMainListener(&m_ShadowFrustumMGPUCache);
-	m_ShadowFrustumMGPUCache.Release();
+	RemoveSyncWithMainListener(&m_ShadowFrustumUdateMasks);
 	CRenderMesh::ShutDown();
 	CHWShader::mfCleanupCache();
-
-	if (!m_DevBufMan.Shutdown())
-		CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR_DBGBRK, "could not free all buffers from CDevBufferMan!");
 
 	gRenDev = NULL;
 }
@@ -4610,7 +4606,6 @@ SSkinningData* CRenderer::EF_CreateSkinningData(IRenderView* pRenderView, uint32
 {
 	uint32 nNeededSize = Align(sizeof(SSkinningData), 16);
 	nNeededSize += Align(bNeedJobSyncVar ? sizeof(JobManager::SJobState) : 0, 16);
-	nNeededSize += Align(bNeedJobSyncVar ? sizeof(JobManager::SJobState) : 0, 16);
 	nNeededSize += Align(nNumBones * sizeof(DualQuat), 16);
 	nNeededSize += Align(nNumBones * sizeof(compute_skinning::SActiveMorphs), 16);
 
@@ -4622,13 +4617,9 @@ SSkinningData* CRenderer::EF_CreateSkinningData(IRenderView* pRenderView, uint32
 	pSkinningRenderData->pAsyncJobs = bNeedJobSyncVar ? alias_cast<JobManager::SJobState*>(pData) : NULL;
 	pData += Align(bNeedJobSyncVar ? sizeof(JobManager::SJobState) : 0, 16);
 
-	pSkinningRenderData->pAsyncDataJobs = bNeedJobSyncVar ? alias_cast<JobManager::SJobState*>(pData) : NULL;
-	pData += Align(bNeedJobSyncVar ? sizeof(JobManager::SJobState) : 0, 16);
-
-	if (bNeedJobSyncVar) // init job state if requiered
+	if (bNeedJobSyncVar)
 	{
 		new(pSkinningRenderData->pAsyncJobs) JobManager::SJobState();
-		new(pSkinningRenderData->pAsyncDataJobs) JobManager::SJobState();
 	}
 
 	pSkinningRenderData->pBoneQuatsS = alias_cast<DualQuat*>(pData);
@@ -4683,7 +4674,6 @@ SSkinningData* CRenderer::EF_CreateRemappedSkinningData(IRenderView* pRenderView
 	pSkinningRenderData->pBoneQuatsS    = pSourceSkinningData->pBoneQuatsS;
 	pSkinningRenderData->pActiveMorphs  = pSourceSkinningData->pActiveMorphs;
 	pSkinningRenderData->pAsyncJobs     = pSourceSkinningData->pAsyncJobs;
-	pSkinningRenderData->pAsyncDataJobs = pSourceSkinningData->pAsyncDataJobs;
 	pSkinningRenderData->pRenderMesh    = pSourceSkinningData->pRenderMesh;
 
 	pSkinningRenderData->pCharInstCB    = pSourceSkinningData->pCharInstCB;
@@ -5303,9 +5293,7 @@ CRenderObject* CRenderer::EF_DuplicateRO(CRenderObject* pSrc, const SRenderingPa
 		CPermanentRenderObject* pObjSrc = static_cast<CPermanentRenderObject*>(pSrc);
 		CPermanentRenderObject* pObjNew = static_cast<CPermanentRenderObject*>(CRenderer::EF_GetObject());
 		
-		uint32 nId = pObjNew->m_Id;
 		pObjNew->CloneObject(pObjSrc);
-		pObjNew->m_Id = nId;
 
 		// Link duplicated object to the source object
 		{

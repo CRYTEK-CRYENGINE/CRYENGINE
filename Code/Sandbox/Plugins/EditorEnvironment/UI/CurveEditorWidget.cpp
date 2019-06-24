@@ -45,6 +45,12 @@ CCurveEditorWidget::CCurveEditorWidget(CController& controller)
 	ConnectSignals();
 	SetEngineTime();
 	ShowControls(controller.GetEditor().GetPreset() != nullptr);
+
+	if (m_controller.GetEditor().GetPreset())
+	{
+		// The window is opened through Window->Panels->... command
+		OnAssetOpened();
+	}
 }
 
 CCurveEditorWidget::~CCurveEditorWidget()

@@ -5,8 +5,8 @@
 #include "ILevelEditor.h"
 
 class QMenu;
-class CDockableDialog;
 class CEditorDialog;
+class CLevelExplorer;
 class CQuickAssetBrowser;
 class CTagLocations;
 
@@ -92,7 +92,8 @@ Q_SIGNALS:
 	void HelpersDisplayEnabled(bool bEnable);
 
 private:
-	CDockableDialog*    m_findWindow;
+	CLevelExplorer*     m_pLevelExplorer;
+	CEditorDialog*      m_pFindDialog;
 	CQuickAssetBrowser* m_pQuickAssetBrowser;
 	CEditorDialog*      m_pQuickAssetBrowserDialog;
 	CTagLocations*      m_pTagLocations;

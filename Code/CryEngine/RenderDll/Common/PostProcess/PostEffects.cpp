@@ -880,6 +880,21 @@ void CMotionBlur::SetupObject(CRenderObject* pObj, const SRenderingPassInfo& pas
 	if (pOD->m_pSkinningData && pOD->m_pSkinningData->pAsyncJobs == NULL)
 		return;
 
+	if (pOD->m_pSkinningData)
+	{
+		assert(pOD->m_pSkinningData->pPreviousSkinningRenderData);
+
+		if (pOD->m_pSkinningData->pAsyncJobs)
+		{
+			gEnv->pJobManager->WaitForJob(*pOD->m_pSkinningData->pAsyncJobs);
+		}
+
+		if (pOD->m_pSkinningData->pPreviousSkinningRenderData->pAsyncJobs)
+		{
+			gEnv->pJobManager->WaitForJob(*pOD->m_pSkinningData->pPreviousSkinningRenderData->pAsyncJobs);
+		}
+	}
+
 	if (pOD->m_uniqueObjectId != 0 && pObj->m_fDistance < CRenderer::CV_r_MotionBlurMaxViewDist)
 	{
 		const uint32 nFrameID = passInfo.GetMainFrameID();

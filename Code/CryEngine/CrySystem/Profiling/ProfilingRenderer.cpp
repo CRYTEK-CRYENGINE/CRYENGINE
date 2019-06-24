@@ -689,7 +689,16 @@ void CProfilingRenderer::RenderThreadInfo(ILegacyProfiler* pProfSystem)
 		cry_sprintf(szText, "%4.1f%%", (info.waitValue / frameTime) * 100);
 		DrawLabel(WaitTimePercentOffset, row, ValueColor, 0, szText);
 
-		DrawLabel(NameOffset, row, TextColor, 0, gEnv->pThreadManager->GetThreadName(infoPair.first));
+		const char* szThreadName = gEnv->pThreadManager->GetThreadName(infoPair.first);
+		if (szThreadName && szThreadName[0])
+		{
+			DrawLabel(NameOffset, row, TextColor, 0, szThreadName);
+		}
+		else
+		{
+			cry_sprintf(szText, "<Unnamed Thread, id = %" PRI_THREADID ">", infoPair.first);
+			DrawLabel(NameOffset, row, TextColor, 0, szText);
+		}
 
 		++row;
 	}

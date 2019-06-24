@@ -499,6 +499,13 @@ void CEditor::UpdateAdaptiveLayout()
 	if (newOrientation == m_currentOrientation)
 		return;
 
+	// Before switching orientation, make sure the current size isn't smaller than the minimum size
+	// supported by the new orientation of the editor. Otherwise we get layout flickering
+	QSize minSize = m_pEditorContent->GetMinimumSizeForOrientation(newOrientation);
+	QSize currentSize = size();
+	if (currentSize.width() < minSize.width() || currentSize.height() < minSize.height())
+		return;
+
 	m_currentOrientation = newOrientation;
 	OnAdaptiveLayoutChanged();
 }

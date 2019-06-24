@@ -23,6 +23,7 @@ from tkinter import filedialog
 import crygui
 import cryplugin
 import cryproject
+import crypath
 import cryregistry
 import backup_project
 
@@ -55,16 +56,16 @@ def command_title(args):
     Returns an empty string if no command is in the args.
     """
     return {
-        'upgrade': 'Upgrade project',
-        'projgen': 'Generate solution',
+        'upgrade': 'Upgrade Project',
+        'projgen': 'Generate Solution',
         'cmake-gui': 'Open CMake GUI',
-        'edit': 'Launch editor',
-        'open': 'Launch game',
-        'server': 'Launch server',
-        'package': 'Package for release',
-        'switch': 'Switch engine version',
-        'metagen': 'Generate/repair metadata',
-        'backup': 'Create a backup of the project'
+        'edit': 'Launch Editor',
+        'open': 'Launch Game',
+        'server': 'Launch Server',
+        'package': 'Package for Release',
+        'switch': 'Switch Engine Version',
+        'metagen': 'Generate/Repair Metadata',
+        'backup': 'Create a Backup of the Project'
     }.get(args.command, '')
 
 # --- errors
@@ -170,6 +171,17 @@ def error_engine_tool_not_found(args, path):
         sys.stderr.write(message)
     sys.exit(620)
 
+def get_cryrun_path(engine_path):
+    """
+    For backward compatibility, when using the frozen version we search both 
+    Tools/CryVersionSelect/bin/cryselect and Tools/CryVersionSelect/
+    """
+    if getattr(sys, 'frozen', False):
+        path = os.path.join(engine_path, 'Tools/CryVersionSelector/bin/cryrun/cryrun.exe')
+        return path if os.path.isfile(path) else os.path.join(engine_path, 'Tools/CryVersionSelector/cryrun.exe')
+    else:
+        return os.path.join(engine_path, 'Tools/CryVersionSelector/cryrun.py')
+
 
 def print_subprocess(cmd):
     """
@@ -249,11 +261,13 @@ def cmd_install(args):
     uninstall_integration()
 
     if getattr(sys, 'frozen', False):
-        script_path = os.path.abspath(sys.executable)
+        # when the current module is executable, we use it directly
+        # otherwise we have to call python in the cmd line
+        curr_module_path = os.path.abspath(sys.executable)
         engine_commands = [
-            ('add', 'Register engine', '"%s" add "%%1"' % script_path),
-            ('1engine_gen', 'Generate engine solution',
-             '"%s" engine_gen "%%1"' % script_path)
+            ('add', 'Register Engine', '"%s" add "%%1"' % curr_module_path),
+            ('1engine_gen', 'Generate Engine Solution',
+             '"%s" engine_gen "%%1"' % curr_module_path)
         ]
 
         # --- extended, action, title, command
@@ -262,67 +276,67 @@ def cmd_install(args):
         # object while also pressing the SHIFT key.
         # https://msdn.microsoft.com/en-us/library/cc144171(VS.85).aspx
         project_commands = [
-            (False, 'edit', 'Launch editor', '"%s" edit "%%1"' % script_path),
-            (False, '1open', 'Launch game', '"%s" open "%%1"' % script_path),
-            (False, '2dedicated', 'Launch dedicated server',
-             '"%s" server "%%1"' % script_path),
+            (False, 'edit', 'Launch Editor', '"%s" edit "%%1"' % curr_module_path),
+            (False, '1open', 'Launch Game', '"%s" open "%%1"' % curr_module_path),
+            (False, '2dedicated', 'Launch Dedicated Server',
+             '"%s" server "%%1"' % curr_module_path),
             (False, '3package', 'Package Build',
-             '"%s" package "%%1"' % script_path),
-            (False, '4metagen', 'Generate/repair metadata',
-             '"%s" metagen "%%1"' % script_path),
-            (False, '5projgen', 'Generate solution',
-             '"%s" projgen "%%1"' % script_path),
+             '"%s" package "%%1"' % curr_module_path),
+            (False, '4metagen', 'Generate/Repair Metadata',
+             '"%s" metagen "%%1"' % curr_module_path),
+            (False, '5projgen', 'Generate Solution',
+             '"%s" projgen "%%1"' % curr_module_path),
             (False, '6cmake-gui', 'Open CMake GUI',
-             '"%s" cmake-gui "%%1"' % script_path),
-            (False, '7switch', 'Switch engine version',
-             '"%s" switch "%%1"' % script_path),
-            (False, '8backup', 'Backup project',
-             '"%s" backup "%%1"' % script_path)
+             '"%s" cmake-gui "%%1"' % curr_module_path),
+            (False, '7switch', 'Switch Engine Version',
+             '"%s" switch "%%1"' % curr_module_path),
+            (False, '8backup', 'Backup Project',
+             '"%s" backup "%%1"' % curr_module_path)
         ]
 
         plugin_commands = [
-            (False, 'register', 'Register plugin',
-                '"%s" add_plugin_gui "%%1"' % script_path),
-            (False, '1unregister', 'Unregister plugin',
-                '"%s" remove_plugin_gui "%%1"' % script_path),
+            (False, 'register', 'Register Plugin',
+                '"%s" add_plugin_gui "%%1"' % curr_module_path),
+            (False, '1unregister', 'Unregister Plugin',
+                '"%s" remove_plugin_gui "%%1"' % curr_module_path),
         ]
     else:
-        script_path = os.path.abspath(__file__)
+        curr_module_path = os.path.abspath(__file__)
         python_path = get_python_path()
         engine_commands = [
-            ('add', 'Register engine', '"%s" "%s" add "%%1"' %
-             (python_path, script_path)),
-            ('1engine_gen', 'Generate engine solution',
-             '"%s" "%s" engine_gen "%%1"' % (python_path, script_path))
+            ('add', 'Register Engine', '"%s" "%s" add "%%1"' %
+             (python_path, curr_module_path)),
+            ('1engine_gen', 'Generate Engine Solution',
+             '"%s" "%s" engine_gen "%%1"' % (python_path, curr_module_path))
         ]
 
         project_commands = [
-            (False, 'edit', 'Launch editor', '"%s" "%s" edit "%%1"' %
-             (python_path, script_path)),
-            (False, '1open', 'Launch game', '"%s" "%s" open "%%1"' %
-             (python_path, script_path)),
-            (False, '2dedicated', 'Launch dedicated server',
-             '"%s" "%s" server "%%1"' % (python_path, script_path)),
+            (False, 'edit', 'Launch Editor', '"%s" "%s" edit "%%1"' %
+             (python_path, curr_module_path)),
+            (False, '1open', 'Launch Game', '"%s" "%s" open "%%1"' %
+             (python_path, curr_module_path)),
+            (False, '2dedicated', 'Launch Dedicated Server',
+             '"%s" "%s" server "%%1"' % (python_path, curr_module_path)),
             (False, '3package', 'Package Build', '"%s" "%s" package "%%1"' %
-             (python_path, script_path)),
-            (False, '4metagen', 'Generate/repair metadata',
-             '"%s" "%s" metagen "%%1"' % (python_path, script_path)),
-            (False, '5projgen', 'Generate solution',
-             '"%s" "%s" projgen "%%1"' % (python_path, script_path)),
+             (python_path, curr_module_path)),
+            (False, '4metagen', 'Generate/Repair Metadata',
+             '"%s" "%s" metagen "%%1"' % (python_path, curr_module_path)),
+            (False, '5projgen', 'Generate Solution',
+             '"%s" "%s" projgen "%%1"' % (python_path, curr_module_path)),
             (False, '6cmake-gui', 'Open CMake GUI',
-             '"%s" "%s" cmake-gui "%%1"' % (python_path, script_path)),
-            (False, '7switch', 'Switch engine version',
-             '"%s" "%s" switch "%%1"' % (python_path, script_path)),
-            (False, '8backup', 'Backup project', '"%s" "%s" backup "%%1"' %
-             (python_path, script_path))
+             '"%s" "%s" cmake-gui "%%1"' % (python_path, curr_module_path)),
+            (False, '7switch', 'Switch Engine Version',
+             '"%s" "%s" switch "%%1"' % (python_path, curr_module_path)),
+            (False, '8backup', 'Backup Project', '"%s" "%s" backup "%%1"' %
+             (python_path, curr_module_path))
         ]
 
         plugin_commands = [
-            (False, 'register', 'Register plugin',
-                '"%s" "%s" add_plugin_gui "%%1"' % (python_path, script_path)),
-            (False, '1unregister', 'Unregister plugin',
+            (False, 'register', 'Register Plugin',
+                '"%s" "%s" add_plugin_gui "%%1"' % (python_path, curr_module_path)),
+            (False, '1unregister', 'Unregister Plugin',
                 '"%s" "%s" remove_plugin_gui "%%1"'
-                % (python_path, script_path)),
+                % (python_path, curr_module_path)),
         ]
 
     key = False and win32con.HKEY_LOCAL_MACHINE or win32con.HKEY_CURRENT_USER
@@ -334,8 +348,7 @@ def cmd_install(args):
     FriendlyTypeName = 'CryEngine version'
     ProgID = 'CrySelect.engine'
     AppUserModelID = 'CrySelect.engine'
-    DefaultIcon = os.path.abspath(os.path.join(
-        os.path.dirname(script_path), 'editor_icon.ico'))
+    DefaultIcon = os.path.join(crypath.get_exec_dir(), 'editor_icon.ico')
 
     hProgID = win32api.RegCreateKey(hClassesRoot, ProgID)
     win32api.RegSetValueEx(hProgID, None, None,
@@ -375,8 +388,7 @@ def cmd_install(args):
     FriendlyTypeName = 'CryEngine project'
     ProgID = 'CrySelect.project'
     AppUserModelID = 'CrySelect.project'
-    DefaultIcon = os.path.abspath(os.path.join(
-        os.path.dirname(script_path), 'editor_icon16.ico'))
+    DefaultIcon = os.path.join(crypath.get_exec_dir(), 'editor_icon16.ico')
 
     hProgID = win32api.RegCreateKey(hClassesRoot, ProgID)
     win32api.RegSetValueEx(hProgID, None, None,
@@ -419,8 +431,7 @@ def cmd_install(args):
     FriendlyTypeName = 'CryEngine plugin'
     ProgID = 'CrySelect.plugin'
     AppUserModelID = 'CrySelect.plugin'
-    DefaultIcon = os.path.abspath(
-        os.path.join(os.path.dirname(script_path), 'editor_icon16.ico'))
+    DefaultIcon = os.path.join(crypath.get_exec_dir(), 'editor_icon16.ico')
 
     hProgID = win32api.RegCreateKey(hClassesRoot, ProgID)
     win32api.RegSetValueEx(
@@ -690,12 +701,7 @@ class CrySwitch(tk.Frame):
         root.resizable(width=False, height=False)
         self.center_window()
 
-        iconfile = "editor_icon16.ico"
-        if not hasattr(sys, "frozen"):
-            iconfile = os.path.join(os.path.dirname(__file__), iconfile)
-        else:
-            iconfile = os.path.join(sys.prefix, iconfile)
-
+        iconfile = os.path.join(crypath.get_exec_dir(), 'editor_icon16.ico')
         root.iconbitmap(iconfile)
 
         # ---
@@ -938,15 +944,11 @@ def cmd_upgrade(args):
         error_engine_path_not_found(args, args.engine_id)
 
     if getattr(sys, 'frozen', False):
-        subcmd = [
-            os.path.join(engine_path, 'Tools',
-                         'CryVersionSelector', 'cryrun.exe')
-        ]
+        subcmd = [get_cryrun_path(engine_path)]
     else:
         subcmd = [
             get_python_path(),
-            os.path.join(engine_path, 'Tools',
-                         'CryVersionSelector', 'cryrun.py')
+            get_cryrun_path(engine_path)
         ]
 
     if not os.path.isfile(subcmd[-1]):
@@ -989,15 +991,11 @@ def cmd_run_project(args, sys_argv=sys.argv[1:]):
             error_engine_path_not_found(args, engine_id)
 
     if getattr(sys, 'frozen', False):
-        subcmd = [
-            os.path.join(engine_path, 'Tools',
-                         'CryVersionSelector', 'cryrun.exe')
-        ]
+        subcmd = [get_cryrun_path(engine_path)]
     else:
         subcmd = [
             get_python_path(),
-            os.path.join(engine_path, 'Tools',
-                         'CryVersionSelector', 'cryrun.py')
+            get_cryrun_path(engine_path)
         ]
 
     if not os.path.isfile(subcmd[-1]):
@@ -1037,15 +1035,11 @@ def cmd_run_engine(args, sys_argv=sys.argv[1:]):
     engine_path = os.path.dirname(args.engine_file)
 
     if getattr(sys, 'frozen', False):
-        subcmd = [
-            os.path.join(engine_path, 'Tools',
-                         'CryVersionSelector', 'cryrun.exe')
-        ]
+        subcmd = [get_cryrun_path(engine_path)]
     else:
         subcmd = [
             get_python_path(),
-            os.path.join(engine_path, 'Tools',
-                         'CryVersionSelector', 'cryrun.py')
+            get_cryrun_path(engine_path)
         ]
 
     if not os.path.isfile(subcmd[-1]):

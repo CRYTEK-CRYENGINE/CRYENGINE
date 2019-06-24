@@ -107,6 +107,7 @@ void CGraphicsPipelineResources::Init()
 	}
 #endif
 
+
 	CreateResources(0, 0);
 }
 
@@ -220,7 +221,7 @@ void CGraphicsPipelineResources::CreateDepthMaps(int resourceWidth, int resource
 	m_pTexLinearDepth->SetHeight(resourceHeight);
 	m_pTexLinearDepth->CreateRenderTarget(CRendererResources::s_eTFZ, ColorF(1.0f, 1.0f, 1.0f, 1.0f));
 
-	if (!CRendererCVars::CV_r_HDRTexFormat)
+	if (!CRendererCVars::CV_r_HDRTexFormat && !CTexture::IsTextureExist(m_pTexLinearDepthFixup))
 	{
 		m_pTexLinearDepthFixup->SetFlags(nUAFlags);
 		m_pTexLinearDepthFixup->SetWidth(resourceWidth);
@@ -413,6 +414,28 @@ void CGraphicsPipelineResources::OnCVarsChanged(const CCVarUpdateRecorder& rCVar
 			CreateRainOcclusionMaps(m_resourceWidth, m_resourceHeight);
 		else
 			DestroyRainOcclusionMaps();
+	}
+
+	if (rCVarRecs.GetCVar("r_hdrtexformat"))
+	{
+		const int hdrTexFormat = rCVarRecs.GetCVar("r_hdrtexformat")->intValue;
+
+		if (hdrTexFormat && CTexture::IsTextureExist(m_pTexLinearDepthFixup))
+		{
+			m_pTexLinearDepthFixup->ReleaseDeviceTexture(false);
+		}
+		else if (!hdrTexFormat && !CTexture::IsTextureExist(m_pTexLinearDepthFixup))
+		{
+			uint32 nUAFlags = FT_DONT_STREAM | FT_DONT_RELEASE | FT_USAGE_RENDERTARGET | FT_USAGE_UNORDERED_ACCESS | FT_USAGE_UAV_RWTEXTURE;
+
+			m_pTexLinearDepthFixup->SetFlags(nUAFlags);
+			m_pTexLinearDepthFixup->SetWidth(m_resourceWidth);
+			m_pTexLinearDepthFixup->SetHeight(m_resourceHeight);
+			m_pTexLinearDepthFixup->CreateRenderTarget(eTF_R32F, ColorF(1.0f, 1.0f, 1.0f, 1.0f));
+
+			SResourceView typedUAV = SResourceView::UnorderedAccessView(DXGI_FORMAT_R32_UINT, 0, -1, 0, SResourceView::eUAV_ReadWrite);
+			m_pTexLinearDepthFixupUAV = m_pTexLinearDepthFixup->GetDevTexture()->GetOrCreateResourceViewHandle(typedUAV);
+		}
 	}
 }
 

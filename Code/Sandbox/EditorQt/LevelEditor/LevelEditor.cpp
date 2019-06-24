@@ -31,7 +31,6 @@
 #include <AssetSystem/Browser/AssetBrowserDialog.h>
 #include <AssetSystem/EditableAsset.h>
 #include <Commands/QCommandAction.h>
-#include <Controls/DockableDialog.h>
 #include <Controls/QuestionDialog.h>
 #include <EditorFramework/InspectorLegacy.h>
 #include <EditorFramework/Events.h>
@@ -220,7 +219,8 @@ public:
 
 CLevelEditor::CLevelEditor()
 	: CEditor(nullptr)
-	, m_findWindow(nullptr)
+	, m_pLevelExplorer(nullptr)
+	, m_pFindDialog(nullptr)
 	, m_pQuickAssetBrowser(nullptr)
 	, m_pQuickAssetBrowserDialog(nullptr)
 	, m_pTagLocations(new CTagLocations())
@@ -236,10 +236,10 @@ CLevelEditor::~CLevelEditor()
 		m_pQuickAssetBrowserDialog = nullptr;
 	}
 
-	if (m_findWindow)
+	if (m_pFindDialog)
 	{
-		delete m_findWindow;
-		m_findWindow = nullptr;
+		m_pFindDialog->deleteLater();
+		m_pFindDialog = nullptr;
 	}
 
 	delete m_pTagLocations;
@@ -698,22 +698,27 @@ bool CLevelEditor::OnDuplicate()
 
 bool CLevelEditor::OnFind()
 {
-	if (!m_findWindow)
+	if (!m_pFindDialog)
 	{
-		m_findWindow = new CDockableDialog("level_editor_find", "Level Explorer");
-		m_findWindow->SetHideOnClose();
-		m_findWindow->SetTitle(tr("Find Objects"));
-		auto levelExplorer = m_findWindow->GetPaneT<CLevelExplorer>();
-		levelExplorer->SetSyncSelection(false);
-		levelExplorer->SetModelType(CLevelExplorer::Objects);
-		m_findWindow->Popup();
-		m_findWindow->SetPosCascade();
-		levelExplorer->GrabFocusSearchBar();
+		m_pFindDialog = new CEditorDialog(tr("Find Objects"));
+		QVBoxLayout* pMainLayout = new QVBoxLayout();
+		pMainLayout->setMargin(0);
+		pMainLayout->setSpacing(0);
+		m_pFindDialog->SetHideOnClose();
+		m_pLevelExplorer = new CLevelExplorer();
+		m_pLevelExplorer->Initialize();
+		m_pLevelExplorer->SetSyncSelection(false);
+		m_pLevelExplorer->SetModelType(CLevelExplorer::Objects);
+		pMainLayout->addWidget(m_pLevelExplorer);
+		m_pFindDialog->setLayout(pMainLayout);
+		m_pFindDialog->Popup();
+		m_pFindDialog->SetPosCascade();
+		m_pLevelExplorer->GrabFocusSearchBar();
 	}
 	else
 	{
-		m_findWindow->Popup();
-		m_findWindow->GetPaneT<CLevelExplorer>()->GrabFocusSearchBar();
+		m_pFindDialog->Popup();
+		m_pLevelExplorer->GrabFocusSearchBar();
 	}
 	return true;
 }

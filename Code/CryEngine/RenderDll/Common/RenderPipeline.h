@@ -72,7 +72,7 @@ struct CRY_ALIGN(32) SRendItem
 		return EncodeObjFlagsValue(objFlags) + EncodePriorityIntegerValue(pObj);
 	}
 
-	static inline void ExtractShaderItem(uint32 value, SShaderItem& sh)
+	static inline void ExtractShaderItem(uint32 value, uint32 batchFlags, SShaderItem& sh)
 	{
 		uint32 nShaderId = (value >> 20) & (MAX_REND_SHADERS - 1);
 		CShader* pShader = (CShader*)(CShaderMan::s_pContainer->m_RList[CBaseResource::RListIndexFromId(nShaderId)]);
@@ -83,6 +83,7 @@ struct CRY_ALIGN(32) SRendItem
 		sh.m_nTechnique = nTechnique;
 		int nResID = (value) & (MAX_REND_SHADER_RES - 1);
 		sh.m_pShaderResources = (IRenderShaderResources*)((nResID) ? CShader::s_ShaderResources_known[nResID] : nullptr);
+		sh.m_nPreprocessFlags = batchFlags;
 	}
 
 	static inline uint32 PackShaderItem(const SShaderItem& shaderItem)

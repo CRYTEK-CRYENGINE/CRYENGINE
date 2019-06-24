@@ -124,6 +124,56 @@ QVariantMap CEditorContent::GetState() const
 	return m_pToolBarAreaManager->GetState();
 }
 
+QSize CEditorContent::GetMinimumSizeForOrientation(Qt::Orientation orientation) const
+{
+	const bool isDefaultOrientation = orientation == m_pEditor->GetDefaultOrientation();
+	QSize contentMinSize = m_pContent->layout()->minimumSize();
+
+	CToolBarArea* pTopArea = m_pToolBarAreaManager->GetWidget(CToolBarAreaManager::Area::Top);
+	CToolBarArea* pBottomArea = m_pToolBarAreaManager->GetWidget(CToolBarAreaManager::Area::Bottom);
+	CToolBarArea* pLeftArea = m_pToolBarAreaManager->GetWidget(CToolBarAreaManager::Area::Left);
+	CToolBarArea* pRightArea = m_pToolBarAreaManager->GetWidget(CToolBarAreaManager::Area::Right);
+
+	QSize result(0, 0);
+	if (isDefaultOrientation)
+	{
+		// Take width from left and right areas if we're switching to the editor's default orientation
+		result.setWidth(result.width() + pLeftArea->GetLargestItemMinimumSize().width());
+		result.setWidth(result.width() + pRightArea->GetLargestItemMinimumSize().width());
+
+		// Use top and bottom area to calculate min height
+		result.setHeight(result.height() + pTopArea->GetLargestItemMinimumSize().height());
+		result.setHeight(result.height() + pBottomArea->GetLargestItemMinimumSize().height());
+
+		// Add content min size
+		result += contentMinSize;
+
+		// Take the area layout minimum sizes into account. We just need to expand the already provided minimum size
+		// with values of min size of layouts holding toolbars. These match the minimum size of the full collection of toolbars
+		result.expandedTo(QSize(pTopArea->layout()->minimumSize().width(), pLeftArea->layout()->minimumSize().height()));
+		result.expandedTo(QSize(pBottomArea->layout()->minimumSize().width(), pRightArea->layout()->minimumSize().height()));
+	}
+	else
+	{
+		// If we're not switching to the default orientation, then we need to use the top and bottom toolbar areas' width
+		// since these areas will be placed at the left and right of the editor content in this case of adaptive layouts
+		result.setWidth(result.width() + pTopArea->GetLargestItemMinimumSize().width());
+		result.setWidth(result.width() + pBottomArea->GetLargestItemMinimumSize().width());
+
+		// We must also flip where we get toolbar area min height from
+		result.setHeight(result.height() + pLeftArea->GetLargestItemMinimumSize().height());
+		result.setHeight(result.height() + pRightArea->GetLargestItemMinimumSize().height());
+
+		// Add flipped content min size
+		result += QSize(contentMinSize.height(), contentMinSize.width());
+
+		result.expandedTo(QSize(pLeftArea->layout()->minimumSize().width(), pTopArea->layout()->minimumSize().height()));
+		result.expandedTo(QSize(pRightArea->layout()->minimumSize().width(), pBottomArea->layout()->minimumSize().height()));
+	}
+
+	return result;
+}
+
 void CEditorContent::OnAdaptiveLayoutChanged(Qt::Orientation orientation)
 {
 	const bool isDefaultOrientation = m_pEditor->GetOrientation() == m_pEditor->GetDefaultOrientation();

@@ -64,7 +64,7 @@ enum EVarFlags : uint32
 	VF_REQUIRE_LEVEL_RELOAD    = 0x00001000,
 	VF_REQUIRE_APP_RESTART     = 0x00002000,
 	VF_WARNING_NOTUSED         = 0x00004000,      //!< Shows warning that this var was not used in config file.
-	VF_COPYNAME                = 0x00008000,      //!< Otherwise the const char * to the name will be stored without copying the memory.
+	VF_COPYNAME                = 0x00008000,      //!< (Deprecated) Otherwise the const char * to the name will be stored without copying the memory.
 	VF_MODIFIED                = 0x00010000,      //!< Set when variable value modified.
 	VF_WASINCONFIG             = 0x00020000,      //!< Set when variable was present in config file.
 	VF_BITFIELD                = 0x00040000,      //!< Allow bitfield setting syntax.
@@ -410,8 +410,7 @@ struct IConsole
 
 protected:
 	friend struct ConsoleRegistrationHelper;
-	friend class CTCVarBase;
-
+	
 	//! Register a new console command.
 	//! \param sCommand Command name.
 	//! \param func     Pointer to the console command function to be called when command is invoked.
@@ -554,15 +553,7 @@ struct ICVar
 		eCLM_FileOnly,          //!< Normal info to file only.
 		eCLM_FullInfo           //!< Full info to file only.
 	};
-
-	// <interfuscator:shuffle>
-	// TODO make protected;
-	virtual ~ICVar() {}
-
-	//! Delete the variable.
-	//! \note The variable will automatically unregister itself from the console.
-	virtual void Release() = 0;
-
+	
 	//! \return Value of the variable as an integer.
 	virtual int GetIVal() const = 0;
 
@@ -680,6 +671,11 @@ struct ICVar
 
 	//! Indicates whether the console owns the CVar and should delete it
 	virtual bool IsOwnedByConsole() const = 0;
+
+protected:
+	friend class CXConsole;
+	// <interfuscator:shuffle>
+	virtual ~ICVar() {}
 };
 
 struct ScopedConsoleLoadConfigType

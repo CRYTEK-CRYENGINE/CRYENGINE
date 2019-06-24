@@ -5,10 +5,16 @@ REM tested with Python37
 REM install required modules
 py -3 -m pip install PyInstaller pypiwin32
 
+REM clean temp
+rmdir bin /s /q
+rmdir dist /s /q
+rmdir build /s /q
+
 REM build CrySelect
 py -3 -m PyInstaller cryselect.spec
-copy /Y dist\cryselect.exe cryselect.exe
 
 REM build CryRun
 py -3 -m PyInstaller cryrun.spec
-copy /Y dist\cryrun.exe cryrun.exe
+
+REM deploy
+xcopy /Y /S dist\*.* bin\

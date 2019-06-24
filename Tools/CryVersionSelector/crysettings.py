@@ -3,6 +3,7 @@
 import json
 import os.path
 import sys
+import crypath
 
 
 class Settings:
@@ -11,12 +12,8 @@ class Settings:
         self.load()
 
     def get_filepath(self):
-        if getattr(sys, 'frozen', False):
-            scriptpath = sys.executable
-        else:
-            scriptpath = __file__
-        path = os.path.dirname(os.path.realpath(scriptpath))
-        return os.path.join(path, "settings.cfg")
+        dir = os.path.realpath(crypath.get_script_dir())
+        return os.path.join(dir, "settings.cfg")
 
     def load(self):
         filepath = self.get_filepath()

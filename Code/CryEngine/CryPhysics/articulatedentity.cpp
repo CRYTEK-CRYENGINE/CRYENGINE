@@ -1399,7 +1399,7 @@ int CArticulatedEntity::Action(pe_action *_action, int bThreadSafe)
 					} else {
 						Vec3 v = w ^ m_joints[j].body.pos-pivot;
 						for(int iax=2-m_bGrounded*2;iax>=0;iax--)
-							H[iax*narg+i]=H[i*narg+iax] = v[iax];
+							H[iax*narg+i]=H[i*narg+iax] = v[iax]*m_joints[j].body.M;
 					}
 					i++;
 				}

@@ -14,36 +14,16 @@ class CXConsoleVariableBase : public ICVar
 public:
 	//! constructor
 	//! \param pConsole must not be 0
-	CXConsoleVariableBase(IConsole* pConsole, const char* szName, int flags, const char* szHelp, bool ownedByConsole)
-		: m_szName(const_cast<char*>(szName))
-		, m_szHelp(const_cast<char*>(szHelp))
-#if defined(DEDICATED_SERVER)
-		, m_szDataProbeString(nullptr)
-#endif // defined(DEDICATED_SERVER)
+	CXConsoleVariableBase(IConsole* pConsole, const string& name, int flags, const char* szHelp)
+		: m_name(name)
+		, m_helpMessage(szHelp)
 		, m_flags(flags)
 		, m_pConsole(pConsole)
-		, m_ownedByConsole(ownedByConsole)
 	{
 		CRY_ASSERT_MESSAGE(m_pConsole != nullptr, "Console must always exist");
-
-		if ((flags & VF_COPYNAME) != 0)
-		{
-			m_szName = new char[strlen(szName) + 1];
-			strcpy(m_szName, szName);
-		}
 	}
 	//! destructor
-	virtual ~CXConsoleVariableBase()
-	{
-		Release();
-
-		if ((m_flags & VF_COPYNAME) != 0)
-			SAFE_DELETE_ARRAY(m_szName);
-
-#if defined(DEDICATED_SERVER)
-		SAFE_DELETE_ARRAY(m_szDataProbeString);
-#endif
-	}
+	virtual ~CXConsoleVariableBase() {}
 
 	// interface ICVar --------------------------------------------------------------------------------------
 
@@ -62,15 +42,11 @@ public:
 	}
 	virtual const char* GetName() const override
 	{
-		return m_szName;
+		return m_name;
 	}
 	virtual const char* GetHelp() const override
 	{
-		return m_szHelp;
-	}
-	virtual void Release() override
-	{
-		m_pConsole->UnregisterVariable(m_szName);
+		return m_helpMessage;
 	}
 	virtual void ForceSet(const char* szValue) override
 	{
@@ -103,7 +79,7 @@ public:
 	}
 	virtual const SmallFunction<void()>& GetOnChangeFunctor(uint64 id) const override
 	{
-		CRY_ASSERT_MESSAGE(id < m_changeFunctorIdTotal, "[CTCVarBase::GetOnChangeFunctor] Functor id out of range");
+		CRY_ASSERT_MESSAGE(id < m_changeFunctorIdTotal, "[CXConsoleVariableBase::GetOnChangeFunctor] Functor id out of range");
 
 		const auto iter = std::find_if(m_onChangeCallbacks.begin(), m_onChangeCallbacks.end(), [id](const SCallback& callback)
 		{
@@ -119,23 +95,20 @@ public:
 #if defined(DEDICATED_SERVER)
 	virtual void SetDataProbeString(const char* pDataProbeString) override
 	{
-		CRY_ASSERT(m_szDataProbeString == nullptr);
-		m_szDataProbeString = new char[strlen(pDataProbeString) + 1];
-		strcpy(m_szDataProbeString, pDataProbeString);
+		CRY_ASSERT(m_dataProbeString->IsEmpty());
+		m_dataProbeString = pDataProbeString;
 	}
 #endif
 	virtual const char* GetDataProbeString() const override
 	{
 #if defined(DEDICATED_SERVER)
-		if (m_szDataProbeString)
-		{
-			return m_szDataProbeString;
-		}
-#endif
+		return m_dataProbeString;
+#else
 		return GetOwnDataProbeString();
+#endif
 	}
 
-	bool IsOwnedByConsole() const override { return m_ownedByConsole; }
+	bool IsOwnedByConsole() const override { return true; }
 
 protected: // ------------------------------------------------------------------------------------------
 
@@ -152,11 +125,10 @@ protected: // ------------------------------------------------------------------
 		}
 	}
 
-	char* m_szName;                                 // if VF_COPYNAME then this data need to be deleteed, otherwise it's pointer to .dll/.exe
-
-	char* m_szHelp;                                 // pointer to the help string, might be 0
+	const string m_name;
+	string m_helpMessage;
 #if defined(DEDICATED_SERVER)
-	char* m_szDataProbeString;                              // value client is required to have for data probes
+	string m_dataProbeString;                      // value client is required to have for data probes
 #endif
 	int   m_flags;                                 // e.g. VF_CHEAT, ...
 
@@ -169,8 +141,6 @@ protected: // ------------------------------------------------------------------
 	uint64                 m_changeFunctorIdTotal = 0;
 
 	IConsole*              m_pConsole;              // used for the callback OnBeforeVarChange()
-
-	const bool             m_ownedByConsole;
 };
 
 template<class T>
@@ -181,13 +151,13 @@ class CXNumericConsoleVariable : public CXConsoleVariableBase
 	static_assert(std::is_arithmetic<base_type>::value, "base_type has to be arithmetic");
 
 public:
-	CXNumericConsoleVariable(IConsole* const pConsole, const char* szName, value_type var, int flags, const char* szHelp, bool ownedByConsole)
-		: CXConsoleVariableBase(pConsole, szName, flags, szHelp, ownedByConsole)
+	CXNumericConsoleVariable(IConsole* const pConsole, const string& name, value_type var, int flags, const char* szHelp, bool ownedByConsole)
+		: CXConsoleVariableBase(pConsole, name, flags, szHelp)
 		, m_value(var) // Assign here first, in case value_type is a reference
 		, m_maxValue(std::numeric_limits<base_type>::max())
 		, m_minValue(std::numeric_limits<base_type>::lowest())
 	{
-		m_value = GetCVarOverride(szName, m_value);
+		m_value = GetCVarOverride(name, m_value);
 	}
 
 	virtual int GetIVal() const override
@@ -510,16 +480,16 @@ class CXStringConsoleVariable : public CXConsoleVariableBase
 	static_assert(std::is_same<base_type, string>::value, "base_type has to be string");
 
 public:
-	CXStringConsoleVariable(IConsole* const pConsole, const char* szName, typename base_type::const_pointer defaultValue, int flags, const char* szHelp, bool ownedByConsole)
-		: CXConsoleVariableBase(pConsole, szName, flags, szHelp, ownedByConsole)
-		, m_value(GetCVarOverride(szName, defaultValue))
+	CXStringConsoleVariable(IConsole* const pConsole, const string& name, typename base_type::const_pointer defaultValue, int flags, const char* szHelp, bool ownedByConsole)
+		: CXConsoleVariableBase(pConsole, name, flags, szHelp)
+		, m_value(GetCVarOverride(name, defaultValue))
 		, m_pUserBuffer(nullptr)
 	{
 		static_assert(!std::is_reference<value_type>::value, "This constructor can only be used for non-reference types.");
 	}
-	CXStringConsoleVariable(IConsole* const pConsole, const char* szName, typename base_type::const_pointer& userBuffer, typename base_type::const_pointer defaultValue, int nFlags, const char* szHelp, bool ownedByConsole)
-		: CXConsoleVariableBase(pConsole, szName, nFlags, szHelp, ownedByConsole)
-		, m_value(GetCVarOverride(szName, defaultValue))
+	CXStringConsoleVariable(IConsole* const pConsole, const string& name, typename base_type::const_pointer& userBuffer, typename base_type::const_pointer defaultValue, int nFlags, const char* szHelp, bool ownedByConsole)
+		: CXConsoleVariableBase(pConsole, name, nFlags, szHelp)
+		, m_value(GetCVarOverride(name, defaultValue))
 		, m_pUserBuffer(&userBuffer)
 	{
 		static_assert(std::is_reference<value_type>::value, "This constructor can only be used for reference types.");
@@ -664,7 +634,7 @@ void CXStringConsoleVariable<T >::GetMemoryUsage(class ICrySizer* pSizer) const
 class CXConsoleVariableCVarGroup : public CXConsoleVariableInt, public ILoadConfigurationEntrySink
 {
 public:
-	CXConsoleVariableCVarGroup(IConsole* pConsole, const char* szName, const char* szFileName, int flags);
+	CXConsoleVariableCVarGroup(IConsole* pConsole, const string& name, const char* szFileName, int flags);
 	~CXConsoleVariableCVarGroup();
 
 	// Returns:

@@ -114,10 +114,19 @@ if (OPTION_PAKTOOLS AND EXISTS "${CRYENGINE_DIR}/Code/Tools/PakEncrypt")
 endif()
 
 if (OPTION_RC AND EXISTS "${CRYENGINE_DIR}/Code/Tools/RC")
+	set(OPTION_RC_RELEASE OFF CACHE BOOL "Overrides non-profile build-configuration of RC to RELEASE. Otherwise uses solution configuration.")
+
+	## Helper to have release RC when debugging non-shader etc. engine/sandbox.
+	if(OPTION_RC_RELEASE)
+		set(RC_MODE "Release")
+	else()
+		set(RC_MODE "$<CONFIG>")
+	endif()
+	
 	include(ExternalProject)
 	ExternalProject_Add(RC
 		SOURCE_DIR "${CRYENGINE_DIR}/Code/Tools/RC"
-		BUILD_COMMAND "${CMAKE_COMMAND}" --build "." --config $<$<CONFIG:Profile>:Release>$<$<NOT:$<CONFIG:Profile>>:$<CONFIG>>
+		BUILD_COMMAND "${CMAKE_COMMAND}" --build "." --config $<$<CONFIG:Profile>:Release>$<$<NOT:$<CONFIG:Profile>>:${RC_MODE}>
 		INSTALL_COMMAND echo "Skipping install"
 	)
 endif()

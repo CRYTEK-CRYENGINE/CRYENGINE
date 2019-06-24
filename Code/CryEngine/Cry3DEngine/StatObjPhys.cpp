@@ -545,6 +545,10 @@ IStatObj* C3DEngine::UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdat
 		pObjClone->SetFlags(pStatObj[0]->GetFlags() | STATIC_OBJECT_CLONE | STATIC_OBJECT_GENERATED);
 		pStatObj[0] = pObjClone;
 	}
+	else 
+	{
+		pStatObj[0]->SetFlags(pStatObj[0]->GetFlags() | STATIC_OBJECT_GENERATED);
+	}
 	pPhysGeom->SetForeignData(pStatObj[0], 0);
 	if (gEnv->IsDedicated())
 		return pStatObj[0];

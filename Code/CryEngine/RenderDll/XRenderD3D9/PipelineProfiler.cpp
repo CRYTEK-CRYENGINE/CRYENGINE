@@ -10,7 +10,7 @@ CRenderPipelineProfiler::CRenderPipelineProfiler()
 
 	m_frameDataIndex = 0;
 	m_frameDataRT = m_frameData + m_frameDataIndex + 0;
-	m_frameDataLRU = m_frameData + m_frameDataIndex + 1;
+	m_frameDataLRU = nullptr;
 
 	m_avgFrameTime = 0;
 	m_enabled = false;
@@ -129,12 +129,18 @@ void CRenderPipelineProfiler::Finish()
 		m_frameDataLRU = m_frameData + prevFrameIndex;
 	}
 
-	// Put back corrected/adjusted/overwritten CPU and GPU counters
-	SRenderStatistics::Write().m_Summary = m_frameDataLRU->m_frameTimings;
+	if (m_frameDataLRU)
+	{
+		// Put back corrected/adjusted/overwritten CPU and GPU counters
+		SRenderStatistics::Write().m_Summary = m_frameDataLRU->m_frameTimings;
+	}
 }
 
 void CRenderPipelineProfiler::Display()
 {
+	// no full frame recorded yet
+	if (!m_frameDataLRU)
+		return;
 	FUNCTION_PROFILER_RENDERER();
 
 	// Get newest timestamps completed on gpu
@@ -782,7 +788,10 @@ void CRenderPipelineProfiler::UpdateStats(uint32 frameDataIndex)
 
 	frameData.m_frameTimings.gpuFrameTime = frameData.m_sections[0].gpuTime / 1000.0f;
 
-	ComputeAverageStats(frameData, *m_frameDataLRU);
+	if (m_frameDataLRU)
+	{
+		ComputeAverageStats(frameData, *m_frameDataLRU);
+	}
 }
 
 void CRenderPipelineProfiler::DisplayDetailedPassStats(uint32 frameDataIndex) const

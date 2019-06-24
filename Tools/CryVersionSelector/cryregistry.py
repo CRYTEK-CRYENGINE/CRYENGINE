@@ -154,6 +154,7 @@ def engine_path(database, engine_id):
     or None if the engine version is not in the database.
     """
     path = engine_file(database, engine_id)
-
-    root = os.path.dirname(path)
+    root = None
+    if path:
+        root = os.path.dirname(path)
     return root if root else None

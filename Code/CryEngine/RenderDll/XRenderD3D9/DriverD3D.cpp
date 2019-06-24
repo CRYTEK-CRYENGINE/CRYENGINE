@@ -3282,7 +3282,7 @@ void CD3D9Renderer::RT_EndFrame()
 	m_CurViewportScale = m_ReqViewportScale;
 
 	// debug modes that disable viewport downscaling for ease of use
-	if (CV_r_wireframe || CV_r_shownormals || CV_r_showtangents || CV_r_measureoverdraw)
+	if ((CV_r_wireframe > 0) || (CV_r_shownormals > 0) || (CV_r_showtangents > 0) || (CV_r_measureoverdraw > 0))
 	{
 		m_CurViewportScale = Vec2(1, 1);
 	}

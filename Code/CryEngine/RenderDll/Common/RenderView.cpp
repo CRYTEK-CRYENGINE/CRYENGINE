@@ -967,10 +967,8 @@ void CRenderView::AddPermanentObject(CRenderObject* pObject, const SRenderingPas
 //////////////////////////////////////////////////////////////////////////
 CRenderObject* CRenderView::AllocateTemporaryRenderObject()
 {
-	uint32 nId = ~0;
-	CRenderObject* pObj = m_tempRenderObjects.push_back_new(nId);
+	CRenderObject* pObj = m_tempRenderObjects.push_back_new();
 
-	pObj->AssignId(nId);
 	pObj->Init();
 	pObj->m_pCompiledObject = nullptr;
 
@@ -984,7 +982,6 @@ void CRenderView::SetViewport(const SRenderViewport& viewport)
 
 	for (CCamera::EEye eye = CCamera::eEye_Left; eye != CCamera::eEye_eCount; eye = CCamera::EEye(eye + 1))
 		m_viewInfo[eye].viewport = viewport;
-
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1039,7 +1036,7 @@ static inline uint32 CalculateRenderItemBatchFlags(SShaderItem& shaderItem, CRen
 		nBatchFlags &= ~(FB_PREPROCESS & uTransparent);
 
 		const uint32 nMaterialLayers = pObj->m_nMaterialLayers;
-		if ((nMaterialLayers & ~uTransparent) && CRenderer::CV_r_usemateriallayers)
+		if ((nMaterialLayers & ~uTransparent) && (CRenderer::CV_r_usemateriallayers > 0))
 		{
 			const uint32 nResourcesNoDrawFlags = static_cast<CShaderResources*>(pShaderResources)->CShaderResources::GetMtlLayerNoDrawFlags();
 
@@ -1706,7 +1703,7 @@ void CRenderView::ExpandPermanentRenderObjects()
 					auto& RESTRICT_REFERENCE pri = permanent_items[i];
 
 					SShaderItem shaderItem;
-					SRendItem::ExtractShaderItem(pri.m_sortValue, shaderItem);
+					SRendItem::ExtractShaderItem(pri.m_sortValue, pri.m_nBatchFlags, shaderItem);
 
 					if (!(volatile CCompiledRenderObject*)pri.m_pCompiledObject)
 					{

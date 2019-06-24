@@ -112,7 +112,6 @@ struct SSkinningData
 	uint32                           nNumActiveMorphs;
 	JointIdType*                     pRemapTable;
 	JobManager::SJobState*           pAsyncJobs;
-	JobManager::SJobState*           pAsyncDataJobs;
 	SSkinningData*                   pPreviousSkinningRenderData; // used for motion blur
 	void*                            pCustomTag;                  //!< Used as a key for instancing with compute skinning SRV.
 	uint32                           remapGUID;
@@ -133,7 +132,6 @@ struct SSkinningData
 		, nNumActiveMorphs(0)
 		, pRemapTable(nullptr)
 		, pAsyncJobs(nullptr)
-		, pAsyncDataJobs(nullptr)
 		, pPreviousSkinningRenderData(nullptr)
 		, pCustomTag(nullptr)
 		, remapGUID(0)
@@ -303,7 +301,6 @@ public:
 	}
 
 	ERenderObjectFlags m_ObjFlags;     //!< Combination of FOB_ flags.
-	uint32 m_Id;
 
 	float m_fAlpha;                    //!< Object alpha.
 	float m_fDistance;                 //!< Distance to the object.
@@ -363,8 +360,7 @@ public:
 	/// Constructor
 	//////////////////////////////////////////////////////////////////////////
 	CRenderObject()
-		: m_Id(~0u)
-		  , m_pCompiledObject(nullptr)
+		: m_pCompiledObject(nullptr)
 	{
 		Init();
 	}
@@ -411,8 +407,6 @@ public:
 
 		m_editorSelectionID = 0;
 	}
-
-	void AssignId(uint32 id) { m_Id = id; }
 
 	ILINE SRenderObjData*         GetObjData()       { return &m_data; }
 	ILINE const SRenderObjData*   GetObjData() const { return &m_data; }

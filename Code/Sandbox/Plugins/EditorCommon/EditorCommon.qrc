@@ -237,7 +237,7 @@
         <file alias="common/general_view_horizonal.ico">icons/general_view_horizonal.ico</file>
         <file alias="common/general_view_folder_tree.ico">icons/general_view_folder_tree.ico</file>
         <file alias="common/general_view_recursive_view.ico">icons/general_view_recursive_view.ico</file>
-        <file alias="common/general_hide_irrelevant_folders.ico">icons/general_hide_irrelevant_folders.ico</file>      
+        <file alias="common/general_hide_irrelevant_folders.ico">icons/general_hide_irrelevant_folders.ico</file>
         <file alias="common/general_icon_missing.ico">icons/general_icon_missing.ico</file>
         <file alias="common/general_dropdown_arrow.ico">icons/general_dropdown_arrow.ico</file>
         <file alias="common/general_dropdown_triangle.ico">icons/general_dropdown_triangle.ico</file>
@@ -326,7 +326,7 @@
         <file alias="General/LegacyResourceSelectorPicker.ico">icons/general_LegacyResourceSelectorPicker.ico</file>
         <file alias="General/Link_Classic.ico">icons/general_Link_Classic.ico</file>
         <file alias="General/Load_From_Disc.ico">icons/general_disc_load_from.ico</file>
-		
+
         <file alias="general_lock_false.ico">icons/general_lock_false.ico</file>
         <file alias="General/Lock_False_Tinted.ico">icons/general_Lock_False_Tinted.ico</file>
         <file alias="general_lock_true.ico">icons/general_lock_true.ico</file>
@@ -379,6 +379,7 @@
         <file alias="General/Reset_Selection.ico">icons/general_Reset_Selection.ico</file>
         <file alias="General/Save_To_Disc.ico">icons/general_disc_save_to.ico</file>
         <file alias="General/Save_as.ico">icons/general_file_save_as.ico</file>
+        <file alias="General/Save_all.ico">icons/general_file_save_all.ico</file>
         <file alias="General/Scripting.ico">icons/general_Scripting.ico</file>
         <file alias="General/Search.ico">icons/general_Search.ico</file>
         <file alias="General/Show_Helpers_Toggle.ico">icons/general_Show_Helpers_Toggle.ico</file>

@@ -17,6 +17,7 @@ class CTimeline;
 
 class QMenuComboBox;
 struct STimelineContent;
+struct STimelineTrack;
 
 namespace Explorer
 {
@@ -61,6 +62,8 @@ protected slots:
 	void      OnTimelineHotkey(int number);
 	void      OnTimelineUndo();
 	void      OnTimelineRedo();
+	void      OnTimelineCopy(SAnimTime time, STimelineTrack* pTrack);
+	void      OnTimelinePaste(SAnimTime time, STimelineTrack* pTrack);
 	void      OnPlaybackTimeChanged();
 	void      OnPlaybackStateChanged();
 	void      OnPlaybackOptionsChanged();

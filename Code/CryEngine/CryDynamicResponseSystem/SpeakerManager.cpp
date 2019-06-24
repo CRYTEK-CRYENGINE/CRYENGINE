@@ -868,16 +868,8 @@ void CSpeakerManager::Shutdown()
 		gEnv->pConsole->UnregisterVariable("drs_dialogAudio", true);
 		gEnv->pConsole->UnregisterVariable("drs_dialogsLinesWithSamePriorityCancel", true);
 
-		if (m_pDrsDialogDialogRunningEntityParameterName)
-		{
-			m_pDrsDialogDialogRunningEntityParameterName->Release();
-			m_pDrsDialogDialogRunningEntityParameterName = nullptr;
-		}
-		if (m_pDrsDialogDialogRunningGlobalParameterName)
-		{
-			m_pDrsDialogDialogRunningGlobalParameterName->Release();
-			m_pDrsDialogDialogRunningGlobalParameterName = nullptr;
-		}
+		SAFE_UNREGISTER_CVAR(m_pDrsDialogDialogRunningEntityParameterName);
+		SAFE_UNREGISTER_CVAR(m_pDrsDialogDialogRunningGlobalParameterName);
 	}
 }
 

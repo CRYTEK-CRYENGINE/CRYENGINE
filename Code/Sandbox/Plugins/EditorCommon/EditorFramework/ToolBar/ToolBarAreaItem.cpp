@@ -195,6 +195,18 @@ void CToolBarItem::SetOrientation(Qt::Orientation orientation)
 	m_pToolBar->setOrientation(m_orientation);
 }
 
+QSize CToolBarItem::GetMinimumSize() const
+{
+	// Get min size set on the toolbar area item
+	QSize minSize = CToolBarAreaItem::GetMinimumSize();
+	// Expand to toolbars min size if it exceeds the widget's min size
+	minSize = minSize.expandedTo(m_pToolBar->minimumSize());
+	// Expand to the toolbar layouts minimum size, this accounts for internal widget min sizes
+	minSize = minSize.expandedTo(m_pToolBar->layout()->minimumSize());
+
+	return minSize;
+}
+
 QString CToolBarItem::GetTitle() const
 {
 	return m_pToolBar->windowTitle();

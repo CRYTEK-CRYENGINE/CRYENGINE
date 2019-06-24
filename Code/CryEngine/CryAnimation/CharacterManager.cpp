@@ -3534,7 +3534,7 @@ void CharacterManager::LoadAnimationImageFile(const char* filenameCAF, const cha
 {
 	CRY_PROFILE_FUNCTION(PROFILE_LOADING_ONLY);
 
-	if ((m_IMGLoadedFlags & EIMGLoadedFlags::IMGLoaded) == EIMGLoadedFlags::None)
+	if (m_IMGLoadedFlags != EIMGLoadedFlags::None)
 	{
 		return;
 	}

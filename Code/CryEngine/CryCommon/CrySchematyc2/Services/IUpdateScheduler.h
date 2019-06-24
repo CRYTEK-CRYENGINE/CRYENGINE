@@ -306,6 +306,7 @@ namespace Schematyc2
 	{
 		typedef std::function<bool(const Schematyc2::IObject& object)> UseRelevanceGridPredicate;
 		typedef std::function<bool(const Schematyc2::IObject& object)> IsDynamicObjectPredicate;
+		typedef Array<std::pair<UpdatePriority, const char*>> DebugPriorityNameArray;
 
 		virtual ~IUpdateScheduler() {}
 
@@ -320,6 +321,7 @@ namespace Schematyc2
 		virtual const UpdateSchedulerStats::IFrameUpdateStats* GetFrameUpdateStats() const = 0;
 		virtual void SetShouldUseRelevanceGridCallback(UseRelevanceGridPredicate useRelevanceGrid) = 0;
 		virtual void SetIsDynamicObjectCallback(IsDynamicObjectPredicate isDynamicObject) = 0;
+		virtual void SetDebugPriorityNames(const DebugPriorityNameArray& debugNames) = 0;
 	};
 
 	// Update scope functions.

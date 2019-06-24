@@ -319,7 +319,7 @@ void CSceneForwardStage::Update()
 	//  CRendererResources::s_ptexDisplayTarget ->       After PostFX HDR and PostFX LDR
 	//  gcpRendD3D->GetCurrentTargetOutput()             After PostFX LDR
 
-	if (!CRendererCVars::CV_r_HDRTexFormat)
+	if (!CRendererCVars::CV_r_HDRTexFormat && CTexture::IsTextureExist(m_graphicsPipelineResources.m_pTexLinearDepthFixup))
 		CClearSurfacePass::Execute(m_graphicsPipelineResources.m_pTexLinearDepthFixup, Clr_Empty);
 }
 
@@ -694,7 +694,7 @@ bool CSceneForwardStage::UpdatePerPassResources(bool bOnInit, bool bShadowMask, 
 			if (includeTransparentPassResources) // Transparent pass only: allow writing motion vectors
 			{
 				resources.SetTexture(2, m_graphicsPipelineResources.m_pTexVelocityObjects[0], EDefaultResourceViews::UnorderedAccess, EShaderStage_Pixel);
-				if (!CRendererCVars::CV_r_HDRTexFormat)
+				if (!CRendererCVars::CV_r_HDRTexFormat && CTexture::IsTextureExist(m_graphicsPipelineResources.m_pTexLinearDepthFixup))
 					resources.SetTexture(3, m_graphicsPipelineResources.m_pTexLinearDepthFixup, m_graphicsPipelineResources.m_pTexLinearDepthFixupUAV, EShaderStage_Pixel);
 			}
 		}

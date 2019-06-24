@@ -35,22 +35,25 @@ public:
 		CUndoBaseObject::Undo(bUndo);
 
 		CEntityObject* pObject = static_cast<CEntityObject*>(GetIEditor()->GetObjectManager()->FindObject(m_guid));
-		IEntity* pEntity = pObject->GetIEntity();
-		if (pEntity == nullptr)
-			return;
-
-		CacheProperties(*pEntity, m_cachedPropertiesRedo);
-
-		for (const SCachedComponent& cachedComponent : m_cachedProperties)
+		if (pObject)
 		{
-			IEntityComponent* pComponent = pEntity->GetComponentByGUID(cachedComponent.componentInstanceGUID);
-			if (pComponent == nullptr)
-				continue;
+			IEntity* pEntity = pObject->GetIEntity();
+			if (pEntity == nullptr)
+				return;
 
-			RestoreComponentProperties(pComponent, *cachedComponent.pProperties.get());
+			CacheProperties(*pEntity, m_cachedPropertiesRedo);
+
+			for (const SCachedComponent& cachedComponent : m_cachedProperties)
+			{
+				IEntityComponent* pComponent = pEntity->GetComponentByGUID(cachedComponent.componentInstanceGUID);
+				if (pComponent == nullptr)
+					continue;
+
+				RestoreComponentProperties(pComponent, *cachedComponent.pProperties.get());
+			}
+
+			pObject->SetLayerModified();
 		}
-
-		pObject->SetLayerModified();
 	}
 	virtual void Redo() override
 	{

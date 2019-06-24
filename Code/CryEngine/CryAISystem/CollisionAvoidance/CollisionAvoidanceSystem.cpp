@@ -441,7 +441,7 @@ void CCollisionAvoidanceSystem::PopulateState()
 
 void CCollisionAvoidanceSystem::ApplyResults(float updateTime)
 {
-	if (gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceUpdateVelocities || gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceEnableRadiusIncrement)
+	if ((gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceUpdateVelocities > 0) || (gAIEnv.CVars.collisionAvoidance.CollisionAvoidanceEnableRadiusIncrement > 0))
 	{
 		for (size_t i = 0, count = m_avoidingAgentsPtrs.size(); i < count; ++i)
 		{

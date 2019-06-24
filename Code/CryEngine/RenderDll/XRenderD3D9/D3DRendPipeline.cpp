@@ -189,7 +189,7 @@ int CD3D9Renderer::EF_Preprocess(SRendItem* ri, uint32 nums, uint32 nume, const 
 			break;
 
 		SShaderItem shaderItem;
-		SRendItem::ExtractShaderItem(ri[i].SortVal, shaderItem);
+		SRendItem::ExtractShaderItem(ri[i].SortVal, ri[i].nBatchFlags, shaderItem);
 		nTech = shaderItem.m_nTechnique;
 		Shader = static_cast<CShader*>(shaderItem.m_pShader);
 		Res = static_cast<CShaderResources*>(shaderItem.m_pShaderResources);

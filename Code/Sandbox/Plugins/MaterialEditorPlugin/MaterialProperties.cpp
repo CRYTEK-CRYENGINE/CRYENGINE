@@ -571,55 +571,53 @@ void CMaterialSerializer::SerializeTextureSlots(Serialization::IArchive& ar, boo
 			//Note: m_Textures is not cleaned up when changing shaders, this could potentially lead to having incorrect data in the material?
 			SEfResTexture& shaderTexture = shaderResources.m_Textures[texId];
 
+			//Get name from the texture slot or default name, TODO: cache these
+			//Note: "Bumpmap" slot is actually "normal map" but because of backwards compatibility madness we are leaving it "bumpmap" in the ui...
+			//See MaterialHelpers.cpp (Cry3DEngine)
+			const string& textureName = pSlot && pSlot->m_Name.length() ? pSlot->m_Name : materialHelpers.LookupTexName(texId);
+			if (textureName == "Bumpmap")
 			{
-				//Get name from the texture slot or default name, TODO: cache these
-				//Note: "Bumpmap" slot is actually "normal map" but because of backwards compatibility madness we are leaving it "bumpmap" in the ui...
-				//See MaterialHelpers.cpp (Cry3DEngine)
-				const string& textureName = pSlot && pSlot->m_Name.length() ? pSlot->m_Name : materialHelpers.LookupTexName(texId);
-				if (textureName == "Bumpmap")
+				m_textureSlotLabels[texId] = "-Normal";
+			}
+			else
+			{
+				m_textureSlotLabels[texId].Format("-%s", textureName.c_str());
+
+				//The following characters have special meaning in yasli
+				m_textureSlotLabels[texId].replace("[", "(");
+				m_textureSlotLabels[texId].replace("]", ")");
+			}
+
+			if (ar.openBlock(m_textureSlotLabels[texId].c_str(), m_textureSlotLabels[texId].c_str()))
+			{
+
+				string textureFilePath = shaderTexture.m_Name.c_str();
+
+				//New material editor only deals with dds files, not tifs
+				if (!textureFilePath.IsEmpty() && stricmp(PathUtil::GetExt(textureFilePath), "dds") != 0)
 				{
-					m_textureSlotLabels[texId] = "-Normal";
+					textureFilePath = PathUtil::ReplaceExtension(textureFilePath, "dds").c_str();
 				}
-				else
-				{
-					m_textureSlotLabels[texId].Format("-%s", textureName.c_str());
 
-					//The following characters have special meaning in yasli
-					m_textureSlotLabels[texId].replace("[", "(");
-					m_textureSlotLabels[texId].replace("]", ")");
+				ar(Serialization::TextureFilename(textureFilePath), "textureName", "^Texture Name");
+
+				if (pSlot)
+				{
+					ar.doc(pSlot->m_Description);
 				}
 
-				if (ar.openBlock(m_textureSlotLabels[texId].c_str(), m_textureSlotLabels[texId].c_str()))
-				{
-
-					string textureFilePath = shaderTexture.m_Name.c_str();
-
-					//New material editor only deals with dds files, not tifs
-					if (!textureFilePath.IsEmpty() && stricmp(PathUtil::GetExt(textureFilePath), "dds") != 0)
+				//Old material editor was destroying UI resource before changing texture,
+				//though this seems dangerous without any refcount as the resource may be used by something else
+				//Not to mention this is not the responsibility of the material editor but rather the UI system
+				//TODO: Confirm this can be left out
+				/*
+					//Unload previous dynamic texture/UIElement instance
+					if (IsFlashUIFile(sr.m_Textures[tex].m_Name))
 					{
-						textureFilePath = PathUtil::ReplaceExtension(textureFilePath, "dds").c_str();
+					DestroyTexOfFlashFile(sr.m_Textures[tex].m_Name);
 					}
-
-					ar(Serialization::TextureFilename(textureFilePath), "textureName", "^Texture Name");
-
-					if (pSlot)
-					{
-						ar.doc(pSlot->m_Description);
-					}
-
-					//Old material editor was destroying UI resource before changing texture,
-					//though this seems dangerous without any refcount as the resource may be used by something else
-					//Not to mention this is not the responsibility of the material editor but rather the UI system
-					//TODO: Confirm this can be left out
-					/*
-					   //Unload previous dynamic texture/UIElement instance
-					   if (IsFlashUIFile(sr.m_Textures[tex].m_Name))
-					   {
-					   DestroyTexOfFlashFile(sr.m_Textures[tex].m_Name);
-					   }
-					 */
-					shaderTexture.SetName(textureFilePath.c_str());
-				}
+					*/
+				shaderTexture.SetName(textureFilePath.c_str());
 
 				{
 					string textureType = materialHelpers.GetNameFromTextureType(shaderTexture.m_Sampler.m_eTexType);
@@ -817,7 +815,6 @@ void CMaterialSerializer::SerializeTextureSlots(Serialization::IArchive& ar, boo
 
 						ar.closeBlock();
 					}
-
 				}
 
 				ar.closeBlock();

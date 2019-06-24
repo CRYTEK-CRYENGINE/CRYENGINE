@@ -1598,9 +1598,9 @@ CServiceNetwork::~CServiceNetwork()
 	}
 
 	// Release the CVars
-	SAFE_RELEASE(m_pVerboseLevel);
-	SAFE_RELEASE(m_pReceiveDataQueueLimit);
-	SAFE_RELEASE(m_pSendDataQueueLimit);
+	SAFE_UNREGISTER_CVAR(m_pVerboseLevel);
+	SAFE_UNREGISTER_CVAR(m_pReceiveDataQueueLimit);
+	SAFE_UNREGISTER_CVAR(m_pSendDataQueueLimit);
 }
 
 #ifndef RELEASE

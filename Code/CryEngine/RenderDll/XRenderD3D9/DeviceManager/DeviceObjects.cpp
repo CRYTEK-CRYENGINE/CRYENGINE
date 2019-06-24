@@ -460,9 +460,13 @@ InputLayoutHandle CDeviceObjectFactory::CreateCustomVertexFormat(size_t numDescs
 		decs.insert(it, inputLayout[n]);
 	}
 
-	// Store
-	auto idx = m_vertexFormatToInputLayoutCache.size();
-	m_vertexFormatToInputLayoutCache.emplace_back(std::move(decs));
+	// Find existing vertex format or store a new one
+	auto it = std::find(m_vertexFormatToInputLayoutCache.begin(), m_vertexFormatToInputLayoutCache.end(), decs);
+	auto idx = it - m_vertexFormatToInputLayoutCache.begin();
+	if (it == m_vertexFormatToInputLayoutCache.end())
+	{
+		m_vertexFormatToInputLayoutCache.emplace_back(std::move(decs));
+	}
 
 	return InputLayoutHandle(static_cast<uint8_t>(idx));
 }

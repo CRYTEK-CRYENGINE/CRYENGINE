@@ -292,15 +292,15 @@ private:
 	{
 		for (int i = 0; i < RT_COMMAND_BUF_COUNT; ++i)
 		{
-			m_threadSafeData[i].pTexParam = NULL;
+			m_threadSafeData[i].pTexParam = nullptr;
 			m_threadSafeData[i].bSetThisFrame = false;
 		}
 	}
 
 	struct CParamTextureThreadSafeData
 	{
-		CTexture* pTexParam;
-		bool      bSetThisFrame;
+		_smart_ptr<CTexture> pTexParam;
+		bool                 bSetThisFrame;
 	};
 
 	CParamTextureThreadSafeData m_threadSafeData[RT_COMMAND_BUF_COUNT];

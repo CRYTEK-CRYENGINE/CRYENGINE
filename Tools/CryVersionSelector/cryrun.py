@@ -17,12 +17,30 @@ import cryregistry
 import crysolutiongenerator
 import release_project
 import cryrun_gui
+import crypath
 
 HAS_WIN_MODULES = True
 try:
     import winreg
 except ImportError:
     HAS_WIN_MODULES = False
+
+# --- helpers
+
+
+def get_project_solution_dir(project_path):
+    x64 = os.path.join("Solutions", "win64")
+    x86 = os.path.join("Solutions", "win32")
+
+    if os.path.isdir(os.path.join(project_path, x64)):
+        return x64
+
+    # for backward compatibility with pre-5.6, we detect x86 solution
+    if os.path.isdir(os.path.join(project_path, x86)):
+        return x86
+
+    return None
+
 
 # --- errors
 
@@ -98,44 +116,16 @@ def error_code_folder_not_specified():
     sys.exit(642)
 
 
+def error_platform_deprecated(platform):
+    sys.stderr.write(
+        "Platform '%s' has been deprecated. Please Remove the folder and retry.\n"
+        % platform)
+    sys.exit(650)
+
+
 def print_subprocess(cmd):
     print(' '.join(map(lambda a: '"%s"' % a, cmd)))
 
-# ---
-
-
-def get_cmake_exe_path():
-    return os.path.join(get_cmake_dir(), 'Win32/bin/cmake.exe')
-
-
-def get_cmake_dir():
-    return os.path.join(get_engine_path(), 'Tools', 'CMake')
-
-
-def get_tools_path():
-    if getattr(sys, 'frozen', False):
-        script_path = sys.executable
-    else:
-        script_path = __file__
-
-    return os.path.abspath(os.path.dirname(script_path))
-
-
-def get_engine_path():
-    return os.path.abspath(os.path.join(get_tools_path(), '..', '..'))
-
-
-def get_project_solution_dir(project_path):
-    x64 = os.path.join("Solutions", "win64")
-    x86 = os.path.join("Solutions", "win32")
-
-    if os.path.isdir(os.path.join(project_path, x64)):
-        return x64
-
-    if os.path.isdir(os.path.join(project_path, x86)):
-        return x86
-
-    return None
 
 # -- BUILD ---
 
@@ -150,7 +140,7 @@ def cmd_build(args):
     except Exception:
         error_project_json_decode(args.project_file)
 
-    cmake_path = get_cmake_exe_path()
+    cmake_path = crypath.get_cmake_exe_path()
     if cmake_path is None:
         error_cmake_not_found()
 
@@ -158,7 +148,8 @@ def cmd_build(args):
     if project.cmakelists_dir() is not None:
         project_path = os.path.dirname(os.path.abspath(args.project_file))
         solution_dir = get_project_solution_dir(project_path)
-
+        if 'win32' in solution_dir:
+            error_platform_deprecated('win32')
         subcmd = (
             cmake_path,
             '--build', solution_dir,
@@ -192,13 +183,15 @@ def cmd_cmake_gui(args):
         if solution_dir is None:
             args.buildmachine = False
             cmd_projgen(args, True)
+        elif 'win32' in solution_dir:
+            error_platform_deprecated('win32')
         else:
             solution_path = os.path.join(project_path, solution_dir)
             open_cmake_gui(source_path, solution_path)
 
 
 def open_cmake_gui(source_dir, build_dir):
-    cmake_path = get_cmake_exe_path()
+    cmake_path = crypath.get_cmake_exe_path()
     if cmake_path is None:
         error_cmake_not_found()
 
@@ -222,7 +215,7 @@ def cmd_projgen(args, open_cmake=False):
         error_project_json_decode(args.project_file)
 
     project_path = os.path.abspath(os.path.dirname(args.project_file))
-    engine_path = get_engine_path()
+    engine_path = crypath.get_engine_path()
 
     cmakelists_dir = project.cmakelists_dir()
 
@@ -251,7 +244,7 @@ def cmd_engine_gen(args):
     if not os.path.isfile(args.engine_file):
         error_engine_not_found(args.engine_file)
 
-    engine_path = get_engine_path()
+    engine_path = crypath.get_engine_path()
 
     # Check if the CrySystem folder is available, which indicates the
     # source code is available
@@ -282,14 +275,6 @@ def generate_project_solution(project_path, cmakelists_dir, open_cmake=False):
             'compiler': {'reg_key': winreg.HKEY_CLASSES_ROOT,
                          'key_path': r'\WDExpress.DTE.14.0'}
         },
-        {
-            'title': 'Visual Studio 2015 Express Win32',
-            'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
-            'cmake_generator': 'Visual Studio 14 2015',
-            'cmake_builddir': 'solutions/win32',
-            'compiler': {'reg_key': winreg.HKEY_CLASSES_ROOT,
-                         'key_path': r'\WDExpress.DTE.14.0'}
-        },
 
         # Visual Studio 14 2015
         {
@@ -302,16 +287,6 @@ def generate_project_solution(project_path, cmakelists_dir, open_cmake=False):
                 'key_path': r'\VisualStudio.DTE.14.0'
             }
         },
-        {
-            'title': 'Visual Studio 2015 Win32',
-            'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
-            'cmake_generator': 'Visual Studio 14 2015',
-            'cmake_builddir': 'solutions/win32',
-            'compiler': {
-                'reg_key': winreg.HKEY_CLASSES_ROOT,
-                'key_path': r'\VisualStudio.DTE.14.0'
-            }
-        },
 
         # Visual Studio 15 2017
         {
@@ -319,16 +294,6 @@ def generate_project_solution(project_path, cmakelists_dir, open_cmake=False):
             'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
             'cmake_generator': 'Visual Studio 15 2017 Win64',
             'cmake_builddir': 'solutions/win64',
-            'compiler': {
-                'reg_key': winreg.HKEY_CLASSES_ROOT,
-                'key_path': r'\VisualStudio.DTE.15.0'
-            }
-        },
-        {
-            'title': 'Visual Studio 2017 Win32',
-            'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
-            'cmake_generator': 'Visual Studio 15 2017',
-            'cmake_builddir': 'solutions/win32',
             'compiler': {
                 'reg_key': winreg.HKEY_CLASSES_ROOT,
                 'key_path': r'\VisualStudio.DTE.15.0'
@@ -365,14 +330,6 @@ def generate_engine_solution(engine_path):
             'compiler': {'reg_key': winreg.HKEY_CLASSES_ROOT,
                          'key_path': r'\WDExpress.DTE.14.0'}
         },
-        {
-            'title': 'Visual Studio 2015 Express Win32',
-            'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
-            'cmake_generator': 'Visual Studio 14 2015',
-            'cmake_builddir': 'solutions/win32',
-            'compiler': {'reg_key': winreg.HKEY_CLASSES_ROOT,
-                         'key_path': r'\WDExpress.DTE.14.0'}
-        },
 
         # Visual Studio 14 2015
         {
@@ -385,16 +342,6 @@ def generate_engine_solution(engine_path):
                 'key_path': r'\VisualStudio.DTE.14.0'
             }
         },
-        {
-            'title': 'Visual Studio 2015 Win32',
-            'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
-            'cmake_generator': 'Visual Studio 14 2015',
-            'cmake_builddir': 'solutions_cmake/win32',
-            'compiler': {
-                'reg_key': winreg.HKEY_CLASSES_ROOT,
-                'key_path': r'\VisualStudio.DTE.14.0'
-            }
-        },
 
         # Visual Studio 15 2017
         {
@@ -402,16 +349,6 @@ def generate_engine_solution(engine_path):
             'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
             'cmake_generator': 'Visual Studio 15 2017 Win64',
             'cmake_builddir': 'solutions_cmake/win64',
-            'compiler': {
-                'reg_key': winreg.HKEY_CLASSES_ROOT,
-                'key_path': r'\VisualStudio.DTE.15.0'
-            }
-        },
-        {
-            'title': 'Visual Studio 2017 Win32',
-            'cmake_toolchain': 'toolchain/windows/WindowsPC-MSVC.cmake',
-            'cmake_generator': 'Visual Studio 15 2017',
-            'cmake_builddir': 'solutions_cmake/win32',
             'compiler': {
                 'reg_key': winreg.HKEY_CLASSES_ROOT,
                 'key_path': r'\VisualStudio.DTE.15.0'
@@ -431,8 +368,8 @@ def generate_engine_solution(engine_path):
 
 
 def generate_solution(working_directory, cmakelists_dir, config, open_gui):
-    cmake_dir = get_cmake_dir()
-    cmake_path = get_cmake_exe_path()
+    cmake_dir = crypath.get_cmake_dir()
+    cmake_path = crypath.get_cmake_exe_path()
 
     if cmake_path is None:
         error_cmake_not_found()
@@ -441,6 +378,7 @@ def generate_solution(working_directory, cmakelists_dir, config, open_gui):
     # sure the user knows it's not stuck.
     print("Generating solution...")
 
+    # toolchain is relative path, e.g. toolchain/windows/WindowsPC-MSVC.cmake
     toolchain = config['cmake_toolchain']
     solution_path = os.path.join(working_directory, config['cmake_builddir'])
     print("Solution path: {}".format(solution_path))
@@ -536,15 +474,15 @@ def cmd_open(args):
     except Exception:
         error_project_json_decode(args.project_file)
 
-    tool_path = os.path.join(get_engine_path(), 'bin',
-                             args.platform, 'GameLauncher.exe')
-    if not os.path.isfile(tool_path):
-        error_engine_tool_not_found(tool_path)
+    exe_path = os.path.join(crypath.get_engine_path(), 'bin',
+                            args.platform, 'GameLauncher.exe')
+    if not os.path.isfile(exe_path):
+        error_engine_tool_not_found(exe_path)
 
     # ---
 
     subcmd = (
-        tool_path,
+        exe_path,
         '-project',
         os.path.abspath(args.project_file)
     )
@@ -565,15 +503,15 @@ def cmd_launch_dedicated_server(args):
     except Exception:
         error_project_json_decode(args.project_file)
 
-    tool_path = os.path.join(get_engine_path(), 'bin',
-                             args.platform, 'Game_Server.exe')
-    if not os.path.isfile(tool_path):
-        error_engine_tool_not_found(tool_path)
+    exe_path = os.path.join(crypath.get_engine_path(), 'bin',
+                            args.platform, 'Game_Server.exe')
+    if not os.path.isfile(exe_path):
+        error_engine_tool_not_found(exe_path)
 
     # ---
 
     subcmd = (
-        tool_path,
+        exe_path,
         '-project',
         os.path.abspath(args.project_file)
     )
@@ -602,15 +540,15 @@ def cmd_edit(args):
     except Exception:
         error_project_json_decode(args.project_file)
 
-    tool_path = os.path.join(get_engine_path(), 'bin',
-                             args.platform, 'Sandbox.exe')
-    if not os.path.isfile(tool_path):
-        error_engine_tool_not_found(tool_path)
+    exe_path = os.path.join(crypath.get_engine_path(), 'bin',
+                            args.platform, 'Sandbox.exe')
+    if not os.path.isfile(exe_path):
+        error_engine_tool_not_found(exe_path)
 
     # ---
 
     subcmd = (
-        tool_path,
+        exe_path,
         '-project',
         os.path.abspath(args.project_file)
     )
@@ -701,7 +639,7 @@ def cmd_upgrade(args):
         error_upgrade_template_unknown(args.project_file)
 
     restore_path = os.path.abspath(os.path.join(
-        get_tools_path(), 'upgrade', restore_version, *template_name) + '.zip')
+        crypath.get_script_dir(), 'upgrade', restore_version, *template_name) + '.zip')
     if not os.path.isfile(restore_path):
         error_upgrade_template_missing(restore_path)
 
@@ -860,12 +798,12 @@ def cmd_metagen(args):
     except Exception:
         error_project_json_decode(args.project_file)
 
-    tool_path = os.path.join(get_engine_path(), 'Tools/rc/rc.exe')
-    if not os.path.isfile(tool_path):
-        error_engine_tool_not_found(tool_path)
+    exe_path = os.path.join(crypath.get_engine_path(), 'Tools/rc/rc.exe')
+    if not os.path.isfile(exe_path):
+        error_engine_tool_not_found(exe_path)
 
     job_path = os.path.join(
-        get_engine_path(), 'Tools/cryassets/rcjob_cryassets.xml')
+        crypath.get_engine_path(), 'Tools/cryassets/rcjob_cryassets.xml')
     if not os.path.isfile(job_path):
         error_engine_tool_not_found(job_path)
 
@@ -874,7 +812,7 @@ def cmd_metagen(args):
     asset_path = os.path.normpath(os.path.join(project_path, asset_dir))
 
     subcmd = (
-        tool_path,
+        exe_path,
         ('/job=' + job_path),
         ('/src=' + asset_path)
     )
@@ -888,7 +826,7 @@ def cmd_metagen(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--platform', default='win_x64',
-                        choices=('win_x86', 'win_x64'))
+                        choices=('win_x64'))
     parser.add_argument('--config', default='RelWithDebInfo',
                         choices=('Debug', 'Release', 'RelWithDebInfo',
                                  'MinSizeRel'))

@@ -14,8 +14,9 @@ class CAssetDropHandler;
 class CAssetFolderFilterModel;
 class CAssetFoldersView;
 class CBreadcrumbsBar;
-class CLineEditDelegate;
 class CFilteredFolders;
+class CLineEditDelegate;
+class CSortFilterProxyModel;
 class QAction;
 class QAdvancedTreeView;
 class QAttributeFilterProxyModel;
@@ -222,7 +223,10 @@ private:
 	bool OnRename();
 	bool OnSave();
 
-	void         Paste(bool pasteNextToOriginal);
+	void OnCopyName();
+	void OnCopyPath();
+
+	void Paste(bool pasteNextToOriginal);
 
 	//ui components
 	CAssetFoldersView* m_pFoldersView = nullptr;
@@ -253,24 +257,26 @@ private:
 	QCommandAction*    m_pActionShowPreview = nullptr;
 #endif
 
-	QAdvancedTreeView*                          m_pDetailsView = nullptr;
-	QBoxLayout*                                 m_pAssetsViewLayout = nullptr;
-	QFilteringPanel*                            m_pFilterPanel = nullptr;
-	QItemSelectionModel*                        m_pSelection = nullptr;
-	QLabel*                                     m_pMultipleFoldersLabel = nullptr;
-	QSplitter*                                  m_pFoldersSplitter = nullptr;
-	QSplitter*                                  m_pMainViewSplitter = nullptr;
-	QThumbnailsView*                            m_pThumbnailView = nullptr;
-	QToolButton*                                m_pBackButton = nullptr;
-	QToolButton*                                m_pForwardButton = nullptr;
+	QAdvancedTreeView*                       m_pDetailsView = nullptr;
+	QBoxLayout*                              m_pAssetsViewLayout = nullptr;
+	QFilteringPanel*                         m_pFilterPanel = nullptr;
+	QItemSelectionModel*                     m_pSelection = nullptr;
+	QLabel*                                  m_pMultipleFoldersLabel = nullptr;
+	QSplitter*                               m_pFoldersSplitter = nullptr;
+	QSplitter*                               m_pMainViewSplitter = nullptr;
+	QThumbnailsView*                         m_pThumbnailView = nullptr;
+	QToolButton*                             m_pBackButton = nullptr;
+	QToolButton*                             m_pForwardButton = nullptr;
 
-	std::unique_ptr<CAbstractMenu>              m_pThumbnailSizeMenu;
-	std::unique_ptr<CAssetDropHandler>          m_pAssetDropHandler;
-	std::unique_ptr<CAssetFolderFilterModel>    m_pFolderFilterModel;
-	std::unique_ptr<CLineEditDelegate>          m_pDetailsViewNewNameDelegate; // Note that delegates are not owned by view.
-	std::unique_ptr<CLineEditDelegate>          m_pThumbnailViewNewNameDelegate;
-	std::unique_ptr<QAttributeFilterProxyModel> m_pAttributeFilterProxyModel;
-	std::unique_ptr<CFilteredFolders>           m_pFilteredFolders;
+	std::unique_ptr<CAbstractMenu>           m_pThumbnailSizeMenu;
+	std::unique_ptr<CAssetDropHandler>       m_pAssetDropHandler;
+	std::unique_ptr<CAssetFolderFilterModel> m_pFolderFilterModel;
+	std::unique_ptr<CLineEditDelegate>       m_pDetailsViewNewNameDelegate;    // Note that delegates are not owned by view.
+	std::unique_ptr<CLineEditDelegate>       m_pThumbnailViewNewNameDelegate;
+	std::unique_ptr<CSortFilterProxyModel>   m_pAttributeFilterProxyModel;
+	std::unique_ptr<CFilteredFolders>        m_pFilteredFolders;
+
+	const std::vector<CAssetType*>           m_knownAssetTypes;
 
 	//state variables
 	QVector<QStringList> m_navigationHistory;

@@ -5,6 +5,31 @@
 
 // *INDENT-OFF* - <hard to read code and declarations due to inconsistent indentation>
 
+namespace
+{
+	float CalculateDurationUsingCVars(const float suggestedDuration)
+	{
+		float finalDuration = suggestedDuration;
+		if (Cry::UDR::SCvars::debugDrawDuration > 0.0f)
+		{
+			finalDuration = Cry::UDR::SCvars::debugDrawDuration;
+		}
+		else
+		{
+			if (Cry::UDR::SCvars::debugDrawMinimumDuration > 0.0f)
+			{
+				finalDuration = suggestedDuration < Cry::UDR::SCvars::debugDrawMinimumDuration ? Cry::UDR::SCvars::debugDrawMinimumDuration : suggestedDuration;
+			}
+
+			if (Cry::UDR::SCvars::debugDrawMaximumDuration > 0.0f)
+			{
+				finalDuration = suggestedDuration > Cry::UDR::SCvars::debugDrawMaximumDuration ? Cry::UDR::SCvars::debugDrawMaximumDuration : suggestedDuration;
+			}
+		}
+		return finalDuration;
+	}
+}
+
 namespace Cry
 {
 	namespace UDR
@@ -44,19 +69,24 @@ namespace Cry
 		// TODO: Think about adding a parameter: ResetReason to distinguish between an automatic reset (level load/unload, switch to game) and a user requested reset (manually calls clear through code or editor).
 		void CUDRSystem::Reset()
 		{
+			CRecursiveSyncObjectAutoLock lock;
+
+			m_primitivesQueue.clear();
 			if (m_config.resetDataOnSwitchToGameMode)
 			{
 				m_treeManager.GetTree(ITreeManager::ETreeIndex::Live).Clear();
 				m_timeMetadataBase.Initialize();
 			}
 		}
-				
+
 		void CUDRSystem::Update(const CTimeValue frameStartTime, const float frameDeltaTime)
 		{
 			m_frameStartTime = frameStartTime;
 			m_frameDeltaTime = frameDeltaTime;
+
+			SCvars::Validate();
 			
-			// TODO: Update.
+			DebugDrawPrimitivesQueue();
 		}
 		
 		ITreeManager& CUDRSystem::GetTreeManager()
@@ -80,6 +110,14 @@ namespace Cry
 			return gEnv->pTimer->GetAsyncTime() - m_timeMetadataBase.GetTimestamp();
 		}
 		
+		void CUDRSystem::DebugDraw(const std::shared_ptr<CRenderPrimitiveBase>& pPrimitive, const float duration)
+		{
+			CRecursiveSyncObjectAutoLock lock;
+
+			CRY_ASSERT_MESSAGE(duration >= 0.0f, "Parameter 'duration' must be >= 0.0f.");
+			m_primitivesQueue.emplace_back(pPrimitive, CalculateDurationUsingCVars(duration));
+		}
+
 		bool CUDRSystem::SetConfig(const IUDRSystem::SConfig& config)
 		{
 			m_config = config;
@@ -91,6 +129,33 @@ namespace Cry
 			return m_config;
 		}
 		
+		void CUDRSystem::DebugDrawPrimitivesQueue()
+		{
+			CRecursiveSyncObjectAutoLock lock;
+			if (!SCvars::debugDrawUpdate)
+			{
+				return;
+			}
+
+			for (size_t index = 0; index < m_primitivesQueue.size(); )
+			{
+				SPrimitiveWithDuration& currPrimitiveWithDuration = m_primitivesQueue[index];
+
+				currPrimitiveWithDuration.primitive->Draw();
+				currPrimitiveWithDuration.duration -= m_frameDeltaTime;
+
+				if (currPrimitiveWithDuration.duration <= 0.0f)
+				{
+					currPrimitiveWithDuration = std::move(m_primitivesQueue[m_primitivesQueue.size() - 1]);
+					m_primitivesQueue.pop_back();
+				}
+				else
+				{
+					++index;
+				}
+			}
+		}
+
 		void CUDRSystem::CmdDumpRecordings(IConsoleCmdArgs* pArgs)
 		{
 			{

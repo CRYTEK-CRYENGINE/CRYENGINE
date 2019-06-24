@@ -1,1 +1,1 @@
-cryselect.exe install
+bin\cryselect\cryselect.exe install

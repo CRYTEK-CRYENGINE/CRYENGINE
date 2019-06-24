@@ -369,6 +369,7 @@ CDeviceGraphicsPSO::EInitResult CDeviceGraphicsPSO_Vulkan::Init(const CDeviceGra
 		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_ZERO,					true },		// GS_BLSRC_SRCALPHA_A_ZERO
 		{ VK_BLEND_FACTOR_SRC1_ALPHA,          VK_BLEND_FACTOR_SRC1_ALPHA,				false },	// GS_BLSRC_SRC1ALPHA
 		{ VK_BLEND_FACTOR_SRC1_ALPHA,          VK_BLEND_FACTOR_ONE,						false },	// GS_BLSRC_SRC1ALPHA_A_ONE
+		{ VK_BLEND_FACTOR_SRC_ALPHA,           VK_BLEND_FACTOR_ONE,						true },		// GS_BLSRC_SRCALPHA_A_ONE
 	};
 
 	static SBlendFactors DstBlendFactors[GS_BLDST_MASK >> GS_BLDST_SHIFT] =

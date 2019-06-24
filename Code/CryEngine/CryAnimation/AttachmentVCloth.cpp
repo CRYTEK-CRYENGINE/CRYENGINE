@@ -2763,9 +2763,9 @@ void CClothPiece::WaitForJob(bool bPrev)
 	int nList = nFrameID % 3;
 	if (m_pVClothAttachment->m_arrSkinningRendererData[nList].nFrameID == nFrameID && m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData)
 	{
-		if (m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncDataJobs)
+		if (m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncJobs)
 		{
-			gEnv->pJobManager->WaitForJob(*m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncDataJobs);
+			gEnv->pJobManager->WaitForJob(*m_pVClothAttachment->m_arrSkinningRendererData[nList].pSkinningData->pAsyncJobs);
 		}
 	}
 }

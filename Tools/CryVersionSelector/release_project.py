@@ -15,6 +15,7 @@ import platform
 import cryplugin
 import cryproject
 import cryregistry
+import crypath
 import release_project_gui
 
 HAS_WIN_MODULES = True
@@ -81,7 +82,7 @@ def run(project_file):
     project_path_long = LONG_PATH_PREFIX + project_path
 
     # The path to the engine that is being used by the project.
-    engine_path = os.path.normpath(get_engine_path())
+    engine_path = crypath.get_engine_path()
     engine_path_long = LONG_PATH_PREFIX + engine_path
 
     # Path to which the game is to be exported.
@@ -245,25 +246,6 @@ def requires_mono(project, project_path):
 
     asset_path = os.path.join(project_path, project.asset_dir())
     return directory_contains_file(asset_path, ["*.cs"])
-
-
-def get_tools_path():
-    """
-    Returns the path to the Tools folder, based on the location of this file.
-    """
-    if getattr(sys, 'frozen', False):
-        script_path = sys.executable
-    else:
-        script_path = __file__
-
-    return os.path.abspath(os.path.join(os.path.dirname(script_path), '..'))
-
-
-def get_engine_path():
-    """
-    Returns the path to the engine's root folder.
-    """
-    return os.path.abspath(os.path.join(get_tools_path(), '..'))
 
 
 def get_percentage(index, count):
@@ -677,7 +659,7 @@ def create_config_pak(export_path, project_file):
     Tries to package the cryproject file in a config.pak.
     Returns True if successful, False otherwise.
     """
-    zip_exe = os.path.join(get_tools_path(), '7za.exe')
+    zip_exe = os.path.join(crypath.get_tools_path(), '7za.exe')
     if not os.path.isfile(zip_exe):
         return False
 

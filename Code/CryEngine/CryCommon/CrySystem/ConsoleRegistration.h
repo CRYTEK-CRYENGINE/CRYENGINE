@@ -19,21 +19,24 @@ struct ConsoleRegistrationHelper
 {
 	static void AddCommand(const char* szCommand, ConsoleCommandFunc func, int flags = 0, const char* szHelp = nullptr, bool bIsManagedExternally = false)
 	{
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		MODULE_REGISTER_COMMAND(szCommand);
-		gEnv->pConsole->AddCommand(szCommand, func, flags, szHelp, bIsManagedExternally);
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
+		{
+			MODULE_REGISTER_COMMAND(szCommand);
+			gEnv->pConsole->AddCommand(szCommand, func, flags, szHelp, bIsManagedExternally);
+		}
 	}
 	static void AddCommand(const char* szName, const char* szScriptFunc, int flags = 0, const char* szHelp = nullptr)
 	{
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		MODULE_REGISTER_COMMAND(szName);
-		gEnv->pConsole->AddCommand(szName, szScriptFunc, flags, szHelp);
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
+		{
+			MODULE_REGISTER_COMMAND(szName);
+			gEnv->pConsole->AddCommand(szName, szScriptFunc, flags, szHelp);
+		}
 	}
 
 	static ICVar* RegisterString(const char* szName, const char* szValue, int flags, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr)
 	{
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		if (gEnv && gEnv->pConsole)
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
 		{
 			MODULE_REGISTER_CVAR(szName);
 			return gEnv->pConsole->RegisterString(szName, szValue, flags, szHelp, pChangeFunc);
@@ -45,8 +48,7 @@ struct ConsoleRegistrationHelper
 	}
 	static ICVar* RegisterInt(const char* szName, int value, int flags, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr)
 	{
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		if (gEnv && gEnv->pConsole)
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
 		{
 			MODULE_REGISTER_CVAR(szName);
 			return gEnv->pConsole->RegisterInt(szName, value, flags, szHelp, pChangeFunc);
@@ -58,8 +60,7 @@ struct ConsoleRegistrationHelper
 	}
 	static ICVar* RegisterInt64(const char* szName, int64 value, int flags, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr)
 	{
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		if (gEnv && gEnv->pConsole)
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
 		{
 			MODULE_REGISTER_CVAR(szName);
 			return gEnv->pConsole->RegisterInt64(szName, value, flags, szHelp, pChangeFunc);
@@ -71,8 +72,7 @@ struct ConsoleRegistrationHelper
 	}
 	static ICVar* RegisterFloat(const char* szName, float value, int flags, const char* szHelp = "", ConsoleVarFunc pChangeFunc = nullptr)
 	{
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		if (gEnv && gEnv->pConsole)
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
 		{
 			MODULE_REGISTER_CVAR(szName);
 			return gEnv->pConsole->RegisterFloat(szName, value, flags, szHelp, pChangeFunc);
@@ -91,8 +91,7 @@ struct ConsoleRegistrationHelper
 
 	static ICVar* Register(ICVar* pVar)
 	{
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		if (gEnv && gEnv->pConsole)
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
 		{
 			MODULE_REGISTER_CVAR(pVar->GetName());
 			return gEnv->pConsole->Register(pVar);
@@ -100,6 +99,14 @@ struct ConsoleRegistrationHelper
 		else
 		{
 			return nullptr;
+		}
+	}
+
+	static void Unregister(ICVar* pVar)
+	{
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
+		{
+			gEnv->pConsole->UnregisterVariable(pVar->GetName());
 		}
 	}
 
@@ -123,8 +130,7 @@ private:
 	{
 		static_assert(std::is_same<T, int>::value || std::is_same<T, float>::value || std::is_same<T, const char*>::value, "Invalid template type!");
 		static_assert(std::is_convertible<U, T>::value, "Invalid default value type!");
-		CRY_ASSERT(gEnv && gEnv->pConsole);
-		if (gEnv && gEnv->pConsole)
+		if (CRY_VERIFY(gEnv && gEnv->pConsole))
 		{
 			MODULE_REGISTER_CVAR(szName);
 			return gEnv->pConsole->Register(szName, pSrc, static_cast<T>(defaultValue), flags, szHelp, pChangeFunc, bAllowModify);
@@ -174,6 +180,7 @@ struct SDummyCVar : ICVar
 	#else
 	SDummyCVar(T value) : value(value) {}
 	#endif
+	~SDummyCVar() { ConsoleRegistrationHelper::Unregister(this); }
 
 	void WarnUse() const
 	{
@@ -197,7 +204,6 @@ struct SDummyCVar : ICVar
 	#endif
 	}
 
-	void                         Release() override                                              {}
 	int                          GetIVal() const override                                        { WarnUse(); return static_cast<int>(value); }
 	int64                        GetI64Val() const override                                      { WarnUse(); return static_cast<int64>(value); }
 	float                        GetFVal() const override                                        { WarnUse(); return static_cast<float>(value); }
@@ -232,21 +238,20 @@ struct SDummyCVar : ICVar
 	void                         SetAllowedValues(std::initializer_list<int64> values) override  {}
 	void                         SetAllowedValues(std::initializer_list<float> values) override  {}
 	void                         SetAllowedValues(std::initializer_list<string> values) override {}
-	bool                         IsOwnedByConsole() const override                               { return true; }
+	bool                         IsOwnedByConsole() const override                               { return false; }
 };
 }
 
-	#define REGISTER_DUMMY_CVAR(type, name, value)                                                      \
-	do {                                                                                                \
+	#define REGISTER_DUMMY_CVAR(type, name, value)                                                        \
+	do {                                                                                                  \
 		static struct DummyCVar : Detail::SDummyCVar<type>                                                \
 		{                                                                                                 \
-			DummyCVar() : Detail::SDummyCVar<type>(value) {}                                                \
-			const char* GetName() const { return name; }                                                    \
+			DummyCVar() : Detail::SDummyCVar<type>(value) {}                                              \
+			const char* GetName() const { return name; }                                                  \
 		} DummyStaticInstance;                                                                            \
 		if (!(gEnv->pConsole != nullptr ? ConsoleRegistrationHelper::Register(&DummyStaticInstance) : 0)) \
 		{                                                                                                 \
-			__debugbreak();                                                                                 \
-			CryFatalError("Can not register dummy CVar");                                                   \
+			CryFatalError("Can not register dummy CVar");                                                 \
 		}                                                                                                 \
 	} while (0)
 
@@ -328,6 +333,9 @@ struct SDummyCVar : ICVar
 
 //! Preferred way to register an externally managed console command
 #define REGISTER_MANAGED_COMMAND(_name, _func, _flags, _comment) ConsoleRegistrationHelper::AddCommand(_name, _func, (_flags), CVARHELP(_comment), true)
+
+//! Preferred way to 'release' ICVar pointers
+#define SAFE_UNREGISTER_CVAR(pVar) if (pVar) { ConsoleRegistrationHelper::Unregister(pVar); pVar = nullptr; }
 
 ////////////////////////////////////////////////////////////////////////////////
 //! Development only cvars.

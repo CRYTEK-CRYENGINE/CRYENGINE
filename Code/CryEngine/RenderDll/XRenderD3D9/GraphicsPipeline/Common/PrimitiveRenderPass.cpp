@@ -43,6 +43,7 @@ CRenderPrimitive::SPrimitiveGeometry::SPrimitiveGeometry()
 	, vertexBaseOffset(0)
 	, vertexOrIndexCount(0)
 	, vertexOrIndexOffset(0)
+	, instanceCount(1)
 	, vertexStream()
 	, indexStream()
 {
@@ -176,6 +177,7 @@ CRenderPrimitive::EDirtyFlags CRenderPrimitive::Compile(const CPrimitiveRenderPa
 			m_drawInfo.vertexBaseOffset = m_primitiveGeometry.vertexBaseOffset;
 			m_drawInfo.vertexOrIndexCount = m_primitiveGeometry.vertexOrIndexCount;
 			m_drawInfo.vertexOrIndexOffset = m_primitiveGeometry.vertexOrIndexOffset;
+			m_drawInfo.instanceCount = m_primitiveGeometry.instanceCount;
 		}
 
 		if (dirtyMask & eDirty_Resources)
@@ -710,13 +712,17 @@ void CPrimitiveRenderPass::Execute()
 			}
 		}
 
-		if (pPrimitive->m_pIndexInputSet)
+		CRY_ASSERT(pPrimitive->m_drawInfo.instanceCount > 0);
+		if (pPrimitive->m_drawInfo.instanceCount > 0)
 		{
-			pCommandInterface->DrawIndexed(pPrimitive->m_drawInfo.vertexOrIndexCount, 1, pPrimitive->m_drawInfo.vertexOrIndexOffset, pPrimitive->m_drawInfo.vertexBaseOffset, 0);
-		}
-		else
-		{
-			pCommandInterface->Draw(pPrimitive->m_drawInfo.vertexOrIndexCount, 1, pPrimitive->m_drawInfo.vertexOrIndexOffset, 0);
+			if (pPrimitive->m_pIndexInputSet)
+			{
+				pCommandInterface->DrawIndexed(pPrimitive->m_drawInfo.vertexOrIndexCount, pPrimitive->m_drawInfo.instanceCount, pPrimitive->m_drawInfo.vertexOrIndexOffset, pPrimitive->m_drawInfo.vertexBaseOffset, 0);
+			}
+			else
+			{
+				pCommandInterface->Draw(pPrimitive->m_drawInfo.vertexOrIndexCount, pPrimitive->m_drawInfo.instanceCount, pPrimitive->m_drawInfo.vertexOrIndexOffset, 0);
+			}
 		}
 	}
 

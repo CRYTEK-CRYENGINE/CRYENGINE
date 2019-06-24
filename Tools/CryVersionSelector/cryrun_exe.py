@@ -18,15 +18,12 @@ import admin
 import distutils.dir_util, distutils.file_util
 import winreg
 import uuid
+import crypath
 
 if __name__ == '__main__':
-    if getattr(sys, 'frozen', False):
-        scriptpath = sys.executable
-    else:
-        scriptpath = __file__
-    path = os.path.dirname(os.path.realpath(scriptpath))
+    path = crypath.get_script_dir()
 
-    sys.path.insert(0, os.path.abspath(path))
+    sys.path.insert(0, path)
     cryrun = importlib.machinery.SourceFileLoader(
         'cryrun', os.path.join(path, 'cryrun.py')).load_module()
     cryrun.main()

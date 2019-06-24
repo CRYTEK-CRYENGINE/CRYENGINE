@@ -40,15 +40,16 @@ struct INavMeshQueryFilter
 	//! Function for comparing with other filters. Returns true if both filters are of the same type and contain same data.
 	virtual bool Compare(const INavMeshQueryFilter* pOther) const = 0;
 
-protected:
-	INavMeshQueryFilter(const Serialization::TypeID& typeID)
-		: m_typeID(typeID)
-	{}
-
+	//! Returns true if both filters are of the same type.
 	bool IsSameType(const INavMeshQueryFilter* pOther) const
 	{
 		return pOther && (m_typeID == pOther->m_typeID);
 	}
+
+protected:
+	INavMeshQueryFilter(const Serialization::TypeID& typeID)
+		: m_typeID(typeID)
+	{}
 
 private:
 	const Serialization::TypeID m_typeID;

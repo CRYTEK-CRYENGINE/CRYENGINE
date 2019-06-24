@@ -40,7 +40,9 @@ public:
 
 	static TSharedPtr CreateAesKeyFromSecret(const void* pSecret, const size_t secretSize);
 	static void operator delete(void* ptr);
-
+#if CRY_PLATFORM_DURANGO && (_MSC_VER <= 1900)
+	static void operator delete(void* ptr, void*) noexcept;
+#endif
 	void* Handle() { return m_handle.get(); }
 	
 private:
@@ -100,7 +102,9 @@ public:
 	using TSharedPtr = _smart_ptr<CCngSha256Hmac>;
 	static TSharedPtr CreateFromSecret(const void* pSecret, const size_t secretSize);
 	static void operator delete(void* ptr);
-
+#if CRY_PLATFORM_DURANGO && (_MSC_VER <= 1900)
+	static void operator delete(void* ptr, void*) noexcept;
+#endif
 	bool Hash(const uint8* pBuf, const size_t bufSize);
 	bool FinishAndRestartHash(HashResult& result);
 

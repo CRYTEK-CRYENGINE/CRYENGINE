@@ -907,7 +907,7 @@ void CAISystem::SendSignal(unsigned char cFilter, const AISignals::SignalSharedP
 		DeleteBeforeReturning(const AISignals::SignalSharedPtr& pSignal, AISignals::IAISignalExtraData** pData) : _pSignal(pSignal), _pData(pData) {}
 		~DeleteBeforeReturning()
 		{
-			if (_pData)
+			if (*_pData)
 			{
 				GetAISystem()->FreeSignalExtraData(_pSignal->GetExtraData());
 				_pSignal->SetExtraData(nullptr);

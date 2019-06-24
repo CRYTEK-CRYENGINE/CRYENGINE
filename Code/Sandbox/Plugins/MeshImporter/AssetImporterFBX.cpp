@@ -655,6 +655,10 @@ void CAssetImporterFBX::MoveAsset(CAssetImportContext& ctx, const string& assetP
 	const string fromAssetPath = PathUtil::Make(fromDir, assetPath.substr(PathUtil::AddSlash(toDir).size()));
 
 	std::unique_ptr<CAsset> pAsset(ctx.LoadAsset(fromAssetPath));
+	if (!pAsset)
+	{
+		return;
+	}
 
 	const std::vector<std::pair<string, string>> movedFilePaths = GetAbsOutputFilePaths(ctx, GetIndependentFiles(pAsset.get()));
 

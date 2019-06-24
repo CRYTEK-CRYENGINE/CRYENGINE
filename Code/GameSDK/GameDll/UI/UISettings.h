@@ -20,7 +20,6 @@
 struct SNullCVar : public ICVar
 {
 	virtual ~SNullCVar() {}
-	virtual void Release() override { return; }
 	virtual int GetIVal() const override { return 0; }
 	virtual int64 GetI64Val() const override { return 0; }
 	virtual float GetFVal() const override { return 0; }
@@ -64,7 +63,7 @@ struct SNullCVar : public ICVar
 	virtual int GetRealIVal() const override { return 0; }
 	virtual void DebugLog(const int iExpectedValue, const EConsoleLogMode mode) const override {}
 	
-	virtual bool IsOwnedByConsole() const override { return true; }
+	virtual bool IsOwnedByConsole() const override { return false; }
 
 	static SNullCVar* Get()
 	{

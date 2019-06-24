@@ -3850,6 +3850,8 @@ void CBaseObject::LinkTo(CBaseObject* pLinkTo, bool bKeepPos /* = true*/)
 		UpdatePrefab(eOCOT_ModifyTransform);
 	}
 
+	SetLayerModified();
+
 	if (CUndo::IsRecording())
 	{
 		CUndo::Record(new CUndoLinkBaseObject(this));
@@ -3911,6 +3913,8 @@ void CBaseObject::UnLink(bool placeOnRoot /*= false*/)
 		if (pGrandParent && !placeOnRoot)
 			pGrandParent->AddMember(this, true);
 	}
+
+	SetLayerModified();
 }
 
 void CBaseObject::UnLinkAll()

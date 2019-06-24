@@ -195,9 +195,9 @@ macro(configure_android_launcher name)
 	file(COPY "${ANDROID_SDK_DIR}/extras/android/support/v4/android-support-v4.jar" DESTINATION "${apk_folder}/libs")
 
 	if (AUDIO_FMOD)
-		file(COPY "${SDK_DIR}/Audio/fmod/android/api/lowlevel/lib/${CMAKE_ANDROID_ARCH_ABI}/libfmod.so" DESTINATION "${apk_folder}/lib/${CMAKE_ANDROID_ARCH_ABI}")
+		file(COPY "${SDK_DIR}/Audio/fmod/android/api/core/lib/${CMAKE_ANDROID_ARCH_ABI}/libfmod.so" DESTINATION "${apk_folder}/lib/${CMAKE_ANDROID_ARCH_ABI}")
 		file(COPY "${SDK_DIR}/Audio/fmod/android/api/studio/lib/${CMAKE_ANDROID_ARCH_ABI}/libfmodstudio.so" DESTINATION "${apk_folder}/lib/${CMAKE_ANDROID_ARCH_ABI}")
-		file(COPY "${SDK_DIR}/Audio/fmod/android/api/lowlevel/lib/fmod.jar" DESTINATION "${apk_folder}/libs")
+		file(COPY "${SDK_DIR}/Audio/fmod/android/api/core/lib/fmod.jar" DESTINATION "${apk_folder}/libs")
 	endif()
 
 	#Make ANT run

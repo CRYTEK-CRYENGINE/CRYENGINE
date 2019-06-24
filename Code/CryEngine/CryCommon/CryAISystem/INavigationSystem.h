@@ -403,6 +403,15 @@ struct INavigationSystem
 	//! \returns MNM::ERayCastResult::Hit if the ray has hit a NavMesh boundary before end position or other value in case of no hit or an error.
 	virtual MNM::ERayCastResult NavMeshRayCast(const NavigationMeshID meshID, const MNM::TriangleID startTriangleId, const Vec3& startPos, const MNM::TriangleID endTriangleId, const Vec3& endPos, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const = 0;
 
+	//! Performs ray-cast on NavMesh.
+	//! \param meshID NavMesh id on which ray-cast should be executed.
+	//! \param startPointOnNavMesh Point on NavMesh from where the ray should start.
+	//! \param endPointOnNavMesh Point on NavMesh where the ray should end.
+	//! \param pFilter Pointer to navigation query filter. Can be null to accept all triangles.
+	//! \param pOutHit Optional pointer for a return value of additional information about the hit. This structure is valid only when the hit is reported.
+	//! \returns MNM::ERayCastResult::Hit if the ray has hit a NavMesh boundary before end position or other value in case of no hit or an error.
+	virtual MNM::ERayCastResult NavMeshRayCast(const NavigationMeshID meshID, const MNM::SPointOnNavMesh& startPointOnNavMesh, const MNM::SPointOnNavMesh& endPointOnNavMesh, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const = 0;
+
 	//! Query for the triangle borders that overlap the aabb. 
 	//! Overlapping is calculated using the mode ENavMeshQueryOverlappingMode::BoundingBox_Partial
 	//! Triangles are filtered using SAcceptAllQueryTrianglesFilter
@@ -485,6 +494,35 @@ struct INavigationSystem
 		const INavMeshQueryFilter* pFilter,
 		Vec3* pOutSnappedPosition,
 		MNM::TriangleID* pOutTriangleID,
+		NavigationMeshID* pOutNavMeshID) const = 0;
+
+	//! Returns snapped point on the NavMesh using the snapping metric.
+	//! \param agentTypeID navigation agent type id.
+	//! \param position Position to be snapped to NavMesh.
+	//! \param snappingMetric Snapping metric structure.
+	//! \param pFilter Pointer to navigation query filter. Can be null to accept all triangles.
+	//! \param pOutNavMeshID Optional pointer to a NavMesh id, which contains snapped point.
+	//! \returns Returns valid point on NavMesh if the position can be successfully snapped to NavMesh.
+	virtual MNM::SPointOnNavMesh SnapToNavMesh(
+		const NavigationAgentTypeID agentTypeID,
+		const Vec3& position,
+		const MNM::SSnappingMetric& snappingMetric,
+		const INavMeshQueryFilter* pFilter,
+		NavigationMeshID* pOutNavMeshID) const = 0;
+
+	//! Returns snapped point on the NavMesh using the ordered array of snapping metrics.
+	//! For each snapping metric the function first tries to find enclosing NavMesh volume and then snap to it. The first successful snapping is returned.
+	//! \param agentTypeID navigation agent type id.
+	//! \param position Position to be snapped to NavMesh.
+	//! \param snappingMetrics Ordered snapping metrics array.
+	//! \param pFilter Pointer to navigation query filter. Can be null to accept all triangles.
+	//! \param pOutNavMeshID Optional pointer to a NavMesh id, which contains snapped position.
+	//! \returns Returns valid point on NavMesh if the position can be successfully snapped to NavMesh.
+	virtual MNM::SPointOnNavMesh SnapToNavMesh(
+		const NavigationAgentTypeID agentTypeID,
+		const Vec3& position,
+		const MNM::SOrderedSnappingMetrics& snappingMetrics,
+		const INavMeshQueryFilter* pFilter,
 		NavigationMeshID* pOutNavMeshID) const = 0;
 
 	//! (DEPRECATED) Finds the enclosing meshID of a position. FindEnclosingMeshID should be now used instead.

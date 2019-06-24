@@ -793,14 +793,25 @@ int CSoftEntity::Action(pe_action *_action, int bThreadSafe)
 		int i,ipart=0, bAttached=iszero((intptr_t)pent)^1;
 		if (bAttached && is_unused(action->points))
 			bAttached = 2;
+		if (pent && !is_unused(action->partid)) {
+			for(ipart=0; ipart<pent->m_nParts && pent->m_parts[ipart].id!=action->partid; ipart++);
+			if (ipart>=pent->m_nParts)
+				return 0;
+		}
 		float rvtxmass=0,vtxmass=0;
 		Vec3 offs; quaternionf q; float scale;
 		vtxmass = 1.0f/(rvtxmass = m_nVtx/m_parts[0].mass);
 
 		if (is_unused(action->nPoints) && pent) {
+			QuatT qnew,qold; float scale;
+			pent->GetLocTransform(ipart, qnew.t,qnew.q,scale, this);
+			qnew = qnew.GetInverted();
 			for(i=0;i<m_nVtx;i++) if (m_vtx[i].bAttached && m_vtx[i].pContactEnt) {
+				m_vtx[i].pContactEnt->GetLocTransform(m_vtx[i].iContactPart, qold.t,qold.q,scale, this);
 				m_vtx[i].pContactEnt->Release();
 				(m_vtx[i].pContactEnt = pent)->AddRef();
+				m_vtx[i].iContactPart = ipart;
+				m_vtx[i].ptAttach = qnew*(qold*m_vtx[i].ptAttach);
 			}
 		}	else if (action->nPoints<0) {
 			CPhysicalEntity **pents = &pent;
@@ -842,11 +853,6 @@ int CSoftEntity::Action(pe_action *_action, int bThreadSafe)
 				return 1;
 			}
 
-			if (pent && !is_unused(action->partid)) {
-				for(ipart=0; ipart<pent->m_nParts && pent->m_parts[ipart].id!=action->partid; ipart++);
-				if (ipart>=pent->m_nParts)
-					return 0;
-			}
 			if (pent && pent->m_iSimClass==4 && pent->GetType()!=PE_ROPE)
 				(m_collTypes &= ~ent_living) |= ent_independent;
 			if (bAttached)
@@ -950,14 +956,14 @@ int CSoftEntity::Action(pe_action *_action, int bThreadSafe)
 					m_vtx[i].pContactEnt=0;	
 				}
 				if (!(m_flags & sef_skeleton)) for(i=0;i<m_nVtx;i++)
-					pMesh->m_pVertices[i] = m_vtx[i].posorg;
+					m_vtx[i].pos = m_qrot*(m_parts[0].q*(pMesh->m_pVertices[i]=m_vtx[i].posorg)*m_parts[0].scale+m_parts[0].pos);
 				//BakeCurrentPose();
 			}	else if (action->bClearContacts==3) {
 				CTriMesh *pMesh2 = (CTriMesh*)m_parts[0].pPhysGeom->pGeom;
 				for(i=0;i<m_nVtx;i++)
-					m_vtx[i].pos = m_qrot*(m_parts[0].q*(pMesh2->m_pVertices[i]=m_vtx[i].posorg)*m_parts[0].scale+m_parts[0].pos);
+					m_vtx[i].pos = m_qrot*(m_parts[0].q*(pMesh->m_pVertices[i]=m_vtx[i].posorg)*m_parts[0].scale+m_parts[0].pos);
 				for(i=m_nVtx-1;i>=0;i--) m_vtx[i].pos -= m_vtx[0].pos;
-				for(i=0;i<pMesh2->m_nTris;i++) pMesh2->RecalcTriNormal(i);
+				for(i=0;i<pMesh2->m_nTris;i++) pMesh->RecalcTriNormal(i);
 				BakeCurrentPose();
 				m_bMeshUpdated = 0;
 			}
@@ -996,8 +1002,11 @@ int CSoftEntity::Action(pe_action *_action, int bThreadSafe)
 			if ((asp.pEntity=m_vtx[m_vtx[0].idx].pContactEnt) && ((CPhysicalEntity*)asp.pEntity)->m_nParts>0)
 				asp.partid = ((CPhysicalEntity*)asp.pEntity)->m_parts[m_vtx[m_vtx[0].idx].iContactPart].id;
 			int nVtx = m_nVtx;
-			se_vertex *vtx=m_vtx; m_vtx=0;
-			se_edge *edges=m_edges; m_edges=0;
+			se_vertex *vtx=m_vtx; 
+			se_edge *edges=m_edges; 
+			{ WriteLock lock(m_lockUpdate);
+				m_vtx=0; m_edges=0;
+			}
 			int *pVtxEdges=m_pVtxEdges; m_pVtxEdges=0;
 			++pGeom->nRefCount;	RemoveGeometry(m_parts[ipart].id);
 			float maxAllowedDist = m_maxAllowedDist;
@@ -1862,7 +1871,7 @@ static geom_contact g_SoftContact[MAX_TOT_THREADS];
 
 int CSoftEntity::RayTrace(SRayTraceRes& rtr)
 {
-	if (m_nVtx>0) {
+	if (m_nVtx>0 && m_vtx) {
 		CTriMesh *pMesh = (CTriMesh*)m_parts[0].pPhysGeom->pGeom;
 		prim_inters inters;
 		triangle atri;

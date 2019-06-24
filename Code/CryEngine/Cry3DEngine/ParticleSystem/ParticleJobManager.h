@@ -54,8 +54,7 @@ private:
 		Update_Invisible
 	};
 
-	template<Update_Type type> void Job_ScheduleUpdates();
-	template<bool scheduleJobs> void ScheduleUpdateEmitters(TDynArray<CParticleEmitter*>& emitters, JobManager::TPriorityLevel priority);
+	void ScheduleUpdateEmitters(TDynArray<CParticleEmitter*>& emitters, JobManager::TPriorityLevel priority);
 
 	TDynArray<CParticleEmitter*> m_emittersDeferred;
 	TDynArray<CParticleEmitter*> m_emittersVisible;

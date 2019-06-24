@@ -8,12 +8,17 @@
 #include "CharacterDocument.h"
 #include "Controls/QMenuComboBox.h"
 
+#include <Commands/QCommandAction.h>
+#include <Commands/ICommandManager.h>
+#include <IEditor.h>
+
 #include <QPushButton>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QBoxLayout>
 #include <QLabel>
 #include <QToolButton>
+#include <QClipboard>
 #include <QMenu>
 
 #include "AnimationList.h"
@@ -23,6 +28,8 @@
 #include "CharacterToolSystem.h"
 #include "CharacterGizmoManager.h"
 #include <CryIcon.h>
+#include "Util/Clipboard.h"
+#include "AnimEvent.h"
 
 namespace CharacterTool
 {
@@ -153,14 +160,22 @@ PlaybackPanel::PlaybackPanel(QWidget* parent, System* system, AnimEventPresetPan
 		}
 
 		m_timeline = new CTimeline(this);
+		m_timeline->addAction(GetIEditor()->GetICommandManager()->GetCommandAction("general.copy"));
+		m_timeline->addAction(GetIEditor()->GetICommandManager()->GetCommandAction("general.paste"));
+		m_timeline->addAction(GetIEditor()->GetICommandManager()->GetCommandAction("general.cut"));
+		m_timeline->addAction(GetIEditor()->GetICommandManager()->GetCommandAction("general.delete"));
+		m_timeline->addAction(GetIEditor()->GetICommandManager()->GetCommandAction("general.undo"));
+		m_timeline->addAction(GetIEditor()->GetICommandManager()->GetCommandAction("general.redo"));
 		m_timeline->SetContent(m_timelineContent.get());
-		connect(m_timeline, &CTimeline::SignalScrub, this, &PlaybackPanel::OnTimelineScrub);
-		connect(m_timeline, &CTimeline::SignalSelectionChanged, this, &PlaybackPanel::OnTimelineSelectionChanged);
-		connect(m_timeline, &CTimeline::SignalContentChanged, this, &PlaybackPanel::OnTimelineChanged);
-		connect(m_timeline, &CTimeline::SignalPlay, this, &PlaybackPanel::OnTimelinePlay);
-		connect(m_timeline, &CTimeline::SignalNumberHotkey, this, &PlaybackPanel::OnTimelineHotkey);
-		connect(m_timeline, &CTimeline::SignalUndo, this, &PlaybackPanel::OnTimelineUndo);
-		connect(m_timeline, &CTimeline::SignalRedo, this, &PlaybackPanel::OnTimelineRedo);
+		QObject::connect(m_timeline, &CTimeline::SignalScrub, this, &PlaybackPanel::OnTimelineScrub);
+		QObject::connect(m_timeline, &CTimeline::SignalSelectionChanged, this, &PlaybackPanel::OnTimelineSelectionChanged);
+		QObject::connect(m_timeline, &CTimeline::SignalContentChanged, this, &PlaybackPanel::OnTimelineChanged);
+		QObject::connect(m_timeline, &CTimeline::SignalPlay, this, &PlaybackPanel::OnTimelinePlay);
+		QObject::connect(m_timeline, &CTimeline::SignalNumberHotkey, this, &PlaybackPanel::OnTimelineHotkey);
+		QObject::connect(m_timeline, &CTimeline::SignalUndo, this, &PlaybackPanel::OnTimelineUndo);
+		QObject::connect(m_timeline, &CTimeline::SignalRedo, this, &PlaybackPanel::OnTimelineRedo);
+		QObject::connect(m_timeline, &CTimeline::SignalCopy, this, &PlaybackPanel::OnTimelineCopy);
+		QObject::connect(m_timeline, &CTimeline::SignalPaste, this, &PlaybackPanel::OnTimelinePaste);
 		m_playIcon = CryIcon("icons:common/animation_play.ico");
 		m_pauseIcon = CryIcon("icons:common/animation_pause.ico");
 		m_timeline->SetKeySize(16);
@@ -211,6 +226,72 @@ void PlaybackPanel::OnTimelineRedo()
 	if (!entries[0])
 		return;
 	m_system->explorerData->Redo(entries);
+}
+
+struct AnimEventsSerializeProxy {
+	AnimEvents events;
+	bool Serialize(Serialization::IArchive& ar) { return ar(events, "EventsList"); }
+};
+
+void PlaybackPanel::OnTimelineCopy(SAnimTime time, STimelineTrack* pTrack)
+{
+	CryLog("[CT] Received Timeline Copy Event");
+
+	SEntry<AnimationContent>* animation = GetActiveAnimationEntry(m_system);
+	if (!animation)
+		return;
+
+	AnimEvents& events = animation->content.events;
+
+	AnimEventsSerializeProxy serializeProxy;
+
+	AnimEvents& copiedEvents = serializeProxy.events;
+
+	for (int eventIdx : m_selectedEvents)
+	{
+		copiedEvents.push_back(events[eventIdx]);
+	}
+
+	if (!copiedEvents.empty())
+	{
+		CClipboard clipboard;
+		XmlNodeRef node = Serialization::SaveXmlNode(serializeProxy, "CopyAnimEvents");
+		clipboard.Put(node, "Character Tool Animation Events");
+	}
+}
+
+void PlaybackPanel::OnTimelinePaste(SAnimTime time, STimelineTrack* pTrack)
+{
+	CryLog("[CT] Received Timeline Paste Event");
+
+	AnimEventsSerializeProxy serializeProxy;
+
+	AnimEvents& pastedEvents = serializeProxy.events;
+	CClipboard clipboard;
+	if (!strcmp("Character Tool Animation Events", clipboard.GetTitle()) && clipboard.Get().isValid())
+	{
+		if (Serialization::LoadXmlNode(serializeProxy, clipboard.Get()) && !pastedEvents.empty())
+		{
+			std::sort(pastedEvents.begin(), pastedEvents.end(), [](auto& a, auto& b) { return a.startTime < b.startTime; });
+			float offset = TimelineTimeToAnimEventTime(time) - pastedEvents[0].startTime;
+
+			for (AnimEvent& ae : pastedEvents)
+			{
+				ae.startTime += offset;
+				ae.endTime += offset;
+			}
+
+			SEntry<AnimationContent>* animation = GetActiveAnimationEntry(m_system);
+			if (!animation)
+				return;
+
+			AnimEvents& events = animation->content.events;
+			events.insert(events.end(), pastedEvents.begin(), pastedEvents.end());
+
+			WriteTimeline();
+			OnTimelineChanged(false);
+		}
+	}
 }
 
 void PlaybackPanel::OnTimelineSelectionChanged(bool continuous)

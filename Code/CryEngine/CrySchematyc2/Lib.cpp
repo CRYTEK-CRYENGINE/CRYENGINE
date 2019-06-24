@@ -11,6 +11,7 @@
 #include <CrySchematyc2/Deprecated/IGlobalFunction.h>
 #include <CrySchematyc2/Env/IEnvRegistry.h>
 #include <CrySchematyc2/Utils/StringUtils.h>
+#include <CrySchematyc2/Serialization/Resources/IResourceCollectorArchive.h>
 #include "CVars.h"
 
 SERIALIZATION_ENUM_BEGIN_NESTED2(Schematyc2, CLibClassProperties, EInternalOverridePolicy, "Schematyc Library Class Property Override Policy")
@@ -1233,7 +1234,8 @@ namespace Schematyc2
 	//////////////////////////////////////////////////////////////////////////
 	void CLibClassProperties::SProperty::Serialize(Serialization::IArchive& archive)
 	{
-		if(archive.isEdit())
+		const bool isPrecaching = archive.caps(Schematyc2::IResourceCollectorArchive::ArchiveCaps);
+		if(archive.isEdit() || isPrecaching)
 		{
 			archive(overridePolicy, "overridePolicy", "Override");
 			if(overridePolicy == EInternalOverridePolicy::OverrideDefault)

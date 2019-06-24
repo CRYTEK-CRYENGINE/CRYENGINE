@@ -35,6 +35,8 @@ public:
 	Qt::Orientation            GetOrientation() const { return m_orientation; }
 	std::vector<CToolBarItem*> GetToolBars() const;
 
+	// Provides the minimum size of the largest item in this area
+	QSize                      GetLargestItemMinimumSize() const;
 	void                       SetOrientation(Qt::Orientation orientation);
 	void                       SetActionContextPosition(const QPoint& actionContextPosition) { m_actionContextPosition = actionContextPosition; }
 	void                       FillContextMenu(CAbstractMenu* pMenu);

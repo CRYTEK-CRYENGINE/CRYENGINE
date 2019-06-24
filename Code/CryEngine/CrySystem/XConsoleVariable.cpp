@@ -82,8 +82,8 @@ void CXConsoleVariableCVarGroup::OnLoadConfigurationEntry_End()
 	}
 }
 
-CXConsoleVariableCVarGroup::CXConsoleVariableCVarGroup(IConsole* pConsole, const char* szName, const char* szFileName, int flags)
-	: CXConsoleVariableInt(pConsole, szName, 0, flags, 0, true)
+CXConsoleVariableCVarGroup::CXConsoleVariableCVarGroup(IConsole* pConsole, const string& name, const char* szFileName, int flags)
+	: CXConsoleVariableInt(pConsole, name, 0, flags, 0, true)
 {
 	gEnv->pSystem->LoadConfiguration(szFileName, this, eLoadConfigSystemSpec);
 }
@@ -142,13 +142,8 @@ const char* CXConsoleVariableCVarGroup::GetHelpInternal()
 {
 	// Code was moved to a seperate function as GetHelp() is const due to the interface and GCC/Clang don't allow modifying m_psHelp there
 
-	const string helpString = "Console variable group to apply settings to multiple variables\n\n" + GetDetailedInfo();
-
-	SAFE_DELETE_ARRAY(m_szHelp);
-	m_szHelp = new char[helpString.size() + 1];
-	cry_strcpy(m_szHelp, helpString.size(), helpString.c_str());
-
-	return m_szHelp;
+	m_helpMessage = "Console variable group to apply settings to multiple variables\n\n" + GetDetailedInfo();
+	return m_helpMessage;
 }
 
 void CXConsoleVariableCVarGroup::DebugLog(const int expectedValue, const ICVar::EConsoleLogMode mode) const
@@ -234,8 +229,6 @@ CXConsoleVariableCVarGroup::~CXConsoleVariableCVarGroup()
 		SCVarGroup* pGroup = it.second;
 		SAFE_DELETE(pGroup);
 	}
-
-	SAFE_DELETE_ARRAY(m_szHelp);
 }
 
 void CXConsoleVariableCVarGroup::OnCVarChangeFunc(ICVar* pVar)

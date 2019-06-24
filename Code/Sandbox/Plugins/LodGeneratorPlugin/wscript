@@ -1,0 +1,33 @@
+#############################################################################
+## Crytek Source File
+## Copyright (C) 2015, Crytek Studios
+##
+## Creator: Hai Yin
+## Date: Oct 13, 2015
+## Description: WAF  based build system
+#############################################################################
+QT_TO_MOC_FILES = [
+
+	]
+
+def build(bld):	
+	
+	bld.CryPlugin(
+		target      = 'LodGeneratorPlugin',
+		vs_filter	= 'Sandbox/Plugins',
+		file_list   = 'LodGeneratorPlugin.waf_files',
+		use         = ['Editor', 'EditorCommon'],
+		pch			= 'StdAfx.cpp',
+		features    = 'qt',
+		win_module_extensions = ['python27', 'toolkit_pro'],
+		#force_disable_mfc  = True,
+		defines = ['SANDBOX_IMPORTS', 'USE_QT_UI'],
+		includes = [ 
+			'.', 
+			'..', 
+			'GeneratedFiles', 
+			Path('Code/Sandbox/Plugins/LodGeneratorPlugin/Util\Math' ) 
+
+		],
+	)
+	

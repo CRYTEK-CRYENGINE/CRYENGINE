@@ -28,6 +28,7 @@ struct SCompiledRenderPrimitive : private NoCopy
 		uint32        vertexOrIndexCount  = 0;
 		uint32        vertexOrIndexOffset = 0;
 		uint32        vertexBaseOffset    = 0;
+		uint32        instanceCount       = 1;
 	};
 
 	CDeviceGraphicsPSOPtr      m_pPipelineState;
@@ -123,7 +124,7 @@ public:
 	void                          SetPrimitiveType(EPrimitiveType primitiveType);
 	void                          SetCustomVertexStream(buffer_handle_t vertexBuffer, InputLayoutHandle vertexFormat, uint32 vertexStride);
 	void                          SetCustomIndexStream(buffer_handle_t indexBuffer, RenderIndexType indexType);
-	void                          SetDrawInfo(ERenderPrimitiveType primType, uint32 vertexBaseOffset, uint32 vertexOrIndexOffset, uint32 vertexOrIndexCount);
+	void                          SetDrawInfo(ERenderPrimitiveType primType, uint32 vertexBaseOffset, uint32 vertexOrIndexOffset, uint32 vertexOrIndexCount, uint32 instanceCount = 1);
 	void                          SetDrawTopology(ERenderPrimitiveType primType);
 
 	bool                          IsDirty() const;
@@ -152,6 +153,7 @@ private:
 		uint32               vertexBaseOffset;
 		uint32               vertexOrIndexCount;
 		uint32               vertexOrIndexOffset;
+		uint32               instanceCount;
 
 		SStreamInfo          vertexStream;
 		SStreamInfo          indexStream;
@@ -345,12 +347,13 @@ inline void CRenderPrimitive::SetCustomIndexStream(buffer_handle_t indexBuffer, 
 	ASSIGN_VALUE(m_primitiveType, ePrim_Custom, eDirty_Geometry);
 }
 
-inline void CRenderPrimitive::SetDrawInfo(ERenderPrimitiveType primType, uint32 vertexBaseOffset, uint32 vertexOrIndexOffset, uint32 vertexOrIndexCount)
+inline void CRenderPrimitive::SetDrawInfo(ERenderPrimitiveType primType, uint32 vertexBaseOffset, uint32 vertexOrIndexOffset, uint32 vertexOrIndexCount, uint32 instanceCount)
 {
 	ASSIGN_VALUE(m_primitiveGeometry.primType, primType, eDirty_Topology);
 	ASSIGN_VALUE(m_primitiveGeometry.vertexBaseOffset, vertexBaseOffset, eDirty_InstanceData);
 	ASSIGN_VALUE(m_primitiveGeometry.vertexOrIndexOffset, vertexOrIndexOffset, eDirty_InstanceData);
 	ASSIGN_VALUE(m_primitiveGeometry.vertexOrIndexCount, vertexOrIndexCount, eDirty_InstanceData);
+	ASSIGN_VALUE(m_primitiveGeometry.instanceCount, instanceCount, eDirty_InstanceData);
 }
 
 inline void CRenderPrimitive::SetDrawTopology(ERenderPrimitiveType primType)

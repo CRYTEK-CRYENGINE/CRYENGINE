@@ -192,7 +192,7 @@ public:
 
 protected: // ----------------------------------------------------------------------------------------
 	
-	void RegisterVar(ICVar* pCVar, ConsoleVarFunc pChangeFunc = 0);
+	void RegisterVar(const string& name, ICVar* pCVar, ConsoleVarFunc pChangeFunc = 0);
 
 	bool ProcessInput(const SInputEvent& event);
 	void DrawBuffer(int nScrollPos, const char* szEffect);
@@ -279,7 +279,9 @@ private: // ----------------------------------------------------------
 	virtual ICVar* Register(const char* name, float* src, float defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true) override;
 	virtual ICVar* Register(const char* name, int* src, int defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true) override;
 	virtual ICVar* Register(const char* name, const char** src, const char* defaultvalue, int flags = 0, const char* help = "", ConsoleVarFunc pChangeFunc = 0, bool allowModify = true) override;
-	virtual ICVar* Register(ICVar* pVar) override { RegisterVar(pVar); return pVar; }
+	virtual ICVar* Register(ICVar* pVar) override { RegisterVar(pVar->GetName(), pVar); return pVar; }
+
+	void UnregisterVariableImpl(const ConsoleVariablesMap::iterator& iter);
 
 	// --------------------------------------------------------------------------------
 

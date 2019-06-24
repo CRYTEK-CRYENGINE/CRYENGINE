@@ -1469,9 +1469,6 @@ MNM::ERayCastResult CNavMesh::RayCast_v3(const vector3_t& fromLocalPosition, Tri
 	if (!IsLocationInTriangle(fromLocalPosition, fromTriangleID))
 		return ERayCastResult::InvalidStart;
 
-	if (toTriangleID.IsValid() && !IsLocationInTriangle(toLocalPosition, toTriangleID))
-		return ERayCastResult::InvalidEnd;
-
 	RaycastCameFromMap cameFrom;
 	cameFrom.reserve(raycastRequest.maxWayTriCount);
 

@@ -116,7 +116,7 @@ void CCryProfilingSystem::FilterSubsystemCommand(IConsoleCmdArgs* args)
 
 	if (args->GetArgCount() < 3)
 	{
-		CryLog("Too few arguments. Usage: %s [0,1] System1 System2 ..", args->GetArg(0));
+		CryLog("Too few arguments. Usage: %s [0,1,2] System1 System2 ..", args->GetArg(0));
 		return;
 	}
 
@@ -157,7 +157,7 @@ void CCryProfilingSystem::FilterSubsystemCommand(IConsoleCmdArgs* args)
 		{
 		case 0: pCvar->Set(pCvar->GetI64Val() & ~changeMask); break;
 		case 1: pCvar->Set(pCvar->GetI64Val() | changeMask); break;
-		case 2: pCvar->Set(changeMask); break;
+		case 2: pCvar->Set(~changeMask); break;
 		}
 		CryLog("Subsystem mask is now set to 0x%" PRIx64 ".", pCvar->GetI64Val());
 	}

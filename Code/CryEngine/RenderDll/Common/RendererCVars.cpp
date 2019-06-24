@@ -671,6 +671,14 @@ static void OnChange_CV_r_ShadowsLocalLightsLinearizeDepth(ICVar* pCVar)
 	gEnv->p3DEngine->ReleasePermanentObjectsRenderResources();
 }
 
+static void OnChange_CV_r_HDRTexFormat(ICVar* pCVar)
+{
+	if (!pCVar)
+		return;
+
+	gEnv->p3DEngine->ReleasePermanentObjectsRenderResources();
+}
+
 static void OnChange_CV_r_ShaderTarget(ICVar* pCVar)
 {
 	if (!pCVar)
@@ -897,10 +905,10 @@ void CRendererCVars::OnChange_CachedShadows(ICVar* pCVar)
 		gEnv->p3DEngine->InvalidateShadowCacheData();
 	}
 
-	if (ShadowFrustumMGPUCache* pShadowMGPUCache = gRenDev->GetShadowFrustumMGPUCache())
+	if (auto* pUpdateMasks = gRenDev->GetShadowCacheUdapteMasks())
 	{
-		pShadowMGPUCache->nUpdateMaskRT = 0;
-		pShadowMGPUCache->nUpdateMaskMT = 0;
+		pUpdateMasks->nUpdateMaskRT = 0;
+		pUpdateMasks->nUpdateMaskMT = 0;
 	}
 }
 
@@ -1159,12 +1167,13 @@ void CRendererCVars::InitCVars()
 	#endif
 #endif
 
-	REGISTER_CVAR3("r_HDRTexFormat", CV_r_HDRTexFormat, 1, VF_DUMPTODISK | VF_REQUIRE_APP_RESTART,
+	REGISTER_CVAR3_CB("r_HDRTexFormat", CV_r_HDRTexFormat, 1, VF_DUMPTODISK,
 	               "Sets HDR render target precision. Default is 1.\n"
 	               "Usage: r_HDRTexFormat [Value]\n"
 	               "  0: (lower precision)\n"
 	               "  1: (standard precision)\n"
-	               "  2: (extended precision)\n");
+	               "  2: (extended precision)\n",
+	               OnChange_CV_r_HDRTexFormat);
 
 	DefineConstIntCVar3("r_HDRDebug", CV_r_HDRDebug, 0, VF_NULL,
 	                    "Toggles HDR debugging info (to debug HDR/eye adaptation)\n"

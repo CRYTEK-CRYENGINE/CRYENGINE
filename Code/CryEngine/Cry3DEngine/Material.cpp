@@ -474,7 +474,7 @@ void CMatInfo::SetSubMtl(int nSlot, IMaterial* pMtl)
 	if (pMtl)
 	{
 		const auto& shaderItem = pMtl->GetShaderItem();
-		CRY_ASSERT(shaderItem.m_pShader);
+		CRY_ASSERT(gEnv->IsDedicated() || shaderItem.m_pShader);
 		if (shaderItem.m_pShader && !!(shaderItem.m_pShader->GetFlags() & (EF_REFRACTIVE | EF_FORCEREFRACTIONUPDATE)))
 			SetFlags(GetFlags() | MTL_FLAG_REFRACTIVE);
 	}

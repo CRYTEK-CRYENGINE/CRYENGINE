@@ -346,7 +346,7 @@ CXConsole::~CXConsole()
 	CNotificationNetworkConsole::Shutdown();
 
 	while (!m_mapVariables.empty())
-		m_mapVariables.begin()->second->Release();
+		UnregisterVariableImpl(m_mapVariables.begin());
 }
 
 void CXConsole::FreeRenderResources()
@@ -704,7 +704,7 @@ void CXConsole::LogChangeMessage(const char* name, const bool isConst, const boo
 		gEnv->pLog->LogError("%s", logMessage.c_str());
 }
 
-void CXConsole::RegisterVar(ICVar* pCVar, ConsoleVarFunc pChangeFunc)
+void CXConsole::RegisterVar(const string& name, ICVar* pCVar, ConsoleVarFunc pChangeFunc)
 {
 	const bool isConst = pCVar->IsConstCVar();
 	const bool isCheat = ((pCVar->GetFlags() & (VF_CHEAT | VF_CHEAT_NOCHECK | VF_CHEAT_ALWAYS_CHECK)) != 0);
@@ -755,7 +755,7 @@ void CXConsole::RegisterVar(ICVar* pCVar, ConsoleVarFunc pChangeFunc)
 	if (pChangeFunc)
 		pCVar->AddOnChange(pChangeFunc);
 
-	auto pair = ConsoleVariablesMap::value_type(pCVar->GetName(), pCVar);
+	auto pair = ConsoleVariablesMap::value_type(name, pCVar);
 	m_mapVariables.insert(pair);
 
 	const int flags = pCVar->GetFlags();
@@ -983,8 +983,9 @@ ICVar* CXConsole::Register(const char* sName, int* src, int iValue, int nFlags, 
 	if (!allowModify)
 		nFlags |= VF_CONST_CVAR;
 	*src = iValue; // Needs to be done before creating the CVar due to default overriding
-	pCVar = new CXConsoleVariableIntRef(this, sName, *src, nFlags, help, true);
-	RegisterVar(pCVar, pChangeFunc);
+	const string name(sName);
+	pCVar = new CXConsoleVariableIntRef(this, name, *src, nFlags, help, true);
+	RegisterVar(name, pCVar, pChangeFunc);
 	return pCVar;
 }
 
@@ -1002,11 +1003,12 @@ ICVar* CXConsole::RegisterCVarGroup(const char* szName, const char* szFileName)
 	if (pCVar)
 		return pCVar; // Already registered, this is expected when loading engine specs after game specs.
 
-	CXConsoleVariableCVarGroup* pCVarGroup = new CXConsoleVariableCVarGroup(this, szName, szFileName, VF_COPYNAME);
+	const string name(szName);
+	CXConsoleVariableCVarGroup* pCVarGroup = new CXConsoleVariableCVarGroup(this, name, szFileName, VF_COPYNAME);
 
 	pCVar = pCVarGroup;
 
-	RegisterVar(pCVar, CXConsoleVariableCVarGroup::OnCVarChangeFunc);
+	RegisterVar(name, pCVar, CXConsoleVariableCVarGroup::OnCVarChangeFunc);
 
 	return pCVar;
 }
@@ -1034,8 +1036,9 @@ ICVar* CXConsole::Register(const char* sName, float* src, float fValue, int nFla
 	if (!allowModify)
 		nFlags |= VF_CONST_CVAR;
 	*src = fValue; // Needs to be done before creating the CVar due to default overriding
-	pCVar = new CXConsoleVariableFloatRef(this, sName, *src, nFlags, help, true);
-	RegisterVar(pCVar, pChangeFunc);
+	const string name(sName);
+	pCVar = new CXConsoleVariableFloatRef(this, name, *src, nFlags, help, true);
+	RegisterVar(name, pCVar, pChangeFunc);
 	return pCVar;
 }
 
@@ -1061,8 +1064,9 @@ ICVar* CXConsole::Register(const char* sName, const char** src, const char* defa
 	}
 	if (!allowModify)
 		nFlags |= VF_CONST_CVAR;
-	pCVar = new CXConsoleVariableStringRef(this, sName, *src, defaultValue, nFlags, help, true);
-	RegisterVar(pCVar, pChangeFunc);
+	const string name(sName);
+	pCVar = new CXConsoleVariableStringRef(this, name, *src, defaultValue, nFlags, help, true);
+	RegisterVar(name, pCVar, pChangeFunc);
 	return pCVar;
 }
 
@@ -1080,8 +1084,9 @@ ICVar* CXConsole::RegisterString(const char* sName, const char* sValue, int nFla
 		return pCVar;
 	}
 
-	pCVar = new CXConsoleVariableString(this, sName, sValue, nFlags, help, true);
-	RegisterVar(pCVar, pChangeFunc);
+	const string name(sName);
+	pCVar = new CXConsoleVariableString(this, name, sValue, nFlags, help, true);
+	RegisterVar(name, pCVar, pChangeFunc);
 	return pCVar;
 }
 
@@ -1099,8 +1104,9 @@ ICVar* CXConsole::RegisterFloat(const char* sName, float fValue, int nFlags, con
 		return pCVar;
 	}
 
-	pCVar = new CXConsoleVariableFloat(this, sName, fValue, nFlags, help, true);
-	RegisterVar(pCVar, pChangeFunc);
+	const string name(sName);
+	pCVar = new CXConsoleVariableFloat(this, name, fValue, nFlags, help, true);
+	RegisterVar(name, pCVar, pChangeFunc);
 	return pCVar;
 }
 
@@ -1118,8 +1124,9 @@ ICVar* CXConsole::RegisterInt(const char* sName, int iValue, int nFlags, const c
 		return pCVar;
 	}
 
-	pCVar = new CXConsoleVariableInt(this, sName, iValue, nFlags, help, true);
-	RegisterVar(pCVar, pChangeFunc);
+	const string name(sName);
+	pCVar = new CXConsoleVariableInt(this, name, iValue, nFlags, help, true);
+	RegisterVar(name, pCVar, pChangeFunc);
 	return pCVar;
 }
 
@@ -1137,8 +1144,9 @@ ICVar* CXConsole::RegisterInt64(const char* sName, int64 iValue, int nFlags, con
 		return pCVar;
 	}
 
-	pCVar = new CXConsoleVariableInt64(this, sName, iValue, nFlags, help, true);
-	RegisterVar(pCVar, pChangeFunc);
+	const string name(sName);
+	pCVar = new CXConsoleVariableInt64(this, name, iValue, nFlags, help, true);
+	RegisterVar(name, pCVar, pChangeFunc);
 	return pCVar;
 }
 
@@ -1148,7 +1156,12 @@ void CXConsole::UnregisterVariable(const char* sVarName, bool bDelete)
 	if (iter == m_mapVariables.end())
 		return;
 
-	UnRegisterAutoComplete(sVarName);
+	UnregisterVariableImpl(iter);
+}
+
+void CXConsole::UnregisterVariableImpl(const ConsoleVariablesMap::iterator& iter)
+{
+	UnRegisterAutoComplete(iter->first);
 
 	ICVar* pCVar = iter->second;
 	const int32 flags = pCVar->GetFlags();

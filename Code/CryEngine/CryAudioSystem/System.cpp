@@ -3348,7 +3348,7 @@ void CSystem::HandleActivateContext(ContextId const contextId)
 		}
 
 #if defined(CRY_AUDIO_USE_DEBUG_CODE)
-		HandleUpdateDebugInfo(EDebugUpdateFilter::Contexts);
+		HandleUpdateDebugInfo(EDebugUpdateFilter::FileCacheManager | EDebugUpdateFilter::Contexts);
 #endif // CRY_AUDIO_USE_DEBUG_CODE
 	}
 }
@@ -3370,7 +3370,7 @@ void CSystem::HandleDeactivateContext(ContextId const contextId)
 	ReportContextDeactivated(contextId);
 
 #if defined(CRY_AUDIO_USE_DEBUG_CODE)
-	HandleUpdateDebugInfo(EDebugUpdateFilter::Contexts);
+	HandleUpdateDebugInfo(EDebugUpdateFilter::FileCacheManager | EDebugUpdateFilter::Contexts);
 #endif // CRY_AUDIO_USE_DEBUG_CODE
 }
 

@@ -98,6 +98,12 @@ CConstantsWidget::CConstantsWidget(CController& controller)
 	m_controller.signalAssetOpened.Connect(this, &CConstantsWidget::OnAssetOpened);
 	m_controller.signalAssetClosed.Connect(this, &CConstantsWidget::OnAssetClosed);
 	m_controller.signalPlaybackModeChanged.Connect(this, &CConstantsWidget::OnPlaybackModeChanged);
+
+	if (m_controller.GetEditor().GetPreset())
+	{
+		// The window is opened through Window->Panels->... command
+		OnAssetOpened();
+	}
 }
 
 CConstantsWidget::~CConstantsWidget()

@@ -1195,7 +1195,7 @@ public:
 	virtual void                                      SetVolumetricCloudNoiseTex(int cloudNoiseTexId, int edgeNoiseTexId) override;
 	void                                              GetVolumetricCloudTextureInfo(SVolumetricCloudTexInfo& info) const;
 
-	virtual ShadowFrustumMGPUCache*                   GetShadowFrustumMGPUCache() override                                                          { return &m_ShadowFrustumMGPUCache; }
+	virtual SShadowCacheUpdateMasks*                  GetShadowCacheUdapteMasks() override                                                          { return &m_ShadowFrustumUdateMasks; }
 
 	virtual const StaticArray<int, MAX_GSM_LODS_NUM>& GetCachedShadowsResolution() const override                                                   { return m_CachedShadowsResolution; }
 	virtual void                                      SetCachedShadowsResolution(const StaticArray<int, MAX_GSM_LODS_NUM>& arrResolutions) override { m_CachedShadowsResolution = arrResolutions; }
@@ -1564,7 +1564,7 @@ public:
 
 	S3DEngineCommon        m_p3DEngineCommon[RT_COMMAND_BUF_COUNT];
 
-	ShadowFrustumMGPUCache m_ShadowFrustumMGPUCache;
+	SShadowCacheUpdateMasks m_ShadowFrustumUdateMasks;
 
 	//Debug Gun
 	IRenderNode*     m_pDebugRenderNode;

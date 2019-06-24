@@ -610,11 +610,18 @@ public:
 		const NavigationAgentTypeID agentTypeID, const Vec3& position, const MNM::SOrderedSnappingMetrics& snappingMetrics, const INavMeshQueryFilter* pFilter,
 		Vec3* pOutSnappedPosition, MNM::TriangleID* pOutTriangleID, NavigationMeshID* pOutNavMeshID) const override;
 
+	virtual MNM::SPointOnNavMesh SnapToNavMesh(
+		const NavigationAgentTypeID agentTypeID, const Vec3& position, const MNM::SSnappingMetric& snappingMetric, const INavMeshQueryFilter* pFilter, NavigationMeshID* pOutNavMeshID) const override;
+
+	virtual MNM::SPointOnNavMesh SnapToNavMesh(
+		const NavigationAgentTypeID agentTypeID, const Vec3& position, const MNM::SOrderedSnappingMetrics& snappingMetrics, const INavMeshQueryFilter* pFilter, NavigationMeshID* pOutNavMeshID) const override;
+
 	virtual const MNM::INavMesh*             GetMNMNavMesh(const NavigationMeshID meshID) const override;
 	virtual NavigationAgentTypeID            GetAgentTypeOfMesh(const NavigationMeshID meshID) const override;
 
 	virtual MNM::ERayCastResult              NavMeshRayCast(const NavigationAgentTypeID agentTypeID, const Vec3& startPos, const Vec3& endPos, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const override;
 	virtual MNM::ERayCastResult              NavMeshRayCast(const NavigationMeshID meshID, const MNM::TriangleID startTriangleId, const Vec3& startPos, const MNM::TriangleID endTriangleId, const Vec3& endPos, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const override;
+	virtual MNM::ERayCastResult              NavMeshRayCast(const NavigationMeshID meshID, const MNM::SPointOnNavMesh& startPointOnNavMesh, const MNM::SPointOnNavMesh& endPointOnNavMesh, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const override;
 
 	virtual const IOffMeshNavigationManager& GetIOffMeshNavigationManager() const override { return m_offMeshNavigationManager; }
 	virtual IOffMeshNavigationManager&       GetIOffMeshNavigationManager() override       { return m_offMeshNavigationManager; }

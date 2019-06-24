@@ -1132,7 +1132,9 @@ void CObjectManager::DeleteAllObjects()
 
 	for (auto pRootObject : rootObjects)
 	{
+		NotifyObjectListeners(pRootObject, CObjectPreDeleteEvent(pRootObject->GetLayer()));
 		pRootObject->Done();
+		NotifyObjectListeners(pRootObject, CObjectDeleteEvent(pRootObject->GetLayer()));
 	}
 
 	// Clear map.

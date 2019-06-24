@@ -90,7 +90,7 @@ void CSnowStage::ResizeResource(int resourceWidth, int resourceHeight)
 	m_pSnowDisplacementTex = CTexture::GetOrCreateTextureObjectPtr("$SnowDisplacement", resourceWidth, resourceHeight, 1, eTT_2D, flags, eTF_R8);
 	if (m_pSnowDisplacementTex)
 	{
-		const bool shouldApplyDisplacement = (CRenderer::CV_r_snow) && (CRenderer::CV_r_snow_displacement);
+		const bool shouldApplyDisplacement = (CRenderer::CV_r_snow > 0) && (CRenderer::CV_r_snow_displacement > 0);
 
 		// Create/release the displacement texture on demand
 		if (!shouldApplyDisplacement && CTexture::IsTextureExist(m_pSnowDisplacementTex))

@@ -570,6 +570,33 @@ struct SInputLayout
 	SInputLayout(SInputLayout&& src) = default;
 	SInputLayout& operator=(const SInputLayout& src) = default;
 	SInputLayout& operator=(SInputLayout&& src) = default;
+
+	bool operator==(const std::vector<D3D11_INPUT_ELEMENT_DESC>& descs) const
+	{
+		size_t count = m_Declaration.size();
+		if (count != descs.size())
+		{
+			return false;
+		}
+
+		for (size_t i = 0; i < count; ++i)
+		{
+			const D3D11_INPUT_ELEMENT_DESC& desc0 = m_Declaration[i];
+			const D3D11_INPUT_ELEMENT_DESC& desc1 = descs[i];
+
+			if (0 != cry_stricmp(desc0.SemanticName, desc1.SemanticName) ||
+				desc0.SemanticIndex != desc1.SemanticIndex ||
+				desc0.Format != desc1.Format ||
+				desc0.InputSlot != desc1.InputSlot ||
+				desc0.AlignedByteOffset != desc1.AlignedByteOffset ||
+				desc0.InputSlotClass != desc1.InputSlotClass ||
+				desc0.InstanceDataStepRate != desc1.InstanceDataStepRate)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
 };
 
 //=================================================================

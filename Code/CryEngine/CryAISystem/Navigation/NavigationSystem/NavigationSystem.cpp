@@ -3247,6 +3247,32 @@ bool NavigationSystem::SnapToNavMesh(
 	return false;
 }
 
+MNM::SPointOnNavMesh NavigationSystem::SnapToNavMesh(
+	const NavigationAgentTypeID agentTypeID, const Vec3& position, const MNM::SSnappingMetric& snappingMetric, const INavMeshQueryFilter* pFilter, NavigationMeshID* pOutNavMeshID) const
+{
+	MNM::TriangleID triangleId;
+	Vec3 snappedPosition;
+	
+	if (!SnapToNavMesh(agentTypeID, position, snappingMetric, pFilter, &snappedPosition, &triangleId, pOutNavMeshID))
+	{
+		return MNM::SPointOnNavMesh(MNM::TriangleID(), ZERO);
+	}
+	return MNM::SPointOnNavMesh(triangleId, snappedPosition);
+}
+
+MNM::SPointOnNavMesh NavigationSystem::SnapToNavMesh(
+	const NavigationAgentTypeID agentTypeID, const Vec3& position, const MNM::SOrderedSnappingMetrics& snappingMetrics, const INavMeshQueryFilter* pFilter, NavigationMeshID* pOutNavMeshID) const
+{
+	MNM::TriangleID triangleId;
+	Vec3 snappedPosition;
+
+	if (!SnapToNavMesh(agentTypeID, position, snappingMetrics, pFilter, &snappedPosition, &triangleId, pOutNavMeshID))
+	{
+		return MNM::SPointOnNavMesh(MNM::TriangleID(), ZERO);
+	}
+	return MNM::SPointOnNavMesh(triangleId, snappedPosition);
+}
+
 MNM::ERayCastResult NavigationSystem::NavMeshRayCast(const NavigationAgentTypeID agentTypeID, const Vec3& startPos, const Vec3& toPos, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const
 {
 	NavigationMeshID meshId = GetEnclosingMeshID(agentTypeID, startPos);
@@ -3335,6 +3361,11 @@ MNM::ERayCastResult NavigationSystem::NavMeshRayCast(const NavigationMeshID mesh
 		}
 	}
 	return result;
+}
+
+MNM::ERayCastResult NavigationSystem::NavMeshRayCast(const NavigationMeshID meshID, const MNM::SPointOnNavMesh& startPointOnNavMesh, const MNM::SPointOnNavMesh& endPointOnNavMesh, const INavMeshQueryFilter* pFilter, MNM::SRayHitOutput* pOutHit) const
+{
+	return NavMeshRayCast(meshID, startPointOnNavMesh.GetTriangleID(), startPointOnNavMesh.GetWorldPosition(), endPointOnNavMesh.GetTriangleID(), endPointOnNavMesh.GetWorldPosition(), pFilter, pOutHit);
 }
 
 const MNM::INavMesh* NavigationSystem::GetMNMNavMesh(NavigationMeshID meshID) const
@@ -5085,13 +5116,12 @@ void NavigationSystemDebugDraw::DebugDrawSnapToNavmesh(NavigationSystem& navigat
 
 	const INavMeshQueryFilter* pDebugQueryFilter = GetDebugQueryFilter("MNMDebugQueryFilter");
 
-	Vec3 snappedPosition;
-	MNM::TriangleID triangleId;
-	if (navigationSystem.SnapToNavMesh(m_agentTypeID, debugObject.objectPos, snappingMetrics, pDebugQueryFilter, &snappedPosition, &triangleId, nullptr))
+	const MNM::SPointOnNavMesh pointOnNavMesh = navigationSystem.SnapToNavMesh(m_agentTypeID, debugObject.objectPos, snappingMetrics, pDebugQueryFilter, nullptr);
+	if(pointOnNavMesh.IsValid())
 	{
 		IRenderAuxGeom* renderAuxGeom = gEnv->pRenderer->GetIRenderAuxGeom();
 		const Vec3 verticalOffset = Vec3(.0f, .0f, .1f);
-		renderAuxGeom->DrawSphere(snappedPosition + verticalOffset, 0.05f, ColorB(Col_Red));
+		renderAuxGeom->DrawSphere(pointOnNavMesh.GetWorldPosition() + verticalOffset, 0.05f, ColorB(Col_Red));
 		renderAuxGeom->DrawSphere(debugObject.objectPos + verticalOffset, 0.05f, ColorB(Col_Black));
 	}
 }

@@ -1964,14 +1964,19 @@ CTexture* CSvoRenderer::GetRsmNormlMap(CGraphicsPipeline& graphicsPipeline, cons
 
 void CSvoRenderer::GetRsmTextures(_smart_ptr<CTexture>& pRsmColorMap, _smart_ptr<CTexture>& pRsmNormlMap, _smart_ptr<CTexture>& pRsmPoolCol, _smart_ptr<CTexture>& pRsmPoolNor)
 {
-	if (!s_pRsmColorMap)
-		s_pRsmColorMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
-	if (!s_pRsmNormlMap)
-		s_pRsmNormlMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
-	if (!s_pRsmPoolCol)
-		s_pRsmPoolCol = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
-	if (!s_pRsmPoolNor)
-		s_pRsmPoolNor = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	bool useRSM = gEnv->IsEditor() || (CSvoRenderer::GetInstance()->e_svoTI_InjectionMultiplier && CSvoRenderer::GetInstance()->e_svoTI_RsmUseColors >= 0);
+
+	if (useRSM)
+	{
+		if (!s_pRsmColorMap)
+			s_pRsmColorMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+		if (!s_pRsmNormlMap)
+			s_pRsmNormlMap = CTexture::GetOrCreateTextureObjectPtr("SVO_SUN_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+		if (!s_pRsmPoolCol)
+			s_pRsmPoolCol = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_COLOR", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+		if (!s_pRsmPoolNor)
+			s_pRsmPoolNor = CTexture::GetOrCreateTextureObjectPtr("SVO_PRJ_RSM_NORMAL", 0, 0, 1, eTT_2D, FT_STATE_CLAMP, eTF_R8G8B8A8);
+	}
 
 	pRsmColorMap = s_pRsmColorMap;
 	pRsmNormlMap = s_pRsmNormlMap;

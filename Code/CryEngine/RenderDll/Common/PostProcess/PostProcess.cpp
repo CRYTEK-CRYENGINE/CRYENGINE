@@ -699,19 +699,17 @@ int CParamTexture::Create(const char* pszFileName)
 
 	const int threadID = gRenDev->m_pRT ? gRenDev->m_pRT->GetThreadList() : 0;
 	CParamTextureThreadSafeData* pThreadSafeData = &m_threadSafeData[threadID];
-
+	
 	if (pThreadSafeData->pTexParam)
 	{
 		// check if texture is same
-		if (!strcmpi(pThreadSafeData->pTexParam->GetName(), pszFileName))
+		if (strcmpi(pThreadSafeData->pTexParam->GetName(), pszFileName) == 0)
 		{
 			return 0;
 		}
-		// release texture if required
-		SAFE_RELEASE(pThreadSafeData->pTexParam);
 	}
 
-	pThreadSafeData->pTexParam = CTexture::ForName(pszFileName, FT_DONT_STREAM, eTF_Unknown);
+	pThreadSafeData->pTexParam = CTexture::ForNamePtr(pszFileName, FT_DONT_STREAM, eTF_Unknown);
 	pThreadSafeData->bSetThisFrame = true;
 	CRY_ASSERT_MESSAGE(pThreadSafeData->pTexParam, "CParamTexture.Create: texture not found!");
 
@@ -731,14 +729,11 @@ void CParamTexture::Release()
 	if (bIsMultiThreaded)
 	{
 		CParamTextureThreadSafeData* pProcessData = &m_threadSafeData[gRenDev->GetRenderThreadID()];
-		if (pProcessData->pTexParam != pFillData->pTexParam)
-		{
-			SAFE_RELEASE(pProcessData->pTexParam);
-			pProcessData->bSetThisFrame = true;
-		}
+		pProcessData->pTexParam = nullptr;
+		pProcessData->bSetThisFrame = true;
 	}
 
-	SAFE_RELEASE(pFillData->pTexParam);
+	pFillData->pTexParam = nullptr;
 	pFillData->bSetThisFrame = true;
 }
 
@@ -754,22 +749,16 @@ void CParamTexture::SyncMainWithRender()
 		pProcessData = &m_threadSafeData[gRenDev->GetRenderThreadID()];
 		if (pProcessData->bSetThisFrame)
 		{
-			if (pFillData->bSetThisFrame)
-			{
-				// If the main thread also set a texture on the same frame (highly unlikely), then release this texture
-				// 1st before overriding it with the texture set from the render thread
-				SAFE_RELEASE(pFillData->pTexParam);
-			}
+			// If the main thread also set a texture on the same frame (highly unlikely),
+			// then override it with the texture set from the render thread
 			pFillData->pTexParam = pProcessData->pTexParam;
 		}
 	}
 
-	// Reset set value
 	pFillData->bSetThisFrame = false;
 
 	if (bIsMultiThreaded)
 	{
-		// Copy fill data into process data
-		memcpy(pProcessData, pFillData, sizeof(CParamTextureThreadSafeData));
+		pProcessData = pFillData;
 	}
 }

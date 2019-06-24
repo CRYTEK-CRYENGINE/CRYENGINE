@@ -14,6 +14,15 @@ struct ShadowMapInfo
 	int                 cachedLodCount = 0;
 };
 
+struct SShadowFrustumMGPUCache
+{
+	SShadowFrustumMGPUCache();
+	~SShadowFrustumMGPUCache();
+
+	std::array<ShadowMapFrustumPtr, MAX_GSM_LODS_NUM> m_staticShadowMapFrustums;
+	ShadowMapFrustumPtr                               m_pHeightMapAOFrustum;
+};
+
 class CLightEntity final : public ILightSource, public Cry3DEngineBase
 {
 public:
@@ -90,6 +99,7 @@ public:
 
 private:
 	static PodArray<SPlaneObject>  s_lstTmpCastersHull;
+	static SShadowFrustumMGPUCache s_shadowFrustumCache;
 	IEntity*                       m_pOwnerEntity = 0;
 	_smart_ptr<IMaterial>          m_pMaterial;
 	Matrix34                       m_Matrix;

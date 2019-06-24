@@ -40,6 +40,12 @@ CVariablesWidget::CVariablesWidget(CController& controller)
 	m_controller.signalPlaybackModeChanged.Connect(this, &CVariablesWidget::OnPlaybackModeChanged);
 	m_controller.signalHandleKeyEventsInVarPropertyTree.Connect(this, &CVariablesWidget::ProcessUserEventsFromCurveEditor);
 	m_controller.signalCurrentTimeChanged.Connect(this, &CVariablesWidget::ResetTree);
+
+	if (m_controller.GetEditor().GetPreset())
+	{
+		// The window is opened through Window->Panels->... command
+		OnAssetOpened();
+	}
 }
 
 CVariablesWidget::~CVariablesWidget()

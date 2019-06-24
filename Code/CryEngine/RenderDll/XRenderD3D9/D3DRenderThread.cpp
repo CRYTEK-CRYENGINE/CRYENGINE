@@ -270,6 +270,13 @@ void CD3D9Renderer::RT_CreateRenderResources()
 	CRendererResources::LoadDefaultSystemTextures();
 	CRendererResources::CreateSystemTargets(0, 0);
 
+	EF_Init();
+
+#if defined(FEATURE_SVO_GI)
+	// TODO: GraphicsPipeline-Stage bootstrapped with Init()
+	CSvoRenderer::GetInstance(true);
+#endif
+
 	// Create BaseGraphicsPipeline
 	if (!m_pBaseGraphicsPipeline)
 	{
@@ -284,17 +291,12 @@ void CD3D9Renderer::RT_CreateRenderResources()
 		CRY_ASSERT(m_pBaseGraphicsPipeline);
 	}
 
-	EF_Init();
 
 	if (m_pPostProcessMgr)
 	{
 		m_pPostProcessMgr->CreateResources();
 	}
 
-#if defined(FEATURE_SVO_GI)
-	// TODO: GraphicsPipeline-Stage bootstrapped with Init()
-	CSvoRenderer::GetInstance(true);
-#endif
 
 #if RENDERER_SUPPORT_SCALEFORM
 	SF_CreateResources();

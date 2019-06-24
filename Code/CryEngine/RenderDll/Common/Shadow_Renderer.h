@@ -515,42 +515,18 @@ struct SShadowRenderer
 	static void FinishRenderFrustumsToView(CRenderView* pRenderView);
 };
 
-struct ShadowFrustumMGPUCache : public ISyncMainWithRenderListener
+struct SShadowCacheUpdateMasks : public ISyncMainWithRenderListener
 {
-	StaticArray<ShadowMapFrustumPtr, MAX_GSM_LODS_NUM> m_staticShadowMapFrustums;
-	ShadowMapFrustumPtr                                m_pHeightMapAOFrustum;
-
 	uint32 nUpdateMaskMT;
 	uint32 nUpdateMaskRT;
 
-	ShadowFrustumMGPUCache()
+	SShadowCacheUpdateMasks()
 		: nUpdateMaskMT(0), nUpdateMaskRT(0)
-	{
-		m_pHeightMapAOFrustum = NULL;
-		m_staticShadowMapFrustums.fill(NULL);
-	};
+	{}
 
 	void Init()
 	{
-		m_pHeightMapAOFrustum = new ShadowMapFrustum;
-		m_pHeightMapAOFrustum->pShadowCacheData = std::make_shared<ShadowMapFrustum::ShadowCacheData>();
-
-		for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
-		{
-			m_staticShadowMapFrustums[i] = new ShadowMapFrustum;
-			m_staticShadowMapFrustums[i]->pShadowCacheData = std::make_shared<ShadowMapFrustum::ShadowCacheData>();
-		}
-
 		nUpdateMaskMT = nUpdateMaskRT = 0;
-	}
-
-	void Release()
-	{
-		m_pHeightMapAOFrustum = 0;
-		for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
-		{
-			m_staticShadowMapFrustums[i] = 0;
-		}
 	}
 
 	virtual void SyncMainWithRender()

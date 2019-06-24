@@ -33,7 +33,7 @@ public:
 	virtual Type       GetType() const = 0;
 	CToolBarArea*      GetArea() const        { return m_pArea; }
 	Qt::Orientation    GetOrientation() const { return m_orientation; }
-
+	virtual QSize      GetMinimumSize() const { return minimumSize(); }
 	static const char* GetMimeType()          { return "CToolBarAreaItem"; }
 
 protected:
@@ -65,6 +65,7 @@ public:
 	void      ReplaceToolBar(QToolBar* pNewToolBar);
 	void      SetOrientation(Qt::Orientation orientation) override;
 
+	virtual QSize      GetMinimumSize() const override;
 	Type      GetType() const override { return Type::ToolBar; }
 	QString   GetTitle() const;
 	QString   GetName() const;

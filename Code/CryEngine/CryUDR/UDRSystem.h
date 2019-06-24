@@ -10,11 +10,22 @@ namespace Cry
 	{
 		class CUDRSystem final : public IUDRSystem
 		{
+			struct SPrimitiveWithDuration
+			{
+				SPrimitiveWithDuration(const std::shared_ptr<CRenderPrimitiveBase>& primitive_, const float duration_)
+					: primitive(primitive_)
+					, duration(duration_)
+				{}
+
+				std::shared_ptr<CRenderPrimitiveBase> primitive;
+				float                                 duration = 0.0f;
+			};
+
 		public:
 			CUDRSystem(const CUDRSystem&) = delete;
 			CUDRSystem(CUDRSystem&&) = delete;
 
-			// IUDR
+			// IUDRSystem
 			virtual bool                  Initialize() override;
 			virtual void                  Reset() override;
 			virtual void                  Update(const CTimeValue frameStartTime, const float frameDeltaTime) override;
@@ -22,10 +33,10 @@ namespace Cry
 			virtual ITreeManager&         GetTreeManager() override;
 			virtual INodeStack&           GetNodeStack() override;
 			virtual IRecursiveSyncObject& GetRecursiveSyncObject() override;
-			
+
 			virtual bool                  SetConfig(const SConfig& config) override;
 			virtual const SConfig&        GetConfig() const override;
-			// ~IUDR
+			// ~IUDRSystem
 
 			//! Gets the single existing instance of the UDR system. 
 			//! \return Singleton instance of UDR system.
@@ -37,6 +48,12 @@ namespace Cry
 			//! \note Global Environment and Timer System must be initialized.
 			CTimeValue                    GetElapsedTime() const;
 
+			//! Draws the given primitive on the screen for a specified time.
+			//! \param pPrimitive Primitive to be rendered on the screen.
+			//! \param duration Duration in seconds that the primitive should persist on the screen. Default value is 0.0f which renders the primitive for only one frame.
+			//! \note Primitives are added to a queue and will be drawn during the Update function.
+			void                          DebugDraw(const std::shared_ptr<CRenderPrimitiveBase>& pPrimitive, const float duration = 0.0f);
+
 			CUDRSystem&                   operator=(const CUDRSystem&) = delete;
 			CUDRSystem&                   operator=(CUDRSystem&&) = delete;
 
@@ -44,6 +61,8 @@ namespace Cry
 
 			explicit CUDRSystem();
 			~CUDRSystem();
+
+			void                          DebugDrawPrimitivesQueue();
 
 			static void                   CmdDumpRecordings(IConsoleCmdArgs* pArgs);
 			static void                   CmdClearRecordingsInLiveTree(IConsoleCmdArgs* pArgs);
@@ -55,16 +74,17 @@ namespace Cry
 
 		private:
 
-			static CUDRSystem             s_instance;
-			
-			IUDRSystem::SConfig           m_config;
-			CTreeManager                  m_treeManager;
-			CNodeStack                    m_nodeStack;
-			CRecursiveSyncObject          m_recursiveSyncObject;
-			
-			CTimeMetadata                 m_timeMetadataBase;
-			CTimeValue                    m_frameStartTime;
-			float                         m_frameDeltaTime = 0;
+			static CUDRSystem                   s_instance;
+
+			IUDRSystem::SConfig                 m_config;
+			CTreeManager                        m_treeManager;
+			CNodeStack                          m_nodeStack;
+			CRecursiveSyncObject                m_recursiveSyncObject;
+			std::vector<SPrimitiveWithDuration> m_primitivesQueue;
+
+			CTimeMetadata                       m_timeMetadataBase;
+			CTimeValue                          m_frameStartTime;
+			float                               m_frameDeltaTime = 0;
 			
 		};
 	}

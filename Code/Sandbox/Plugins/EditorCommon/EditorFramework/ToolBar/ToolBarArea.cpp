@@ -86,6 +86,19 @@ std::vector<CToolBarItem*> CToolBarArea::GetToolBars() const
 	return toolBarItems;
 }
 
+QSize CToolBarArea::GetLargestItemMinimumSize() const
+{
+	QSize minSize = minimumSize();
+	const QList<CToolBarAreaItem*> items = Private_ToolBarArea::GetAllItems(this);
+
+	for (CToolBarAreaItem* pItem : items)
+	{
+		minSize = minSize.expandedTo(pItem->GetMinimumSize());
+	}
+	
+	return minSize;
+}
+
 void CToolBarArea::SetOrientation(Qt::Orientation orientation)
 {
 	m_orientation = orientation;

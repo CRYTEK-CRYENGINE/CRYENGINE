@@ -10,6 +10,7 @@
 
 #ifndef _RELEASE
 #define DEBUG_RELEVANCE_GRID (1)
+#define DEBUG_BUCKETS_NAMES (1)
 #endif
 
 namespace Schematyc2
@@ -170,6 +171,7 @@ namespace Schematyc2
 		virtual const UpdateSchedulerStats::IFrameUpdateStats* GetFrameUpdateStats() const override;
 		virtual void SetShouldUseRelevanceGridCallback(UseRelevanceGridPredicate directConnect) override;
 		virtual void SetIsDynamicObjectCallback(IsDynamicObjectPredicate isDynamicObject) override;
+		virtual void SetDebugPriorityNames(const DebugPriorityNameArray& debugNames) override;
 		// ~IUpdateScheduler
 
 	private:
@@ -253,6 +255,7 @@ namespace Schematyc2
 		typedef VectorMap<UpdatePriority, SObserverGroup> TObserverMap;
 		typedef std::vector<SPendingObserver> TPendingObservers;
 		typedef std::vector<UpdatePriority> TPendingPriorities;
+		typedef VectorMap<UpdatePriority, const char*> TPriorityDebugNameMap;
 
 		class CBucket
 		{
@@ -265,7 +268,7 @@ namespace Schematyc2
 			void Disconnect(CUpdateScope& scope, UpdatePriority priority);
 			void BeginUpdate(TPendingPriorities& pendingPriorities);
 			template <bool UseStride>
-			void Update(const SUpdateContext context, UpdatePriority priority, uint32 frameId, UpdateSchedulerStats::SUpdateBucketStats& outUpdateStats);
+			void Update(const SUpdateContext context, UpdatePriority priority, uint32 frameId, UpdateSchedulerStats::SUpdateBucketStats& outUpdateStats, const TPriorityDebugNameMap& debugNames);
 			void Reset();
 			void CleanUp();
 			void SetFrequency(UpdateFrequency frequency);
@@ -275,6 +278,7 @@ namespace Schematyc2
 			void AddObserver(TObserverVector& observers, CUpdateScope& scope, const UpdateCallback& callback, const UpdateFilter& filter);
 			void DeleteDirtyObservers();
 			void AddPendingObservers(TPendingPriorities& pendingPriorities);
+			const char* GetDebugName(UpdatePriority priority, const TPriorityDebugNameMap& debugNames);
 
 		private:
 
@@ -296,6 +300,7 @@ namespace Schematyc2
 		uint32            m_frameIdx;
 		bool              m_bInFrame;
 
+		TPriorityDebugNameMap m_debugNameMap;
 		SFrameUpdateStats m_stats;
 		TPendingPriorities m_pendingPriorities;
 		// Relevance grid related members

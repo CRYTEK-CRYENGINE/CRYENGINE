@@ -838,11 +838,11 @@ namespace Schematyc2
 					SUpdateContext& context = frequencyUpdateContexts[slot.bucketIndex];
 					if (slot.bucketIndex == EUpdateFrequency::EveryFrame)
 					{
-						bucket.Update<false>(context, slot.priority, curFrameId, stats);
+						bucket.Update<false>(context, slot.priority, curFrameId, stats, m_debugNameMap);
 					}
 					else
 					{
-						bucket.Update<true>(context, slot.priority, curFrameId, stats);
+						bucket.Update<true>(context, slot.priority, curFrameId, stats, m_debugNameMap);
 					}
 				}
 			}
@@ -907,6 +907,16 @@ namespace Schematyc2
 	void CUpdateScheduler::SetIsDynamicObjectCallback(IsDynamicObjectPredicate isDynamicObject)
 	{
 		m_isDynamicObject = isDynamicObject;
+	}
+
+	void CUpdateScheduler::SetDebugPriorityNames(const DebugPriorityNameArray& debugNames)
+	{
+		DebugPriorityNameArray::const_iterator it = debugNames.begin();
+
+		for (; it < debugNames.end(); ++it)
+		{
+			m_debugNameMap.insert(*it);
+		}
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1192,10 +1202,53 @@ namespace Schematyc2
 	}
 
 	////////////////////////////////////////////////////////////////
-	template <bool UseStride>
-	void CUpdateScheduler::CBucket::Update(const SUpdateContext context, UpdatePriority priority, uint32 frameId, UpdateSchedulerStats::SUpdateBucketStats& outUpdateStats)
+	const char* CUpdateScheduler::CBucket::GetDebugName(UpdatePriority priority, const TPriorityDebugNameMap& debugNames)
 	{
+		stack_string debugName;
+
+		TPriorityDebugNameMap::const_iterator it = debugNames.find(priority);
+		if (it != debugNames.end())
+		{
+			debugName.Format("Priority: %s", it->second);
+		}
+		else
+		{
+			debugName = "Priority: Unknown";
+		}
+
+		switch (m_frequency)
+		{
+		case EUpdateFrequency::EveryFrame:
+			debugName += ", Update Freq: Every Frame";
+			break;
+		case EUpdateFrequency::EveryTwoFrames:
+			debugName += ", Update Freq: Every Two Frames";
+			break;
+		case EUpdateFrequency::EveryFourFrames:
+			debugName += ", Update Freq: Every Four Frames";
+			break;
+		case EUpdateFrequency::EveryEightFrames:
+			debugName += ", Update Freq: Every Eight Frames";
+			break;
+		default:
+			debugName += ", Update Freq: Unknown";
+			break;
+		}
+
+		static_assert((int)EUpdateFrequency::Count == 4, "Unexpected Update Frequency Enum Count");
+
+		return debugName.c_str();
+	}
+
+	////////////////////////////////////////////////////////////////
+	template <bool UseStride>
+	void CUpdateScheduler::CBucket::Update(const SUpdateContext context, UpdatePriority priority, uint32 frameId, UpdateSchedulerStats::SUpdateBucketStats& outUpdateStats, const TPriorityDebugNameMap& debugNames)
+	{
+#if DEBUG_BUCKETS_NAMES
+		CRY_PROFILE_FUNCTION_ARG(PROFILE_GAME, GetDebugName(priority, debugNames));
+#else
 		CRY_PROFILE_FUNCTION(PROFILE_GAME);
+#endif
 
 		size_t updatedCount = 0;
 

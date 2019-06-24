@@ -99,7 +99,7 @@ REGISTER_EDITOR_COMMAND_TEXT(asset, import_dialog, "Import");
 REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(asset, generate_thumbnails, CCommandDescription("Generate All Thumbnails"))
 
 REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(asset, save_all, CCommandDescription("Saves all assets"))
-REGISTER_EDITOR_UI_COMMAND_DESC(asset, save_all, "Save All", "", "", false)
+REGISTER_EDITOR_UI_COMMAND_DESC(asset, save_all, "Save All", "", "icons:General/Save_all.ico", false)
 
 REGISTER_EDITOR_AND_SCRIPT_KEYBOARD_FOCUS_COMMAND(asset, view_details, CCommandDescription("Details"))
 REGISTER_EDITOR_UI_COMMAND_DESC(asset, view_details, "Shows Details", "", "icons:common/general_view_list.ico", true)

@@ -606,6 +606,7 @@ void CD3D9Renderer::RT_ShutDown(uint32 nFlags)
 
 
 	CSceneRenderPass::Shutdown();
+	m_particleBuffer.Release();
 
 	CREBreakableGlassBuffer::RT_ReleaseInstance();
 	SAFE_DELETE(m_pVRProjectionManager);
@@ -735,6 +736,9 @@ void CD3D9Renderer::ShutDown(bool bReInit)
 	if (CV_r_multithreaded)
 		DXGLReleaseContext(GetDevice().GetRealDevice());
 #endif
+
+	if (!m_DevBufMan.Shutdown())
+		CryWarning(VALIDATOR_MODULE_RENDERER, VALIDATOR_ERROR_DBGBRK, "could not free all buffers from CDevBufferMan!");
 
 #if CRY_PLATFORM_IOS || CRY_PLATFORM_ANDROID || CRY_PLATFORM_WINDOWS || CRY_PLATFORM_APPLE || CRY_PLATFORM_LINUX
 #if defined(SUPPORT_DEVICE_INFO)

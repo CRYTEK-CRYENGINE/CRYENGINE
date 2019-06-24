@@ -24,6 +24,7 @@
 #include <CryAISystem/IAISystem.h>
 #include <CryRenderer/IRenderer.h>
 #include <CrySystem/File/ICryPak.h>
+#include <CrySystem/ConsoleRegistration.h>
 #include <CryMovie/IMovieSystem.h>
 #include <ServiceNetwork.h>
 #include <CryEntitySystem/IEntitySystem.h>
@@ -809,32 +810,32 @@ void CSystem::ShutDown()
 
 	// Release console variables.
 
-	SAFE_RELEASE(m_pCVarQuit);
-	SAFE_RELEASE(m_rIntialWindowSizeRatio);
-	SAFE_RELEASE(m_rWidth);
-	SAFE_RELEASE(m_rHeight);
-	SAFE_RELEASE(m_rColorBits);
-	SAFE_RELEASE(m_rDepthBits);
-	SAFE_RELEASE(m_cvSSInfo);
-	SAFE_RELEASE(m_rStencilBits);
-	SAFE_RELEASE(m_rFullscreen);
-	SAFE_RELEASE(m_rDriver);
-	SAFE_RELEASE(m_pPhysicsLibrary);
+	SAFE_UNREGISTER_CVAR(m_pCVarQuit);
+	SAFE_UNREGISTER_CVAR(m_rIntialWindowSizeRatio);
+	SAFE_UNREGISTER_CVAR(m_rWidth);
+	SAFE_UNREGISTER_CVAR(m_rHeight);
+	SAFE_UNREGISTER_CVAR(m_rColorBits);
+	SAFE_UNREGISTER_CVAR(m_rDepthBits);
+	SAFE_UNREGISTER_CVAR(m_cvSSInfo);
+	SAFE_UNREGISTER_CVAR(m_rStencilBits);
+	SAFE_UNREGISTER_CVAR(m_rFullscreen);
+	SAFE_UNREGISTER_CVAR(m_rDriver);
+	SAFE_UNREGISTER_CVAR(m_pPhysicsLibrary);
 
-	SAFE_RELEASE(m_sysWarnings);
-	SAFE_RELEASE(m_sysKeyboard);
-	SAFE_RELEASE(m_sys_profile_watchdog_timeout);
-	SAFE_RELEASE(m_sys_job_system_filter);
-	SAFE_RELEASE(m_sys_job_system_enable);
-	SAFE_RELEASE(m_sys_job_system_profiler);
-	SAFE_RELEASE(m_sys_job_system_max_worker);
-	SAFE_RELEASE(m_sys_job_system_worker_boost_enabled);
-	SAFE_RELEASE(m_sys_spec);
-	SAFE_RELEASE(m_sys_firstlaunch);
-	SAFE_RELEASE(m_sys_enable_budgetmonitoring);
-	SAFE_RELEASE(m_sys_physics_enable_MT);
-	SAFE_RELEASE(m_sys_min_step);
-	SAFE_RELEASE(m_sys_max_step);
+	SAFE_UNREGISTER_CVAR(m_sysWarnings);
+	SAFE_UNREGISTER_CVAR(m_sysKeyboard);
+	SAFE_UNREGISTER_CVAR(m_sys_profile_watchdog_timeout);
+	SAFE_UNREGISTER_CVAR(m_sys_job_system_filter);
+	SAFE_UNREGISTER_CVAR(m_sys_job_system_enable);
+	SAFE_UNREGISTER_CVAR(m_sys_job_system_profiler);
+	SAFE_UNREGISTER_CVAR(m_sys_job_system_max_worker);
+	SAFE_UNREGISTER_CVAR(m_sys_job_system_worker_boost_enabled);
+	SAFE_UNREGISTER_CVAR(m_sys_spec);
+	SAFE_UNREGISTER_CVAR(m_sys_firstlaunch);
+	SAFE_UNREGISTER_CVAR(m_sys_enable_budgetmonitoring);
+	SAFE_UNREGISTER_CVAR(m_sys_physics_enable_MT);
+	SAFE_UNREGISTER_CVAR(m_sys_min_step);
+	SAFE_UNREGISTER_CVAR(m_sys_max_step);
 
 	//Purposely leaking the object as we do not want to block the MainThread waiting for the Watchdog thread to join
 	if (m_pWatchdog != nullptr)

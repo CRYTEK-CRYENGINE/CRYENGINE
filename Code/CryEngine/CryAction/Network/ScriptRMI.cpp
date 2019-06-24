@@ -176,8 +176,8 @@ void CScriptRMI::RegisterCVars()
 
 void CScriptRMI::UnregisterCVars()
 {
-	SAFE_RELEASE(pLogRMIEvents);
-	SAFE_RELEASE(pDisconnectOnError);
+	SAFE_UNREGISTER_CVAR(pLogRMIEvents);
+	SAFE_UNREGISTER_CVAR(pDisconnectOnError);
 }
 
 // implementation of Net.Expose() - exposes a class

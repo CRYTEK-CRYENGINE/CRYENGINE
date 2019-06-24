@@ -710,7 +710,7 @@ QVariant CCVarListDockable::GetState()
 				break;
 
 			case ECVarType::Int64:
-				CRY_ASSERT_MESSAGE(false, "CCVarListDockable::GetState int64 cvar not implemented");
+				map.insert(pCVar->GetName(), pCVar->GetI64Val());
 				break;
 
 			default:
@@ -737,18 +737,23 @@ void CCVarListDockable::SetState(const QVariant& state)
 		ICVar* pCVar = gEnv->pConsole->GetCVar(cvar.c_str());
 		if (pCVar)
 		{
-			switch (it.value().type())
+			auto type = pCVar->GetType();
+			switch (type)
 			{
-			case QVariant::Int:
+			case ECVarType::Int:
 				pCVar->Set(it.value().toInt());
 				break;
 
-			case QVariant::Double:
+			case ECVarType::Float:
 				pCVar->Set(it.value().toFloat());
 				break;
 
-			case QVariant::String:
+			case ECVarType::String:
 				pCVar->Set(it.value().toString().toStdString().c_str());
+				break;
+
+			case ECVarType::Int64:
+				pCVar->Set(it.value().toLongLong());
 				break;
 
 			default:

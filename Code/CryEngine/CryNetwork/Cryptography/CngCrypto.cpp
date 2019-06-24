@@ -170,6 +170,13 @@ void SCngKeyHandleDeleter::operator()(void* h)
 	delete[] reinterpret_cast<uint8*>(ptr);
 }
 
+#if CRY_PLATFORM_DURANGO && (_MSC_VER <= 1900)
+/*static*/ void CCngKey::operator delete(void* ptr, void*) noexcept
+{
+	CCngKey::operator delete(ptr);
+}
+#endif
+
 CCngKey::CCngKey(void* pHandle)
 	: m_handle(pHandle)
 {}
@@ -305,6 +312,13 @@ static void* GetCngHmacSecretPtr(void* pHmac) { return reinterpret_cast<uint8*>(
 	// See buffer allocation in CCngSha256Hmac::CreateFromSecret
 	delete[] reinterpret_cast<uint8*>(ptr);
 }
+
+#if CRY_PLATFORM_DURANGO && (_MSC_VER <= 1900)
+/*static*/ void CCngSha256Hmac::operator delete(void* ptr, void*) noexcept
+{
+	CCngSha256Hmac::operator delete(ptr);
+}
+#endif
 
 CCngSha256Hmac::CCngSha256Hmac(SCngHashHandle&& handle, bool isReusable, size_t secretSize)
 	: m_handle(std::move(handle))

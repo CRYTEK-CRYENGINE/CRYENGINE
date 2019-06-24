@@ -929,7 +929,7 @@ int CScriptBind_Entity::SetAIName(IFunctionHandler* pH)
 
 	GET_ENTITY;
 
-	if (pEntity->HasAI())
+	if (pEntity->HasAI() && pEntity->GetAI())
 		pEntity->GetAI()->SetName(sName);
 
 	return pH->EndFunction();

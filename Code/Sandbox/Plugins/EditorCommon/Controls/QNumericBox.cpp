@@ -620,7 +620,7 @@ QNumericBox::QNumericBox(QWidget* pParent)
 	m_pDownButton->setMaximumSize(QSize(20, 10));
 	m_pDownButton->setMinimumSize(QSize(20, 10));
 	m_pDownButton->setIcon(CryIcon("icons:General/Pointer_Down_Numeric.ico"));
-	connect(m_pDownButton, &QNumericButton::clicked, [=]() { step(-1.0); });
+	connect(m_pDownButton, &QNumericButton::singleStep, [=]() { step(-1.0); });
 	connect(m_pDownButton, &QNumericButton::clicked, [=]() { valueSubmitted(value()); });
 
 	pVLayout->addWidget(m_pUpButton);

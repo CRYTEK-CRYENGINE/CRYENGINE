@@ -231,6 +231,18 @@ static inline void BindSampler(EHWShaderClass shaderClass, ID3D11SamplerState* p
 	rd->m_DevMan.BindSampler(static_cast<CSubmissionQueue_DX11::SHADER_TYPE>(shaderClass), pSamplerState, slot);
 }
 
+static inline void BindConstantBuffer(EHWShaderClass shaderClass, const CConstantBuffer* pBuffer, EConstantBufferShaderSlot slot)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->m_DevMan.BindConstantBuffer(static_cast<CSubmissionQueue_DX11::SHADER_TYPE>(shaderClass), pBuffer, slot);
+}
+
+static inline void BindConstantBuffer(EHWShaderClass shaderClass, const CConstantBuffer* pBuffer, EConstantBufferShaderSlot slot, uint32 offset, uint32 size)
+{
+	CD3D9Renderer* const __restrict rd = gcpRendD3D;
+	rd->m_DevMan.BindConstantBuffer(static_cast<CSubmissionQueue_DX11::SHADER_TYPE>(shaderClass), pBuffer, slot, offset, size);
+}
+
 static inline void BindConstantBuffer(EHWShaderClass shaderClass, D3DBuffer* pBuffer, EConstantBufferShaderSlot slot)
 {
 	CD3D9Renderer* const __restrict rd = gcpRendD3D;
@@ -721,7 +733,7 @@ void CDeviceComputeCommandInterfaceImpl::SetInlineConstantBufferImpl(uint32 bind
 {
 	if (m_sharedState.constantBuffer[eHWSC_Compute][shaderSlot].Set(pBuffer->GetCode()))
 	{
-		BindConstantBuffer(eHWSC_Compute, pBuffer->GetD3D(), shaderSlot);
+		BindConstantBuffer(eHWSC_Compute, pBuffer, shaderSlot);
 	}
 }
 

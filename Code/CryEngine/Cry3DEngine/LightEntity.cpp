@@ -18,6 +18,7 @@
 #pragma warning(disable: 4244)
 
 PodArray<SPlaneObject> CLightEntity::s_lstTmpCastersHull;
+SShadowFrustumMGPUCache CLightEntity::s_shadowFrustumCache;
 std::vector<std::pair<ShadowMapFrustum*, const CLightEntity*>>* CLightEntity::s_pShadowFrustumsCollector;
 
 #define MIN_SHADOW_RES_OMNI_LIGHT 64
@@ -360,11 +361,8 @@ int CLightEntity::UpdateGSMLightSourceDynamicShadowFrustum(int nDynamicLodCount,
 
 int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLodCount, bool isHeightMapAOEnabled, float& fDistFromViewDynamicLod, float fRadiusDynamicLod, const SRenderingPassInfo& passInfo)
 {
-	ShadowFrustumMGPUCache* pFrustumCache = GetRenderer()->GetShadowFrustumMGPUCache();
-	assert(pFrustumCache);
-
 	const int firstCachedFrustumIndex = nFirstLod + nLodCount;
-	const bool bRestoreFromCache = GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->nUpdateMaskMT != 0 && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex];
+	const bool bRestoreFromCache = GetRenderer()->GetActiveGPUCount() > 1 && GetRenderer()->GetShadowCacheUdapteMasks()->nUpdateMaskMT != 0 && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex];
 
 	int nLod = 0;
 
@@ -372,10 +370,10 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 	{
 		for (nLod = 0; nLod < nLodCount; ++nLod)
 		{
-			assert(pFrustumCache->m_staticShadowMapFrustums[nLod] && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
+			CRY_ASSERT(s_shadowFrustumCache.m_staticShadowMapFrustums[nLod] && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
 
 			ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod];
-			*pFr = *pFrustumCache->m_staticShadowMapFrustums[nLod];
+			*pFr = *s_shadowFrustumCache.m_staticShadowMapFrustums[nLod];
 			pFr->bIsMGPUCopy = true;
 
 			CollectShadowCascadeForOnePassTraversal(pFr);
@@ -383,10 +381,10 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 
 		if (isHeightMapAOEnabled)
 		{
-			assert(pFrustumCache->m_pHeightMapAOFrustum && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
+			CRY_ASSERT(s_shadowFrustumCache.m_pHeightMapAOFrustum && m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod]);
 
 			ShadowMapFrustum* pFr = m_pShadowMapInfo->pGSM[firstCachedFrustumIndex + nLod];
-			*pFr = *pFrustumCache->m_pHeightMapAOFrustum;
+			*pFr = *s_shadowFrustumCache.m_pHeightMapAOFrustum;
 			pFr->bIsMGPUCopy = true;
 
 			CollectShadowCascadeForOnePassTraversal(pFr);
@@ -404,7 +402,7 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 
 		if (s_lstTmpCastersHull.empty())
 		{
-			assert(m_light.m_Flags & DLF_SUN);
+			CRY_ASSERT(m_light.m_Flags & DLF_SUN);
 			MakeShadowCastersHull(s_lstTmpCastersHull, passInfo);
 		}
 
@@ -418,8 +416,8 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 			pFr->bIsMGPUCopy = false;
 
 			// update MGPU frustum cache
-			if (GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->m_staticShadowMapFrustums[nLod])
-				*pFrustumCache->m_staticShadowMapFrustums[nLod] = *pFr;
+			if (GetRenderer()->GetActiveGPUCount() > 1 && s_shadowFrustumCache.m_staticShadowMapFrustums[nLod])
+				*s_shadowFrustumCache.m_staticShadowMapFrustums[nLod] = *pFr;
 
 			// update distance from view
 			Vec3 vEdgeScreen = GSM_GetNextScreenEdge(fRadiusDynamicLod, fDistFromViewDynamicLod, passInfo);
@@ -435,8 +433,8 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 
 			shadowCache.InitHeightMapAOFrustum(pFr, nFirstLod + nLod, nFirstLod, passInfo);
 			pFr->bIsMGPUCopy = false;
-			if (GetRenderer()->GetActiveGPUCount() > 1 && pFrustumCache->m_pHeightMapAOFrustum)
-				*pFrustumCache->m_pHeightMapAOFrustum = *pFr;
+			if (GetRenderer()->GetActiveGPUCount() > 1 && s_shadowFrustumCache.m_pHeightMapAOFrustum)
+				*s_shadowFrustumCache.m_pHeightMapAOFrustum = *pFr;
 
 			CollectShadowCascadeForOnePassTraversal(pFr);
 
@@ -449,7 +447,7 @@ int CLightEntity::UpdateGSMLightSourceCachedShadowFrustum(int nFirstLod, int nLo
 		Get3DEngine()->m_nCachedShadowsUpdateStrategy = ShadowMapFrustum::ShadowCacheData::eIncrementalUpdate;
 
 		int nActiveGPUCount = GetRenderer()->GetActiveGPUCount();
-		pFrustumCache->nUpdateMaskMT = (1 << nActiveGPUCount) - 1;
+		GetRenderer()->GetShadowCacheUdapteMasks()->nUpdateMaskMT = (1 << nActiveGPUCount) - 1;
 	}
 
 	return nLod;
@@ -2150,6 +2148,25 @@ Vec3 CLightEntity::GetPos(bool bWorldOnly) const
 {
 	assert(bWorldOnly);
 	return m_light.m_Origin;
+}
+
+SShadowFrustumMGPUCache::SShadowFrustumMGPUCache()
+{
+	m_pHeightMapAOFrustum = new ShadowMapFrustum;
+
+	for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
+	{
+		m_staticShadowMapFrustums[i] = new ShadowMapFrustum;
+	}
+};
+
+SShadowFrustumMGPUCache::~SShadowFrustumMGPUCache()
+{
+	m_pHeightMapAOFrustum = nullptr;
+	for (int i = 0; i < m_staticShadowMapFrustums.size(); ++i)
+	{
+		m_staticShadowMapFrustums[i] = nullptr;
+	}
 }
 
 #pragma warning(pop)

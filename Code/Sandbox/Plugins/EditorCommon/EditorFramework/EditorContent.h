@@ -39,6 +39,7 @@ public:
 	// Layout management
 	QVariantMap GetState() const override;
 	void        SetState(const QVariantMap& state) override;
+	QSize       GetMinimumSizeForOrientation(Qt::Orientation orientation) const;
 	void        OnAdaptiveLayoutChanged(Qt::Orientation orientation);
 
 protected:
