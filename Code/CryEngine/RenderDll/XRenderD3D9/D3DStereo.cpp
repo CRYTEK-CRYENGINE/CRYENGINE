@@ -7,6 +7,7 @@
 #include "D3DOculus.h"
 #include "D3DOsvr.h"
 #include "D3DOpenVR.h"
+#include "D3DVRgineers.h"
 #include "D3DHmdEmulator.h"
 
 #include <Common/RenderDisplayContext.h>
@@ -559,10 +560,10 @@ CCamera CD3DStereoRenderer::PrepareCamera(int nEye, const CCamera& currentCamera
 			// to "scale" the feeling of the player's size.
 			// It also modifies the movement of the player's pose tracking
 
-			const float modulatedHalfIpd = cameraSetup.ipd * 0.5f * CRenderer::CV_r_stereoScaleCoefficient;
+			const float modulatedHalfIpd = cameraSetup.ipd[nEye] * CRenderer::CV_r_stereoScaleCoefficient;
 			const float fov = cameraSetup.sfov;
 
-			Matrix34 stereoMat = Matrix34::CreateTranslationMat(Vec3(nEye == CCamera::eEye_Left ? -modulatedHalfIpd : modulatedHalfIpd, 0, 0));
+			Matrix34 stereoMat = Matrix34::CreateTranslationMat(Vec3(modulatedHalfIpd, 0, 0));
 			cam.SetMatrix(cam.GetMatrix() * stereoMat);
 			cam.SetFrustum(width, height, fov, n, f, 1.f);
 			cam.SetAsymmetry(cameraSetup.l, cameraSetup.r, cameraSetup.b, cameraSetup.t);
@@ -1137,7 +1138,9 @@ IHmdRenderer* CD3DStereoRenderer::CreateHmdRenderer(IHmdDevice& device)
 			return new CD3DOpenVRRenderer(static_cast<CryVR::OpenVR::IOpenVRDevice*>(&device), gcpRendD3D, this);
 	case eHmdClass_Osvr:
 			return new CD3DOsvrRenderer(static_cast<CryVR::Osvr::IOsvrDevice*>(&device), gcpRendD3D, this);
-		case eHmdClass_Emulator:
+	case eHmdClass_VRgineers:
+			return new CD3DVRgineersRenderer(static_cast<CryVR::VRgineers::IVRgineersDevice*>(&device), gcpRendD3D, this);
+	case eHmdClass_Emulator:
 			return new CD3DHmdEmulatorRenderer(&device, gcpRendD3D, this);
 	default:
 		iLog->LogError("Tried to create HMD renderer for unknown headset!");

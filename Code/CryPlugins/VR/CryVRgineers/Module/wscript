@@ -1,0 +1,45 @@
+# Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
+
+import os
+from waflib import Logs, Utils
+from waflib.TaskGen import feature
+from waflib.Utils import run_once
+
+def build(bld) :
+
+	bld.CryEngineModule(
+	  target = 'CryVRgineers',
+	  vs_filter = 'CryPlugins',
+	  file_list = 'cryvrgineers.waf_files',
+
+	  pch = 'StdAfx.cpp',
+	  
+	  includes  = Path('Code/SDKs/VRgineers'),
+	  lib  = [ 'hmd64' ],
+	  
+	  win_x86_libpath = [ Path('Code/SDKs/VRgineers') ],
+	  win_x64_libpath = [ Path('Code/SDKs/VRgineers') ],
+	  
+	  features = [ 'copy_vrgineers_binaries' ]
+	)
+
+@feature('copy_vrgineers_binaries')
+@run_once
+def feature_copy_vrgineers_binaries(self):
+	bld 		  = self.bld
+	platform	  = bld.env['PLATFORM']
+	configuration = bld.env['CONFIGURATION']
+		
+	if platform  == 'project_generator':
+		return
+		
+	bin_location = { 'win_x64' : ['hmd64.dll', 'd3dcompiler_47.dll', 'NatNetLib.dll', 'openvr_api.dll']}
+			
+	if not platform in bin_location:
+		Logs.error('[ERROR] VRgineers is not supported on plaform by WAF: %s' % platform)
+		
+	output_folder = bld.get_output_folders(platform, configuration)[0]			
+
+	for dll_name in bin_location[platform]: 
+	    bin_path = bld.CreateRootRelativePath('Code/SDKs/VRgineers/') + dll_name
+		self.create_task('copy_outputs', bld.root.make_node(bin_path), output_folder.make_node(os.path.basename(bin_path)))

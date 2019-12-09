@@ -394,7 +394,7 @@ HMDCameraSetup Device::GetHMDCameraSetup(int nEye, float projRatio, float fnear)
     memcpy(proj.GetData(), vrproj.m, sizeof(vrproj.m));
 
 	HMDCameraSetup ret = HMDCameraSetup::fromProjectionMatrix(proj, projRatio, fnear);
-	ret.ipd = m_system->GetFloatTrackedDeviceProperty(vr::k_unTrackedDeviceIndex_Hmd, vr::ETrackedDeviceProperty::Prop_UserIpdMeters_Float, nullptr);
+	ret.SetIPD(m_system->GetFloatTrackedDeviceProperty(vr::k_unTrackedDeviceIndex_Hmd, vr::ETrackedDeviceProperty::Prop_UserIpdMeters_Float, nullptr));
 
 	return ret;
 

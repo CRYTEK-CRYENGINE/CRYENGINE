@@ -319,7 +319,8 @@ HMDCameraSetup Device::GetHMDCameraSetup(int nEye, float projRatio, float fnear)
 		m_hmdDesc.DefaultEyeFov[nEye].DownTan,
 		projRatio,
 		fnear);
-	ret.ipd = GetCurrentIPD();
+
+	ret.SetIPD(GetCurrentIPD());
 
 	return ret;
 }

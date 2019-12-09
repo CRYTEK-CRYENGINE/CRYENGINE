@@ -75,6 +75,13 @@ if(WINDOWS)
 	option(PLUGIN_VR_EMULATOR "VR emulation support" ON)
 endif()
 
+if(WINDOWS)
+	if(EXISTS "${SDK_DIR}/VRgineers")
+		option(PLUGIN_VR_VRGINEERS "VRgineers support" ON)
+	else()
+		option(PLUGIN_VR_VRGINEERS "VRgineers support" OFF)
+	endif()
+endif()
 
 if(WINDOWS OR LINUX)
 	option(PLUGIN_USERANALYTICS "Enable User Analytics" ON)

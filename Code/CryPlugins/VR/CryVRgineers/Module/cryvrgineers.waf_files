@@ -1,0 +1,25 @@
+{
+    "CryVRgineers_uber_0.cpp": {
+        "Interface": [
+            "../Interface/IVRgineersDevice.h",
+            "../Interface/IVRgineersPlugin.h"
+        ],
+        "Root": [
+            "StdAfx.cpp"
+            "StdAfx.h"
+            "VRgineersDevice.cpp"
+            "VRgineersDevice.h"
+            "VRgineersPlugin.cpp"
+            "VRgineersPlugin.h"
+            "DeviceProvider.h"
+            "DeviceProvider.cpp"
+            "VRgineersUtils.h"
+            "VRgineersUtils.cpp"
+        ]
+    },
+    "NoUberFile": {
+        "Root": [
+            "StdAfx.cpp"
+        ]
+    }
+}
