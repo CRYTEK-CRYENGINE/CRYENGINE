@@ -37,11 +37,15 @@ namespace CryVR
 
 			static Vec3 VRGPositionToCry(const Vec3& vrgPos);
 
-			static Quat VRGOrientationToCry(const Quat vrgQuat);
+			static Quat VRGOrientationToCry(const Quat& vrgQuat);
 
 			static Frustum GetFrustumFromProjectionMatrix(const Matrix44& pm);
 
+			static Fov GetFovFromFrustum(const Frustum& frustum);
+
 			static Fov GetFovFromProjectionMatrix(const Matrix44& pm);
+
+			static Matrix44 CreateProjectionMatrix(const float tanAngleLeft, const float tanAngleRight, const float tanAngleUp, float const tanAngleDown, const float nearZ, const float farZ);
 		};
 	}
 }

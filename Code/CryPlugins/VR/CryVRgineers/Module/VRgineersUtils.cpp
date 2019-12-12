@@ -12,6 +12,7 @@ namespace CryVR
 				m[8], m[9], m[10], m[11],
 				m[12], m[13], m[14], m[15]
 			);
+
 			return result;
 		}
 
@@ -20,13 +21,13 @@ namespace CryVR
 			return Vec3(vrgPos.x, -vrgPos.z, vrgPos.y);
 		}
 
-		Quat VRgineersUtils::VRGOrientationToCry(const Quat vrgQuat)
+		Quat VRgineersUtils::VRGOrientationToCry(const Quat& vrgQuat)
 		{
 			Matrix33 m33(vrgQuat);
 			Vec3 column1 = -vrgQuat.GetColumn2();
 			m33.SetColumn2(m33.GetColumn1());
 			m33.SetColumn1(column1);
-			return Quat::CreateRotationX(gf_PI * 0.5f) * Quat(m33);
+			return (Quat::CreateRotationX(gf_PI * 0.5f) * Quat(m33).Normalize()).Normalize();
 		}
 
 		Frustum VRgineersUtils::GetFrustumFromProjectionMatrix(const Matrix44& pm)
@@ -47,16 +48,38 @@ namespace CryVR
 			return Frustum{ nearCP, farCP, leftNear, rightNear, topNear, bottomNear, leftFar, rightFar, topFar, bottomFar };
 		}
 
-		Fov VRgineersUtils::GetFovFromProjectionMatrix(const Matrix44& pm)
+		Fov VRgineersUtils::GetFovFromFrustum(const Frustum& frustum)
 		{
-			Frustum frustum = GetFrustumFromProjectionMatrix(pm);
-
 			float fovLeft = std::atan2f(frustum.farLeft, frustum.farCP);
 			float fovRight = std::atan2f(frustum.farRight, frustum.farCP);
 			float fovTop = std::atan2f(frustum.farTop, frustum.farCP);
 			float fovBottom = std::atan2f(frustum.farBottom, frustum.farCP);
 
 			return Fov{ fovLeft, fovRight, fovTop, fovBottom };
+		}
+
+		Fov VRgineersUtils::GetFovFromProjectionMatrix(const Matrix44& pm)
+		{
+			const auto frustum = GetFrustumFromProjectionMatrix(pm);
+
+			return GetFovFromFrustum(frustum);
+		}
+
+		Matrix44 VRgineersUtils::CreateProjectionMatrix(const float tanAngleLeft, const float tanAngleRight, const float tanAngleUp, float const tanAngleDown, const float nearZ, const float farZ)
+		{
+			const float tanAngleWidth = tanAngleRight - tanAngleLeft;
+			const float tanAngleHeight = tanAngleUp - tanAngleDown;
+		
+			Matrix44 result(
+				2 / tanAngleWidth,				0,			(tanAngleRight + tanAngleLeft) / tanAngleWidth,									   0,
+				0,			   2 / tanAngleHeight,            (tanAngleUp + tanAngleDown) / tanAngleHeight,									   0,
+				0,								0,									-farZ / (farZ - nearZ),		-(farZ * nearZ) / (farZ - nearZ),
+				0,								0,														-1,									   0
+			);
+
+			result.Transpose();
+
+			return result;
 		}
 	}
 }
