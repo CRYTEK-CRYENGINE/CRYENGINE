@@ -10,7 +10,7 @@ namespace CryVR
 
 		const char* Device::MANUFACTURER = "VRgineers, Inc.";
 
-		const char* Device::PRODUCT_NAME = "XTAL";
+		const char* Device::PRODUCT_NAME = "VRG_DEVICE";
 
 		// IHmdDevice
 		void Device::AddRef()
@@ -44,7 +44,7 @@ namespace CryVR
 		void Device::GetCameraSetupInfo(float& fov, float& aspectRatioFactor) const
 		{
 			fov = m_deviceInfo.fovH;
-			aspectRatioFactor = 0.0F; // UNUSED VALUE IN CALLEE FUNC
+			aspectRatioFactor = float(m_deviceInfo.screenWidth) / float(m_deviceInfo.screenHeight);
 		}
 
 		HMDCameraSetup Device::GetHMDCameraSetup(int nEye, float projRatio, float fnear) const
@@ -52,21 +52,25 @@ namespace CryVR
 			float *leftProjMatrixArray, *rightProjMatrixArray;
 			getDXProjectionMatricesLH(DEFAULT_VRG_DEVICE_ID, leftProjMatrixArray, rightProjMatrixArray);
 
-			Matrix44A projectionMatrix = VRgineersUtils::CreateCryMatrix44FromFloatArray(nEye == 0 ? leftProjMatrixArray : rightProjMatrixArray);
+			Matrix44 projectionMatrix = VRgineersUtils::CreateCryMatrix44FromFloatArray(nEye == CCamera::EEye::eEye_Left ? leftProjMatrixArray : rightProjMatrixArray);			
+			Fov fov = VRgineersUtils::GetFovFromProjectionMatrix(projectionMatrix);
 			
-			Frustum frustum = VRgineersUtils::GetFrustumFromProjectionMatrix(projectionMatrix);
+			Matrix44 newProjectionMatrixL = VRgineersUtils::GetProjectionMatrixFromFov(fov, fnear, fnear * 10.0f);
+			Frustum newFrustum = VRgineersUtils::GetFrustumFromProjectionMatrix(newProjectionMatrixL);
+			Fov newFov = VRgineersUtils::GetFovFromProjectionMatrix(newProjectionMatrixL);
 
-			HMDCameraSetup cameraSetup = HMDCameraSetup::fromProjectionMatrix(projectionMatrix, projRatio, fnear);
-			if (nEye == CCamera::EEye::eEye_Left)
-			{
-				cameraSetup.l = -frustum.farLeft - frustum.farRight;
-				cameraSetup.r = 0.0;
-			}
-			else if(nEye == CCamera::EEye::eEye_Right)
-			{
-				cameraSetup.l = 0.0;
-				cameraSetup.r = -frustum.farLeft - frustum.farRight;
-			}
+			HMDCameraSetup cameraSetup = HMDCameraSetup::fromProjectionMatrix(newProjectionMatrixL, projRatio, fnear);
+
+			const float fullHorizontalExtents = std::fabsf(newFrustum.nearLeft) + std::fabsf(newFrustum.nearRight);
+			const float halfHorizontalExtents = fullHorizontalExtents / 2.0f;
+
+			const float fullVerticalExtents = std::fabsf(newFrustum.nearTop) + std::fabsf(newFrustum.nearBottom);
+			const float halfVerticalExtents = fullVerticalExtents / 2.0f;
+
+			cameraSetup.l = -(newFrustum.nearLeft + halfHorizontalExtents);
+			cameraSetup.r = -(newFrustum.nearRight - halfHorizontalExtents);
+			cameraSetup.b = -(newFrustum.nearBottom + halfVerticalExtents);
+			cameraSetup.t = -(newFrustum.nearTop - halfVerticalExtents);
 
 			float pdL, pdR;
 			getHMDIPDinM(DEFAULT_VRG_DEVICE_ID, pdL, pdR);
@@ -78,14 +82,7 @@ namespace CryVR
 
 		void Device::UpdateInternal(EInternalUpdate type)
 		{
-			switch (type)
-			{
-				case IHmdDevice::eInternalUpdate_DebugInfo:
-					PrintHmdInfo();
-					break;
-				default:
-					break;
-			}
+			// nothing to do here..
 		}
 
 		void Device::RecenterPose()
@@ -99,7 +96,7 @@ namespace CryVR
 			float qx, qy, qz, qw, x, y, z;
 			getHMDPositionOrientation(DEFAULT_VRG_DEVICE_ID, x, y, z, qx, qy, qz, qw);
 
-			m_hmdNativeTrackingState.pose.orientation = Quat(qw, -qy, -qz, qx);
+			m_hmdNativeTrackingState.pose.orientation = Quat(qw, -qy, -qz, qx).Normalize();
 			m_hmdNativeTrackingState.pose.position = Vec3(y, z, -x);
 
 			m_cryTrackingState.pose.orientation = VRgineersUtils::VRGOrientationToCry(m_hmdNativeTrackingState.pose.orientation);

@@ -32,8 +32,14 @@ namespace CryVR
 
 		Frustum VRgineersUtils::GetFrustumFromProjectionMatrix(const Matrix44& pm)
 		{
-			float nearCP = pm[2][3] / (pm[2][2] - 1);
-			float farCP = pm[2][3] / (pm[2][2] + 1);
+			float sngA = std::fabsf(pm[2][2]);
+			float sngB = std::fabsf(pm[3][2]);
+
+			float nearCP = std::fabsf(-sngB / sngA);
+			float farCP = std::fabsf(sngB / (1.0f - sngA));
+
+			//float nearCP = pm[2][3] / (pm[2][2] - 1);
+			//float farCP = pm[2][3] / (pm[2][2] + 1);
 
 			float leftNear = nearCP * (pm[2][0] - 1) / pm[0][0];
 			float rightNear = nearCP * (pm[2][0] + 1) / pm[0][0];
@@ -65,21 +71,31 @@ namespace CryVR
 			return GetFovFromFrustum(frustum);
 		}
 
-		Matrix44 VRgineersUtils::CreateProjectionMatrix(const float tanAngleLeft, const float tanAngleRight, const float tanAngleUp, float const tanAngleDown, const float nearZ, const float farZ)
+		Matrix44 VRgineersUtils::CreateProjectionMatrix(const float left, const float right, const float top, float const bottom, const float nearCP, const float farCP)
 		{
-			const float tanAngleWidth = tanAngleRight - tanAngleLeft;
-			const float tanAngleHeight = tanAngleUp - tanAngleDown;
-		
+			const float tanAngleWidth = right - left;
+			const float tanAngleHeight = top - bottom;
+			const float frustumDepth = farCP - nearCP;
+
 			Matrix44 result(
-				2 / tanAngleWidth,				0,			(tanAngleRight + tanAngleLeft) / tanAngleWidth,									   0,
-				0,			   2 / tanAngleHeight,            (tanAngleUp + tanAngleDown) / tanAngleHeight,									   0,
-				0,								0,									-farZ / (farZ - nearZ),		-(farZ * nearZ) / (farZ - nearZ),
-				0,								0,														-1,									   0
+				2 / tanAngleWidth,								              0,								0,  0,
+				0,											 2 / tanAngleHeight,							    0,  0,
+				(right + left) / tanAngleWidth, (top + bottom) / tanAngleHeight,		    -farCP / frustumDepth, -1,
+				0,														      0, -(farCP * nearCP) / frustumDepth,  0
 			);
 
-			result.Transpose();
-
 			return result;
+		}
+
+		Matrix44 VRgineersUtils::GetProjectionMatrixFromFov(const Fov& fov, const float nearClippingPlane, const float farClippingPlane)
+		{
+			const float tanLeft = tanf(fov.left);
+			const float tanRight = tanf(fov.right);
+
+			const float tanTop = tanf(fov.top);
+			const float tanBottom = tanf(fov.bottom);
+
+			return CreateProjectionMatrix(tanLeft, tanRight, tanTop, tanBottom, nearClippingPlane, farClippingPlane);
 		}
 	}
 }

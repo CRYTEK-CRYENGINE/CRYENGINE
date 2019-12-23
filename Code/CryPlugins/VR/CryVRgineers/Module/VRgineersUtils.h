@@ -46,6 +46,8 @@ namespace CryVR
 			static Fov GetFovFromProjectionMatrix(const Matrix44& pm);
 
 			static Matrix44 CreateProjectionMatrix(const float tanAngleLeft, const float tanAngleRight, const float tanAngleUp, float const tanAngleDown, const float nearZ, const float farZ);
+
+			static Matrix44 GetProjectionMatrixFromFov(const Fov& fov, const float nearClippingPlane, const float farClippingPlane);
 		};
 	}
 }
