@@ -55,11 +55,10 @@ namespace CryVR
 			Matrix44 projectionMatrix = VRgineersUtils::CreateCryMatrix44FromFloatArray(nEye == CCamera::EEye::eEye_Left ? leftProjMatrixArray : rightProjMatrixArray);			
 			Fov fov = VRgineersUtils::GetFovFromProjectionMatrix(projectionMatrix);
 			
-			Matrix44 newProjectionMatrixL = VRgineersUtils::GetProjectionMatrixFromFov(fov, fnear, fnear * 10.0f);
-			Frustum newFrustum = VRgineersUtils::GetFrustumFromProjectionMatrix(newProjectionMatrixL);
-			Fov newFov = VRgineersUtils::GetFovFromProjectionMatrix(newProjectionMatrixL);
+			Matrix44 newProjectionMatrix = VRgineersUtils::GetProjectionMatrixFromFov(fov, fnear, fnear * 10.0f);
+			Frustum newFrustum = VRgineersUtils::GetFrustumFromProjectionMatrix(newProjectionMatrix);
 
-			HMDCameraSetup cameraSetup = HMDCameraSetup::fromProjectionMatrix(newProjectionMatrixL, projRatio, fnear);
+			HMDCameraSetup cameraSetup = HMDCameraSetup::fromProjectionMatrix(newProjectionMatrix, projRatio, fnear);
 
 			const float fullHorizontalExtents = std::fabsf(newFrustum.nearLeft) + std::fabsf(newFrustum.nearRight);
 			const float halfHorizontalExtents = fullHorizontalExtents / 2.0f;
