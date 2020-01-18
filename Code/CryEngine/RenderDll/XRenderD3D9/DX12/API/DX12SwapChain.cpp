@@ -292,18 +292,21 @@ void CSwapChain::FlushAndWaitForBuffers()
 	UINT64 fenceValues[CMDQUEUE_NUM] = { 0ULL, 0ULL, 0ULL };
 
 	// Get the fence-front for any of the back-buffer resources
-	for (int i = 0; i < m_Desc.BufferCount; ++i)
+	if (0 != m_BackBuffers.size())
 	{
-		std::upr(fenceValues[CMDQUEUE_GRAPHICS], m_BackBuffers[i].GetFenceValue(CMDQUEUE_GRAPHICS, CMDTYPE_ANY));
-		std::upr(fenceValues[CMDQUEUE_COMPUTE ], m_BackBuffers[i].GetFenceValue(CMDQUEUE_COMPUTE , CMDTYPE_ANY));
-		std::upr(fenceValues[CMDQUEUE_COPY    ], m_BackBuffers[i].GetFenceValue(CMDQUEUE_COPY    , CMDTYPE_ANY));
-	}
+		for (int i = 0; i < m_Desc.BufferCount; ++i)
+		{
+			std::upr(fenceValues[CMDQUEUE_GRAPHICS], m_BackBuffers[i].GetFenceValue(CMDQUEUE_GRAPHICS, CMDTYPE_ANY));
+			std::upr(fenceValues[CMDQUEUE_COMPUTE], m_BackBuffers[i].GetFenceValue(CMDQUEUE_COMPUTE, CMDTYPE_ANY));
+			std::upr(fenceValues[CMDQUEUE_COPY], m_BackBuffers[i].GetFenceValue(CMDQUEUE_COPY, CMDTYPE_ANY));
+		}
 
-	// Wait that that front has passed before continuing
-	if (m_Desc.BufferCount)
-	{
-		auto* pDevice = m_BackBuffers[0].GetDevice();
-		pDevice->FlushAndWaitForGPU(fenceValues);
+		// Wait that that front has passed before continuing
+		if (m_Desc.BufferCount)
+		{
+			auto* pDevice = m_BackBuffers[0].GetDevice();
+			pDevice->FlushAndWaitForGPU(fenceValues);
+		}
 	}
 }
 

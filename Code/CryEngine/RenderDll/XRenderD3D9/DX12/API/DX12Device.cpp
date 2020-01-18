@@ -240,20 +240,6 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 	, m_DepthStencilDescriptorCache(this)
 	, m_RenderTargetDescriptorCache(this)
 	, m_ResourceDescriptorScratchSpace(this)
-#if defined(_ALLOW_INITIALIZER_LISTS)
-	// *INDENT-OFF*
-	, m_GlobalDescriptorHeaps
-	{
-#ifdef __d3d12_x_h__
-		{ this },
-#endif
-		{ this },
-		{ this },
-		{ this },
-		{ this }
-	}
-	// *INDENT-ON*
-#endif
 	// Must be constructed last as it relies on functionality from the heaps
 	, m_Scheduler(this, nodeMask)
 {
@@ -272,15 +258,10 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 		pDevice2->Release();
 #endif
 
-#if !defined(_ALLOW_INITIALIZER_LISTS)
-#ifdef __d3d12_x_h__
-	m_GlobalDescriptorHeaps.emplace_back(this);
-#endif
-	m_GlobalDescriptorHeaps.emplace_back(this);
-	m_GlobalDescriptorHeaps.emplace_back(this);
-	m_GlobalDescriptorHeaps.emplace_back(this);
-	m_GlobalDescriptorHeaps.emplace_back(this);
-#endif
+    for(int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+    {
+		m_GlobalDescriptorHeaps[i] = new CDescriptorHeap(this);
+    }
 
 	// Queries ------------------------------------------------------------------------------------
 
@@ -390,7 +371,7 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 				m_nodeMask
 			};
 
-			m_GlobalDescriptorHeaps[eType].Init(desc);
+			m_GlobalDescriptorHeaps[eType]->Init(desc);
 		}
 	}
 
@@ -400,6 +381,11 @@ CDevice::CDevice(ID3D12Device* d3d12Device, D3D_FEATURE_LEVEL featureLevel, UINT
 //---------------------------------------------------------------------------------------------------------------------
 CDevice::~CDevice()
 {
+	for (int i = 0; i < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++i)
+	{
+		SAFE_RELEASE(m_GlobalDescriptorHeaps[i]);
+	}
+
 	UINT64 clearFences[CMDQUEUE_NUM] = { 0ULL, 0ULL, 0ULL };
 
 	D3D12_RANGE sNoWrite = { 0, 0 };
@@ -419,13 +405,13 @@ CDevice::~CDevice()
 //---------------------------------------------------------------------------------------------------------------------
 CDescriptorBlock CDevice::GetGlobalDescriptorBlock(D3D12_DESCRIPTOR_HEAP_TYPE eType, UINT size)
 {
-	CryAutoLock<CryCriticalSectionNonRecursive> m_DescriptorAllocatorTheadSafeScope(m_DescriptorAllocatorTheadSafeScope);
+	CryAutoLock<CryCriticalSectionNonRecursive> scope(m_DescriptorAllocatorTheadSafeScope);
 
 	if (DX12_GLOBALHEAP_TYPES & (1 << eType))
 	{
-		DX12_ASSERT(int64(m_GlobalDescriptorHeaps[eType].GetCapacity()) - int64(m_GlobalDescriptorHeaps[eType].GetCursor()) >= int64(size));
-		CDescriptorBlock result(&m_GlobalDescriptorHeaps[eType], m_GlobalDescriptorHeaps[eType].GetCursor(), size);
-		m_GlobalDescriptorHeaps[eType].IncrementCursor(size);
+		DX12_ASSERT(int64(m_GlobalDescriptorHeaps[eType]->GetCapacity()) - int64(m_GlobalDescriptorHeaps[eType]->GetCursor()) >= int64(size));
+		CDescriptorBlock result(m_GlobalDescriptorHeaps[eType], m_GlobalDescriptorHeaps[eType]->GetCursor(), size);
+		m_GlobalDescriptorHeaps[eType]->IncrementCursor(size);
 		return result;
 	}
 
