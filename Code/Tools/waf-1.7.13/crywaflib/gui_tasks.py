@@ -886,7 +886,6 @@ class ThreadedGuiMenu(threading.Thread):
 		# Add handlers		
 		self.log_handler.attach()
 		self.root.wait_visibility()
-		self.root.resizable(0, 0)
 		self.gui_up = True
 		
 		# Run mainloop
