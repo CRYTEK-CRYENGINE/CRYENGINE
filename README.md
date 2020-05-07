@@ -12,9 +12,9 @@ In order to compile, you will need to install:
 
 Steps:
 1. Download the SDKs zip from the [releases page](https://github.com/CRYTEK/CRYENGINE/releases).
-2. Extract the SDKs zip to `Code/SDKs`
-3. Copy `C:\Program Files\Autodesk\FBX\FBX SDK\2016.1` to `Code/SDKs` and rename to `FbxSdk`.
-4. Download [szip.tar.gz](https://support.hdfgroup.org/ftp/lib-external/szip/2.1.1/src/szip-2.1.1.tar.gz) and extract it's contents to `Code/SDKs/szip`.
+2. Extract the SDKs zip to `Code/Libs`
+3. Copy `C:\Program Files\Autodesk\FBX\FBX SDK\2016.1` to `Code/Libs` and rename to `FbxSdk`.
+4. Download [szip.tar.gz](https://support.hdfgroup.org/ftp/lib-external/szip/2.1.1/src/szip-2.1.1.tar.gz) and extract it's contents to `Code/Libs/szip`.
 5. If the CRYENGINE Launcher is installed, right click `cryengine.cryengine` and select "Generate Engine Solution". Otherwise, run `Tools/CMake/cmake_create_win64_solution.bat`.
 
 CMake must be used to compile the engine, see [here](http://docs.cryengine.com/display/CEPROG/CMake) for more information.
