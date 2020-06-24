@@ -76,7 +76,7 @@ namespace LODGenerator
 			{
 				RCLog("Add Lod %d Percent:%f",i,fOriginPercent);
 				int index = i + 1;
-				float percent = pow(fOriginPercent,index);
+				float percent = static_cast<float>(pow(fOriginPercent,index));
 
 				for (int i=0;i<m_NodeLodInfoList[node].size();i++)
 				{
