@@ -54,7 +54,7 @@ float Linear(float ratio)
 
 float QuadIn(float ratio)
 {
-	return pow(ratio, 2);
+	return static_cast<float>(pow(ratio, 2));
 }
 
 float QuadOut(float ratio)
@@ -76,7 +76,7 @@ float QuadInOut(float ratio)
 
 float CubicIn(float ratio)
 {
-	return pow(ratio, 3);
+	return static_cast<float>(pow(ratio, 3));
 }
 
 float CubicOut(float ratio)
@@ -93,13 +93,13 @@ float CubicInOut(float ratio)
 	else
 	{
 		float factor = (2.0f * ratio - 2.0f);
-		return (ratio - 1.0f) * pow(factor, 2) + 1.0f;
+		return (ratio - 1.0f) * static_cast<float>(pow(factor, 2)) + 1.0f;
 	}
 }
 
 float QuartIn(float ratio)
 {
-	return pow(ratio, 4);
+	return static_cast<float>(pow(ratio, 4));
 }
 
 float QuartOut(float ratio)
@@ -121,7 +121,7 @@ float QuartInOut(float ratio)
 
 float QuintIn(float ratio)
 {
-	return pow(ratio, 5);
+	return static_cast<float>(pow(ratio, 5));
 }
 
 float QuintOut(float ratio)
@@ -227,7 +227,7 @@ float BounceOut(float ratio)
 {
 	const float length = 2.75f;
 	const float touchdown[3] = { 1.0f / length, 2.0f / length, 2.5f / length };
-	const float amplitude = pow(length, 2);
+	const float amplitude = static_cast<float>(pow(length, 2));
 	const float offsets[3] = { 1.5f / length, 2.25f / length, 2.625f / length };
 
 	if (ratio < touchdown[0])
