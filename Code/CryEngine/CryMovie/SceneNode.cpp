@@ -570,7 +570,7 @@ void CAnimSceneNode::ApplyCameraKey(SCameraKey& key, SAnimContext& animContext)
 	{
 		float t = 1 - ((nextKey.m_time - animContext.time).ToFloat() / key.m_blendTime);
 		t = min(t, 1.0f);
-		t = pow(t, 3) * (t * (t * 6 - 15) + 10);
+		t = static_cast<float>(pow(t, 3)) * (t * (t * 6 - 15) + 10);
 
 		// FOV
 		float fSecondCameraFOV = kDefaultCameraFOV;

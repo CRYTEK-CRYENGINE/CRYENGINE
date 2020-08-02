@@ -2481,7 +2481,7 @@ void CLocalizedStringsManager::LocalizeNumber(float number, int decimals, string
 
 	float decimalsOnly = f - (float)d;
 
-	int decimalsAsInt = int_round(decimalsOnly * pow(10.0f, decimals));
+	int decimalsAsInt = int_round(decimalsOnly * static_cast<float>(pow(10.0f, decimals)));
 
 	CryFixedStringT<64> tmp;
 	tmp.Format("%s%s%0*d", intPart.c_str(), commaSeparator.c_str(), decimals, decimalsAsInt);

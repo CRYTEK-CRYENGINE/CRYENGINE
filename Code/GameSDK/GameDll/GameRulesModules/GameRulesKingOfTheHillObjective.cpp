@@ -776,7 +776,7 @@ void CGameRulesKingOfTheHillObjective::OnOwnClientEnteredGame()
 float CGameRulesKingOfTheHillObjective::CalculateScoreTimer( int playerCount )
 {
 	float timerLength = m_scoreTimerMaxLength;
-	timerLength *= pow(m_scoreTimerAdditionalPlayerMultiplier, playerCount - 1);
+	timerLength *= static_cast<float>(pow(m_scoreTimerAdditionalPlayerMultiplier, playerCount - 1));
 	return timerLength;
 }
 
