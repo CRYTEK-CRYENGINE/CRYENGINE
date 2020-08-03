@@ -5,6 +5,7 @@
 #include <CryInput/IInput.h>
 
 #include <CryMath/Cry_Geo.h>
+#include <CryMath/Cry_Camera.h>
 
 #include <CryCore/optional.h>
 
@@ -14,6 +15,7 @@ enum EHmdClass
 	eHmdClass_Oculus,
 	eHmdClass_OpenVR,
 	eHmdClass_Osvr,
+	eHmdClass_VRgineers,
 	eHmdClass_Emulator
 };
 
@@ -158,12 +160,24 @@ enum EHmdProjection
 struct HMDCameraSetup
 {
 	// Pupil distance
-	float ipd;
+	float ipd[EEyeType::eEyeType_NumEyes];
 
 	// Camera asymmetries
 	float l, r, t, b;
 
 	float sfov;
+
+	void SetIPD(float absoluteDistance)
+	{
+		float ipdHalf = absoluteDistance / 2.0f;
+		SetIPD(ipdHalf, ipdHalf);
+	}
+
+	void SetIPD(float ipdLeft, float ipdRight) // this function expects positive numbers(distances)
+	{
+		ipd[CCamera::EEye::eEye_Left] = ipdLeft;
+		ipd[CCamera::EEye::eEye_Right] = -ipdRight;
+	}
 
 	static HMDCameraSetup fromProjectionMatrix(const Matrix44A &projectionMatrix, float projRatio, float fnear)
 	{

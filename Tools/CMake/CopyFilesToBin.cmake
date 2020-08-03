@@ -53,6 +53,10 @@ macro(add_optional_runtime_files)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/OpenVR/bin/win64/*.*")
 	endif()
 
+	if (PLUGIN_VR_VRGINEERS)
+		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/VRgineers/*.dll")
+	endif()
+
 	if (PLUGIN_VR_OSVR)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/OSVR/dll/*.dll")
 	endif()

@@ -77,6 +77,7 @@ class CD3DStereoRenderer : public IStereoRenderer
 	friend class CD3DOpenVRRenderer;
 	friend class CD3DOculusRenderer;
 	friend class CD3DOsvrRenderer;
+	friend class CD3DVRgineersRenderer;
 	friend class CD3DHmdEmulatorRenderer;
 
 public:

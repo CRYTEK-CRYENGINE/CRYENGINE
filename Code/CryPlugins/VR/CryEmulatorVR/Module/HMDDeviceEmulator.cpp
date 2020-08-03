@@ -194,7 +194,7 @@ namespace CryVR {
 				projRatio,
 				fnear);
 
-			ret.ipd =  GetCurrentIPD();
+			ret.SetIPD(GetCurrentIPD());
 
 			return ret;
 		}
