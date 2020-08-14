@@ -677,10 +677,12 @@ void C3DEngine::Update()
 		}
 	}
 
-	CRenderMeshUtils::ClearHitCache();
+	std::thread threade(CRenderMeshUtils::ClearHitCache);
+	//CRenderMeshUtils::ClearHitCache();
 
 	CleanUpOldDecals();
-
+	threade.join();
+	
 	CDecalRenderNode::ResetDecalUpdatesCounter();
 
 	if (m_pBreezeGenerator)
