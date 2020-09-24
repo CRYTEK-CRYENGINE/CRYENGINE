@@ -1047,6 +1047,57 @@ int CTriMesh::FilterMesh(float minlen,float minangle,int bLogUpdates)
 	return iter;
 }
 
+int CTriMesh::RemoveDegenerates(int openEdgeIters, bool multiEdges)
+{
+	int count=0, *trimap=new int[m_nTris];	
+	memset(trimap, -1, m_nTris*sizeof(int));
+
+	for(int iter=0;iter<openEdgeIters;iter++)
+		for(int i=0,nerr;i<m_nTris;i++) if (trimap[i]==-1) {
+			for(int j=nerr=0;j<3;j++)
+				nerr += isneg(m_pTopology[i].ibuddy[j]);
+			if (nerr==2)	{
+				int itri1 = m_pTopology[i].ibuddy[0]+m_pTopology[i].ibuddy[1]+m_pTopology[i].ibuddy[2]+2;
+				m_pTopology[itri1].ibuddy[GetEdgeByBuddy(itri1,i)] = -1;
+			}
+			if (nerr>=2) {
+				trimap[i]=-2; count++;
+			}
+		}
+
+	if (multiEdges) {	// find edges that are shared by multiple tris (in the same direction)
+		int *nerr = new int[m_nTris];	
+		memset(nerr, 0, m_nTris*sizeof(int));
+		struct edge_desc {
+			uint64 v0v1;
+			int itri;
+		} *edges = new edge_desc[m_nTris*3];
+		int *edgeIdx = new int[m_nTris*3], nedges=0;
+		for(int i=0;i<m_nTris;i++) if (trimap[i]==-1) for(int j=0;j<3;j++) {
+			edges[nedges] = { (uint64)m_pIndices[i*3+j]<<32 | m_pIndices[i*3+inc_mod3[j]], i };
+			edgeIdx[nedges] = nedges;	nedges++;
+		}
+		if (nedges) {
+			qsort(edgeIdx, strided_pointer<uint64>(&edges[0].v0v1,sizeof(edges[0])), 0,nedges-1);
+			for(int i=0,incFirst=1;i<nedges-1;i++) if (edges[edgeIdx[i]].v0v1==edges[edgeIdx[i+1]].v0v1) {
+				nerr[edges[edgeIdx[i]].itri]+=incFirst;	incFirst=0;
+				nerr[edges[edgeIdx[i+1]].itri]++;
+			}	else
+				incFirst = 1;
+			for(int i=0;i<m_nTris;i++) if (nerr[i]>=2) {
+				trimap[i]=-2; count++;
+			}
+		}
+		delete[] edgeIdx; delete[] edges;	delete[] nerr;
+	}
+
+	if (count)
+		CompactTriangleList(trimap);
+	delete[] trimap; 
+
+	return count;
+}
+
 
 template<class dtype> void ReallocateListCompact(dtype *&plist, int sznew)
 {
@@ -3182,6 +3233,9 @@ void CTriMesh::DrawWireframe(IPhysRenderer *pRenderer, geom_world_data *gwd, int
 		BV *pbbox;
 		ResetGlobalPrimsBuffers(iCaller);
 		m_pTree->ResetCollisionArea();
+		geom_world_data gwd0;
+		if (!gwd)
+			gwd = &gwd0;
 		m_pTree->GetNodeBV(gwd->R,gwd->offset,gwd->scale, pbbox, 0,iCaller);
 		if (pbbox->type==box::type)
 			DrawBBox(pRenderer,idxColor,gwd, m_pTree,(BBox*)pbbox,iLevel-1,0,iCaller);
@@ -3966,6 +4020,14 @@ template<class itype> inline int getNextBit(itype& mask)
 	return bit;
 }
 
+template<class T> inline Vec3_tpl<T> Vec3Sorted(const Vec3_tpl<T>& v)
+{
+	int z=idxmax3(v), flipxy=isneg(v[inc_mod3[z]]-v[dec_mod3[z]]);
+	Vec3_tpl<T> res(0,0,v[z]);
+	res[flipxy] = v[dec_mod3[z]]; res[flipxy^1] = v[inc_mod3[z]];
+	return res;
+}
+
 inline int check_islands(unsigned int mask, Vec4i *centers=0)
 {
 	int queue[32],ihead,itail,nislands=0;
@@ -4217,6 +4279,105 @@ inline bool MergeLine(SVoxLine& ldst, const SVoxLine& lsrc)
 #include "cylindergeom.h"
 #include "capsulegeom.h"
 
+int CTriMesh::CloseHoles(uint64 isleMask)
+{
+	char *pHoleEdges = new char[m_nVertices*3];
+	int *pHoleVtx = new int[m_nVertices];
+	int nTrisAlloc=m_nTris, nTris00=m_nTris;
+	memset(pHoleEdges, 0, m_nVertices*3);
+	isleMask &= (1ull<<m_nIslands)-1ull;
+
+	for(int isle=getNextBit(isleMask); isle>=0; isle=getNextBit(isleMask)) {
+		int nTris0=m_nTris, itriLast;
+		for(int i=m_pIslands[isle].itri; i!=0x7fff; i=m_pTri2Island[i].inext)
+			for(int ivtx=(itriLast=i,0);ivtx<3;ivtx++) if (m_pTopology[i].ibuddy[ivtx]<0) {
+				Vec2i mark(-1,0); int count=10,nHoleVtx=0;
+				for(int iedge=ivtx,itri=i,itri1;(itri-mark.x|iedge-mark.y);) if ((itri1=m_pTopology[itri].ibuddy[inc_mod3[iedge]])>=0)	{
+					iedge=GetEdgeByBuddy(itri1,itri); itri=itri1;
+					mark -= (Vec2i(itri,iedge)-mark)*(--count>>31);	count&=63;
+				}	else {
+					if (pHoleEdges[itri] & 1<<(iedge=inc_mod3[iedge]) || nHoleVtx==m_nVertices)
+						break;
+					pHoleEdges[itri] |= 1<<iedge;
+					pHoleVtx[nHoleVtx++] = m_pIndices[itri*3+iedge];
+					mark.set(-1,0);	count=10;
+				}
+				if (!nHoleVtx)
+					continue;
+				Vec3 c(0),ntest(0); float brdlen=0;
+				for(int j1=0,j=0;j<nHoleVtx;j++) { 
+					float seglen = (m_pVertices[pHoleVtx[j1=j+1&j+1-nHoleVtx>>31]]-m_pVertices[pHoleVtx[j]]).len();
+					c += (m_pVertices[pHoleVtx[j1]]+m_pVertices[pHoleVtx[j]])*seglen; brdlen+=seglen;
+				}	
+				c /= brdlen*2;
+				Matrix33 C(ZERO),Ctmp,Ctmp1;
+				for(int j=0;j<nHoleVtx;j++) {
+					Vec3 p0 = m_pVertices[pHoleVtx[j]]-c, p1 = m_pVertices[pHoleVtx[j+1&j+1-nHoleVtx>>31]]-c;
+					float seglen = (p1-p0).len(); ntest += p0^p1;
+					(dotproduct_matrix(p0,p0,Ctmp) += dotproduct_matrix(p1,p1,Ctmp1))*=2;
+					Ctmp+=dotproduct_matrix(p0,p1,Ctmp1);	C+=(Ctmp+dotproduct_matrix(p1,p0,Ctmp1))*seglen;
+				}
+				Vec3 n = SVD3x3(C); n *= sgnnz(ntest*n);
+				if (m_nTris+nHoleVtx-2 > nTrisAlloc) {
+					ReallocateList(m_pIndices,m_nTris*3,(nTrisAlloc=max(m_nTris+nHoleVtx-2,nTrisAlloc+256))*3,false,!(m_flags & mesh_shared_idx));
+					ReallocateList(m_pNormals,m_nTris,nTrisAlloc);
+					if (m_pIds) ReallocateList(m_pIds,m_nTris,nTrisAlloc);
+					ReallocateList(m_pTri2Island,m_nTris,nTrisAlloc,true);
+					ReallocateList(m_pTopology,m_nTris,nTrisAlloc);
+				}
+				while(nHoleVtx>2) {
+					Vec3i jmin;	float minArea=1e10f;
+					for(int j0=0;j0<nHoleVtx;j0++) {
+						int j1=j0+1&j0+1-nHoleVtx>>31, j2=j1+1&j1+1-nHoleVtx>>31;
+						Vec3 nj = m_pVertices[pHoleVtx[j1]]-m_pVertices[pHoleVtx[j0]] ^ m_pVertices[pHoleVtx[j2]]-m_pVertices[pHoleVtx[j0]];
+						if (nj*n>0 && nj.len2()<minArea) {
+							minArea=nj.len2(); jmin.Set(j0,j1,j2);
+						}
+					}
+					if (minArea>1e9f)
+						break;
+					for(int ivtx=0;ivtx<3;ivtx++) m_pIndices[m_nTris*3+ivtx] = pHoleVtx[jmin[2-ivtx]];
+					memmove(pHoleVtx+jmin.y,pHoleVtx+jmin.y+1,(--nHoleVtx-jmin.y)*sizeof(pHoleVtx[0]));
+					m_pTri2Island[m_nTris].iprev=m_nTris-1; m_pTri2Island[m_nTris].inext=m_nTris+1;
+					RecalcTriNormal(m_nTris++);
+				}
+			}
+		if (m_nTris>nTris0) {
+			m_pTri2Island[itriLast].inext = nTris0; 
+			m_pTri2Island[nTris0].iprev = itriLast;
+			m_pTri2Island[m_nTris-1].inext = 0x7fff;
+		}
+	}
+	delete[] pHoleVtx; delete[] pHoleEdges;
+
+	if (m_nTris>nTris00) {
+		if (m_pTree->GetType()==BVT_OBB) {
+			COBBTree &bvt = *(COBBTree*)m_pTree;
+			OBBnode *nodes = bvt.m_pNodes+bvt.m_pNodes[0].ichild;
+			if (bvt.m_pNodes[0].ntris || nodes[1].ichild+nodes[1].ntris!=nTris00) {
+				if (bvt.m_nNodesAlloc<bvt.m_nNodes+2)
+					ReallocateList(bvt.m_pNodes, bvt.m_nNodes,bvt.m_nNodesAlloc=bvt.m_nNodes+2);
+				nodes = bvt.m_pNodes+bvt.m_nNodes;
+				nodes[0] = bvt.m_pNodes[0]; nodes[1] = bvt.m_pNodes[0];
+				nodes[0].iparent = nodes[1].iparent = 0;
+				bvt.m_pNodes[0].ichild = bvt.m_nNodes;
+				nodes[1].ichild = nTris00;
+				bvt.m_nNodes += 2;
+			}
+			nodes[1].ntris = m_nTris-nTris00;
+			Matrix33& Basis	 = *(Matrix33*)nodes[1].axes;
+			nodes[1].center.zero(); 
+			for(int i=nodes[1].ichild*3; i<(nodes[1].ichild+nodes[1].ntris)*3; i++)
+				nodes[1].center += m_pVertices[m_pIndices[i]];
+			nodes[1].size.zero(); nodes[1].center/=nodes[1].ntris*3;
+			for(int i=nodes[1].ichild*3; i<(nodes[1].ichild+nodes[1].ntris)*3; i++)
+				nodes[1].size = max(nodes[1].size, (Basis*(m_pVertices[m_pIndices[i]]-nodes[1].center)).abs());
+		}
+		CalculateTopology(m_pIndices);
+	}
+	return m_nTris-nTris00;
+}
+
 int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 {
 	SProxifyParams params;
@@ -4298,96 +4459,8 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 	nIslands = BuildIslandMap();
 	params.islandMap &= (1ull<<nIslands)-1;
 
-	if (params.closeHoles) {
-		char *pHoleEdges = new char[m_nVertices*3];
-		int *pHoleVtx = new int[m_nVertices], *pHoleTris = new int[m_nVertices*6];
-		int nTrisAlloc=m_nTris, nTris00=m_nTris;
-		Vec2 *pHoleVtx2d = new Vec2[m_nVertices];
-		uint64 mask = params.islandMap;
-		memset(pHoleEdges, 0, m_nVertices*3);
-
-		for(isle=getNextBit(mask); isle>=0; isle=getNextBit(mask)) {
-			int nTris0=m_nTris, itriLast;
-			for(i=m_pIslands[isle].itri; i!=0x7fff; i=m_pTri2Island[i].inext)
-				for(int ivtx=(itriLast=i,0);ivtx<3;ivtx++) if (m_pTopology[i].ibuddy[ivtx]<0) {
-					Vec2i mark(-1,0); int count=10,nHoleVtx=0;
-					for(int iedge=ivtx,itri=i,itri1;(itri-mark.x|iedge-mark.y);) if ((itri1=m_pTopology[itri].ibuddy[inc_mod3[iedge]])>=0)	{
-						iedge=GetEdgeByBuddy(itri1,itri); itri=itri1;
-						mark -= (Vec2i(itri,iedge)-mark)*(--count>>31);	count&=63;
-					}	else {
-						if (pHoleEdges[itri] & 1<<(iedge=inc_mod3[iedge]))
-							break;
-						pHoleEdges[itri] |= 1<<iedge;
-						pHoleVtx[nHoleVtx++] = m_pIndices[itri*3+iedge];
-						mark.set(-1,0);	count=10;
-					}
-					if (!nHoleVtx)
-						continue;
-					Vec3 c(0),ntest(0); float brdlen=0;
-					for(int j1=j=0;j<nHoleVtx;j++) { 
-						float seglen = (m_pVertices[pHoleVtx[j1=j+1&j+1-nHoleVtx>>31]]-m_pVertices[pHoleVtx[j]]).len();
-						c += (m_pVertices[pHoleVtx[j1]]+m_pVertices[pHoleVtx[j]])*seglen; brdlen+=seglen;
-					}	
-					c /= brdlen*2;
-					Matrix33 C(ZERO),Ctmp,Ctmp1;
-					for(j=0;j<nHoleVtx;j++) {
-						Vec3 p0 = m_pVertices[pHoleVtx[j]]-c, p1 = m_pVertices[pHoleVtx[j+1&j+1-nHoleVtx>>31]]-c;
-						float seglen = (p1-p0).len(); ntest += p0^p1;
-						(dotproduct_matrix(p0,p0,Ctmp) += dotproduct_matrix(p1,p1,Ctmp1))*=2;
-						Ctmp+=dotproduct_matrix(p0,p1,Ctmp1);	C+=(Ctmp+dotproduct_matrix(p1,p0,Ctmp1))*seglen;
-					}
-					Vec3 n = SVD3x3(C); n *= sgnnz(ntest*n);
-					Vec3 axisx=n.GetOrthogonal().normalized(), axisy=n^axisx;
-					for(j=0;j<nHoleVtx;j++)
-						pHoleVtx2d[j].set(axisx*(m_pVertices[pHoleVtx[j]]-c), axisy*(m_pVertices[pHoleVtx[j]]-c));
-					MARK_UNUSED pHoleVtx2d[nHoleVtx].x;
-					int nHoleTris = TriangulatePoly(pHoleVtx2d,nHoleVtx+1,pHoleTris,m_nVertices*6);
-					if (m_nTris+nHoleTris>nTrisAlloc) {
-						ReallocateList(m_pIndices,m_nTris*3,(nTrisAlloc=max(m_nTris+nHoleTris,nTrisAlloc+256))*3,false,!(m_flags & mesh_shared_idx));
-						ReallocateList(m_pNormals,m_nTris,nTrisAlloc);
-						if (m_pIds) ReallocateList(m_pIds,m_nTris,nTrisAlloc);
-						ReallocateList(m_pTri2Island,m_nTris,nTrisAlloc,true);
-						ReallocateList(m_pTopology,m_nTris,nTrisAlloc);
-					}
-					for(j=0;j<nHoleTris;j++) {
-						for(int ivtx=0;ivtx<3;ivtx++) m_pIndices[(m_nTris+j)*3+ivtx] = pHoleVtx[pHoleTris[j*3+2-ivtx]];
-						m_pTri2Island[m_nTris+j].iprev=isle; m_pTri2Island[m_nTris+j].inext=m_nTris+j+1;
-						RecalcTriNormal(m_nTris+j);
-					}
-					m_nTris += nHoleTris;
-				}
-			if (m_nTris>nTris0) {
-				m_pTri2Island[itriLast].inext = nTris0; 
-				m_pTri2Island[m_nTris-1].inext = 0x7fff;
-			}
-		}
-		delete[] pHoleVtx2d; delete[] pHoleTris; 
-		delete[] pHoleVtx; delete[] pHoleEdges;
-
-		if (m_nTris>nTris00) {
-			if (m_pTree->GetType()==BVT_OBB) {
-				COBBTree &bvt = *(COBBTree*)m_pTree;
-				OBBnode *nodes = bvt.m_pNodes+bvt.m_pNodes[0].ichild;
-				if (bvt.m_pNodes[0].ntris || nodes[1].ichild+nodes[1].ntris!=nTris00) {
-					if (bvt.m_nNodesAlloc<bvt.m_nNodes+2)
-						ReallocateList(bvt.m_pNodes, bvt.m_nNodes,bvt.m_nNodesAlloc=bvt.m_nNodes+2);
-					nodes = bvt.m_pNodes+bvt.m_nNodes;
-					nodes[0] = bvt.m_pNodes[0]; nodes[1] = bvt.m_pNodes[0];
-					nodes[0].iparent = nodes[1].iparent = 0;
-					bvt.m_pNodes[0].ichild = bvt.m_nNodes;
-					nodes[1].ichild = nTris00;
-					bvt.m_nNodes += 2;
-				}
-				nodes[1].ntris = m_nTris-nTris00;
-				Matrix33& Basis	 = *(Matrix33*)nodes[1].axes;
-				for(i=nodes[1].ichild*3,nodes[1].center.zero(); i<(nodes[1].ichild+nodes[1].ntris)*3; i++)
-					nodes[1].center += m_pVertices[m_pIndices[i]];
-				for(i=nodes[1].ichild*3,nodes[1].size.zero(),nodes[1].center/=nodes[1].ntris*3; i<(nodes[1].ichild+nodes[1].ntris)*3; i++)
-					nodes[1].size = max(nodes[1].size, (Basis*(m_pVertices[m_pIndices[i]]-nodes[1].center)).abs());
-			}
-			CalculateTopology(m_pIndices);
-		}
-	}
+	if (params.closeHoles)
+		CloseHoles();
 
 	if (params.mergeIslands) {
 		if ((params.islandMap & (1ull<<nIslands)-1)==(1<<nIslands)-1 && !params.convexHull) {
@@ -4505,7 +4578,7 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 					matrixf eigenMtx(3,3,0,&Basis(0,0));
 					matrixf(3,3,mtx_symmetric,&I(0,0)).jacobi_transformation(eigenMtx,&Ibody.x);
 					float Iz=Ibody[i=idxmin3(Ibody)], Ix=max(max(Ibody.x,Ibody.y),Ibody.z), Iy=Ibody.x+Ibody.y+Ibody.z-Ix-Iz;
-					if (min(Ix,Iy) > Iz*(0.5f+sqr(params.capsHRratio)*(1.0f/6)) && nline<MAXPRIMS) { 
+					if (min(Ix,Iy) > Iz*(0.5f+sqr(params.capsHRratio)*(1.0f/6)) && params.findPrimLines && nline<MAXPRIMS) { 
 						// if the surface's inertia tensor it similar to that of a long rod, register it as a line candidate as well
 						Vec3 axis = Basis.GetRow(i);
 						float end0=(queue[0]-c)*axis, end1=end0, end;
@@ -4713,7 +4786,7 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 
 		for(i=0;i<nsurf-1;i++) for(j=nsurf-1;j>i;j--) if (voxsurf[j].sbox.size.GetVolume()>voxsurf[j-1].sbox.size.GetVolume())
 			swap(voxsurf[j],voxsurf[j-1]); // sort surfaces by decreasing box volumes
-		for(; nsurf && voxsurf[nsurf-1].sbox.size.GetVolume()>0; nsurf--);
+		for(; nsurf && voxsurf[nsurf-1].sbox.size.GetVolume()<0; nsurf--);
 
 		for(i=0; i<nsurf && nGeoms<params.maxGeoms; i++) if (!(params.skipPrimMask & 1ull<<i)) {
 			float Vbox[2],Vcyl[2];
@@ -4927,28 +5000,172 @@ int CTriMesh::Proxify(IGeometry **&pOutGeoms, SProxifyParams *pparams)
 				else if (voridx[i]<voridx[nbidx[j]] && voridx[nbidx[j]]!=ilastVtx)
 					edges[nedges++] = voridx[i]<<16 | (ilastVtx=voridx[nbidx[j]]);
 			}
-			for(i=0,memset(nbcnt,0,(nvtx+1)*sizeof(nbcnt[0]));i<nedges;i++) 
-				nbcnt[edges[i]>>16]++;
+			for(i=0,memset(nbcnt,0,(nvtx+1)*sizeof(nbcnt[0]));i<nedges;i++) {
+				nbcnt[edges[i]>>16]++; nbcnt[edges[i]&0xffff]++;
+			}
 			for(i=0;i<nvtx;i++) nbcnt[i+1]+=nbcnt[i];
 			for(i=0,memset(nbidx,-1,nbcnt[nvtx]*sizeof(nbidx[0]));i<nedges;i++)	{ // register only unique vtxi-vtxj edges
 				int v0=edges[i]>>16, v1=edges[i]&0xffff;
 				for(j=nbcnt[v0];j<nbcnt[v0+1] && nbidx[j]>=0 && nbidx[j]!=v1;j++);
-				if (j==nbcnt[v0+1] || nbidx[j]<0)
-					nbidx[--nbcnt[v0]] = v1;
+				if (j==nbcnt[v0+1] || nbidx[j]<0)	{
+					nbidx[--nbcnt[v0]] = v1; nbidx[--nbcnt[v1]] = v0;
+				}
 			}
-			for(i=0;i<nvtx;i++) for(j=nbcnt[i];j<nbcnt[i+1]-1 && nbidx[j]>=0;j++)
+
+			int nvtxUsed = 0;
+			while(nvtx > nvtxUsed+3) {
+				Vec3 ptmin=vtx[0], ptmax=vtx[0];
+				for(i=0;i<nvtx;i++) if (vtxidx[i]>=0) { 
+					ptmin=min(ptmin,vtx[i]); ptmax=max(ptmax,vtx[i]); 
+				}
+				int iax=idxmax3(ptmax-ptmin);
+				Vec3i tri0(ZERO);
+				// find a 'seed' triangle with a max vertex and 2 edges with max angles to the axis
+				for(i=0;i<nvtx;i++) if (vtxidx[i]>=0 && vtx[i][iax]>vtx[tri0.x][iax])
+					tri0.x = i;
+				quotientf cosmin[2] = { quotientf(1,1), quotientf(1,1) };
+				for(i=nbcnt[tri0.x];i<nbcnt[tri0.x+1] && nbidx[i]>=0;i++) {
+					Vec3 edge=vtx[nbidx[i]]-vtx[tri0.x];
+					quotientf cosa(sqr(edge[iax]),edge.len2());
+					if (cosa<cosmin[0])	{
+						cosmin[0]=cosa; tri0.y=nbidx[i];
+					}	else if (cosa<cosmin[1]) {
+						cosmin[1]=cosa; tri0.z=nbidx[i];
+					}
+				}
+				if ((vtx[tri0.y]-vtx[tri0.x]^vtx[tri0.z]-vtx[tri0.x])[iax]<0)
+					swap(tri0.y,tri0.z);
+				for(i=vhead=0;i<3;edges[vhead++]=nTris<<2|i++)
+					vtxidx[tri0[i]] |= 1<<31;
+				pOutTris[nTris++] = tri0;
+				nvtxUsed += 3;
+				for(vtail=0; vtail<vhead;) { // grow the mesh by adding the most 'outer' triangle at each edge
+					i=edges[vtail++];	tri0=pOutTris[i>>2]; i&=3;
+					Vec3 n0 = (vtx[tri0.y]-vtx[tri0.x] ^ vtx[tri0.z]-vtx[tri0.x]).normalized();
+					Vec3 edge = vtx[tri0[inc_mod3[i]]]-vtx[tri0[i]];
+					Vec3 dirx = vtx[tri0[dec_mod3[i]]]-vtx[tri0[i]]; 
+					(dirx -= (edge*(dirx*edge))/edge.len2()).normalize();
+					Vec3i tri1(tri0[inc_mod3[i]],tri0[i],-1);
+					float minang = 10;
+					for(int i0=nbcnt[tri1.x];i0<nbcnt[tri1.x+1] && nbidx[i0]>=0;i0++)
+						for(int i1=nbcnt[tri1.y];i1<nbcnt[tri1.y+1] && nbidx[i1]>=0;i1++)
+							if (nbidx[i0]==nbidx[i1] && nbidx[i0]!=tri0[dec_mod3[i]]) {
+								edge = vtx[nbidx[i0]]-vtx[tri1.x];
+								float ang = atan2(edge*n0, edge*dirx);
+								if (fabs(ang)<DEG2RAD(20))
+									continue;	// avoid thin spikes and cracks
+								ang += isneg(ang)*gf_PI*2;
+								if (ang<minang) {
+									tri1.z=nbidx[i0]; minang=ang;
+								}
+								break;
+							}
+					if (minang<10) {
+						Vec3 tri1Sorted = Vec3Sorted(tri1);
+						for(i=0;i<nTris && Vec3Sorted(pOutTris[i])!=tri1Sorted;i++);
+						if (i==nTris) {
+							edges[vhead++]=nTris<<2|1; edges[vhead++]=nTris<<2|2;
+							pOutTris[nTris++] = tri1;
+							for(j=0;j<3;j++) { 
+								nvtxUsed += 1+(vtxidx[tri1[j]]>>31);
+								vtxidx[tri1[j]] |= 1<<31;
+							}
+						}
+					}
+				}
+			}
+
+			/*for(i=0;i<nvtx;i++) for(j=nbcnt[i];j<nbcnt[i+1]-1 && nbidx[j]>=0;j++)
 				for(int j1=j+1;j1<nbcnt[i+1] && nbidx[j1]>=0;j1++) { // create a triangle if any 2 connections of vtxi are connected to each other
 					int v0=min(nbidx[j],nbidx[j1]), v1=nbidx[j]+nbidx[j1]-v0;
 					for(int j2=nbcnt[v0]; j2<nbcnt[v0+1] && nbidx[j2]>=0; j2++) if (nbidx[j2]==v1) {
-						int flip = -isneg((vtx[v0]-vtx[i]^vtx[v1]-vtx[i])*(norm[0][vtxidx[i]]+norm[0][vtxidx[v0]]+norm[0][vtxidx[v1]]));
+						Vec3 ntri=vtx[v0]-vtx[i]^vtx[v1]-vtx[i], nmesh=norm[0][vtxidx[i]]+norm[0][vtxidx[v0]]+norm[0][vtxidx[v1]]; 
+						float dot = ntri*nmesh;
+						if (sqr(dot) < sqr(0.5f)*ntri.len2()*nmesh.len2())
+							continue;
+						int flip = -isneg(dot);
 						pOutTris[nTris++].Set(i,v0+(v1-v0&flip),v1+(v0-v1&flip)); break;
 					}
-				}
+				}*/
 
 			if (nvtx && nTris) {
 				CTriMesh *pMesh = new CTriMesh();
 				pGeoms[nGeoms++] = pMesh->CreateTriMesh(vtx,&pOutTris[0].x,(char*)pOutTris,0,nTris,(nTris<11 ? mesh_SingleBB : mesh_AABB|mesh_AABB_rotated|mesh_OBB)|mesh_multicontact1);
-				memset(pMesh->m_pIds,0,nTris);
+				memset(pMesh->m_pIds,0,pMesh->m_nTris);
+
+				int nchanges = 0;
+				if (pMesh->m_nErrors)
+					if (nchanges = pMesh->RemoveDegenerates()) {
+						pMesh->CalculateTopology(pMesh->m_pIndices);
+						pMesh->RebuildBVTree();
+					}
+				if (pMesh->GetVolume()<0)
+					pMesh->Flip();
+				
+				mesh_data &md = *(mesh_data*)pMesh->GetData();
+				Vec3_tpl<index_t> *ptri=(Vec3_tpl<index_t>*)md.pIndices;
+				for(int nflips=1,iter=0; nflips && iter<10; iter++,nchanges+=nflips)
+					for(i=nflips=0;i<md.nTris && nflips<md.nTris*5;i++) for(j=0;j<3;j++) if (md.pTopology[i].ibuddy[j]>=0) {
+						// 'bulge out' concave <|> triangle pairs
+						int i1=md.pTopology[i].ibuddy[j], j1=pMesh->GetEdgeByBuddy(i1,i);
+						if (md.pTopology[i1].ibuddy[j1]!=i)
+							continue;
+						int iv4 = -ptri[i][j]-ptri[i][inc_mod3[j]];
+						for(int ivtx=0;ivtx<3;ivtx++) iv4 += ptri[i1][ivtx];
+						Vec3 e=md.pVertices[ptri[i][inc_mod3[j]]]-md.pVertices[ptri[i][j]], d=md.pVertices[iv4]-md.pVertices[ptri[i][j]];
+						Vec3 pt4[4]; pt4[3] = md.pVertices[iv4];
+						for(int ivtx=0;ivtx<3;ivtx++) pt4[ivtx]=md.pVertices[ptri[i][ivtx]];
+						Vec3 nrm[2] = { pt4[j]-pt4[dec_mod3[j]]^pt4[3]-pt4[dec_mod3[j]], pt4[dec_mod3[j]]-pt4[inc_mod3[j]]^pt4[3]-pt4[inc_mod3[j]] };
+						// check edges that are 'sufficiently' concave and new tris are not at an acute angle
+						if (sqr_signed(md.pNormals[i]*(d*e.len2()-e*(d*e))) > d.len2()*e.len2()*sqr(0.2f) && nrm[0]*nrm[1]>0) { 
+							CRayGeom rayGeom(pt4[3], pt4[dec_mod3[j]]-pt4[3]);
+							rayGeom.m_ray.origin += rayGeom.m_ray.dir*0.05f;
+							rayGeom.m_ray.dir *= 0.9f;
+							geom_contact* pcont;
+							if (pMesh->Intersect(&rayGeom,0,0,0,pcont))
+								continue;
+							Vec3i BBox[2] = { Vec3i(1<<20),-Vec3i(1<<20) }, ipt;
+							for(int ivtx=0;ivtx<4;ivtx++) {
+								ipt = float2int(((pt4[ivtx]-vox.center)*vox.q)*vox.rcelldim-Vec3(0.5f));
+								BBox[0]=min(BBox[0],ipt); BBox[1]=max(BBox[1],ipt);
+							}
+							int ncells = 0;
+							voxiter_BBox if (vox(ipt) & 1) {
+								Vec3 pt = vox.q*(Vec3(0.5f)+ipt)*vox.celldim+vox.center;
+								int inside = 1;
+								for(int ivtx=0;ivtx<4;ivtx++) {
+									Vec3 n = (pt4[ivtx+2&3]-pt4[ivtx+1&3] ^ pt4[ivtx+3&3]-pt4[ivtx+1&3])*(1-(ivtx&1)*2);
+									inside &= isneg((pt-pt4[ivtx+1&3])*n);
+								}
+								ncells += inside;
+							}
+							if (ncells*cube(vox.celldim)*12 > (pt4[1]-pt4[0]^pt4[2]-pt4[0])*(pt4[3]-pt4[0])) { // check if the bulged tetrahedron is at least half-filled with voxels
+								Vec3_tpl<index_t> itri0=ptri[i], top0=*((Vec3_tpl<index_t>*)md.pTopology[i].ibuddy), top1=*((Vec3_tpl<index_t>*)md.pTopology[i1].ibuddy), topNew;
+								ptri[i ].Set(iv4,itri0[inc_mod3[j]],itri0[dec_mod3[j]]);
+								ptri[i1].Set(iv4,itri0[dec_mod3[j]],itri0[j]);
+								topNew = ((Vec3_tpl<index_t>*)md.pTopology[i ].ibuddy)->Set(top1[dec_mod3[j1]], top0[inc_mod3[j]], i1);
+								md.pTopology[topNew[0]].ibuddy[pMesh->GetEdgeByBuddy(topNew[0],i1)] = i;
+								md.pTopology[topNew[1]].ibuddy[pMesh->GetEdgeByBuddy(topNew[1],i)] = i;
+								topNew = ((Vec3_tpl<index_t>*)md.pTopology[i1].ibuddy)->Set(i, top0[dec_mod3[j]], top1[inc_mod3[j1]]);
+								md.pTopology[topNew[1]].ibuddy[pMesh->GetEdgeByBuddy(topNew[1],i)] = i1;
+								md.pTopology[topNew[2]].ibuddy[pMesh->GetEdgeByBuddy(topNew[2],i1)] = i1;
+								for(int itri=i,ii=0; ii<2; itri=i1,ii++)
+									md.pNormals[itri] = (md.pVertices[ptri[itri].y]-md.pVertices[ptri[itri].x] ^ md.pVertices[ptri[itri].z]-md.pVertices[ptri[itri].x]).normalized();
+								nflips++;
+							}
+						}
+					}
+				
+				if (pMesh->m_nErrors)	{
+					delete[] pMesh->m_pIslands; pMesh->m_pIslands=nullptr;
+					pMesh->BuildIslandMap();
+					nchanges += pMesh->CloseHoles();
+					nchanges += pMesh->RemoveDegenerates(3,false);
+					pMesh->CalculateTopology(pMesh->m_pIndices);
+				}
+				if (nchanges)
+					pMesh->RebuildBVTree();
+
 				if (nGeoms>=params.maxGeoms)
 					break;
 			}

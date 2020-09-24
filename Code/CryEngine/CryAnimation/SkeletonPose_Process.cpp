@@ -229,30 +229,24 @@ void CSkeletonPose::UpdateBBox(uint32 update)
 #endif
 
 	CAttachmentManager* pAttachmentManager = static_cast<CAttachmentManager*>(m_pInstance->GetIAttachmentManager());
-	if (pAttachmentManager->m_TypeSortingRequired)
-		pAttachmentManager->SortByType();
-
-	uint32 nMinBoneAttachments = pAttachmentManager->GetMinJointAttachments();
-	uint32 nMaxBoneAttachments = pAttachmentManager->GetMaxJointAttachments();
-	for (uint32 i = nMinBoneAttachments; i < nMaxBoneAttachments; i++)
+	pAttachmentManager->ExecuteForNonemptyBoneAttachments([&](IAttachment* pIAttachment)
 	{
-		IAttachment* pIAttachment = pAttachmentManager->GetInterfaceByIndex(i);
 		uint32 nType = pIAttachment->GetType();
 		if (nType != CA_BONE)
-			continue;
+			return;
 		CAttachmentBONE& rCAttachment = *((CAttachmentBONE*)pIAttachment);
 		if (rCAttachment.m_AttFlags & (FLAGS_ATTACH_NO_BBOX_INFLUENCE | FLAGS_ATTACH_HIDE_MAIN_PASS))
-			continue;
+			return;
 		IAttachmentObject* pIAttachmentObject = rCAttachment.m_pIAttachmentObject;
 		if (pIAttachmentObject == 0)
-			continue;
+			return;
 		IAttachmentObject::EType eAttachmentType = pIAttachmentObject->GetAttachmentType();
 		uint32 e = (eAttachmentType == IAttachmentObject::eAttachment_Entity);
 		uint32 c = (eAttachmentType == IAttachmentObject::eAttachment_Skeleton);
 		uint32 s = (eAttachmentType == IAttachmentObject::eAttachment_StatObj);
 		uint32 res = (e | c | s);
 		if (res == 0)
-			continue;
+			return;
 
 		AABB aabb = pIAttachmentObject->GetAABB();
 
@@ -317,7 +311,7 @@ void CSkeletonPose::UpdateBBox(uint32 update)
 		rAABB.Add(taabb.max);
 		//float fColor[4] = {0,1,0,1};
 		//g_pAuxGeom->Draw2dLabel( 1,g_YLine, 1.3f, fColor, false,"BBox Update:  %s",pAttName),g_YLine+=16.0f;
-	}
+	});
 
 #if BBOX_ERROR_CHECKING
 	if (rAABB.max.x < rAABB.min.x) nErrorCode = 0x0001;

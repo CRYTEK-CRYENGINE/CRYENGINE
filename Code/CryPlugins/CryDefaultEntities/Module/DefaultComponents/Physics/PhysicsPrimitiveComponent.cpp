@@ -91,10 +91,9 @@ namespace Cry
 					}
 				}
 
-				Matrix34 slotTransform = m_pTransform->ToMatrix34();
-				pGeomParams->pos = slotTransform.GetTranslation();
-				pGeomParams->q = Quat(slotTransform);
-				pGeomParams->scale = slotTransform.GetUniformScale();
+				pGeomParams->pos = GetTransform()->GetTranslation();
+				pGeomParams->q = GetTransform()->GetRotation().ToQuat();
+				pGeomParams->scale = GetTransform()->GetScale().x;
 
 				if (!m_bReactToCollisions)
 				{

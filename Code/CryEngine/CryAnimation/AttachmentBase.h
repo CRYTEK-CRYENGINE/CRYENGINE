@@ -18,6 +18,9 @@ struct SAttachmentBase : public IAttachment
 	{
 	}
 
+	virtual void AddRef() = 0;
+	virtual void Release() = 0;
+
 	// these functions will queue commands in the attachment manager
 	// and they are exposed in the interface, since they are safe
 	// to call from the main thread at any time

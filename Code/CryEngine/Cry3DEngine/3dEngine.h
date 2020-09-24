@@ -1032,7 +1032,7 @@ public:
 	IStatObj*                        CreateStatObj();
 	virtual IStatObj*                CreateStatObjOptionalIndexedMesh(bool createIndexedMesh);
 
-	IStatObj*                        UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdate* pLastUpdate = 0, IFoliage* pSrcFoliage = 0);
+	IStatObj*                        UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdate* pLastUpdate = 0, IFoliage* pSrcFoliage = 0, IMaterial* pMtlOverride = nullptr);
 
 	// Creates a new indexed mesh.
 	IIndexedMesh*                 CreateIndexedMesh();

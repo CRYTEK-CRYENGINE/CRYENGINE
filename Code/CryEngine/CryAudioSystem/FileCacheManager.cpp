@@ -596,15 +596,12 @@ void CFileCacheManager::TryToUncacheFiles()
 ///////////////////////////////////////////////////////////////////////////
 void CFileCacheManager::UpdateLocalizedFileData(CFile* const pFile)
 {
-	static Impl::SFileInfo fileInfo;
-	fileInfo.isLocalized = true;
-	fileInfo.size = 0;
-	fileInfo.pFileData = nullptr;
-	fileInfo.memoryBlockAlignment = 0;
+	CryFixedStringT<MaxFileNameLength> fileName(PathUtil::GetFile(pFile->m_path.c_str()));
 
-	fileInfo.pImplData = pFile->m_pImplData;
-	cry_strcpy(fileInfo.fileName, PathUtil::GetFile(pFile->m_path.c_str()));
-	cry_strcpy(fileInfo.filePath, pFile->m_path.c_str());
+	pFile->m_path = g_pIImpl->GetFileLocation(pFile->m_pImplData);
+	pFile->m_path += "/";
+	pFile->m_path += fileName.c_str();
+	pFile->m_path.MakeLower();
 
 	pFile->m_size = gEnv->pCryPak->FGetSize(pFile->m_path.c_str());
 	CRY_ASSERT(pFile->m_size > 0);

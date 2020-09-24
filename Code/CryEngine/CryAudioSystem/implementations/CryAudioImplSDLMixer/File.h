@@ -22,17 +22,20 @@ public:
 	CFile& operator=(CFile const&) = delete;
 	CFile& operator=(CFile&&) = delete;
 
-	explicit CFile(SampleId const id)
+	explicit CFile(SampleId const id, char const* const szPath)
 		: m_id(id)
+		, m_path(szPath)
 	{}
 
 	virtual ~CFile() override = default;
 
-	SampleId GetSampleId() const { return m_id; }
+	SampleId    GetSampleId() const { return m_id; }
+	char const* GetPath() const     { return m_path.c_str(); }
 
 private:
 
-	SampleId const m_id;
+	SampleId const                           m_id;
+	CryFixedStringT<MaxFilePathLength> const m_path;
 };
 } // namespace SDL_mixer
 } // namespace Impl

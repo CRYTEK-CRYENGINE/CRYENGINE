@@ -3423,6 +3423,8 @@ enum class EMouseWheelOrigin
 bool CSystem::HandleMessage(CRY_HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT* pResult)
 {
 	static bool sbInSizingModalLoop;
+	static WPARAM lastWindowMode = -1;
+
 	int x = GET_X_LPARAM(lParam);
 	int y = GET_Y_LPARAM(lParam);
 	EHARDWAREMOUSEEVENT event = (EHARDWAREMOUSEEVENT)-1;
@@ -3431,34 +3433,38 @@ bool CSystem::HandleMessage(CRY_HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 	switch (uMsg)
 	{
-	// System event translation
+		// System event translation
 	case WM_CLOSE:
 		Quit();
 		return false;
 	case WM_WINDOWPOSCHANGED:
 	{
 		wpos = (LPWINDOWPOS)lParam;
-
-		// Process position and size changes through this event message, as  unprocessed WM_WINDOWPOSCHANGED 
-		// messages are then translated by DefWindowProc to WM_SIZE and WM_MOVE events anyway.
-		// Check the window is moved or resized. Separate checks are intentional, as both events can occur from the a single ::SetWindowPos call
-		if (!(wpos->flags & SWP_NOMOVE))
+		if (!(wpos->flags & (SWP_NOMOVE | SWP_NOSIZE)))
 		{
-			// If a MOVE is detected (logic inversion intended, the flag NOMOVE must NOT be set) send a MOVE event (top-left location as params)
-			GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_MOVE, wpos->x, wpos->y);
+			if (!(wpos->flags & SWP_NOMOVE))
+			{
+				// If a MOVE is detected (logic inversion intended, the flag NONOMOVE must NOT be set) send a MOVE event (top-left location as params)
+				GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_MOVE, wpos->x, wpos->y);
+				return false;
+			}
+			// Don't check here for SWP_NOSIZE, return true to DefWndProc, which will generate a WM_SIZE event if required
 		}
-		if (!(wpos->flags & SWP_NOSIZE))
-		{
-			// If a SIZE is detected (logic inversion intended; the flag NOSIZE must NOT be set) send a SIZE event (dimensions as params)
-			GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_RESIZE, wpos->cx, wpos->cy);
-		}
-		// Neither: send a POS_CHANGED with the params (details/flags are in the struct (WindowPos*)lParam flags member)
-		if ((wpos->flags & SWP_NOSIZE) && (wpos->flags & SWP_NOMOVE))
-		{
-			GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_POS_CHANGED, wParam, lParam);
-		}
+		return true;
 	}
-		return false;
+	case WM_SIZE:
+	{
+		const bool isBeingRestoredDown = (wParam == SIZE_RESTORED && lastWindowMode == SIZE_MAXIMIZED);
+		const bool isBeingMaximized = (wParam == SIZE_MAXIMIZED);
+
+		if (!sbInSizingModalLoop || isBeingMaximized || isBeingRestoredDown)
+		{
+			GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_RESIZE, LOWORD(lParam), HIWORD(lParam));
+		}
+
+		lastWindowMode = wParam;
+		return true;
+	}
 	case WM_STYLECHANGED:
 		GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_STYLE_CHANGED, 1, 0);
 		return false;
@@ -3487,21 +3493,19 @@ bool CSystem::HandleMessage(CRY_HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 		const bool bAltPressed = ((lParam >> 29 & 0x1) != 0);
 		if (bAltPressed)
 		{
+			ICVar* cvWinType = gEnv->pConsole->GetCVar("r_WindowType");
+			const bool isFullScreen = (cvWinType != nullptr && cvWinType->GetIVal() == 3);
+
 			// ALT + Enter to go exclusive fullscreen
 			if (wParam == VK_RETURN)
 			{
-				// Check "r_WindowType" cvar value (0=Windowed 3=exclusive fullscreen)
-				ICVar* CVWtype = gEnv->pConsole->GetCVar("r_WindowType");
-				const bool bIsCurrentlyFS = (CVWtype != nullptr &&  CVWtype->GetIVal() == 3);
-				// Toggle the value (the cvar will be tied to a callback in the renderer to make changes)
-				CVWtype->Set((bIsCurrentlyFS ? 0 : 3));
-				// Broadcast sysevent (param1 = is fullscreen, param2 = not used)
-				GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_TOGGLE_FULLSCREEN, (bIsCurrentlyFS ? 0 : 1), 0);
+				cvWinType->Set((isFullScreen) ? 0 : 3);
+				GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_TOGGLE_FULLSCREEN, (isFullScreen ? 0 : 1), 0);
 			}
 			// Tell Windows the message is handled
-			*pResult = 0;
-			return true;
 		}
+		*pResult = 0;
+		return true;
 	}
 	break;
 	case WM_SYSCOMMAND:
@@ -3539,21 +3543,26 @@ bool CSystem::HandleMessage(CRY_HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 	// So in this case, we effectively treat WM_CAPTURECHANGED as if it was the WM_EXITSIZEMOVE message.
 	// This behavior has only been reproduced the window is deactivated during the modal loop (ie, breakpoint triggered and focus moves to VS).
 	case WM_EXITSIZEMOVE:
+	{
 		if (!sbInSizingModalLoop)
 		{
 			return false;
 		}
 		sbInSizingModalLoop = false;
-	// Fall through intended
+
+		RECT clientRct = { 0, 0, 0, 0 };
+		::GetClientRect(static_cast<HWND>(hWnd), &clientRct);
+		GetISystemEventDispatcher()->OnSystemEvent(ESYSTEM_EVENT_RESIZE, (clientRct.right - clientRct.left), (clientRct.bottom - clientRct.top));
+	}
 	case WM_EXITMENULOOP:
+	{
+		IHardwareMouse* const pMouse = GetIHardwareMouse();
+		if (pMouse)
 		{
-			IHardwareMouse* const pMouse = GetIHardwareMouse();
-			if (pMouse)
-			{
-				pMouse->DecrementCounter();
-			}
+			pMouse->DecrementCounter();
 		}
-		return (uMsg != WM_CAPTURECHANGED);
+	}
+	return (uMsg != WM_CAPTURECHANGED);
 	// Events that should be forwarded to the hardware mouse
 	case WM_MOUSEMOVE:
 		event = HARDWAREMOUSEEVENT_MOVE;

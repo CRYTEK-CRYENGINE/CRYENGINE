@@ -5234,7 +5234,7 @@ protected:
 SERIALIZATION_ENUM_BEGIN_NESTED(Move, DestinationType, "Destination Type")
 SERIALIZATION_ENUM(Move::DestinationType::Target, "target", "Target")
 SERIALIZATION_ENUM(Move::DestinationType::Cover, "cover", "Cover")
-SERIALIZATION_ENUM(Move::DestinationType::ReferencePoint, "reference_point", "ReferencePoint")
+SERIALIZATION_ENUM(Move::DestinationType::ReferencePoint, "reference_point", "RefPoint")
 SERIALIZATION_ENUM(Move::DestinationType::LastOp, "last_op", "LastOp")
 SERIALIZATION_ENUM(Move::DestinationType::InitialPosition, "target", "InitialPosition")
 SERIALIZATION_ENUM_END()

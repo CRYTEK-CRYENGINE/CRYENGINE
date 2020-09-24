@@ -39,35 +39,48 @@ void CThrusterComponent::ApplySingleThrust(float thrust)
 		pe_action_impulse actionImpulse;
 		actionImpulse.impulse = worldTransform.GetColumn2() * thrust;
 		actionImpulse.point = worldTransform.GetTranslation();
-		pPhysicalEntity->Action(&actionImpulse);
+		pPhysicalEntity->Action(&actionImpulse, 1);
 	}
 }
 
 void CThrusterComponent::Initialize()
 {
 	m_bConstantThrustActive = m_bEnableConstantThrustByDefault;
+	RequestPoststep();
+}
+
+void CThrusterComponent::RequestPoststep()
+{
+	if (m_pEntity->GetPhysicalEntity())
+	{
+		pe_params_flags pf;
+		pf.flagsOR = pef_monitor_poststep;
+		m_pEntity->GetPhysicalEntity()->SetParams(&pf);
+	}
 }
 
 void CThrusterComponent::ProcessEvent(const SEntityEvent& event)
 {
-	if (event.event == ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED)
+	switch (event.event)
 	{
-		m_bConstantThrustActive = m_bEnableConstantThrustByDefault;
-
-		m_pEntity->UpdateComponentEventMask(this);
-	}
-	else if (event.event == ENTITY_EVENT_PREPHYSICSUPDATE)
-	{
-		ApplySingleThrust(m_constantThrust * event.fParam[0]);
+		case ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED:
+			m_bConstantThrustActive = m_bEnableConstantThrustByDefault;
+			m_pEntity->UpdateComponentEventMask(this);
+		case ENTITY_EVENT_PHYSICAL_TYPE_CHANGED:
+			RequestPoststep();
+			break;
+		case ENTITY_EVENT_PHYS_POSTSTEP:
+			ApplySingleThrust(m_constantThrust * event.fParam[0]);
+			break;
 	}
 }
 
 Cry::Entity::EventFlags CThrusterComponent::GetEventMask() const
 {
-	Cry::Entity::EventFlags bitFlags = ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED;
+	Cry::Entity::EventFlags bitFlags = ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED | ENTITY_EVENT_PHYSICAL_TYPE_CHANGED;
 	if (m_bConstantThrustActive)
 	{
-		bitFlags |= ENTITY_EVENT_PREPHYSICSUPDATE;
+		bitFlags |= ENTITY_EVENT_PHYS_POSTSTEP;
 	}
 
 	return bitFlags;

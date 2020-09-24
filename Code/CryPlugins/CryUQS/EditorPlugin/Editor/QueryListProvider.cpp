@@ -99,7 +99,6 @@ CQueryListProvider::CQueryListProvider(CUqsEditorContext& editorContext)
 
 CQueryListProvider::~CQueryListProvider()
 {
-	RemoveAllNeverSavedQueries();
 }
 
 struct SListQueriesVisitor : public UQS::DataSource::IEditorLibraryProvider::IListQueriesVisitor
@@ -367,7 +366,7 @@ void CQueryListProvider::ActionDeleteQuery(Explorer::ActionContext& x)
 	}
 }
 
-void CQueryListProvider::RemoveAllNeverSavedQueries()
+void CQueryListProvider::RemoveUnsavedQueries()
 {
 	const size_t queriesCount = m_queries.Count();
 	for (size_t idx = 0; idx < queriesCount; ++idx)

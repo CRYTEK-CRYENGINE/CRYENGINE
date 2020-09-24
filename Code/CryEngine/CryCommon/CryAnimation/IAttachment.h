@@ -430,9 +430,6 @@ struct IAttachment
 {
 	// <interfuscator:shuffle>
 
-	virtual void        AddRef() = 0;
-	virtual void        Release() = 0;
-
 	virtual const char* GetName() const = 0;
 	virtual uint32      GetNameCRC() const = 0;
 	virtual uint32      ReName(const char* szSocketName, uint32 crc) = 0;

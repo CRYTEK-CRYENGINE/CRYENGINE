@@ -157,15 +157,15 @@ private:
 
 	struct SLocator
 	{
-		uint32                  m_refID;
-		CString                 m_name;
-		CArcBall3D              m_ArcBall;
-		CAxisHelper             m_AxisHelper;
-		IEntity*                m_pEntity;
-		_smart_ptr<IAttachment> m_pAttachment;
-		string                  m_helperName;
-		int16                   m_jointId;
-		uint32                  m_paramCRC;
+		uint32       m_refID;
+		CString      m_name;
+		CArcBall3D   m_ArcBall;
+		CAxisHelper  m_AxisHelper;
+		IEntity*     m_pEntity;
+		IAttachment* m_pAttachment;
+		string       m_helperName;
+		int16        m_jointId;
+		uint32       m_paramCRC;
 	};
 
 	inline Matrix34 GetLocatorReferenceMatrix(const SLocator& locator);

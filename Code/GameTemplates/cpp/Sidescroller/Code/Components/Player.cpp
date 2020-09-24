@@ -42,7 +42,7 @@ void CPlayerComponent::Initialize()
 	m_pAnimationComponent->SetDefaultFragmentName("Idle");
 
 	// Disable movement coming from the animation (root joint offset), we control this entirely via physics
-	m_pAnimationComponent->SetAnimationDrivenMotion(false);
+	m_pAnimationComponent->SetAnimationDrivenMotion(true);
 
 	// Load the character and Mannequin data from file
 	m_pAnimationComponent->LoadFromDisk();

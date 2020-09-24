@@ -49,21 +49,6 @@ macro(add_optional_runtime_files)
 		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/CrashRpt/1403/bin/x86/CrashSender1403.exe")
 	endif()
 
-	if (PLUGIN_VR_OCULUS OR AUDIO_OCULUS_HRTF)
-		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/audio/oculus/wwise/x64/bin/plugins/OculusSpatializerWwise.dll")
-		set (BinaryFileList_Win32 ${BinaryFileList_Win32} "${SDK_DIR}/audio/oculus/wwise/Win32/bin/plugins/OculusSpatializerWwise.dll")
-	endif()
-
-	if (AUDIO_CRYSPATIAL)
-		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/audio/cryspatial/x64/CrySpatial.dll")
-		set (BinaryFileList_Durango  ${BinaryFileList_Durango} "${SDK_DIR}/audio/cryspatial/xboxone/CrySpatial.dll")
-	endif()
-
-	if (AUDIO_CRYSPATIAL)
-		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/audio/cryspatial/x64/CrySpatial.dll")
-		set (BinaryFileList_Durango  ${BinaryFileList_Durango} "${SDK_DIR}/audio/cryspatial/xboxone/CrySpatial.dll")
-	endif()
-
 	if (PLUGIN_VR_OPENVR)
 		set (BinaryFileList_Win64 ${BinaryFileList_Win64} "${SDK_DIR}/OpenVR/bin/win64/*.*")
 	endif()

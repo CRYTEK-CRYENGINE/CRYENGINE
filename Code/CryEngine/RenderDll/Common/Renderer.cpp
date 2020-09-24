@@ -4649,6 +4649,7 @@ SSkinningData* CRenderer::EF_CreateSkinningData(IRenderView* pRenderView, uint32
 	pSkinningRenderData->pPreviousSkinningRenderData = NULL;
 	pSkinningRenderData->pCharInstCB                 = FX_AllocateCharInstCB(pSkinningRenderData, m_nPoolIndex);
 	pSkinningRenderData->remapGUID                   = ~0u;
+	pSkinningRenderData->isSimulation                = false;
 	pSkinningRenderData->vecAdditionalOffset.zero();
 
 	pSkinningRenderData->pNextSkinningData       = NULL;
@@ -4723,6 +4724,18 @@ void CRenderer::ClearSkinningDataPool()
 	m_computeSkinningData[m_nPoolIndex % m_computeSkinningData.size()].resize(0);
 
 	FX_ClearCharInstCB(m_nPoolIndex);
+}
+
+void CRenderer::EnqueueSkinningSimulationJob(JobManager::SJobState* pJob)
+{
+	const int currentPoolIndex = m_nPoolIndex % CRY_ARRAY_COUNT(m_SkinningDataPool);
+	m_SkinningDataPool[currentPoolIndex].EnqueueSkinningSimulationJob(pJob);
+}
+
+void CRenderer::WaitAndClearSkinningSimulationJobs()
+{
+	const int currentPoolIndex = m_nPoolIndex % CRY_ARRAY_COUNT(m_SkinningDataPool);
+	m_SkinningDataPool[currentPoolIndex].WaitAndClearSkinningSimulationJobs();
 }
 
 SSkinningDataPoolInfo CRenderer::GetSkinningDataPools()
@@ -5326,4 +5339,29 @@ CRenderObject* CRenderer::EF_DuplicateRO(CRenderObject* pSrc, const SRenderingPa
 gpu_pfx2::IManager* CRenderer::GetGpuParticleManager()
 {
 	return m_pGpuParticleManager;
+}
+
+void CSkinningDataPool::EnqueueSkinningSimulationJob(JobManager::SJobState* pJob)
+{
+	m_skinningSimulationJobsCritical.Lock();
+	m_skinningSimulationJobs.push_back(pJob);
+	m_skinningSimulationJobsCritical.Unlock();
+}
+
+void CSkinningDataPool::WaitAndClearSkinningSimulationJobs()
+{
+	m_skinningSimulationJobsCritical.Lock();
+	if (m_skinningSimulationJobs.size() > 0)
+	{
+		for (auto& it : m_skinningSimulationJobs)
+		{
+			if (it)
+			{
+				gEnv->pJobManager->WaitForJob(*it);
+				it = nullptr;
+			}
+		}
+	}
+	m_skinningSimulationJobs.clear();
+	m_skinningSimulationJobsCritical.Unlock();
 }

@@ -461,9 +461,9 @@ static int InjectVertices(CMesh* pMesh, int nNewVtx, SMeshBoneMapping_uint8*& pB
 	return nVtx0;
 }
 
-IStatObj* C3DEngine::UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdate* pLastUpdate, IFoliage* pSrcFoliage)
+IStatObj* C3DEngine::UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdate* pLastUpdate, IFoliage* pSrcFoliage, IMaterial* pMtlOverride)
 {
-	int i, j, j1, itri, iop, itriOrg, ivtx, ivtxNew, nTris0, nVtx0, iSubsetB = 0, nNewVtx, nNewPhysVtx, ivtxRef, bEmptyObj, ibox;
+	int i, j, j1, itri, iop, itriOrg, ivtx, ivtxNew, nTris0, nVtx0, iSubsetB = 0, nNewVtx, nNewPhysVtx, ivtxRef, bEmptyObj, ibox, bSubtract = 1;
 	int* pIdx2iTri, * piTri2Idx, * pSubsets, * pSubsets0, * pVtxWeld;
 	int bHasColors[2] = { 0, 0 };
 	vtx_idx* pIdx0, * pIdx;
@@ -522,6 +522,7 @@ IStatObj* C3DEngine::UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdat
 		(pStatObj[0] = CreateStatObj());//->AddRef();
 		pStatObj[0]->SetFlags(STATIC_OBJECT_CLONE | STATIC_OBJECT_GENERATED);
 		((CStatObj*)pStatObj[0])->m_bTmpIndexedMesh = true;
+		bSubtract = 0;
 	}
 	else if (!(pStatObj[0]->GetFlags() & STATIC_OBJECT_CLONE))
 	{
@@ -613,7 +614,7 @@ IStatObj* C3DEngine::UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdat
 	for (i = 0; i < (int)pMesh[0]->m_subsets.size(); i++)
 		for (j = pMesh[0]->m_subsets[i].nFirstIndexId / 3; j*3 < pMesh[0]->m_subsets[i].nFirstIndexId + pMesh[0]->m_subsets[i].nNumIndices; j++)
 			pSubsets[j] = i + (0x1000 & ~-iszero(pMesh[0]->m_subsets[i].nPhysicalizeType - PHYS_GEOM_TYPE_DEFAULT));
-	pMaterial[0] = pStatObj[0]->GetMaterial();
+	pMaterial[0] = pMtlOverride ? pMtlOverride : pStatObj[0]->GetMaterial();
 
 	for (pmu = pmu0; pmu; pmu = pmu->next)
 	{
@@ -876,7 +877,7 @@ IStatObj* C3DEngine::UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdat
 							pmu->pNewVtx[ivtxNew].idxTri[iop] = -(ivtx + 1);
 
 						Quat qrot = Quat(IDENTITY) * (1.0f - iop) + pmu->relRot * (float)iop;
-						int flip = 1 - (iop & isneg(-pmu->relScale)) * 2;
+						int flip = 1 - (iop & bSubtract & isneg(-pmu->relScale)) * 2;
 
 						pTexCoord[0][ivtx] = SMeshTexCoord(Coord);
 						pTangents[0][ivtx] = SMeshTangents(qrot * Tangent, qrot * Bitangent, NormalFlip * (int16)flip);
@@ -1460,7 +1461,7 @@ static inline float qmax(float op1, float op2) { return (op1 + op2 + fabsf(op1 -
 
 static int __s_pvtx_map_dummy = 0;
 
-void SyncToRenderMesh(SSyncToRenderMeshContext* ctx, volatile int* updateState)
+void SyncToRenderMesh(SSyncToRenderMeshContext* ctx)
 {
 	IGeometry* pPhysGeom = ctx->pObj->GetPhysGeom() ? ctx->pObj->GetPhysGeom()->pGeom : 0;
 	if (pPhysGeom)
@@ -1469,14 +1470,7 @@ void SyncToRenderMesh(SSyncToRenderMeshContext* ctx, volatile int* updateState)
 		IStatObj* pObjSrc = (IStatObj*)pPhysGeom->GetForeignData(0);
 		if (pPhysGeom->GetForeignData(DATA_MESHUPDATE) || !ctx->pObj->m_hasClothTangentsData || pObjSrc != ctx->pObj && pObjSrc != ctx->pObj->GetCloneSourceObject())
 		{
-			// skip all updates if the mesh was altered
-			if (updateState)
-				CryInterlockedDecrement(updateState);
 			pPhysGeom->Unlock(0);
-
-			if (ctx->pObj->m_hasClothTangentsData && ctx->pObj->m_pClothTangentsData)
-				ctx->mesh->UnlockStream(VSF_TANGENTS);
-			ctx->mesh->UnlockStream(VSF_GENERAL);
 			return;
 		}
 	}
@@ -1487,9 +1481,13 @@ void SyncToRenderMesh(SSyncToRenderMeshContext* ctx, volatile int* updateState)
 	strided_pointer<Vec3> pVtx = ctx->pVtx;
 	int* pVtxMap = (mask == ~0) ? &__s_pvtx_map_dummy : ctx->pVtxMap;
 	float rscale = ctx->rscale;
+	ctx->mesh->LockForThreadAccess();
 	SClothTangentVtx* ctd = ctx->ctd;
-	strided_pointer<Vec3> pMeshVtx = ctx->pMeshVtx;
-	strided_pointer<SPipTangents> pTangents = ctx->pTangents;
+	strided_pointer<Vec3> pMeshVtx;
+	pMeshVtx.data = (Vec3*)ctx->mesh->GetPosPtr(pMeshVtx.iStride, FSL_SYSTEM_UPDATE);
+	strided_pointer<SPipTangents> pTangents;
+	if (ctx->pObj->m_hasClothTangentsData && ctx->pObj->m_pClothTangentsData)
+		pTangents.data = (SPipTangents*)ctx->mesh->GetTangentPtr(pTangents.iStride, FSL_SYSTEM_UPDATE);
 	strided_pointer<Vec3> pNormals = ctx->pNormals;
 
 	AABB bbox;
@@ -1532,14 +1530,13 @@ void SyncToRenderMesh(SSyncToRenderMeshContext* ctx, volatile int* updateState)
 		}
 	}
 
-	if (updateState)
-		CryInterlockedDecrement(updateState);
 	if (pPhysGeom)
 		pPhysGeom->Unlock(0);
 
 	if (ctx->pObj->m_hasClothTangentsData && ctx->pObj->m_pClothTangentsData)
 		ctx->mesh->UnlockStream(VSF_TANGENTS);
 	ctx->mesh->UnlockStream(VSF_GENERAL);
+	ctx->mesh->UnLockForThreadAccess();
 }
 
 DECLARE_JOB(
@@ -1547,9 +1544,9 @@ DECLARE_JOB(
   , TStatObj_SyncToRenderMesh
   , SyncToRenderMesh);
 
-void SkinVertices(SSyncToRenderMeshContext* ctx, volatile int* ready)
+void SkinVertices(SSyncToRenderMeshContext* ctx)
 {
-	ctx->pObj->SkinVertices(ctx->pVtx, Matrix34(IDENTITY), ready);
+	ctx->pObj->SkinVertices(ctx->pVtx, Matrix34(IDENTITY));
 }
 
 DECLARE_JOB(
@@ -1562,8 +1559,6 @@ IStatObj* CStatObj::UpdateVertices(strided_pointer<Vec3> pVtx, strided_pointer<V
 	CStatObj* pObj = this;
 	if (m_pRenderMesh)
 	{
-		strided_pointer<Vec3> pMeshVtx;
-		strided_pointer<SPipTangents> pTangents;
 		int i, j, mask = 0, dummy = 0, nVtxFull;
 		if (!pVtxMap)
 			pVtxMap = &dummy, mask = ~0;
@@ -1580,6 +1575,7 @@ IStatObj* CStatObj::UpdateVertices(strided_pointer<Vec3> pVtx, strided_pointer<V
 			memset(m_pClothTangentsData, 0, sizeof(SClothTangentVtx) * nVtxFull);
 			mesh_data* pmd = (mesh_data*)GetPhysGeom()->pGeom->GetData();
 			m_pRenderMesh->LockForThreadAccess();
+			strided_pointer<SPipTangents> pTangents;
 			pTangents.data = (SPipTangents*)m_pRenderMesh->GetTangentPtr(pTangents.iStride, FSL_READ);
 			for (i = 0; i < pmd->nTris; i++)
 				for (j = 0; j < 3; j++)
@@ -1665,11 +1661,9 @@ IStatObj* CStatObj::UpdateVertices(strided_pointer<Vec3> pVtx, strided_pointer<V
 			{
 				if (GetCVars()->e_RenderMeshUpdateAsync)
 				{
-					IRenderMesh* mesh = pObj->m_pRenderMesh;
-					mesh->LockForThreadAccess();
 					m_pAsyncUpdateContext->pObj = pObj;
 					m_pAsyncUpdateContext->pVtx = pVtx;
-					TStatObj_SkinVertices job(m_pAsyncUpdateContext, mesh->SetAsyncUpdateState());
+					TStatObj_SkinVertices job(m_pAsyncUpdateContext);
 					job.RegisterJobState(&m_pAsyncUpdateContext->jobState);
 					job.Run();
 				}
@@ -1684,29 +1678,19 @@ IStatObj* CStatObj::UpdateVertices(strided_pointer<Vec3> pVtx, strided_pointer<V
 		if (!pVtx)
 			return pObj;
 
-		IRenderMesh* mesh = pObj->m_pRenderMesh;
-		mesh->LockForThreadAccess();
-		pMeshVtx.data = (Vec3*)((mesh = pObj->m_pRenderMesh)->GetPosPtr(pMeshVtx.iStride, FSL_SYSTEM_UPDATE));
-		if (m_hasClothTangentsData && m_pClothTangentsData)
-		{
-			pTangents.data = (SPipTangents*)mesh->GetTangentPtr(pTangents.iStride, FSL_SYSTEM_UPDATE);
-		}
-
 		m_pAsyncUpdateContext->Set(&pObj->m_AABB.min, &pObj->m_AABB.max, iVtx0, nVtx, pVtx, pVtxMap, mask, rscale
-		                           , m_pClothTangentsData, pMeshVtx, pTangents, pNormals, pObj, mesh);
+		                           , m_pClothTangentsData, nullptr, nullptr, pNormals, pObj, pObj->m_pRenderMesh);
 
 		if (GetCVars()->e_RenderMeshUpdateAsync)
 		{
-			TStatObj_SyncToRenderMesh job(m_pAsyncUpdateContext, mesh->SetAsyncUpdateState());
+			TStatObj_SyncToRenderMesh job(m_pAsyncUpdateContext);
 			job.RegisterJobState(&m_pAsyncUpdateContext->jobState);
 			job.Run();
 		}
 		else
 		{
-			SyncToRenderMesh(m_pAsyncUpdateContext, NULL);
+			SyncToRenderMesh(m_pAsyncUpdateContext);
 		}
-
-		mesh->UnLockForThreadAccess();
 	}
 	return pObj;
 }

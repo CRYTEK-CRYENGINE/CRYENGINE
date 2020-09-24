@@ -126,6 +126,9 @@ void CStaticMeshComponent::ProcessEvent(const SEntityEvent& event)
 		}
 	}
 
+	if (event.event == ENTITY_EVENT_SLOT_CHANGED && m_pEntity->GetStatObj((int)event.nParam[0]) != m_pCachedStatObj)
+		return; // if someone else changes the object, don't attemt to re-apply ours
+
 	CBaseMeshComponent::ProcessEvent(event);
 }
 

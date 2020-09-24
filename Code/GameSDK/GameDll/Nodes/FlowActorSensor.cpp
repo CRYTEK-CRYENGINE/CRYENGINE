@@ -1112,10 +1112,10 @@ public:
 
 		observerParams.callback = functor(*this, &CFlowNode_ActorVisualDetector::CallBackViewChanged);
 
-		observerParams.typeMask = Player;
+		observerParams.typesToObserveMask = Player;
 		EntityId entityToLookFor = GetPortEntityId(&m_actInfo, INP_ENTITY_TO_LOOK_FOR);
 		if (entityToLookFor != gEnv->pGameFramework->GetClientActor()->GetEntityId())
-			observerParams.typeMask |= AliveAgent | General;
+			observerParams.typesToObserveMask |= AliveAgent | General;
 
 		observerParams.skipList[0] = pObserverEntity->GetPhysics();
 		observerParams.skipListSize = pObserverEntity->GetPhysics() ? 1 : 0;

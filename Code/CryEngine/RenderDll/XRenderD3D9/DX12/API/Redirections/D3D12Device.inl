@@ -29,23 +29,23 @@ struct Handable
 	//	typedef UINT64 D3D12_CPU_DELTA_ADDRESS[numTargets];
 	//	typedef UINT64 D3D12_GPU_DELTA_ADDRESS[numTargets];
 
-	typedef struct
+	struct D3D12_GPU_DELTA_ADDRESS
 	{
 		UINT64  m_Deltas[numTargets];
 		UINT64& operator[](int i)
 		{
 			return m_Deltas[i];
 		}
-	} D3D12_GPU_DELTA_ADDRESS;
+	};
 
-	typedef struct
+	struct D3D12_CPU_DELTA_ADDRESS
 	{
 		UINT64  m_Deltas[numTargets];
 		UINT64& operator[](int i)
 		{
 			return m_Deltas[i];
 		}
-	} D3D12_CPU_DELTA_ADDRESS;
+	};
 
 	static UINT32                               m_HighHandle;
 	static std::vector<T>                       m_AddressTableLookUp;

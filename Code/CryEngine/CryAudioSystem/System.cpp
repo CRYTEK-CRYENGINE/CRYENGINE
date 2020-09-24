@@ -2293,7 +2293,7 @@ ERequestStatus CSystem::ProcessSystemRequest(CRequest const& request)
 		}
 	case ESystemRequestType::SetParameterGlobally:
 		{
-			auto const pRequestData = static_cast<SSystemRequestData<ESystemRequestType::SetParameter> const*>(request.GetData());
+			auto const pRequestData = static_cast<SSystemRequestData<ESystemRequestType::SetParameterGlobally> const*>(request.GetData());
 
 			CParameter const* const pParameter = stl::find_in_map(g_parameterLookup, pRequestData->parameterId, nullptr);
 
@@ -2326,7 +2326,7 @@ ERequestStatus CSystem::ProcessSystemRequest(CRequest const& request)
 		}
 	case ESystemRequestType::SetSwitchStateGlobally:
 		{
-			auto const pRequestData = static_cast<SSystemRequestData<ESystemRequestType::SetSwitchState> const*>(request.GetData());
+			auto const pRequestData = static_cast<SSystemRequestData<ESystemRequestType::SetSwitchStateGlobally> const*>(request.GetData());
 
 			CSwitch const* const pSwitch = stl::find_in_map(g_switchLookup, pRequestData->switchId, nullptr);
 
@@ -4405,7 +4405,11 @@ void CSystem::HandleDrawDebug()
 
 			CryModuleMemoryInfo memInfo;
 			ZeroStruct(memInfo);
+
+	#if !defined(_LIB)
+			// This works differently in monolithic builds and therefore doesn't cater to our needs.
 			CryGetMemoryInfoForModule(&memInfo);
+	#endif // _LIB
 
 			CryFixedStringT<Debug::MaxMemInfoStringLength> memAllocSizeString;
 			auto const memAllocSize = static_cast<size_t>(memInfo.allocated - memInfo.freed);

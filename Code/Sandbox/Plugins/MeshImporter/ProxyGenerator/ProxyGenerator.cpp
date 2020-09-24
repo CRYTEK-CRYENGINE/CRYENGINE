@@ -236,6 +236,7 @@ void CProxyGenerator::GenerateProxies(SPhysProxies* pProx, std::vector<phys_geom
 		m_hitShift = 0;
 		signalProxyIslandsChanged(pProx);
 	}
+	m_voxelsShown = false;
 }
 
 void CProxyGenerator::ResetProxies(SPhysProxies* pProx)
@@ -325,7 +326,8 @@ void CProxyGenerator::Render(SPhysProxies* pProx, phys_geometry* pProxyGeom, con
 	{
 		pProx->pSrc->pMesh->DrawWireframe(pPhysRnd, 0, -1, 6);
 	}
-	pdist ? (pdist->Set(dist0), 0) : 0;
+	m_voxelsShown = showParams.bShowVoxels;
+	if (pdist) pdist->Set(dist0);
 	return;
 }
 
@@ -407,7 +409,7 @@ void CProxyGenerator::OnMouse(SPhysProxies* pProx, const SMouseEvent& ev, const 
 					signalProxyIslandsChanged(pProx);
 				}
 			}
-			else if (ev.type == SMouseEvent::TYPE_PRESS && ev.button == 1)
+			else if (ev.type == SMouseEvent::TYPE_PRESS && ev.button == 1 && m_voxelsShown)
 			{
 				// if proxies are ready, use Lclicks to toggle individual voxels to be used as vertices in proxy meshes
 				IGeometry::SProxifyParams params = pProx->params;

@@ -25,6 +25,7 @@ public:
 	virtual int GetPotentialColliders(CPhysicalEntity **&pentlist, float dt=0);
 	virtual bool OnSweepHit(geom_contact &cnt, int icnt, float &dt, Vec3 &vel, int &nsweeps);
 	virtual void CheckAdditionalGeometry(float dt);
+	virtual void ComputeBBox(Vec3 *BBox, int flags=update_part_bboxes);
 	virtual int RegisterContacts(float dt,int nMaxPlaneContacts);
 	virtual void GetMemoryStatistics(ICrySizer *pSizer) const;
 

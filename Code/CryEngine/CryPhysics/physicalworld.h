@@ -479,7 +479,7 @@ public:
 	virtual void ResetDynamicEntities();
 	virtual void DestroyDynamicEntities();
 	virtual void PurgeDeletedEntities();
-	virtual int DeformPhysicalEntity(IPhysicalEntity *pent, const Vec3 &ptHit,const Vec3 &dirHit,float r, int flags=0);
+	virtual int DeformPhysicalEntity(IPhysicalEntity *pent, const Vec3 &ptHit,const Vec3 &dirHit,float r, int flags=0, const Vec3& dirUp=Vec3(ZERO));
 	virtual void UpdateDeformingEntities(float time_interval);
 	virtual int GetEntityCount(int iEntType) { return m_nTypeEnts[iEntType]; }
 	virtual int ReserveEntityCount(int nNewEnts);

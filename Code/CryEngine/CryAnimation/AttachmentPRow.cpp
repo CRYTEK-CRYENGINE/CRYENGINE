@@ -10,8 +10,6 @@
 
 void CAttachmentPROW::UpdateRow(Skeleton::CPoseData& rPoseData)
 {
-	CRY_ASSERT(m_pAttachmentManager);
-
 	if (m_nRowJointID < 0)
 		return;
 	if (m_rowparams.m_nParticlesPerRow == 0)
@@ -69,22 +67,12 @@ void CAttachmentPROW::UpdateRow(Skeleton::CPoseData& rPoseData)
 
 const QuatTS CAttachmentPROW::GetAttWorldAbsolute() const
 {
-	if (!m_pAttachmentManager)
-	{
-		return QuatTS(IDENTITY);
-	}
-
 	QuatTS rPhysLocation = m_pAttachmentManager->m_pSkelInstance->m_location;
 	return rPhysLocation;
 };
 
 uint32 CAttachmentPROW::SetJointName(const char* szJointName)
 {
-	if (!m_pAttachmentManager)
-	{
-		return 0;
-	}
-
 	m_nRowJointID = -1;
 	if (!CRY_VERIFY(szJointName))  { return 0; }
 	int nJointID = m_pAttachmentManager->m_pSkelInstance->m_pDefaultSkeleton->GetJointIDByName(szJointName);
@@ -96,18 +84,17 @@ uint32 CAttachmentPROW::SetJointName(const char* szJointName)
 	}
 	m_strRowJointName = szJointName;
 	m_nRowJointID = nJointID;
-	m_pAttachmentManager->m_TypeSortingRequired++;
+	m_pAttachmentManager->ScheduleProcessingBufferRebuild();
 	return 1;
 };
 
 void CAttachmentPROW::PostUpdateSimulationParams(bool bAttachmentSortingRequired, const char* pJointName)
 {
-	if (!m_pAttachmentManager)
+	if (bAttachmentSortingRequired)
 	{
-		return;
+		m_pAttachmentManager->ScheduleProcessingBufferRebuild();
 	}
 
-	m_pAttachmentManager->m_TypeSortingRequired += bAttachmentSortingRequired;
 	m_rowparams.PostUpdate(m_pAttachmentManager, 0);
 };
 

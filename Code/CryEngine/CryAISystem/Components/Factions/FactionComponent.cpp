@@ -47,7 +47,7 @@ void CEntityAIFactionComponent::Register(Schematyc::IEnvRegistrar& registrar)
 			auto pFunction = SCHEMATYC_MAKE_ENV_FUNCTION(&CEntityAIFactionComponent::SetFactionIdSchematyc, "504e4eee-1633-4e17-92e8-0967edb4a3ae"_cry_guid, "SetFaction");
 			pFunction->SetDescription("Sets new faction for entity");
 			pFunction->SetFlags(Schematyc::EEnvFunctionFlags::Construction);
-			pFunction->BindInput(1, 'fid', "FactionId", "New faction", Vec3(ZERO));
+			pFunction->BindInput(1, 'fid', "FactionId", "New faction", SFactionID());
 			componentScope.Register(pFunction);
 		}
 		{

@@ -97,6 +97,7 @@ public:
 	// ~IEditorNotifyListener
 
 protected:
+	void closeEvent(QCloseEvent* pEvent) override;
 	void customEvent(QEvent* event) override;
 
 private:

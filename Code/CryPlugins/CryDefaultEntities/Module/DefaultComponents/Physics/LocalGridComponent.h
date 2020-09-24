@@ -87,6 +87,7 @@ namespace Cry
 
 		protected:
 			_smart_ptr<IPhysicalEntity> m_pGrid;
+			std::vector<_smart_ptr<IPhysicalEntity>> m_physAreas;
 		};
 	}
 }

@@ -21,7 +21,7 @@ namespace SubstanceAir
 class PackageDesc;
 class GraphInstance;
 class Renderer;
-class OutputInstanceBase;
+class OutputInstance;
 }
 
 typedef  std::unordered_map<uint32 /*crc*/, SubstanceAir::PackageDesc*> PackageMap;
@@ -54,8 +54,8 @@ protected:
 
 	struct CrySubstanceCallbacks : public SubstanceAir::RenderCallbacks
 	{
-		void outputComputed(SubstanceAir::UInt runUid, size_t userData, const SubstanceAir::GraphInstance* graphInstance, SubstanceAir::OutputInstanceBase* outputInstance);
-		void outputComputed(SubstanceAir::UInt runUid, const SubstanceAir::GraphInstance* graphInstance, SubstanceAir::OutputInstanceBase* outputInstance);
+		virtual void outputComputed(SubstanceAir::UInt runUid, size_t userData, const SubstanceAir::GraphInstance* graphInstance, SubstanceAir::OutputInstance* outputInstance) override;
+		void outputComputed(SubstanceAir::UInt runUid, const SubstanceAir::GraphInstance* graphInstance, SubstanceAir::OutputInstance* outputInstance);
 	};
 
 	CSubstanceManager();

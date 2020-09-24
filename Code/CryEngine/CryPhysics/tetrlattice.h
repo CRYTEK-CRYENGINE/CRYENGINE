@@ -5,7 +5,7 @@
 #pragma once
 
 enum ltension_type { LPull,LPush,LShift,LTwist,LBend };
-enum lvtx_flags { lvtx_removed=1,lvtx_removed_new=2,lvtx_processed=4,lvtx_inext_log2=8 };
+enum lvtx_flags { lvtx_removed=1,lvtx_removed_new=2,lvtx_processed=4,lvtx_surface=8, lvtx_inext_log2=8 };
 enum ltet_flags { ltet_removed=1,ltet_removed_new=2,ltet_processed=4,ltet_inext_log2=8 };
 
 struct STetrahedron {

@@ -21,7 +21,7 @@ namespace SubstanceAir
 
 struct RenderResult;
 class GraphInstance;
-class OutputInstanceBase;
+class OutputInstance;
 
 }
 

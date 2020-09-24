@@ -1938,7 +1938,7 @@ public:
 		EOP_Fail,
 	};
 
-	virtual bool GetPortGlobalEnum(uint32 portId, IEntity* pNodeEntity, const char* szName, string& outGlobalEnum) const
+	virtual bool GetPortGlobalEnum(uint32 portId, IEntity* pNodeEntity, const char* szName, char* outGlobalEnum, size_t globalEnumMaxSize) const
 	{
 		if (EIP_CommName == portId && pNodeEntity)
 		{
@@ -1946,12 +1946,17 @@ public:
 			IAIActorProxy* pAIProxy = pAI ? pAI->GetProxy() : NULL;
 			if (pAIProxy)
 			{
+				string globalEnumName;
 				const char* szCommConfigName = pAIProxy->GetCommunicationConfigName();
-				outGlobalEnum.Format("%s_%s", szName, szCommConfigName);
-				return true;
+				globalEnumName.Format("%s_%s", szName, szCommConfigName);
+				
+				if (CRY_VERIFY(globalEnumName.length() < globalEnumMaxSize, "Resulting enum name '%s 'is longer than provided array size!", globalEnumName.c_str()))
+				{
+					strcpy(outGlobalEnum, globalEnumName.c_str());
+					return true;
+				}
 			}
 		}
-
 		return false;
 	}
 

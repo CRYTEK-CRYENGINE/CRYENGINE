@@ -2,7 +2,7 @@
     "info": {
         "id": "engine-5.6",
         "name": "CRYENGINE 5.6",
-        "version": "5.6.5"
+        "version": "5.6.7"
     },
     "dependencies": [
         {
@@ -99,13 +99,13 @@
                     "optional": true
                 },
                 {
-                    "name": "FMOD 2.00.06",
+                    "name": "FMOD 2.00.07",
                     "description": "The FMOD SDK gives you the power to customize FMOD to meet your requirements. This low-level API is intended to cover the basics/primitives of sound. This includes concepts such as 'Channels', 'Sounds', 'DSP', 'ChannelGroups', 'Sound Groups', 'Recording' and concepts for 3D Sound and occlusion.",
                     "website": "https://www.fmod.com/download",
                     "optional": true
                 },
                 {
-                    "name": "Wwise 2019.1.5",
+                    "name": "Wwise 2019.1.7",
                     "description": "The Wwise SDK gives you the power to customize Wwise to meet your requirements. The Wwise sound engine consists of two sections: a cross-platform behavioral level that handles a comprehensive set of functionalities and a low level section that has been highly optimized for each platform. The sound engine was developed with ease of integration in mind making it simple to take full advantage of advanced audio features within your games.",
                     "website": "https://www.audiokinetic.com/download",
                     "optional": true
@@ -137,7 +137,7 @@
                 },
                 {
                     "name": "PhysX 3.4 SDK",
-                    "description": "The ​NVIDIA PhysX SDK is a middleware product designed to implement complex interactions in modern games, aiming to deliver a smooth environment to the end-user. Features include body and vehicle dynamics (both rigid and soft), character controllers, collision detection (discrete and continuous), as well as cloth and volumetric fluid simulation, ragdolls, raycasting and shape weeps.",
+                    "description": "The \u00e2\u20ac\u2039NVIDIA PhysX SDK is a middleware product designed to implement complex interactions in modern games, aiming to deliver a smooth environment to the end-user. Features include body and vehicle dynamics (both rigid and soft), character controllers, collision detection (discrete and continuous), as well as cloth and volumetric fluid simulation, ragdolls, raycasting and shape weeps.",
                     "website": "https://developer.nvidia.com/physx-source-github",
                     "optional": true
                 },

@@ -91,9 +91,9 @@ if(WINDOWS AND EXISTS "${CRYENGINE_DIR}/Code/Sandbox/EditorQt")
 	if (EXISTS "${SDK_DIR}/SubstanceEngines")
 		option(OPTION_SANDBOX_SUBSTANCE "Enable Sandbox Substance Integration" ON)
 	endif()
-	if(NOT OPTION_SANDBOX AND OPTION_SANDBOX_SUBSTANCE)
-		set(OPTION_SANDBOX_SUBSTANCE OFF)
-	endif()
+endif()
+if(NOT OPTION_SANDBOX OR NOT EXISTS "${SDK_DIR}/SubstanceEngines")
+	unset(OPTION_SANDBOX_SUBSTANCE CACHE)
 endif()
 
 if(WINDOWS)
@@ -133,49 +133,44 @@ endif()
 option(AUDIO_USE_OCCLUSION "Enable" ON)
 
 function(try_to_enable_fmod)
-if (NOT ORBIS)
-	if (DEFINED AUDIO_FMOD)
-		if (AUDIO_FMOD)
-			if (EXISTS "${SDK_DIR}/Audio/fmod")
-				message(STATUS "Fmod SDK found in ${SDK_DIR}/Audio/fmod - enabling Fmod support.")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_FMOD "Fmod SDK found in ${SDK_DIR}/Audio/fmod." ON)
-				
-				include(${TOOLS_CMAKE_DIR}/modules/fmod.cmake)
-			else()
-				message(STATUS "Fmod SDK not found in ${SDK_DIR}/Audio/fmod - disabling Fmod support.")
-				
-				# Disables the AUDIO_FMOD option but also updates the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_FMOD "Fmod SDK not found in ${SDK_DIR}/Audio/fmod." OFF)
-			endif()
-		else()
-			if (EXISTS "${SDK_DIR}/Audio/fmod")
-				message(STATUS "Fmod SDK found in ${SDK_DIR}/Audio/fmod but AUDIO_FMOD option turned OFF")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_FMOD "Fmod SDK found in ${SDK_DIR}/Audio/fmod but AUDIO_FMOD option turned OFF." OFF)
-			else()
-				message(STATUS "Fmod SDK not found in ${SDK_DIR}/Audio/fmod and AUDIO_FMOD option turned OFF")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_FMOD "Fmod SDK not found in ${SDK_DIR}/Audio/fmod and AUDIO_FMOD option turned OFF." OFF)
-			endif()
-		endif()
-	else()
-		# If this option is not in the cache yet, set it depending on whether the SDK is present or not.
+if (DEFINED AUDIO_FMOD)
+	if (AUDIO_FMOD)
 		if (EXISTS "${SDK_DIR}/Audio/fmod")
 			message(STATUS "Fmod SDK found in ${SDK_DIR}/Audio/fmod - enabling Fmod support.")
-			set(AUDIO_FMOD ON CACHE BOOL "Fmod SDK found in ${SDK_DIR}/Audio/fmod." FORCE)
+			
+			# This is to update only the message in the cache that is then used in the GUI as a tooltip.
+			option(AUDIO_FMOD "Fmod SDK found in ${SDK_DIR}/Audio/fmod." ON)
+			
 			include(${TOOLS_CMAKE_DIR}/modules/fmod.cmake)
 		else()
 			message(STATUS "Fmod SDK not found in ${SDK_DIR}/Audio/fmod - disabling Fmod support.")
-			set(AUDIO_FMOD OFF CACHE BOOL "Fmod SDK not found in ${SDK_DIR}/Audio/fmod." FORCE)
+			
+			# Disables the AUDIO_FMOD option but also updates the message in the cache that is then used in the GUI as a tooltip.
+			option(AUDIO_FMOD "Fmod SDK not found in ${SDK_DIR}/Audio/fmod." OFF)
+		endif()
+	else()
+		if (EXISTS "${SDK_DIR}/Audio/fmod")
+			message(STATUS "Fmod SDK found in ${SDK_DIR}/Audio/fmod but AUDIO_FMOD option turned OFF")
+			
+			# This is to update only the message in the cache that is then used in the GUI as a tooltip.
+			option(AUDIO_FMOD "Fmod SDK found in ${SDK_DIR}/Audio/fmod but AUDIO_FMOD option turned OFF." OFF)
+		else()
+			message(STATUS "Fmod SDK not found in ${SDK_DIR}/Audio/fmod and AUDIO_FMOD option turned OFF")
+			
+			# This is to update only the message in the cache that is then used in the GUI as a tooltip.
+			option(AUDIO_FMOD "Fmod SDK not found in ${SDK_DIR}/Audio/fmod and AUDIO_FMOD option turned OFF." OFF)
 		endif()
 	endif()
 else()
-	message(STATUS "Disabling Fmod support due to unsupported platform.")
-	set(AUDIO_FMOD OFF CACHE BOOL "Fmod disabled due to unsupported platform." FORCE)
+	# If this option is not in the cache yet, set it depending on whether the SDK is present or not.
+	if (EXISTS "${SDK_DIR}/Audio/fmod")
+		message(STATUS "Fmod SDK found in ${SDK_DIR}/Audio/fmod - enabling Fmod support.")
+		set(AUDIO_FMOD ON CACHE BOOL "Fmod SDK found in ${SDK_DIR}/Audio/fmod." FORCE)
+		include(${TOOLS_CMAKE_DIR}/modules/fmod.cmake)
+	else()
+		message(STATUS "Fmod SDK not found in ${SDK_DIR}/Audio/fmod - disabling Fmod support.")
+		set(AUDIO_FMOD OFF CACHE BOOL "Fmod SDK not found in ${SDK_DIR}/Audio/fmod." FORCE)
+	endif()
 endif()
 endfunction(try_to_enable_fmod)
 
@@ -342,102 +337,41 @@ else()
 endif()
 endfunction(try_to_enable_adx2)
 
-function(try_to_enable_oculus_hrtf)
-if(WINDOWS)
-	if (DEFINED AUDIO_OCULUS_HRTF)
-		if (AUDIO_OCULUS_HRTF)
-			if (EXISTS "${SDK_DIR}/Audio/oculus")
-				message(STATUS "Oculus audio SDK found in ${SDK_DIR}/Audio/oculus - enabling Oculus HRTF support.")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_OCULUS_HRTF "Oculus audio SDK found in ${SDK_DIR}/Audio/oculus." ON)
-			else()
-				message(STATUS "Oculus audio SDK not found in ${SDK_DIR}/Audio/oculus - disabling Oculus HRTF support.")
-				
-				# Disables the AUDIO_OCULUS_HRTF option but also updates the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_OCULUS_HRTF "Oculus audio SDK not found in ${SDK_DIR}/Audio/oculus." OFF)
-			endif()
-		else()
-			if (EXISTS "${SDK_DIR}/Audio/oculus")
-				message(STATUS "Oculus audio SDK found in ${SDK_DIR}/Audio/oculus but AUDIO_OCULUS_HRTF option turned OFF")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_OCULUS_HRTF "Oculus audio SDK found in ${SDK_DIR}/Audio/oculus but AUDIO_OCULUS_HRTF option turned OFF." OFF)
-			else()
-				message(STATUS "Oculus audio SDK not found in ${SDK_DIR}/Audio/oculus and AUDIO_OCULUS_HRTF option turned OFF")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_OCULUS_HRTF "Oculus audio SDK not found in ${SDK_DIR}/Audio/oculus and AUDIO_OCULUS_HRTF option turned OFF." OFF)
-			endif()
-		endif()
-	else()
-		# If this option is not in the cache yet, set it depending on whether the SDK is present or not.
-		if (EXISTS "${SDK_DIR}/Audio/oculus")
-			message(STATUS "Oculus audio SDK found in ${SDK_DIR}/Audio/oculus - enabling Oculus HRTF support.")
-			set(AUDIO_OCULUS_HRTF ON CACHE BOOL "Oculus audio SDK found in ${SDK_DIR}/Audio/oculus." FORCE)
-		else()
-			message(STATUS "Oculus audio SDK not found in ${SDK_DIR}/Audio/oculus - disabling Oculus HRTF support.")
-			set(AUDIO_OCULUS_HRTF OFF CACHE BOOL "Oculus audio SDK not found in ${SDK_DIR}/Audio/oculus." FORCE)
-		endif()
-	endif()
-else()
-	message(STATUS "Disabling Oculus HRTF support due to unsupported platform.")
-	set(AUDIO_OCULUS_HRTF OFF CACHE BOOL "Oculus HRTF disabled due to unsupported platform." FORCE)
-endif()
-endfunction(try_to_enable_oculus_hrtf)
-
-function(try_to_enable_cryspatial)
+function(try_to_enable_dsp_spatializer)
 if(WINDOWS OR DURANGO)
-	if (DEFINED AUDIO_CRYSPATIAL)
-		if (AUDIO_CRYSPATIAL)
-			if (EXISTS "${SDK_DIR}/Audio/cryspatial")
-				message(STATUS "CrySpatial audio SDK found in ${SDK_DIR}/Audio/cryspatial - enabling CrySpatial HRTF support.")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_CRYSPATIAL "CrySpatial audio SDK found in ${SDK_DIR}/Audio/cryspatial." ON)
-			else()
-				message(STATUS "CrySpatial audio SDK not found in ${SDK_DIR}/Audio/cryspatial - disabling CrySpatial HRTF support.")
-				
-				# Disables the AUDIO_CRYSPATIAL option but also updates the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_CRYSPATIAL "CrySpatial audio SDK not found in ${SDK_DIR}/Audio/cryspatial." OFF)
-			endif()
+	if (DEFINED AUDIO_DSP_SPATIALIZER)
+		option(AUDIO_DSP_SPATIALIZER "audio DSP Spatializer." ON)
+
+		if (AUDIO_DSP_SPATIALIZER)
+			message(STATUS "Enabling audio DSP Spatializer.")
 		else()
-			if (EXISTS "${SDK_DIR}/Audio/cryspatial")
-				message(STATUS "CrySpatial audio SDK found in ${SDK_DIR}/Audio/cryspatial but AUDIO_CRYSPATIAL option turned OFF")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_CRYSPATIAL "CrySpatial audio SDK found in ${SDK_DIR}/Audio/cryspatial but AUDIO_CRYSPATIAL option turned OFF." OFF)
-			else()
-				message(STATUS "CrySpatial audio SDK not found in ${SDK_DIR}/Audio/cryspatial and AUDIO_CRYSPATIAL option turned OFF")
-				
-				# This is to update only the message in the cache that is then used in the GUI as a tooltip.
-				option(AUDIO_CRYSPATIAL "CrySpatial audio SDK not found in ${SDK_DIR}/Audio/cryspatial and AUDIO_CRYSPATIAL option turned OFF." OFF)
-			endif()
-		endif()
-	else()
-		# If this option is not in the cache yet, set it depending on whether the SDK is present or not.
-		if (EXISTS "${SDK_DIR}/Audio/cryspatial")
-			message(STATUS "CrySpatial audio SDK found in ${SDK_DIR}/Audio/cryspatial - enabling CrySpatial HRTF support.")
-			set(AUDIO_CRYSPATIAL ON CACHE BOOL "CrySpatial audio SDK found in ${SDK_DIR}/Audio/cryspatial." FORCE)
-		else()
-			message(STATUS "CrySpatial audio SDK not found in ${SDK_DIR}/Audio/cryspatial - disabling CrySpatial HRTF support.")
-			set(AUDIO_CRYSPATIAL OFF CACHE BOOL "CrySpatial audio SDK not found in ${SDK_DIR}/Audio/cryspatial." FORCE)
+			message(STATUS "audio DSP Spatializer manually disabled.")
 		endif()
 	endif()
 else()
-	message(STATUS "Disabling CrySpatial HRTF support due to unsupported platform.")
-	set(AUDIO_CRYSPATIAL OFF CACHE BOOL "CrySpatial HRTF disabled due to unsupported platform." FORCE)
+	message(STATUS "Disabling audio DSP Spatializer due to unsupported platform.")
+	set(AUDIO_DSP_SPATIALIZER OFF CACHE BOOL "audio DSP Spatializer disabled due to unsupported platform." FORCE)
 endif()
-endfunction(try_to_enable_cryspatial)
+endfunction(try_to_enable_dsp_spatializer)
 
-try_to_enable_fmod()
-try_to_enable_portaudio()
-try_to_enable_sdl_mixer()
+# We need to do this as currently we can't have multiple modules sharing the same GUID in monolithic builds.
+# Can be changed back to include all supported middlewares once that has been rectified.
+if(OPTION_STATIC_LINKING)
+	if(ORBIS)
+		try_to_enable_fmod()
+	else()
+		try_to_enable_sdl_mixer()
+	endif()
+else()
+	try_to_enable_fmod()
+	try_to_enable_portaudio()
+	try_to_enable_sdl_mixer()
+	try_to_enable_wwise()
+	try_to_enable_adx2()
+endif()
+
 try_to_enable_dynamic_response_system()
-try_to_enable_wwise()
-try_to_enable_adx2()
-try_to_enable_oculus_hrtf()
-try_to_enable_cryspatial()
+try_to_enable_dsp_spatializer()
 # ~Audio
 
 #Physics modules
@@ -534,6 +468,9 @@ if (OPTION_ENGINE)
 	#audio
 	if (AUDIO_FMOD)
 		add_subdirectory ("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplFmod")
+		if (AUDIO_DSP_SPATIALIZER)
+			add_subdirectory("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplFmod/plugins/CrySpatial")
+		endif ()
 	endif (AUDIO_FMOD)
 	if (AUDIO_PORTAUDIO)
 		add_subdirectory ("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplPortAudio")
@@ -544,12 +481,11 @@ if (OPTION_ENGINE)
 	endif (AUDIO_SDL_MIXER)
 	if (AUDIO_WWISE)
 		add_subdirectory ("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplWwise")
+		if (AUDIO_DSP_SPATIALIZER)
+			add_subdirectory("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplWwise/plugins/CrySpatial/WwisePlugin")
+			add_subdirectory("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplWwise/plugins/CrySpatial/SoundEnginePlugin")
+		endif ()
 	endif (AUDIO_WWISE)
-	if (AUDIO_CRYSPATIAL)
-		add_subdirectory("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplWwise/plugins/CrySpatial/WwisePlugin")
-		add_subdirectory("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplWwise/plugins/CrySpatial/SoundEnginePlugin")
-		add_subdirectory("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplFmod/plugins/CrySpatial")
-	endif()
 	if (AUDIO_ADX2)
 		add_subdirectory ("Code/CryEngine/CryAudioSystem/implementations/CryAudioImplAdx2")
 	endif (AUDIO_ADX2)

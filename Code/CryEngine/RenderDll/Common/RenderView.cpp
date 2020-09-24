@@ -303,6 +303,8 @@ void CRenderView::SwitchUsageMode(EUsageMode mode)
 
 		PreparePermanentRenderObjectsForCompile();
 		gEnv->pJobManager->AddLambdaJob("JobRenderViewPostWrite", [this] { CRenderView::Job_PostWrite();  }, JobManager::eRegularPriority, &m_jobstate_PostWrite);
+
+		gEnv->pRenderer->WaitAndClearSkinningSimulationJobs();
 	}
 
 	if (mode == eUsageModeReading)

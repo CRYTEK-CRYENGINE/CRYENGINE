@@ -25,11 +25,11 @@ class CAudioTriggerSpotEntity final
 
 public:
 	CAudioTriggerSpotEntity();
-	virtual ~CAudioTriggerSpotEntity();
+	virtual ~CAudioTriggerSpotEntity() = default;
 
 	// CDesignerEntityComponent
 	virtual void                  ProcessEvent(const SEntityEvent& event) override;
-	virtual Cry::Entity::EventFlags GetEventMask() const override { return CDesignerEntityComponent::GetEventMask() | ENTITY_EVENT_UPDATE | ENTITY_EVENT_TIMER; }
+	virtual Cry::Entity::EventFlags GetEventMask() const override { return CDesignerEntityComponent::GetEventMask() | ENTITY_EVENT_UPDATE | ENTITY_EVENT_TIMER | ENTITY_EVENT_DONE; }
 
 	virtual IEntityPropertyGroup* GetPropertyGroup() final      { return this; }
 

@@ -1044,7 +1044,7 @@ struct pe_params_car : pe_params
 	float  kDynFriction;            //!< friction modifier for sliping wheels
 	float  steerTrackNeutralTurn;   //!< for tracked vehicles, steering angle that causes equal but opposite forces on tracks
 	float  pullTilt;                //!< for tracked vehicles, tilt angle of pulling force towards ground
-	float  maxTilt;                 //!< maximum wheel contact normal tilt (left or right) after which it acts as a locked part of the hull; it's a cosine of the angle
+	float  maxTilt;                 //!< maximum wheel contact normal tilt (left or right) after which it acts as a locked part of the hull
 	int    bKeepTractionWhenTilted; //!< keeps wheel traction in tilted mode
 	float  wheelMassScale;          //!< scales wheels' masses for inertia computations (default 0)
 };
@@ -2448,8 +2448,8 @@ struct IGeometry
 	{
 		SProxifyParams() : ncells(50), islandMap(-1l), maxLineDot(0.88f), maxLineDist(2.0f), minLineCells(8), minSurfCells(50), surfPrimIters(1.0f), surfMinNormLen(0.5f), surfMergeDist(4.0f),
 			surfNormRefineThresh(0.94f), primVoxInflate(1.5f), primRefillThresh(0.6f), primVfillSurf(0.85f), primVfillLine(0.6f), primSurfOutside(0.4f), capsHRratio(4.0f), maxGeoms(128),
-			skipPrimMask(0), surfMeshMinCells(80), surfMeshIters(7), lenVtxNorm(1.0f), inflatePrims(0), inflateMeshes(0), nVoxPatches(0), mergeIslands(1), convexHull(0), closeHoles(0), forceBBox(0),
-			findPrimSurfaces(1), findPrimLines(1), findMeshes(1), surfMaxAndMinNorms(0), surfRefineWithMesh(1), storeVox(0), reuseVox(0), flipCurCell(0)
+			skipPrimMask(0), surfMeshMinCells(80), surfMeshIters(5), lenVtxNorm(1.0f), inflatePrims(0), inflateMeshes(0), nVoxPatches(0), mergeIslands(1), convexHull(0), closeHoles(0), forceBBox(0),
+			findPrimSurfaces(0), findPrimLines(0), findMeshes(1), surfMaxAndMinNorms(0), surfRefineWithMesh(0), storeVox(0), reuseVox(0), flipCurCell(0)
 		{ MARK_UNUSED qForced, pVoxPatches; }
 		int          ncells;
 		uint64       islandMap;
@@ -2824,7 +2824,8 @@ enum rwi_flags
 	rwi_queue                    = 0x800,        //!< queues the RWI request, when done it'll generate EventPhysRWIResult
 	rwi_force_pierceable_noncoll = 0x1000,       //!< non-colliding geometries will be treated as pierceable regardless of the actual material
 	rwi_update_last_hit          = 0x4000,       //!< update phitLast with the current hit results (should be set if the last hit should be reused for a "warm" start)
-	rwi_any_hit                  = 0x8000        //!< returns the first found hit for meshes, not necessarily the closets
+	rwi_any_hit                  = 0x8000,       //!< returns the first found hit for meshes, not necessarily the closets
+	rwi_auto_grid_start          = 0x10000,			 //!< automatically detect the starting local grid based on the ray's origin
 };
 #define rwi_pierceability(pty)      (pty)
 #define rwi_colltype_all(colltypes) ((colltypes) << rwi_colltype_bit)
@@ -3549,7 +3550,7 @@ struct IPhysicalWorld
 
 	//! DeformPhysicalEntity - applies boolean breaking for entity parts that have >=0 breakability index
 	//! r is used to scale the corresponding explosion (boolean) shape
-	virtual int   DeformPhysicalEntity(IPhysicalEntity* pent, const Vec3& ptHit, const Vec3& dirHit, float r, int flags = 0) = 0;
+	virtual int   DeformPhysicalEntity(IPhysicalEntity* pent, const Vec3& ptHit, const Vec3& dirHit, float r, int flags = 0, const Vec3& dirUp = Vec3(ZERO)) = 0;
 	//! UpdateDeformingEntities - normally this happens automatically during TimeStep; can be called manually for ex. during loading
 	virtual void  UpdateDeformingEntities(float time_interval = 0.01f) = 0; //!< normally this happens during TimeStep
 	//! CalculateExplosionExposure - uses occlusion grid from the last SimulateExplosion to calculate exposure

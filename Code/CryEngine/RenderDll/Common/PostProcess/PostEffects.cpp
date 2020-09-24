@@ -865,7 +865,9 @@ void CMotionBlur::SetupObject(CRenderObject* pObj, const SRenderingPassInfo& pas
 	uint32 nThreadID = passInfo.ThreadID();
 
 	if (passInfo.IsRecursivePass())
+	{
 		return;
+	}
 
 	SRenderObjData* const __restrict pOD = pObj->GetObjData();
 	if (!pOD)
@@ -878,18 +880,20 @@ void CMotionBlur::SetupObject(CRenderObject* pObj, const SRenderingPassInfo& pas
 	// don't apply regular object motion blur to skinned objects with bending (foliage)
 	// they get their motion blur in the DrawSkinned Pass
 	if (pOD->m_pSkinningData && pOD->m_pSkinningData->pAsyncJobs == NULL)
+	{
 		return;
-
+	}
+	
 	if (pOD->m_pSkinningData)
 	{
 		assert(pOD->m_pSkinningData->pPreviousSkinningRenderData);
 
-		if (pOD->m_pSkinningData->pAsyncJobs)
+		if (pOD->m_pSkinningData->pAsyncJobs && !pOD->m_pSkinningData->isSimulation)
 		{
 			gEnv->pJobManager->WaitForJob(*pOD->m_pSkinningData->pAsyncJobs);
 		}
 
-		if (pOD->m_pSkinningData->pPreviousSkinningRenderData->pAsyncJobs)
+		if (pOD->m_pSkinningData->pPreviousSkinningRenderData->pAsyncJobs && !pOD->m_pSkinningData->pPreviousSkinningRenderData->isSimulation)
 		{
 			gEnv->pJobManager->WaitForJob(*pOD->m_pSkinningData->pPreviousSkinningRenderData->pAsyncJobs);
 		}

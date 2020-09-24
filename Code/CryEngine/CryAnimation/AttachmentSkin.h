@@ -84,7 +84,6 @@ public:
 	virtual void         TriggerMeshStreaming(uint32 nDesiredRenderLOD, const SRenderingPassInfo& passInfo);
 
 	void                 RenderAttachment(SRendParams& rParams, const SRenderingPassInfo& passInfo);
-	void                 RecreateDefaultSkeleton(CCharInstance* pInstanceSkel, uint32 nLoadingFlags);
 	void                 UpdateRemapTable();
 
 	// Vertex Transformation

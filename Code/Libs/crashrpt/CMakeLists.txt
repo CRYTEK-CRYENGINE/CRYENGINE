@@ -43,6 +43,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE "/wd4530")
 #Disable C4996 (warning C4996: 'GetVersionExA': was declared deprecated)
 target_compile_options(${PROJECT_NAME} PRIVATE "/wd4996")
 
+#Disable mismatched exception specifications diagnosis
+target_compile_options(${PROJECT_NAME} PRIVATE "/Zc:noexceptTypes-")
+
 #Disable link warning LNK4221 (StdAfx.obj : warning LNK4221: This object file does not define any previously undefined public symbols, so it will not be used by any link operation that consumes this library)
 set_target_properties(${PROJECT_NAME} PROPERTIES STATIC_LIBRARY_FLAGS "/ignore:4221")
 

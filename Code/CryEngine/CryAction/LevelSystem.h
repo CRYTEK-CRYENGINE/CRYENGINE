@@ -48,9 +48,9 @@ public:
 	virtual const bool                       MetadataLoaded() const override          { return m_bMetaDataRead; }
 
 	virtual int                              GetGameTypeCount() const override        { return m_gameTypes.size(); };
-	virtual const ILevelInfo::TGameTypeInfo* GetGameType(int gameType) const override { return &m_gameTypes[gameType]; };
+	virtual const ILevelInfo::SGameTypeInfo* GetGameType(int gameType) const override { return &m_gameTypes[gameType]; };
 	virtual bool                             SupportsGameType(const char* gameTypeName) const override;
-	virtual const ILevelInfo::TGameTypeInfo* GetDefaultGameType() const override;
+	virtual const ILevelInfo::SGameTypeInfo* GetDefaultGameType() const override;
 	virtual bool                             HasGameRules() const override            { return !m_gamerules.empty(); }
 
 	virtual const ILevelInfo::SMinimapInfo&  GetMinimapInfo() const override          { return m_minimapInfo; }
@@ -87,7 +87,7 @@ private:
 	uint32                                 m_scanTag;
 	uint32                                 m_levelTag;
 	bool                                   m_bMetaDataRead;
-	std::vector<ILevelInfo::TGameTypeInfo> m_gameTypes;
+	std::vector<ILevelInfo::SGameTypeInfo> m_gameTypes;
 	bool                                   m_isModLevel;
 	SMinimapInfo                           m_minimapInfo;
 	typedef std::map<string, TFlowInputData, stl::less_stricmp<string>> TAttributeList;

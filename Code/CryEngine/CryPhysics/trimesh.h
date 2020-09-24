@@ -134,6 +134,8 @@ public:
 
 	CTriMesh *SplitIntoIslands(plane *pGround,int nPlanes,int bOriginallyMobile);
 	int FilterMesh(float minlen,float minangle,int bLogUpdates=1);
+	int RemoveDegenerates(int openEdgeIters=1, bool multiEdges=true);
+	int CloseHoles(uint64 isleMask=~0ull);
 
 	void CompactTriangleList(int *pTriMap, bool bNoRealloc=false);
 	void CollapseTriangleToLine(int itri,int ivtx, int *pTriMap, bop_meshupdate *pmu);

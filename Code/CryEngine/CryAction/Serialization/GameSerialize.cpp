@@ -807,7 +807,7 @@ ELoadGameResult CGameSerialize::LoadGame(CCryAction* pCryAction, const char* met
 		CRY_ASSERT(CCryAction::GetCryAction()->StartedGameContext() == false || (pLevelInfo != 0), "Can't find level info: This might break AI");
 		if (pLevelInfo)
 		{
-			const ILevelInfo::TGameTypeInfo* pGameTypeInfo = pLevelInfo->GetDefaultGameType();
+			const ILevelInfo::SGameTypeInfo* pGameTypeInfo = pLevelInfo->GetDefaultGameType();
 			const char* const szGameTypeName = pGameTypeInfo ? pGameTypeInfo->name.c_str() : "";
 			if (gEnv->pAISystem)
 			{
@@ -1530,7 +1530,7 @@ bool CGameSerialize::LoadLevel(SLoadEnvironment& loadEnv, SGameStartParams& star
 	CRY_ASSERT(CCryAction::GetCryAction()->StartedGameContext() == false || (pLevelInfo != 0), "Can't find level info: This might break AI");
 	if (pLevelInfo)
 	{
-		const ILevelInfo::TGameTypeInfo* pGameTypeInfo = pLevelInfo->GetDefaultGameType();
+		const ILevelInfo::SGameTypeInfo* pGameTypeInfo = pLevelInfo->GetDefaultGameType();
 		const char* const szGameTypeName = pGameTypeInfo ? pGameTypeInfo->name.c_str() : "";
 		if (gEnv->pAISystem)
 		{

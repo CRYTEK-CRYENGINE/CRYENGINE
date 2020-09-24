@@ -197,7 +197,7 @@ public:
 	}
 
 	virtual void OnOutputAvailable(SubstanceAir::UInt runUid,const SubstanceAir::GraphInstance *graphInstance, 
-		SubstanceAir::OutputInstanceBase * outputInstance) override
+		SubstanceAir::OutputInstance* outputInstance) override
 	{
 		SubstanceAir::OutputInstance::Result result(outputInstance->grabResult());
 		if (result.get() != NULL)

@@ -22,14 +22,6 @@ class CPhysicsPrimitiveComponent
 	  , public IEntityComponentPreviewer
 #endif
 {
-	// IEntityComponent
-	virtual void Initialize() final
-	{
-		AddPrimitive();
-	}
-
-	virtual void   ProcessEvent(const SEntityEvent& event) final;
-
 	virtual Cry::Entity::EventFlags GetEventMask() const final
 	{
 		Cry::Entity::EventFlags bitFlags = ENTITY_EVENT_COMPONENT_PROPERTY_CHANGED;
@@ -139,6 +131,14 @@ class CPhysicsPrimitiveComponent
 public:
 	CPhysicsPrimitiveComponent() {}
 	virtual ~CPhysicsPrimitiveComponent() = default;
+
+	// IEntityComponent
+	virtual void Initialize() override
+	{
+		AddPrimitive();
+	}
+
+	virtual void ProcessEvent(const SEntityEvent& event) override;
 
 	virtual std::unique_ptr<pe_geomparams> GetGeomParams() const { return stl::make_unique<pe_geomparams>(); }
 	virtual IGeometry*                     CreateGeometry() const = 0;

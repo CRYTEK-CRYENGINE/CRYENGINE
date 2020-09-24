@@ -1253,6 +1253,8 @@ void CShapeObject::Display(CObjectRenderHelper& objRenderHelper)
 	{
 		DisplayNormal(dc);
 	}
+
+	CEntityObject::Display(objRenderHelper);
 }
 
 void CShapeObject::DisplayNormal(SDisplayContext& dc)

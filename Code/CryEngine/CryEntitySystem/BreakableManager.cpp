@@ -2417,7 +2417,8 @@ int CBreakableManager::HandlePhysics_UpdateMeshEvent(const EventPhysUpdateMesh* 
 
 		if (pUpdateEvent->iReason != EventPhysUpdateMesh::ReasonDeform)
 		{
-			pDeformedStatObj = gEnv->p3DEngine->UpdateDeformableStatObj(pUpdateEvent->pMesh, pUpdateEvent->pLastUpdate, pSrcFoliage);
+			IMaterial *pMatOverride = pCEntity->GetMaterial() ? pCEntity->GetMaterial() : pCEntity->GetSlotMaterial(pUpdateEvent->partid);
+			pDeformedStatObj = gEnv->p3DEngine->UpdateDeformableStatObj(pUpdateEvent->pMesh, pUpdateEvent->pLastUpdate, pSrcFoliage, pMatOverride);
 			AssociateStatObjWithPhysics(pDeformedStatObj, pUpdateEvent->pEntity, pUpdateEvent->partid);
 		}
 		else

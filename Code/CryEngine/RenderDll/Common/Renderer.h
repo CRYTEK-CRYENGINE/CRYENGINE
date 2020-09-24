@@ -252,6 +252,9 @@ public:
 
 	~CSkinningDataPool()
 	{
+		// Finish all jobs
+		WaitAndClearSkinningSimulationJobs();
+
 		// free temp pages
 		SPage* pPage = m_pPages;
 		while (pPage)
@@ -304,6 +307,8 @@ public:
 
 	void ClearPool()
 	{
+		WaitAndClearSkinningSimulationJobs();
+
 		m_nPoolUsed = 0;
 		if (m_nPageAllocated)
 		{
@@ -330,6 +335,8 @@ public:
 
 	void FreePoolMemory()
 	{
+		WaitAndClearSkinningSimulationJobs();
+
 		// free temp pages
 		SPage* pPage = m_pPages;
 		while (pPage)
@@ -354,6 +361,10 @@ public:
 	{
 		return m_nPoolSize + m_nPageAllocated;
 	}
+	
+	void EnqueueSkinningSimulationJob(JobManager::SJobState*);
+	void WaitAndClearSkinningSimulationJobs();
+
 private:
 	struct SPage
 	{
@@ -365,6 +376,9 @@ private:
 	size_t m_nPoolSize;
 	size_t m_nPoolUsed;
 	size_t m_nPageAllocated;
+
+	std::vector<JobManager::SJobState*> m_skinningSimulationJobs;
+	CryCriticalSectionNonRecursive m_skinningSimulationJobsCritical;
 };
 
 struct SSkinningDataPoolInfo
@@ -1225,6 +1239,9 @@ public:
 	virtual int                                       EF_GetSkinningPoolID() override;
 	SSkinningDataPoolInfo                             GetSkinningDataPools();
 	void                                              ClearSkinningDataPool();
+	virtual void                                      EnqueueSkinningSimulationJob(JobManager::SJobState*) override;
+	virtual void                                      WaitAndClearSkinningSimulationJobs() override;
+
 
 	virtual void                                      UpdateShaderItem(SShaderItem* pShaderItem, IMaterial* pMaterial) override;
 	virtual void                                      ForceUpdateShaderItem(SShaderItem* pShaderItem, IMaterial* pMaterial) override;

@@ -1666,6 +1666,9 @@ struct IRenderer//: public IRendererCallbackServer
 	virtual SSkinningData* EF_CreateRemappedSkinningData(IRenderView* pRenderView, uint32 nNumBones, SSkinningData* pSourceSkinningData, uint32 nCustomDataSize, uint32 pairGuid) = 0;
 	virtual void           EF_EnqueueComputeSkinningData(IRenderView* pRenderView, SSkinningData* pData) = 0;
 	virtual int            EF_GetSkinningPoolID() = 0;
+	virtual void           EnqueueSkinningSimulationJob(JobManager::SJobState*) = 0;
+	virtual void           WaitAndClearSkinningSimulationJobs() = 0;
+
 
 	virtual void           UpdateShaderItem(SShaderItem* pShaderItem, IMaterial* pMaterial) = 0;
 	virtual void           ForceUpdateShaderItem(SShaderItem* pShaderItem, IMaterial* pMaterial) = 0;

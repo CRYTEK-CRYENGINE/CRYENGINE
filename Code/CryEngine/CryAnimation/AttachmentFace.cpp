@@ -11,33 +11,20 @@
 
 uint32 CAttachmentFACE::Immediate_AddBinding(IAttachmentObject* pIAttachmentObject, ISkin* pISkin, uint32 nLoadingFlags)
 {
-	if (m_pIAttachmentObject && m_pAttachmentManager)
+	if (m_pIAttachmentObject)
 	{
 		m_pAttachmentManager->m_attachedCharactersCache.Erase(this);
-
-		if (m_pAttachmentManager->IsFastUpdateType(m_pIAttachmentObject->GetAttachmentType()))
-		{
-			m_pAttachmentManager->RemoveEntityAttachment();
-		}
 	}
 
 	SAFE_RELEASE(m_pIAttachmentObject);
 	m_pIAttachmentObject = pIAttachmentObject;
 
-	if (pIAttachmentObject && m_pAttachmentManager)
+	if (pIAttachmentObject)
 	{
 		m_pAttachmentManager->m_attachedCharactersCache.Insert(this);
-
-		if (m_pAttachmentManager->IsFastUpdateType(pIAttachmentObject->GetAttachmentType()))
-		{
-			m_pAttachmentManager->AddEntityAttachment();
-		}
 	}
 
-	if (m_pAttachmentManager)
-	{
-		m_pAttachmentManager->m_TypeSortingRequired++;
-	}
+	m_pAttachmentManager->ScheduleProcessingBufferRebuild();
 
 	return 1;
 }
@@ -51,14 +38,7 @@ void CAttachmentFACE::ClearBinding_Internal(bool release)
 {
 	if (m_pIAttachmentObject)
 	{
-		if (m_pAttachmentManager && m_pAttachmentManager->m_pSkelInstance)
-		{
-			m_pAttachmentManager->m_attachedCharactersCache.Erase(this);
-
-			uint32 IsFastUpdateType = m_pAttachmentManager->IsFastUpdateType(m_pIAttachmentObject->GetAttachmentType());
-			if (IsFastUpdateType)
-				m_pAttachmentManager->RemoveEntityAttachment();
-		}
+		m_pAttachmentManager->m_attachedCharactersCache.Erase(this);
 
 		if (release)
 		{
@@ -68,10 +48,7 @@ void CAttachmentFACE::ClearBinding_Internal(bool release)
 		m_pIAttachmentObject = 0;
 	}
 
-	if (m_pAttachmentManager)
-	{
-		m_pAttachmentManager->m_TypeSortingRequired++;
-	}
+	m_pAttachmentManager->ScheduleProcessingBufferRebuild();
 }
 
 uint32 CAttachmentFACE::Immediate_SwapBinding(IAttachment* pNewAttachment)
@@ -96,8 +73,6 @@ uint32 CAttachmentFACE::Immediate_SwapBinding(IAttachment* pNewAttachment)
 
 bool CAttachmentFACE::ProjectAttachment(const Skeleton::CPoseData* pPoseData)
 {
-	CRY_ASSERT(m_pAttachmentManager);
-
 	CCharInstance* pSkelInstance = m_pAttachmentManager->m_pSkelInstance;
 	CDefaultSkeleton* pDefaultSkeleton = pSkelInstance->m_pDefaultSkeleton;
 	if (pDefaultSkeleton->m_ObjectType != CHR)
@@ -108,57 +83,58 @@ bool CAttachmentFACE::ProjectAttachment(const Skeleton::CPoseData* pPoseData)
 	f32 fShortestDistance = 999999.0f;
 	uint32 nMeshFullyStreamdIn = 1;
 
-	uint32 numAttachments = m_pAttachmentManager->GetAttachmentCount();
-	for (uint32 att = 0; att < numAttachments; att++)
+	m_pAttachmentManager->ExecuteForSkinAttachments([&](IAttachment* pIAttachment)
 	{
-		uint32 localtype = m_pAttachmentManager->m_arrAttachments[att]->GetType();
-		if (localtype != CA_SKIN)
-			continue;
-		uint32 isHidden = m_pAttachmentManager->m_arrAttachments[att]->IsAttachmentHidden();
-		if (isHidden)
-			continue;
-		IAttachmentObject* pIAttachmentObject = m_pAttachmentManager->m_arrAttachments[att]->GetIAttachmentObject();
-		if (pIAttachmentObject == 0)
-			continue;
+		CRY_ASSERT(pIAttachment->GetType() == CA_SKIN);
+
+		if (pIAttachment->IsAttachmentHidden())
+			return;
+
+		IAttachmentObject* pIAttachmentObject = pIAttachment->GetIAttachmentObject();
+		if (!pIAttachmentObject)
+			return;
+
 		IAttachmentSkin* pIAttachmentSkin = pIAttachmentObject->GetIAttachmentSkin();
-		if (pIAttachmentSkin == 0)
-			continue;
-		CSkin* pCModelSKIN = (CSkin*)pIAttachmentSkin->GetISkin();
-		if (pCModelSKIN == 0)
-			continue;
+		if (!pIAttachmentSkin)
+			return;
+
+		CSkin* pCModelSKIN = static_cast<CSkin*>(pIAttachmentSkin->GetISkin());
+		if (!pCModelSKIN)
+			return;
+
 		CModelMesh* pCModelMeshSKIN = pCModelSKIN->GetModelMesh(0);
-		uint32 IsValid = pCModelMeshSKIN->IsVBufferValid();
-		if (IsValid == 0)
+		if (!pCModelMeshSKIN->IsVBufferValid())
 		{
 			nMeshFullyStreamdIn = 0;  //error
-			break;
 		}
-	}
+	});
 
 	//--------------------------------------------------------------------
 
 	if (nMeshFullyStreamdIn)
 	{
-		for (uint32 att = 0; att < numAttachments; att++)
+		m_pAttachmentManager->ExecuteForSkinAttachments([&](IAttachment* pIAttachment)
 		{
-			uint32 localtype = m_pAttachmentManager->m_arrAttachments[att]->GetType();
-			if (localtype != CA_SKIN)
-				continue;
-			uint32 isHidden = m_pAttachmentManager->m_arrAttachments[att]->IsAttachmentHidden();
-			if (isHidden)
-				continue;
-			IAttachmentObject* pIAttachmentObject = m_pAttachmentManager->m_arrAttachments[att]->GetIAttachmentObject();
-			if (pIAttachmentObject == 0)
-				continue;
+			CRY_ASSERT(pIAttachment->GetType() == CA_SKIN);
+
+			if (pIAttachment->IsAttachmentHidden())
+				return;
+
+			IAttachmentObject* pIAttachmentObject = pIAttachment->GetIAttachmentObject();
+			if (!pIAttachmentObject)
+				return;
+
 			IAttachmentSkin* pIAttachmentSkin = pIAttachmentObject->GetIAttachmentSkin();
-			if (pIAttachmentSkin == 0)
-				continue;
-			CSkin* pCModelSKIN = (CSkin*)pIAttachmentSkin->GetISkin();
-			if (pCModelSKIN == 0)
-				continue;
+			if (!pIAttachmentSkin)
+				return;
+
+			CSkin* pCModelSKIN = static_cast<CSkin*>(pIAttachmentSkin->GetISkin());
+			if (!pCModelSKIN)
+				return;
+
 			IRenderMesh* pIRenderMeshSKIN = pCModelSKIN->GetIRenderMesh(0);
-			if (pIRenderMeshSKIN == 0)
-				continue;
+			if (!pIRenderMeshSKIN)
+				return;
 
 			CModelMesh* pCModelMeshSKIN = pCModelSKIN->GetModelMesh(0);
 			CAttachmentSKIN* pCAttachmentSkin = (CAttachmentSKIN*)pIAttachmentSkin;
@@ -168,7 +144,7 @@ bool CAttachmentFACE::ProjectAttachment(const Skeleton::CPoseData* pPoseData)
 			f32 fDistance = (apos - vCenter).GetLength();
 			if (fShortestDistance > fDistance)
 				fShortestDistance = fDistance, cf = scf;
-		}
+		});
 
 		if (CModelMesh* pModelMesh = pDefaultSkeleton->GetModelMesh())
 		{
@@ -213,8 +189,6 @@ bool CAttachmentFACE::ProjectAttachment(const Skeleton::CPoseData* pPoseData)
 
 void CAttachmentFACE::ComputeTriMat()
 {
-	CRY_ASSERT(m_pAttachmentManager);
-
 	CCharInstance* pSkelInstance = m_pAttachmentManager->m_pSkelInstance;
 	const CDefaultSkeleton* pDefaultSkeleton = pSkelInstance->m_pDefaultSkeleton;
 	const CDefaultSkeleton::SJoint* pJoints = &pDefaultSkeleton->m_arrModelJoints[0];
@@ -281,12 +255,11 @@ void CAttachmentFACE::ComputeTriMat()
 
 void CAttachmentFACE::PostUpdateSimulationParams(bool bAttachmentSortingRequired, const char* pJointName)
 {
-	if (!m_pAttachmentManager)
+	if (bAttachmentSortingRequired)
 	{
-		return;
+		m_pAttachmentManager->ScheduleProcessingBufferRebuild();
 	}
 
-	m_pAttachmentManager->m_TypeSortingRequired += bAttachmentSortingRequired;
 	m_Simulation.PostUpdate(m_pAttachmentManager, pJointName);
 };
 
@@ -326,11 +299,6 @@ void CAttachmentFACE::Update(Skeleton::CPoseData& poseData)
 
 const QuatTS CAttachmentFACE::GetAttWorldAbsolute() const
 {
-	if (!m_pAttachmentManager)
-	{
-		return m_AttModelRelative;
-	}
-
 	QuatTS rPhysLocation = m_pAttachmentManager->m_pSkelInstance->m_location;
 	return rPhysLocation * m_AttModelRelative;
 };

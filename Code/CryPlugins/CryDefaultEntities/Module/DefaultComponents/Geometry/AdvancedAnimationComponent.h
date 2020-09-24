@@ -325,13 +325,10 @@ public:
 	{
 		m_bAnimationDrivenMotion = bSet;
 
-		if (m_pCachedCharacter == nullptr)
+		if (m_pCachedCharacter)
 		{
-			return;
+			m_pCachedCharacter->GetISkeletonAnim()->SetAnimationDrivenMotion(m_bAnimationDrivenMotion);
 		}
-
-		// Disable animation driven motion, note that the function takes the inverted parameter of what you would expect.
-		m_pCachedCharacter->GetISkeletonAnim()->SetAnimationDrivenMotion(m_bAnimationDrivenMotion ? 0 : 1);
 	}
 	bool         IsAnimationDrivenMotionEnabled() const { return m_bAnimationDrivenMotion; }
 

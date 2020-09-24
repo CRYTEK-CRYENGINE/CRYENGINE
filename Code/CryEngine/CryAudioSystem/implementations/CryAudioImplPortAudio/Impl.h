@@ -46,6 +46,7 @@ public:
 	virtual void                    UnregisterInMemoryFile(SFileInfo* const pFileInfo) override;
 	virtual bool                    ConstructFile(XmlNodeRef const& rootNode, SFileInfo* const pFileInfo) override;
 	virtual void                    DestructFile(IFile* const pIFile) override;
+	virtual char const*             GetFileLocation(IFile* const pIFile) const override;
 	virtual void                    GetInfo(SImplInfo& implInfo) const override;
 	virtual ITriggerConnection*     ConstructTriggerConnection(XmlNodeRef const& rootNode, float& radius) override;
 	virtual ITriggerConnection*     ConstructTriggerConnection(ITriggerInfo const* const pITriggerInfo) override;

@@ -6,17 +6,11 @@
 
 namespace EditorSubstance
 {
-	namespace Renderers
-	{
 
+namespace Renderers
+{
 
-
-		CInstanceRenderer::CInstanceRenderer()
-		{
-
-		}
-
-		void CInstanceRenderer::OnOutputAvailable(SubstanceAir::UInt runUid, const SubstanceAir::GraphInstance *graphInstance, SubstanceAir::OutputInstanceBase * outputInstance)
+void CInstanceRenderer::OnOutputAvailable(SubstanceAir::UInt runUid, const SubstanceAir::GraphInstance *graphInstance, SubstanceAir::OutputInstance * outputInstance)
 {
 	CryAutoLock<CryMutexFast> lock(m_mutex);
 	m_queue.emplace(outputInstance);
@@ -46,13 +40,11 @@ bool CInstanceRenderer::OutputsInQueue()
 	return m_queue.size() > 0;
 }
 
-void CInstanceRenderer::RemoveItemFromQueue(SubstanceAir::OutputInstanceBase* output)
+void CInstanceRenderer::RemoveItemFromQueue(SubstanceAir::OutputInstance* output)
 {
 	CryAutoLock<CryMutexFast> lock(m_mutex);
 	m_queue.erase(output);
 }
 
-
-
-	} // END namespace Renderers
+} // END namespace Renderers
 } // END namespace EditorSubstance

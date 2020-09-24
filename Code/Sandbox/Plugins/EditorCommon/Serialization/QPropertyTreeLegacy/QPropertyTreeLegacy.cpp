@@ -172,9 +172,12 @@ static bool smartPaste(PropertyRow* dest, SharedPtr<PropertyRow>& source, Proper
 			const char* nameAlt = dest->label();
 			source->setName(name);
 			source->setLabel(nameAlt);
-			if(dest->parent())
+			if (dest->parent())
+			{
 				dest->parent()->replaceAndPreserveState(dest, source, model);
-			else{
+			}
+			else if (dest != source)
+			{
 				dest->clear();
 				dest->swapChildren(source, model);
 			}

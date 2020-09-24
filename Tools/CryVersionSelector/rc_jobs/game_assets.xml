@@ -34,7 +34,7 @@
 
 	<!-- Shared constant properties -->
 	<Properties XmlFilterFile="${_rc_exe_folder}xmlfilter.txt" />
-	<Properties XmlExtensions="*.animevents;*.adb;*.bspace;*.cdf;*.chrparams;*.comb;*.dlg;*.ent;*.fsq;*.fxl;*.ik;*.lmg;*.mtl;*.setup;*.xml;*.node;*.veg;*.lyr" />
+	<Properties XmlExtensions="*.animevents;*.adb;*.bspace;*.cdf;*.chrparams;*.comb;*.dlg;*.ent;*.fsq;*.fxl;*.ik;*.lmg;*.mtl;*.setup;*.xml;*.node;*.veg;*.lyr;*.env" />
 
 	<!-- Used by the asset pipeline introduced with CRYENGINE 5.3. -->
 	<Properties CryassetType="*.cryasset" />

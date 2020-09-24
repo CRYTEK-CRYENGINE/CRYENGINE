@@ -17,7 +17,7 @@ struct STrackViewPreferences : public SPreferencePage
 	virtual bool Serialize(yasli::Archive& ar) override;
 
 	int              userInterfaceRefreshRate;
-	static const int oneSec = 1000; // millisesonds
+	static const int oneSec = 1000; // milliseconds
 };
 
 STrackViewPreferences gTrackViewPreferences;
@@ -37,7 +37,12 @@ bool STrackViewPreferences::Serialize(yasli::Archive& ar)
 	ar.openBlock("general", "General");
 	int fps = oneSec / userInterfaceRefreshRate;
 	ar(yasli::Range(fps, userInterfaceMinFps, userInterfaceMaxFps), "uiFps", "UI refresh rate (fps)");
-	userInterfaceRefreshRate = oneSec / fps;
+	if (fps != 0)
+	{
+		// When user types 0, in one of passes of serialization (not the last one) devision by 0 will happen
+		// Finally, userInterfaceRefreshRate  will be updated properly
+		userInterfaceRefreshRate = oneSec / fps;
+	}
 
 	ar.closeBlock();
 

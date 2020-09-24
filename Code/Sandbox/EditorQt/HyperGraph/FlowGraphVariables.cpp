@@ -1314,11 +1314,9 @@ CUIEnumsDatabase_SEnum* CVariableFlowNodeDefinedEnum::GetSEnum()
 			pData->GetConfiguration(config);
 			const uint32 portId = m_portId - ((config.nFlags & EFLN_TARGET_ENTITY) ? 1 : 0);
 
-			string outEnumName;
-			if (!pIFlowNode->GetPortGlobalEnum(portId, pNodeIEntity, m_refFormatString.GetString(), outEnumName))
-				outEnumName = m_refFormatString.GetString();
-
-			CUIEnumsDatabase_SEnum* pEnum = GetIEditorImpl()->GetUIEnumsDatabase()->FindEnum(outEnumName.c_str());
+			char outEnumName[MAX_PATH];
+			const char* enumName = pIFlowNode->GetPortGlobalEnum(portId, pNodeIEntity, m_refFormatString.c_str(), outEnumName, MAX_PATH) ? outEnumName : m_refFormatString.c_str();
+			CUIEnumsDatabase_SEnum* pEnum = GetIEditorImpl()->GetUIEnumsDatabase()->FindEnum(enumName);
 			return pEnum;
 		}
 	}

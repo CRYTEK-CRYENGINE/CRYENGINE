@@ -192,8 +192,6 @@ SContext::EState SFinishAnimationComputations::operator()(const SContext& ctx)
 		}
 	}
 
-	ctx.pInstance->m_AttachmentManager.UpdateBindings();
-
 	ctx.pInstance->ClearProcessingContext();
 
 	return SContext::EState::Finished;

@@ -983,7 +983,7 @@ int CSoftEntity::Action(pe_action *_action, int bThreadSafe)
 			for(ipart=0;ipart<m_nParts && m_parts[ipart].id!=action->partid;ipart++);
 		else if (!is_unused(action->ipart))
 			ipart = action->ipart;
-		if (ipart>=m_nParts || action->npt!=3)
+		if (ipart>=m_nParts || action->npt!=3 || m_flags & sef_volumetric)
 			return 0;
 		int id = m_parts[ipart].id;
 		phys_geometry *pGeom = m_parts[ipart].pPhysGeomProxy;
@@ -1076,7 +1076,8 @@ void CSoftEntity::StepInner(float time_interval, int bCollMode, check_part *chec
                             se_vertex *pvtx)
 {
 	#define m_vtx pvtx
-	int i,j,i0,i1,j1,iter,imask;
+	int i,j,i0,i1,j1,iter,imask, vdummy=lvtx_surface;
+	strided_pointer<int> vflags(&vdummy,0);
 	float l0,rsep,area,kr,windage,rmax,vreq,rthickness=1.0f/max(1e-8f,m_thickness);
 	Vec3 l,v,w,F,edge0,edge1;
 	geom_world_data gwd;
@@ -1104,33 +1105,19 @@ void CSoftEntity::StepInner(float time_interval, int bCollMode, check_part *chec
 		m_pCore->Action(&ai);
 	}
 
-	if (!(bCollMode&2) && m_flags & sef_volumetric) {
+	if (m_flags & sef_volumetric) {
 		CTetrLattice *pLat = m_parts[0].pLattice;
-		for(iter=0,i1=1; iter<m_nMaxIters && i1; iter++) {
-			for(i=0;i<pLat->m_nTetr;i++) pLat->m_pTetr[i].flags &= ~64;
-			for(i0=-pLat->m_nTetr,i1=0; i0<i1; i0++) {
-				i = i0+pLat->m_nTetr & i0>>31 | m_pTetrQueue[max(0,i0)] & ~(i0>>31); // i0<0 ? i0+m_nTets : m_pTetrQueue[i0]; 
-				Vec3 vtx[4],com,P,L; int idx[4]; 
-				for(j=0;j<4;j++) vtx[j] = m_vtx[idx[j]=pLat->m_pTetr[i].ivtx[j]].pos;
-				kr = (vtx[1]-vtx[0] ^ vtx[2]-vtx[0])*(vtx[3]-vtx[0]);
-				for(j=0;j<4;j++) vtx[j] += m_vtx[idx[j]].vel*time_interval;
-				if (min(-kr,(vtx[1]-vtx[0] ^ vtx[2]-vtx[0])*(vtx[3]-vtx[0]))>0.0f) {
-					Matrix33 I,Ivtx; float mass;
-					for(com.zero(),mass=0.0f,j=0;j<4;j++)
-						mass += m_vtx[idx[j]].mass, com += m_vtx[idx[j]].pos*m_vtx[idx[j]].mass; 
-					if (mass<=0)
-						continue;
-					for(com/=mass,I.SetZero(),j=0;j<4;j++)
-						Ivtx.SetZero(), I += OffsetInertiaTensor(Ivtx,m_vtx[idx[j]].pos-com,m_vtx[idx[j]].mass);
-					for(j=0,P.zero(),L.zero();j<4;j++) 
-						P += (F=m_vtx[idx[j]].vel*m_vtx[idx[j]].mass), L += m_vtx[idx[j]].pos-com ^ F;
-					for(j=0,v=P/mass,w=I.GetInverted()*L; j<4; j++) 
-						m_vtx[idx[j]].vel = v + (w^m_vtx[idx[j]].pos-com);
-					for(j=0;j<4;j++) if ((j1=pLat->m_pTetr[i].ibuddy[j])>=0 && !(pLat->m_pTetr[j1].flags & 64))
-						m_pTetrQueue[i1++]=j1, pLat->m_pTetr[j1].flags|=64;
-				}
+		float ks = m_ks*m_parts[0].mass/m_nVtx*time_interval;
+		for(i=0;i<pLat->m_nTetr;i++) {
+			Vec3 vtx[4]; int idx[4]; 
+			for(j=0;j<4;j++) vtx[j] = m_vtx[idx[j]=pLat->m_pTetr[i].ivtx[j]].pos;
+			if ((vtx[1]-vtx[0]^vtx[2]-vtx[0])*(vtx[3]-vtx[0]) > 0) {
+				for(j=1,i1=0;j<4;j++) i1 += j-i1 & -isneg(pLat->m_pVtxFlags[idx[j]]-pLat->m_pVtxFlags[idx[i1]]);
+				Vec3 n = vtx[i1+2&3]-vtx[i1+1&3] ^ vtx[i1+3&3]-vtx[i1+1&3];
+				m_vtx[idx[i1]].vel += n*((n*(vtx[i1+1&3]-vtx[i1]))*ks*m_vtx[idx[i1]].massinv/max(1e-8f,n.len2()));
 			}
 		}
+		vflags = strided_pointer<int>(pLat->m_pVtxFlags);
 	}
 
 	if (m_stiffnessAnim>0.0f) { // apply simple animation target pull
@@ -1169,6 +1156,8 @@ void CSoftEntity::StepInner(float time_interval, int bCollMode, check_part *chec
 
 		rsep = m_thickness;
 		m_vtx[i].vreq = 0;
+		if (!(vflags[i] & lvtx_surface))
+			continue;	// for volumetric objects, only check collisions for vertices that lie on the surface
 		if (pent = m_vtx[i].pContactEnt) {
 			i1 = m_vtx[i].iCheckPart; 
 			m_vtx[i].vcontact = checkParts[i1].vbody+(checkParts[i1].wbody^m_vtx[i].pos+m_pos+m_offs0);

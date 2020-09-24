@@ -75,7 +75,7 @@ bool CPhysPullTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& po
 	ray_hit hit;
 	int nHits = event != eMouseLDown && event != eMouseLUp || !view ? 0 :
 	            gEnv->pPhysicalWorld->RayWorldIntersection(org, dir, ent_terrain | ent_static | ent_sleeping_rigid | ent_rigid | ent_living | ent_independent,
-	                                                       rwi_pierceability(15) | rwi_colltype_any(geom_colltype_solid | geom_colltype_ray), &hit, 1);
+	                                                       rwi_pierceability(15) | rwi_colltype_any(geom_colltype_solid | geom_colltype_ray) | rwi_auto_grid_start, &hit, 1);
 	PhysicsVars *vars = gEnv->pPhysicalWorld->GetPhysVars();
 
 	if (event == eMouseLDown)
@@ -160,6 +160,7 @@ bool CPhysPullTool::MouseCallback(CViewport* view, EMouseEvent event, CPoint& po
 		{
 			pe_params_pos pp;
 			pp.pos = hit.pt;
+			pp.q = Quat(view->GetViewTM());
 			if (!m_pEntAttach)
 			{
 				pe_params_flags pf;

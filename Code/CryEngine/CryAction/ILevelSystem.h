@@ -89,7 +89,7 @@ struct ILevelInfo
 {
 	virtual ~ILevelInfo(){}
 
-	typedef struct
+	struct SGameTypeInfo
 	{
 		string name;
 		string xmlFile;
@@ -99,7 +99,7 @@ struct ILevelInfo
 			pSizer->AddObject(name);
 			pSizer->AddObject(xmlFile);
 		}
-	} TGameTypeInfo;
+	};
 
 	struct SMinimapInfo
 	{
@@ -129,9 +129,9 @@ struct ILevelInfo
 	virtual const uint32                     GetLevelTag() const = 0;
 
 	virtual int                              GetGameTypeCount() const = 0;
-	virtual const ILevelInfo::TGameTypeInfo* GetGameType(int gameType) const = 0;
+	virtual const ILevelInfo::SGameTypeInfo* GetGameType(int gameType) const = 0;
 	virtual bool                             SupportsGameType(const char* gameTypeName) const = 0;
-	virtual const ILevelInfo::TGameTypeInfo* GetDefaultGameType() const = 0;
+	virtual const ILevelInfo::SGameTypeInfo* GetDefaultGameType() const = 0;
 	virtual size_t                           GetGameRulesCount() const = 0;
 	virtual size_t                           GetGameRules(const char** pszGameRules, size_t numGameRules) const = 0;
 	virtual bool                             HasGameRules() const = 0;

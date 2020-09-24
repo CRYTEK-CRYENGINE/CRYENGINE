@@ -61,7 +61,7 @@ int CSampleActorComponent::OnPostStep(float deltaTime)
 	if (sl.pGroundCollider)	
 	{
 		Vec3 velReq = m_velMove - sl.groundSlope*(sl.groundSlope*m_velMove); // project velMove to the ground
-		velReq += sl.velGround;	// if we stand on something, inherit its velocity
+		sl.vel -= sl.velGround;	 // if we are standing on a moving object, convert sl.vel to "local space"
 		Vec3 dv = (velReq-sl.vel)*(deltaTime*10.0f);	// default inertial movement: exponentially approach velReq with strength 10
 		m_timeFly = 0;
 		pwr.velLegStick = stickVel;
@@ -72,7 +72,6 @@ int CSampleActorComponent::OnPostStep(float deltaTime)
 			m_timeFly = 0.1f;
 			pwr.velLegStick = -1e6f; // make sure we don't stick to the ground until m_timeFly expires
 			SetupLegs(true);
-			m_velJump.zero();
 		}
 		asv.v = sl.vel + dv;
 		if (m_velMove.len2()) 
@@ -92,7 +91,10 @@ int CSampleActorComponent::OnPostStep(float deltaTime)
 			pwr.legFriction = m_friction;
 			sp.minEnergy = sqr(0.07f);
 		}
-		asv.v -= sl.groundSlope*(sl.groundSlope*asv.v); // project final velocity on the ground to account for sudden slope changes
+		if (!m_velJump.len2())
+			asv.v -= sl.groundSlope*(sl.groundSlope*asv.v); // project final velocity on the ground to account for sudden slope changes
+		asv.v += sl.velGround; // return velocity to world space
+		m_velJump.zero();
 	}	
 	else
 		m_timeFly -= deltaTime;

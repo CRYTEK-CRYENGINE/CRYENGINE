@@ -316,7 +316,7 @@ public:
 
 			// the impulse has to be applied to the highest entity in the hierarchy. This comes from how physics manage linked entities.
 			IEntity* pEntityImpulse = pEntity;
-			while (pEntityImpulse->GetParent())
+			while (pEntityImpulse->GetParent() && !pEntityImpulse->GetLocalSimParent())
 			{
 				pEntityImpulse = pEntityImpulse->GetParent();
 			}

@@ -22,6 +22,12 @@
 #include "VcaState.h"
 #include "GlobalData.h"
 
+#if CRY_PLATFORM_ORBIS
+	#include "platforms/ps4/Functions.h"
+#else
+	#include "platforms/null/Functions.h"
+#endif // CRY_PLATFORM_ORBIS
+
 #include <ISettingConnection.h>
 #include <FileInfo.h>
 #include <CrySystem/File/ICryPak.h>
@@ -177,6 +183,8 @@ void CImpl::Update()
 ///////////////////////////////////////////////////////////////////////////
 bool CImpl::Init(uint16 const objectPoolSize)
 {
+	PlatformSpecific::Initialize();
+
 	if (g_cvars.m_eventPoolSize < 1)
 	{
 		g_cvars.m_eventPoolSize = 1;
@@ -278,6 +286,8 @@ void CImpl::ShutDown()
 
 		CRY_VERIFY(g_pStudioSystem->release() == FMOD_OK);
 	}
+
+	PlatformSpecific::Release();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -508,7 +518,39 @@ void CImpl::UnregisterInMemoryFile(SFileInfo* const pFileInfo)
 
 		if (pFileData != nullptr)
 		{
-			CRY_VERIFY(pFileData->pBank->unload() == FMOD_OK);
+			// Stop all playing events before unloading.
+			int eventCount = 0;
+			CRY_VERIFY(pFileData->pBank->getEventCount(&eventCount) == FMOD_OK, "Failed to retrieve event count during %s", __FUNCTION__);
+			std::vector<::FMOD::Studio::EventDescription*> eventDescriptions(eventCount);
+
+			if (!eventDescriptions.empty())
+			{
+				CRY_VERIFY(pFileData->pBank->getEventList(&eventDescriptions[0], eventCount, &eventCount) == FMOD_OK, "Failed to retrieve event list during %s", __FUNCTION__);
+
+				for (::FMOD::Studio::EventDescription* pEventDescription : eventDescriptions)
+				{
+					int instanceCount = 0;
+					CRY_VERIFY(pEventDescription->getInstanceCount(&instanceCount) == FMOD_OK, "Failed to retrieve instance count during %s", __FUNCTION__);
+					std::vector<::FMOD::Studio::EventInstance*> eventInstances(instanceCount);
+
+					if (!eventInstances.empty())
+					{
+						CRY_VERIFY(pEventDescription->getInstanceList(&eventInstances[0], instanceCount, &instanceCount) == FMOD_OK, "Failed to retrieve instance list during %s", __FUNCTION__);
+
+						for (::FMOD::Studio::EventInstance* pEventInstance : eventInstances)
+						{
+							void* pUserData = nullptr;
+							CRY_VERIFY(pEventInstance->getUserData(&pUserData) == FMOD_OK, "Failed to retrieve CEventInstance during %s", __FUNCTION__);
+							CEventInstance* pCEventInstance = reinterpret_cast<CEventInstance*>(pUserData);
+							pCEventInstance->SetToBeRemoved();
+						}
+
+						CRY_VERIFY(pEventDescription->releaseAllInstances() == FMOD_OK, "Failed to release playing instances during %s", __FUNCTION__);
+					}
+				}
+			}
+
+			CRY_VERIFY(pFileData->pBank->unload() == FMOD_OK, "Failed to unload bank \"%s\" during %s", pFileInfo->filePath, __FUNCTION__);
 
 			FMOD_STUDIO_LOADING_STATE loadingState;
 
@@ -571,6 +613,12 @@ bool CImpl::ConstructFile(XmlNodeRef const& rootNode, SFileInfo* const pFileInfo
 void CImpl::DestructFile(IFile* const pIFile)
 {
 	delete pIFile;
+}
+
+//////////////////////////////////////////////////////////////////////////
+char const* CImpl::GetFileLocation(IFile* const pIFile) const
+{
+	return m_localizedSoundBankFolder.c_str();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1739,7 +1787,11 @@ void CImpl::DrawDebugMemoryInfo(IRenderAuxGeom& auxGeom, float const posX, float
 
 	CryModuleMemoryInfo memInfo;
 	ZeroStruct(memInfo);
+
+	#if !defined(_LIB)
+	// This works differently in monolithic builds and therefore doesn't cater to our needs.
 	CryGetMemoryInfoForModule(&memInfo);
+	#endif // _LIB
 
 	CryFixedStringT<Debug::MaxMemInfoStringLength> memAllocSizeString;
 	auto const memAllocSize = static_cast<size_t>(memInfo.allocated - memInfo.freed);

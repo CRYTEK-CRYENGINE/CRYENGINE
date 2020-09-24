@@ -471,10 +471,6 @@ SubstanceAir::GraphInstance& CSubstancePreset::PrepareRenderInstance(ISubstanceI
 		output->mEnabled = false;
 	}
 
-	for (auto output : m_pGraphInstance->getVirtualOutputs())
-	{
-		output->mEnabled = false;
-	}
 	if (renderer->SupportsOriginalOutputs())
 	{
 		for (SSubstanceOutput& existingOutput : m_tempOriginalOutputs)
@@ -515,17 +511,24 @@ SubstanceAir::GraphInstance& CSubstancePreset::PrepareRenderInstance(ISubstanceI
 				continue;
 			}
 			
-			if (!m_VirtualOutputsCache.count(renderData.name))
-			{
-				m_VirtualOutputsCache[renderData.name] = m_pGraphInstance->addVirtualOutput(renderData.name.c_str());
-			}
-
-			SubstanceAir::VirtualOutputInstance* newVirtual = m_VirtualOutputsCache[renderData.name];
-			newVirtual->mEnabled = renderData.output.enabled;
 			SubstanceAir::OutputFormat newFormat;
 			FillFormatForRender(renderData, baseResolution, newFormat);
-			newVirtual->setFormat(newFormat);
-			newVirtual->mUserData = renderData.customData;
+
+			if (!m_VirtualOutputsCache.count(renderData.name))
+			{
+				SubstanceAir::OutputDesc desc;
+				desc.mLabel = renderData.name.c_str();
+				m_VirtualOutputsCache[renderData.name] = m_pGraphInstance->createOutput(newFormat, desc);
+			}
+			else
+			{
+				SubstanceAir::OutputInstance* pOutput = m_VirtualOutputsCache[renderData.name];
+				pOutput->overrideFormat(newFormat);
+			}
+
+			SubstanceAir::OutputInstance* pOutput = m_VirtualOutputsCache[renderData.name];
+			pOutput->mEnabled = renderData.output.enabled;
+			pOutput->mUserData = renderData.customData;
 		}
 	}
 

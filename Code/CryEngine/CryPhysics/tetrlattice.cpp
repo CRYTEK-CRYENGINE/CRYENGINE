@@ -155,6 +155,11 @@ CTetrLattice *CTetrLattice::CreateLattice(const Vec3 *pt,int npt, const int *pTe
 			pEdgeTets,nTets, pFaceTets);
 		// if (nTets>2) - error in topology
 		m_pTetr[i].ibuddy[j] = pFaceTets[iszero(i-pFaceTets[0])] | nTets-2>>31;
+		if (m_pTetr[i].ibuddy[j] < 0) {
+			int iface[3]; GetFaceIdx(i,j,iface);
+			for(int ivtx=0;ivtx<3;ivtx++) m_pVtxFlags[iface[ivtx]] |= lvtx_surface;
+		}
+		m_pVtxFlags[m_pTetr[i].ivtx[j]] += 1<<lvtx_inext_log2; // VtxFlags>>ltet_inext_log2 = number of tets that use that vtx
 	}
 
 	delete[] pVtxTets; delete[] pTet0;
@@ -309,6 +314,7 @@ void CTetrLattice::Subtract(IGeometry *pGeom, const geom_world_data *pgwd1,const
 	R = pgwd2->R.T()*pgwd1->R*(pgwd1->scale*rscale2);
 	pos = ((pgwd1->offset-pgwd2->offset)*rscale2)*pgwd2->R;
 	center = ((pgwd2->R*pGeom->GetCenter()*pgwd2->scale+pgwd2->offset-pgwd1->offset)*pgwd1->R)*rscale1;
+	for(i=0;i<m_nVtx;i++) m_pVtxFlags[i] &= ~(-1<<lvtx_inext_log2);
 
 	for(ic.x=iBBox[0].x;ic.x<iBBox[1].x;ic.x++) for(ic.y=iBBox[0].y;ic.y<iBBox[1].y;ic.y++) for(ic.z=iBBox[0].z;ic.z<iBBox[1].z;ic.z++)
 		for(idx=m_pGridTet0[ic*m_strideGrid]; idx<m_pGridTet0[ic*m_strideGrid+1]; idx++) 

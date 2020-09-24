@@ -353,6 +353,13 @@ struct IImpl
 	virtual void SetLanguage(char const* const szLanguage) = 0;
 
 	/**
+	 * Get the full path to the localized folder containing the file described by the pFileInfo
+	 * @param pFile - the file whose location is being queried
+	 * @return A C-string containing the path to the localized folder where the file corresponding to the pFileInfo is stored
+	 */
+	virtual char const* GetFileLocation(IFile* const pIFile) const = 0;
+
+	/**
 	 * Return a string of the audio middeware folder name plus a separator. This string is used for building the path
 	 * to audio files and audio controls editor data.
 	 * @param[out] implInfo - a reference to an instance of SImplInfo

@@ -721,8 +721,8 @@ public:
 
 #ifdef CRY_PLATFORM_WINDOWS
 	// Window styles for windowed / fullscreen (Windows desktop only)
-	static const DWORD     m_dwWinstyleBorder{ WS_OVERLAPPEDWINDOW | WS_VISIBLE };
-	static const DWORD     m_dwWinstyleNoBorder{ WS_POPUP | WS_VISIBLE };
+	static constexpr DWORD   m_WinStyleBorder = (WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+	static constexpr DWORD   m_WinStyleNoBorder = (WS_POPUP | WS_VISIBLE);
 #endif // CRY_PLATFORM_WINDOWS
 
 	CRenderPipelineProfiler* m_pPipelineProfiler;

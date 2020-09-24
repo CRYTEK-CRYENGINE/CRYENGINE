@@ -1461,7 +1461,7 @@ void CEntityPhysics::PhysicalizeSoft(SEntityPhysicalizeParams& params)
 		pSlot->GetStatObj()->UpdateVertices(0, 0, 0, 0, 0); // with 0 input will just prep skin data
 		if (pSlot->GetStatObj()->GetFlags() & STATIC_OBJECT_CLONE)
 			partpos.flags |= geom_can_modify;
-		m_pPhysicalEntity->AddGeometry(pPhysGeom, &partpos);
+		m_pPhysicalEntity->AddGeometry(pPhysGeom, &partpos, GetPartId0(slot));
 		if (partpos.pLattice)
 		{
 			pe_action_attach_points aap;

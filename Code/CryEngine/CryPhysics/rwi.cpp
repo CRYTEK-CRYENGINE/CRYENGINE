@@ -296,7 +296,7 @@ gotcontacts:
 								IPhysicalWorld::SRWIParams rp;
 								pPortals[nPortals] = pent;
 								nPortals = min(nPortals+1,nMaxPortals);
-								rp.Init(transGrid*aray.m_ray.origin, transGrid.q*aray.m_ray.dir, objtypes & ~ent_terrain, flags, collclass, 
+								rp.Init(transGrid*aray.m_ray.origin, transGrid.q*aray.m_ray.dir, objtypes & ~ent_terrain, flags & ~rwi_auto_grid_start, collclass, 
 									phits,nMaxHits, (IPhysicalEntity**)&pent->m_pEntBuddy,1, this,FD_RWI_RECURSIVE, nullptr, pPortals+nPortals,nMaxPortals-nPortals);
 								int nhits1 = pWorld->RayWorldIntersection(rp, pNameTag, iCaller);
 								szList = max(szList, pWorld->GetTmpEntList(pTmpEntList, iCaller));
@@ -588,6 +588,7 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 		RayWater(rp.org,dir,egc,rp.flags,rp.nMaxHits,rp.hits);
 		objtypes |= ent_areas;
 	}
+	QuatT hitTrans(IDENTITY);
 
 	IF (objtypes & ~(ent_terrain|ent_water) && m_gthunks, 1) {
 		MarkSkipEnts(rp.pSkipEnts,rp.nSkipEnts,1<<iCaller);
@@ -597,6 +598,25 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 		egc.pgrid = &m_entgrid;
 		for(i=0;i<rp.nSkipEnts;i++) if (rp.pSkipEnts[i] && (egc.pgrid=GetGrid(rp.pSkipEnts[i]))!=&m_entgrid)
 			break;
+		if (rp.flags & rwi_auto_grid_start) {
+			SEntityGrid *pgridLowest=nullptr;
+			int maxDepth=-1,depth;
+			for(SEntityGrid *pgrid=m_entgrid.m_next; pgrid; pgrid=pgrid->m_next)
+				if (PtInAABB(pgrid->m_BBox, pgrid->m_transW.GetInverted()*(egc.pgrid->m_transW*rp.org))) {
+					for(SEntityGrid *pgrid1=pgrid+(depth=0); pgrid1->m_host; pgrid1=GetGrid(pgrid1->m_host),depth++);
+					if (depth>maxDepth) {
+						pgridLowest=pgrid; maxDepth=depth;
+					}
+				}
+			if (pgridLowest) {
+				QuatT dtrans = pgridLowest->m_transW.GetInverted()*egc.pgrid->m_transW;
+				hitTrans = dtrans.GetInverted();
+				egc.aray.m_ray.origin = dtrans*rp.org; 
+				egc.aray.m_ray.dir = dir = dtrans.q*dir;
+				egc.aray.m_dirn = dtrans.q*egc.aray.m_dirn;
+				egc.pgrid = pgridLowest;
+			}
+		}
 		egc.objtypes = objtypes;
 		egc.flags = rp.flags^rwi_separate_important_hits;
 		if (!(egc.flagsColliderAll = rp.flags>>rwi_colltype_bit))
@@ -620,7 +640,7 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 		egc.iCaller = iCaller;
 		m_prevGEAobjtypes[iCaller] = -1;
 
-		Vec3 origin_grid = egc.pgrid->vecToGrid(rp.org-egc.pgrid->origin), dir_grid = egc.pgrid->vecToGrid(dir);
+		Vec3 origin_grid = egc.pgrid->vecToGrid(egc.aray.m_ray.origin-egc.pgrid->origin), dir_grid = egc.pgrid->vecToGrid(dir);
 		egc.org2d.set(0.5f-origin_grid.x*egc.pgrid->stepr.x, 0.5f-origin_grid.y*egc.pgrid->stepr.y);
 		egc.dir2d.set(dir_grid.x*egc.pgrid->stepr.x, dir_grid.y*egc.pgrid->stepr.y);
 		egc.dir2d_len = len(egc.dir2d);
@@ -690,7 +710,7 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 	nHits = 0;
 	if (hits[0].dist>1E9f) {
 		hits[0].dist = -1;
-		hits[0].pt = rp.org+dir;
+		hits[0].pt = egc.aray.m_ray.origin+dir;
 	} else {
 		CPhysicalEntity *pent = (CPhysicalEntity*)hits[0].pCollider;
 		if (pent && pent->m_iSimClass!=5 && hits[0].ipart<pent->m_nParts) {
@@ -702,6 +722,8 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 			inodeLastHit = egc.iSolidNode;
 		} else
 			hits[0].foreignIdx=hits[0].partid = -1;
+		hits[0].pt = hitTrans*hits[0].pt;
+		hits[0].n = hitTrans.q*hits[0].n;
 		nHits++;
 	}
 	if (m_vars.iDrawHelpers & 64 && m_pRenderer) {
@@ -710,7 +732,7 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 		nTicks = CryGetTicks()-func_profiler.m_iStartTime;
 #endif
 		int bQueued = iszero(m_lockTPR>>16^1 | iCaller);
-		m_pRenderer->DrawLine(rp.org,hits[0].pt,8-bQueued,1|nTicks*2);
+		m_pRenderer->DrawLine(egc.aray.m_ray.origin,hits[0].pt,8-bQueued,1|nTicks*2);
 	}
 	for(i=1;i<rp.nMaxHits;i++) {
 		if (hits[i].dist>1E9f || hits[0].dist>0 && hits[i].dist>hits[0].dist)
@@ -723,6 +745,8 @@ int CPhysicalWorld::RayWorldIntersection(const IPhysicalWorld::SRWIParams &rp, c
 				hits[i].partid = pent->m_parts[hits[i].ipart].id;
 			} else
 				hits[i].foreignIdx=hits[i].partid = -1;
+			hits[i].pt = hitTrans*hits[i].pt;
+			hits[i].n = hitTrans.q*hits[i].n;
 			hits[i].bTerrain=0; nHits++; 
 		}
 	}

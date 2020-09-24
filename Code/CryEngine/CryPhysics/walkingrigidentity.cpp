@@ -318,13 +318,27 @@ void CWalkingRigidEntity::CheckAdditionalGeometry(float dt)
 	if (pentGround!=m_pentGround) {
 		if (m_pentGround && !HasContactsWith(m_pentGround) && !m_pentGround->HasContactsWith(this))
 			RemoveCollider(m_pentGround);
-		if (pentGround && pentGround->GetMassInv()>0)
+		if (pentGround)
 			AddCollider(pentGround);
 	}
 	{ WriteLock lock(m_lockUpdate);
 		m_pentGround = pentGround;
 		m_distHit=thit; m_ilegHit=ilegHit; m_ipartGround=ipartGround;
 		m_ptlocGround=ptlocGround; m_nlocGround=nlocGround;	m_matidGround=matidGround;
+	}
+}
+
+void CWalkingRigidEntity::ComputeBBox(Vec3 *BBox, int flags)
+{
+	CRigidEntity::ComputeBBox(BBox,flags);
+	if (m_pentGround) {
+		QuatTS qts; m_pentGround->GetPartTransform(m_ipartGround, qts.t,qts.q,qts.s, this);
+		Vec3 ptLeg = qts*m_ptlocGround;
+		float pad = m_pWorld->m_vars.maxContactGap;
+		for(int i=0;i<3;i++) {
+			BBox[0][i] = min(m_BBoxNew[0][i],ptLeg[i]-pad);
+			BBox[1][i] = max(m_BBoxNew[1][i],ptLeg[i]+pad);
+		}
 	}
 }
 

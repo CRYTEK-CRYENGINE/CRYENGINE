@@ -1384,8 +1384,9 @@ struct IFlowNode : public _i_reference_target_t
 	//! \param[in] pNodeEntity Current entity attached to the node.
 	//! \param[in] szName The common name defined with the port (enum_global_def:commonName).
 	//! \param[out] outGlobalEnum The global enum name to use for this port.
+	//! \param[in] globalEnumMaxSize Maximum size of the possible resulting outGlobalEnum name (including null-terminated character).
 	//! \returns true if a global enum name was determined and should be used. Otherwise the common name is used.
-	virtual bool GetPortGlobalEnum(uint32 portId, IEntity* pNodeEntity, const char* szName, string& outGlobalEnum) const { return false; }
+	virtual bool GetPortGlobalEnum(uint32 portId, IEntity* pNodeEntity, const char* szName, char* outGlobalEnum, size_t globalEnumMaxSize) const { return false; }
 
 	// </interfuscator:shuffle>
 };

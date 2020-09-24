@@ -1592,7 +1592,9 @@ void CGameEngine::OnEditorNotifyEvent(EEditorNotifyEvent event)
 			{
 				gEnv->pGameFramework->GetIGameRulesSystem()->CreateGameRules(pGameRulesVar->GetString());
 			}
-			gEnv->pGameFramework->GetILevelSystem()->OnLoadingStart(0);
+
+			ILevelInfo* pLevelInfo = gEnv->pGameFramework->GetILevelSystem()->GetLevelInfo(m_levelName);
+			gEnv->pGameFramework->GetILevelSystem()->OnLoadingStart(pLevelInfo);
 
 			if (!gEnv->pGameFramework->BlockingSpawnPlayer())
 			{

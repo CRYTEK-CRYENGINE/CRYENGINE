@@ -40,6 +40,13 @@ void CLocalGridComponent::Reset()
 				pPortal->GetPhysics()->Action(&auc);
 			}
 		}
+		for(IPhysicalEntity *area : m_physAreas)
+		{
+			pe_params_pos pp;
+			pp.pGridRefEnt = nullptr;
+			area->SetParams(&pp);
+		}
+		m_physAreas.clear();
 	}
 }
 
@@ -63,6 +70,10 @@ void CLocalGridComponent::Physicalize()
 	pe_simulation_params sp;
 	sp.minEnergy = sqr(m_accThresh);
 	m_pGrid->SetParams(&sp);
+	pe_params_bbox pbb;
+	pbb.BBox[0].zero();
+	pbb.BBox[1].Set(m_sizex*m_cellSize.x, m_sizey*m_cellSize.y, m_height);
+	m_pGrid->SetParams(&pbb);
 
 	for(IEntityLink *pLink = GetEntity()->GetEntityLinks(); pLink; pLink = pLink->next)
 	{
@@ -119,6 +130,18 @@ void CLocalGridComponent::Physicalize()
 		if (epq.pEntities[i] == GetEntity() || epq.pEntities[i] == GetEntity()->GetParent() || max(Vec3(0), ((bbox.GetCenter()-center)*qWorld).abs()-sz).len2() > 1e-6f)
 			continue;
 		GetEntity()->AttachChild(epq.pEntities[i], SChildAttachParams(IEntity::ATTACHMENT_LOCAL_SIM | IEntity::ATTACHMENT_KEEP_TRANSFORMATION));
+	}
+	IPhysicalEntity **physAreas;
+	int nAreas = gEnv->pPhysicalWorld->GetEntitiesInBox(epq.box.min,epq.box.max, physAreas, ent_areas);
+	for(int i=0; i<nAreas; i++)
+	{
+		physAreas[i]->GetParams(&pbb);
+		if ((pbb.BBox[1]-pbb.BBox[0]).GetVolume() > epq.box.GetVolume()*10)
+			continue;
+		pe_params_pos pp;
+		pp.pGridRefEnt = m_pGrid;
+		physAreas[i]->SetParams(&pp);
+		m_physAreas.push_back(physAreas[i]);
 	}
 }
 

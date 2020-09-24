@@ -7,21 +7,14 @@
 
 namespace EditorSubstance
 {
-	namespace Renderers
-	{
 
+namespace Renderers
+{
 
-		CPreviewRenderer::CPreviewRenderer() : CInstanceRenderer()
-		{
-
-		}
-
-		void CPreviewRenderer::FillVirtualOutputRenderData(const ISubstancePreset* preset, const SSubstanceOutput& output, std::vector<SSubstanceRenderData>& renderData)
+void CPreviewRenderer::FillVirtualOutputRenderData(const ISubstancePreset* preset, const SSubstanceOutput& output, std::vector<SSubstanceRenderData>& renderData)
 {
 	ProcessOutput(preset, output, renderData, true);
 }
-
-
 
 void CPreviewRenderer::FillOriginalOutputRenderData(const ISubstancePreset* preset, SSubstanceOutput& output, std::vector<SSubstanceRenderData>& renderData)
 {

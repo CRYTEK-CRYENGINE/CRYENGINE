@@ -999,26 +999,36 @@ bool CLevelExplorer::OnRename()
 
 bool CLevelExplorer::OnLock()
 {
-	std::vector<CObjectLayer*> allLayers;
-	LevelModelsUtil::GetAllLayersForIndexList(m_treeView->selectionModel()->selectedRows(), allLayers);
+	std::vector<CObjectLayer*> layers;
+	std::vector<CBaseObject*> objects;
 
-	for (CObjectLayer* pLayer : allLayers)
+	LevelModelsUtil::GetAllLayersForIndexList(m_treeView->selectionModel()->selectedRows(), layers);
+	LevelModelsUtil::GetObjectsForIndexList(m_treeView->selectionModel()->selectedRows(), objects);
+
+	if (layers.empty() && objects.empty())
 	{
-		pLayer->SetFrozen(true);
+		return false;
 	}
+
+	LevelExplorerCommandHelper::Lock(layers, objects);
 
 	return true;
 }
 
 bool CLevelExplorer::OnUnlock()
 {
-	std::vector<CObjectLayer*> allLayers;
-	LevelModelsUtil::GetAllLayersForIndexList(m_treeView->selectionModel()->selectedRows(), allLayers);
+	std::vector<CObjectLayer*> layers;
+	std::vector<CBaseObject*> objects;
 
-	for (CObjectLayer* pLayer : allLayers)
+	LevelModelsUtil::GetAllLayersForIndexList(m_treeView->selectionModel()->selectedRows(), layers);
+	LevelModelsUtil::GetObjectsForIndexList(m_treeView->selectionModel()->selectedRows(), objects);
+
+	if (layers.empty() && objects.empty())
 	{
-		pLayer->SetFrozen(false);
+		return false;
 	}
+
+	LevelExplorerCommandHelper::UnLock(layers, objects);
 
 	return true;
 }
@@ -1646,12 +1656,6 @@ void CLevelExplorer::OnSelectionChanged(const QItemSelection& selected, const QI
 
 	CUndo undo("Select Objects");
 	pObjectManager->SelectAndUnselectObjects(objectsToSelect, objectsToDeselect);
-
-	//Prevent selecting frozen objects
-	for (auto& index : unselectObjectIndices)
-	{
-		m_treeView->selectionModel()->setCurrentIndex(index, QItemSelectionModel::Deselect | QItemSelectionModel::Rows);
-	}
 
 	//validate that selections is synced properly, objects can be selected in the manager but not in the table selection (happens for instance if you search/filter and then select)
 	{

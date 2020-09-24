@@ -2011,7 +2011,7 @@ struct I3DEngine : public IProcess
 
 	//! Updates rendering mesh in the stat obj associated with pPhysGeom.
 	//! \note Creates or clones the object if necessary.
-	virtual IStatObj* UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdate* pLastUpdate = 0, IFoliage* pSrcFoliage = 0) = 0;
+	virtual IStatObj* UpdateDeformableStatObj(IGeometry* pPhysGeom, bop_meshupdate* pLastUpdate = 0, IFoliage* pSrcFoliage = 0, IMaterial* pMtlOverride = nullptr) = 0;
 
 	//! Saves/loads state of engine objects.
 	virtual void SerializeState(TSerialize ser) = 0;

@@ -1967,33 +1967,50 @@ void CD3D9Renderer::UpdateWindowMode()
 	// In non-editor mode
 	if (!IsEditorMode())
 	{
+		EWindowState windowMode = static_cast<EWindowState>(m_CVWindowType->GetIVal());
+
+		// Fullscreen exclusive mode - simply exit, as the border style does not matter since the windowing/composition is off/unavailable
+		if (windowMode == EWindowState::Fullscreen)
+		{
+			return;
+		}
+
 		// Set self as the active window
 		::SetActiveWindow(static_cast<HWND>(GetHWND()));
 
 		// Is the window resizable?
-		ICVar* cvResize = gEnv->pConsole->GetCVar("r_resizableWindow");
-		bool bFixedSize = ((cvResize != nullptr) && (cvResize->GetIVal() == 0));
+		const ICVar* cvResize = gEnv->pConsole->GetCVar("r_resizableWindow");
+		const bool bFixedSize = ((cvResize != nullptr) && (cvResize->GetIVal() == 0));
+
+		const int widthCVarVal = m_CVWidth->GetIVal();
+		const int heightCVarVal = m_CVHeight->GetIVal();
 
 		// target style
 		DWORD dwStyle = 0;
 
-		EWindowState windowMode = static_cast<EWindowState>(m_CVWindowType->GetIVal());
+		// Note: Use SWP_NOSENDCHANGING to stop DefWindowProc sending the window a WM_GETMINMAXINFO message, which can result in a 
+		// full sized window at resolution sized down by the size of the borders and titlebar. Only do this for windowed mode
+		DWORD setWinPosFlags = (SWP_SHOWWINDOW | SWP_NOSENDCHANGING);
+
 		switch (windowMode)
 		{
 		case EWindowState::Windowed:
 		{
 			// Change to overlapped window style, add a sizing border and controls to resizable windows
 			dwStyle = (bFixedSize) ?
-				m_dwWinstyleBorder & ~(WS_MAXIMIZEBOX | WS_THICKFRAME) :
-				m_dwWinstyleBorder | (WS_MAXIMIZEBOX | WS_THICKFRAME);
+				m_WinStyleBorder & ~(WS_MAXIMIZEBOX | WS_THICKFRAME) :
+				m_WinStyleBorder | (WS_MAXIMIZEBOX | WS_THICKFRAME);
+			setWinPosFlags |= SWP_NOMOVE;
 		}
 		break;
+		case EWindowState::Fullscreen:
+			// fallthrough intended
 		case EWindowState::BorderlessFullscreen:
 			// fallthough intentional
 		case EWindowState::BorderlessWindow:
-			// fallthough intentional
-		case EWindowState::Fullscreen:
-			dwStyle = m_dwWinstyleNoBorder;
+
+
+			dwStyle = m_WinStyleNoBorder;
 			break;
 		default:
 			break;
@@ -2001,42 +2018,90 @@ void CD3D9Renderer::UpdateWindowMode()
 
 		// Window handle
 		HWND hWnd = static_cast<HWND>(m_hWnd);
+		const RectI bounds = GetBaseDisplayContext()->GetCurrentMonitorBounds();
 
-		// Client coordinates (to get the uper-left corner)
+		// Create a new client area sized to the cvars
 		RECT targetRect{ 0, 0, 0, 0 };
 		::GetClientRect(hWnd, &targetRect);
-
-		// set style, compensate for window borders in windowed mode
-		SetWindowLongPtrW(hWnd, GWL_STYLE, dwStyle);
+		targetRect.right = targetRect.left + widthCVarVal;
+		targetRect.bottom = targetRect.top + heightCVarVal;
 
 		if (windowMode == EWindowState::Windowed)
 		{
 			::AdjustWindowRectEx(
-				&targetRect
-				, dwStyle
-				, false
-				, static_cast<DWORD>(::GetWindowLongPtr(hWnd, GWL_EXSTYLE))
+				&targetRect,
+				dwStyle,
+				false,
+				static_cast<DWORD>(::GetWindowLongPtr(hWnd, GWL_EXSTYLE))
 			);
 		}
 
-		// Position the window in the centre of the current monitor
-		int nWidth = (targetRect.right - targetRect.left);
-		int nHeight = (targetRect.bottom - targetRect.top);
-		const RectI bounds = GetBaseDisplayContext()->GetCurrentMonitorBounds();
+		{
+			// set style (must be activated with a call to SetWindowPos, disabling sizing, moving, z-ordering)
+			const HWND windowZPos = (windowMode == EWindowState::BorderlessFullscreen || windowMode == EWindowState::Fullscreen) ? HWND_TOPMOST : HWND_NOTOPMOST;
+			const UINT setWinStyleFlags = (SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
-		// Center window (hide, then move/size, then unhide)
-		ShowWindow(hWnd, SW_HIDE);
-		SetWindowPos(
-			hWnd
-			, (windowMode == EWindowState::Fullscreen) ? HWND_TOPMOST : HWND_NOTOPMOST          // Z-Order (fullscreen exclusive = topmost)
-			, (windowMode == EWindowState::Fullscreen) ? 0 : ((bounds.w / 2) - (nWidth / 2))    // upper-left X
-			, (windowMode == EWindowState::Fullscreen) ? 0 : ((bounds.h / 2) - (nHeight / 2))   // upper-left Y
-			, nWidth    // Width
-			, nHeight   // Height
-			, (SWP_SHOWWINDOW | SWP_DRAWFRAME)    // Flags
+			if (dwStyle != static_cast<DWORD>(::GetWindowLongPtr(hWnd, GWL_STYLE)))
+			{
+				::SetWindowLongPtrW(hWnd, GWL_STYLE, dwStyle);
+				::SetWindowPos(hWnd, windowZPos, 0, 0, 0, 0, setWinStyleFlags);
+			}
+		}
+
+		RectI newWindowDimensions{ 0, 0, 0, 0 };
+		switch (windowMode)
+		{
+		case EWindowState::Windowed:
+			newWindowDimensions =
+			{
+				targetRect.left,
+				targetRect.top,
+				targetRect.right - targetRect.left,
+				targetRect.bottom - targetRect.top
+			};
+			break;
+		case EWindowState::BorderlessFullscreen:
+			newWindowDimensions =
+			{
+				0,
+				0,
+				bounds.w,
+				bounds.h
+			};
+			break;
+		case EWindowState::BorderlessWindow:
+			newWindowDimensions =
+			{
+				((bounds.w / 2) - (widthCVarVal / 2)),
+				((bounds.h / 2) - (heightCVarVal / 2)),
+				widthCVarVal,
+				heightCVarVal
+			};
+			break;
+		case EWindowState::Fullscreen:
+			newWindowDimensions =
+			{
+				0,
+				0,
+				widthCVarVal,
+				heightCVarVal
+			};
+			setWinPosFlags |= SWP_NOMOVE;
+			break;
+		default:
+			break;
+		}
+
+		const bool isWinFullscreen = (windowMode == EWindowState::BorderlessFullscreen || windowMode == EWindowState::Fullscreen);
+		::SetWindowPos(
+			hWnd,
+			(isWinFullscreen) ? HWND_TOPMOST : HWND_NOTOPMOST,
+			newWindowDimensions.x,
+			newWindowDimensions.y,
+			newWindowDimensions.w,
+			newWindowDimensions.h,
+			setWinPosFlags
 		);
-		ShowWindow(hWnd, SW_SHOW);
-
 	}
 
 #endif //CRY_PLATFORM_WINDOWS
@@ -2051,10 +2116,50 @@ void CD3D9Renderer::UpdateResolution()
 	// Move/size the window to the new coordinates/resolution in non-editor mode
 	if (!IsEditorMode())
 	{
-		// Set self as the active window
-		::SetActiveWindow(static_cast<HWND>(GetHWND()));
+
+		static bool s_wasWinMaximized = false;
+		static bool s_wasWinRestoring = false;
 
 		const HWND hWnd = static_cast<HWND>(m_hWnd);
+
+		const int widthCVarValue = m_CVWidth->GetIVal();
+		const int heightCVarValue = m_CVHeight->GetIVal();
+
+		// Check the window is being maximized or restored from maximized
+		// If so, no adjustment is necessary; the shell will perform the sizing/moving
+		{
+			RECT windowRect{ 0, 0, 0, 0 };
+			::GetClientRect(hWnd, &windowRect);
+
+			const bool isWinMaximized = (::IsZoomed(hWnd) != 0);
+			const bool isWinMinimized = (::IsIconic(hWnd) != 0);
+			const bool shouldRestore = (s_wasWinMaximized && isWinMaximized);
+
+			const bool isSizingComplete = ((widthCVarValue == windowRect.right - windowRect.left) && (heightCVarValue == windowRect.bottom - windowRect.top));
+			const bool isWinRestoring = (s_wasWinMaximized && !isWinMaximized && !isWinMinimized);
+			const bool isWinMaximizing = (!s_wasWinMaximized &&  isWinMaximized);
+
+			if (s_wasWinRestoring && !isWinRestoring)
+			{
+				s_wasWinRestoring = false;
+				s_wasWinMaximized = false;
+				return;
+			}
+
+			s_wasWinMaximized = (isSizingComplete && isWinMaximized);
+			s_wasWinRestoring = isWinRestoring;
+
+			if (isWinRestoring || isWinMaximizing)
+			{
+				return;
+			}
+		}
+
+		const EWindowState windowMode = static_cast<EWindowState>(m_CVWindowType->GetIVal());
+		DWORD setWinPosFlags = (SWP_SHOWWINDOW | SWP_NOSENDCHANGING);
+
+		// Set self as the active window
+		::SetActiveWindow(static_cast<HWND>(GetHWND()));
 		RECT targetRect{ 0, 0, 0, 0 };
 
 		// Get client area dimensions in screen space (to use the top-left point)
@@ -2062,35 +2167,81 @@ void CD3D9Renderer::UpdateResolution()
 		::ClientToScreen(hWnd, (POINT*)&targetRect.left);
 
 		// set rectangle width, height (based on existing top-left coords)
-		targetRect.right = targetRect.left + m_CVWidth->GetIVal();
-		targetRect.bottom = targetRect.top + m_CVHeight->GetIVal();
-
-		const EWindowState windowMode = static_cast<EWindowState>(m_CVWindowType->GetIVal());
+		targetRect.right = targetRect.left + widthCVarValue;
+		targetRect.bottom = targetRect.top + heightCVarValue;
 
 		// Make adjustments to the rectangle to compensate for current window decorations
 		if (windowMode == EWindowState::Windowed)
 		{
 			::AdjustWindowRectEx(
-				&targetRect
-				, static_cast<DWORD>(::GetWindowLongPtr(hWnd, GWL_STYLE))    // window style
-				, false    // False = No menu
-				, static_cast<DWORD>(::GetWindowLongPtr(hWnd, GWL_EXSTYLE))  // extended style
+				&targetRect,
+				static_cast<DWORD>(::GetWindowLongPtr(hWnd, GWL_STYLE)),
+				false,
+				static_cast<DWORD>(::GetWindowLongPtr(hWnd, GWL_EXSTYLE))
 			);
 		}
 
-		// Position the window in the centre of the current monitor
-		const int nWidth = (targetRect.right - targetRect.left);
-		const int nHeight = (targetRect.bottom - targetRect.top);
+		const bool isWinFullscreen = (windowMode == EWindowState::BorderlessFullscreen || windowMode == EWindowState::Fullscreen);
 		const RectI scrnBounds = GetBaseDisplayContext()->GetCurrentMonitorBounds();
-		// Move & size (triggers window events)
-		SetWindowPos(
-			hWnd
-			, (windowMode == EWindowState::Fullscreen) ? HWND_TOPMOST : HWND_NOTOPMOST              // Z-Ordering
-			, (windowMode == EWindowState::Fullscreen) ? 0 : ((scrnBounds.w / 2) - (nWidth / 2))    // upper-left X
-			, (windowMode == EWindowState::Fullscreen) ? 0 : ((scrnBounds.h / 2) - (nHeight / 2))   // upper-left Y
-			, nWidth   // Width
-			, nHeight  // Height
-			, (SWP_SHOWWINDOW | SWP_FRAMECHANGED)  // Flags
+
+		const int newWinWidth = (targetRect.right - targetRect.left);
+		const int newWinHeight = (targetRect.bottom - targetRect.top);
+
+		RectI newWindowPos{ 0, 0, 0, 0 };
+		switch (windowMode)
+		{
+		case EWindowState::Windowed:
+			newWindowPos =
+			{
+				targetRect.left,
+				targetRect.top,
+				targetRect.right - targetRect.left,
+				targetRect.bottom - targetRect.top
+			};
+			setWinPosFlags |= SWP_NOMOVE;
+			break;
+		case EWindowState::BorderlessWindow:
+			// note: borderless window is centred
+			newWindowPos =
+			{
+				 ((scrnBounds.w / 2) - (newWinWidth / 2)),
+				 ((scrnBounds.h / 2) - (newWinHeight / 2)),
+				 widthCVarValue,
+				 heightCVarValue
+			};
+			setWinPosFlags |= SWP_NOMOVE;
+			break;
+		case EWindowState::BorderlessFullscreen:
+			newWindowPos =
+			{
+				0,
+				0,
+				scrnBounds.w,
+				scrnBounds.h
+			};
+			break;
+		case EWindowState::Fullscreen:
+			newWindowPos =
+			{
+				0,
+				0,
+				widthCVarValue,
+				heightCVarValue
+			};
+			setWinPosFlags |= (SWP_NOMOVE);
+			break;
+		default:
+			break;
+		}
+
+		::SetWindowPos(
+			hWnd,
+			(isWinFullscreen) ? HWND_TOPMOST : HWND_NOTOPMOST,
+			newWindowPos.x,
+			newWindowPos.y,
+			newWindowPos.w,
+			newWindowPos.h,
+			setWinPosFlags
 		);
 
 	}
@@ -2106,7 +2257,7 @@ void CD3D9Renderer::OnSystemEvent(ESystemEvent eEvent, UINT_PTR wParam, UINT_PTR
 	{
 	case ESYSTEM_EVENT_DISPLAY_CHANGED:
 	{
-		if (!IsEditorMode()) 
+		if (!IsEditorMode())
 		{
 			// Resolution has chaned while out of focus - normally another app changing resolution
 			if (::GetFocus() != static_cast<HWND>(GetHWND()) && IsFullscreen())
@@ -2118,19 +2269,32 @@ void CD3D9Renderer::OnSystemEvent(ESystemEvent eEvent, UINT_PTR wParam, UINT_PTR
 			}
 		}
 	}
+	break;
 	case ESYSTEM_EVENT_RESIZE:
 	{
-		// Only in editor mode (as the window is externally influenced)
-		if (IsEditorMode())
+		if (!IsEditorMode())
 		{
-			// Set the width (CVars only trigger when input and stored values differ; this avoids a self-triggering loop)
-			m_CVWidth->Set((int)wParam);
-			m_CVHeight->Set((int)lParam);
+			const EWindowState windowMode = static_cast<EWindowState>(m_CVWindowType->GetIVal());
+			if (windowMode != EWindowState::Fullscreen && windowMode != EWindowState::BorderlessFullscreen)
+			{
+				m_CVWidth->Set(static_cast<int>(wParam));
+				m_CVHeight->Set(static_cast<int>(lParam));
+			}
 		}
 	}
 	break;
+	case ESYSTEM_EVENT_ACTIVATE:
+	{
+		// Toggle DXGI fullscreen state when user alt-tabs out (when wParam == 0, the window is 'deactivated')
+		// This is required since we explicitly set the DXGI_MWA_NO_WINDOW_CHANGES, forbidding DXGI from handling this itself
+		if (IsFullscreen() && gcpRendD3D->GetBaseDisplayContext()->IsSwapChainBacked() && wParam == 0)
+		{
+			m_CVWindowType->Set(static_cast<int>(EWindowState::Windowed));
+		}
+	}	
+	break;
 	default:
-		break;
+	break;
 	}
 #endif //CRY_PLATFORM_WINDOWS
 

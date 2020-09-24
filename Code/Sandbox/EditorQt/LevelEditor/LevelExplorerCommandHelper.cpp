@@ -1,4 +1,4 @@
-// Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2020 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 
@@ -125,7 +125,7 @@ bool CheckChildState(const std::vector<CObjectLayer*>& layers, std::function<boo
 	return lastChildState;
 }
 
-void SetState(std::vector<CObjectLayer*>& layers, std::function<void(CObjectLayer*)> layerStateCallBack)
+void SetState(const std::vector<CObjectLayer*>& layers, std::function<void(CObjectLayer*)> layerStateCallBack)
 {
 	for (CObjectLayer* pLayer : layers)
 	{
@@ -133,7 +133,7 @@ void SetState(std::vector<CObjectLayer*>& layers, std::function<void(CObjectLaye
 	}
 }
 
-void SetState(std::vector<CObjectLayer*>& layers, std::vector<CBaseObject*>& objects,
+void SetState(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects,
               std::function<void(CObjectLayer*)> layerStateCallBack, std::function<void(CBaseObject*)> objectStateCallBack)
 {
 	for (CBaseObject* pObject : objects)
@@ -166,6 +166,27 @@ void SetChildState(const std::vector<CObjectLayer*>& layers, std::function<void(
 		}
 	}
 }
+
+void SetLock(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects, bool lock)
+{
+	if (layers.empty() && objects.empty())
+		return;
+
+	std::function<void(CObjectLayer*)> layerStateCallBack = [lock](CObjectLayer* pLayer) { pLayer->SetFrozen(lock); };
+	std::function<void(CBaseObject*)> objectStateCallBack = [lock](CBaseObject* pObject) { pObject->SetFrozen(lock); };
+
+	SetState(layers, objects, layerStateCallBack, objectStateCallBack);
+}
+}
+
+void Lock(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects)
+{
+	Private_LevelExplorerCommandHelper::SetLock(layers, objects, true);
+}
+
+void UnLock(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects)
+{
+	Private_LevelExplorerCommandHelper::SetLock(layers, objects, false);
 }
 
 bool AreLocked(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects)
@@ -176,17 +197,9 @@ bool AreLocked(const std::vector<CObjectLayer*>& layers, const std::vector<CBase
 	return Private_LevelExplorerCommandHelper::CheckState(layers, objects, layerStateCallBack, objectStateCallBack);
 }
 
-void ToggleLocked(std::vector<CObjectLayer*>& layers, std::vector<CBaseObject*>& objects)
+void ToggleLocked(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects)
 {
-	if (layers.empty() && objects.empty())
-		return;
-
-	bool locked = AreLocked(layers, objects);
-
-	std::function<void(CObjectLayer*)> layerStateCallBack = [&locked](CObjectLayer* pLayer) { pLayer->SetFrozen(!locked); };
-	std::function<void(CBaseObject*)> objectStateCallBack = [&locked](CBaseObject* pObject) { pObject->SetFrozen(!locked); };
-
-	Private_LevelExplorerCommandHelper::SetState(layers, objects, layerStateCallBack, objectStateCallBack);
+	Private_LevelExplorerCommandHelper::SetLock(layers, objects, !AreLocked(layers, objects));
 }
 
 bool AreVisible(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects)
@@ -197,7 +210,7 @@ bool AreVisible(const std::vector<CObjectLayer*>& layers, const std::vector<CBas
 	return Private_LevelExplorerCommandHelper::CheckState(layers, objects, layerStateCallBack, objectStateCallBack);
 }
 
-void ToggleVisibility(std::vector<CObjectLayer*>& layers, std::vector<CBaseObject*>& objects)
+void ToggleVisibility(const std::vector<CObjectLayer*>& layers, const std::vector<CBaseObject*>& objects)
 {
 	if (layers.empty() && objects.empty())
 		return;
@@ -249,7 +262,7 @@ bool AreExportable(const std::vector<CObjectLayer*>& layers)
 	return Private_LevelExplorerCommandHelper::CheckState(layers, [](const CObjectLayer* pLayer) { return pLayer->IsExportable(); });
 }
 
-void ToggleExportable(std::vector<CObjectLayer*>& layers)
+void ToggleExportable(const std::vector<CObjectLayer*>& layers)
 {
 	bool exportable = AreExportable(layers);
 	std::function<void(CObjectLayer*)> layerStateCallBack = [exportable](CObjectLayer* pLayer) { pLayer->SetExportable(!exportable); };
@@ -261,7 +274,7 @@ bool AreExportableToPak(const std::vector<CObjectLayer*>& layers)
 	return Private_LevelExplorerCommandHelper::CheckState(layers, [](const CObjectLayer* pLayer) { return pLayer->IsExporLayerPak(); });
 }
 
-void ToggleExportableToPak(std::vector<CObjectLayer*>& layers)
+void ToggleExportableToPak(const std::vector<CObjectLayer*>& layers)
 {
 	bool exportable = AreExportableToPak(layers);
 	std::function<void(CObjectLayer*)> layerStateCallBack = [exportable](CObjectLayer* pLayer) { pLayer->SetExportLayerPak(!exportable); };
@@ -273,7 +286,7 @@ bool AreAutoLoaded(const std::vector<CObjectLayer*>& layers)
 	return Private_LevelExplorerCommandHelper::CheckState(layers, [](const CObjectLayer* pLayer) { return pLayer->IsDefaultLoaded(); });
 }
 
-void ToggleAutoLoad(std::vector<CObjectLayer*>& layers)
+void ToggleAutoLoad(const std::vector<CObjectLayer*>& layers)
 {
 	bool autoLoaded = AreAutoLoaded(layers);
 	std::function<void(CObjectLayer*)> layerStateCallBack = [autoLoaded](CObjectLayer* pLayer) { pLayer->SetDefaultLoaded(!autoLoaded); };
@@ -285,7 +298,7 @@ bool HavePhysics(const std::vector<CObjectLayer*>& layers)
 	return Private_LevelExplorerCommandHelper::CheckState(layers, [](const CObjectLayer* pLayer) { return pLayer->HasPhysics(); });
 }
 
-void TogglePhysics(std::vector<CObjectLayer*>& layers)
+void TogglePhysics(const std::vector<CObjectLayer*>& layers)
 {
 	bool havePhysics = HavePhysics(layers);
 	std::function<void(CObjectLayer*)> layerStateCallBack = [havePhysics](CObjectLayer* pLayer){ pLayer->SetHavePhysics(!havePhysics); };
@@ -298,7 +311,7 @@ bool HasPlatformSpecs(const std::vector<CObjectLayer*>& layers, ESpecType type)
 	return Private_LevelExplorerCommandHelper::CheckState(layers, layerStateCallBack);
 }
 
-void TogglePlatformSpecs(std::vector<CObjectLayer*>& layers, ESpecType type)
+void TogglePlatformSpecs(const std::vector<CObjectLayer*>& layers, ESpecType type)
 {
 	bool hasSpecs = HasPlatformSpecs(layers, type);
 	std::function<void(CObjectLayer*)> layerStateCallBack = [hasSpecs, type](CObjectLayer* pLayer)

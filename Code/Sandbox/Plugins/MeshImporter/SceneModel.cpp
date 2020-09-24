@@ -330,7 +330,7 @@ QVariant CSceneModel::GetSourceNodeData(CSceneElementSourceNode* pSelf, const QM
 		}
 		else if (role == Qt::DisplayRole && CanBeLod(pNode))
 		{
-			return QString("LOD %1").arg(GetScene()->IsProxy(pNode) ? MAX_STATOBJ_LODS_NUM : GetScene()->GetNodeLod(pNode));
+			return GetScene()->IsProxy(pNode) ? tr("Physics Proxy") : QString("LOD %1").arg(GetScene()->GetNodeLod(pNode));
 		}
 		else if (role == Qt::DisplayRole && !IsSceneRoot(pSelf) && !CanBeLod(pNode))
 		{

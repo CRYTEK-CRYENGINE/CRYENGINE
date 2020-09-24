@@ -54,6 +54,17 @@ add_sources("NoUberFile"
 		"stdafx.h"
 )
 
+if(ORBIS)
+add_sources("CryAudioImpl_uber_0.cpp"
+	SOURCE_GROUP "Header Files"
+		"platforms/ps4/Functions.h"
+)
+else()
+add_sources("CryAudioImpl_uber_0.cpp"
+	SOURCE_GROUP "Header Files"
+		"platforms/null/Functions.h"
+)
+endif()
 end_sources()
 #END-FILE-LIST
 
@@ -65,7 +76,7 @@ if(AUDIO_FMOD)
 else()
 	CryFileContainer(CryAudioImplFmod SOLUTION_FOLDER "CryEngine/Audio/Implementations")
 endif()
-if (ORBIS OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
 	target_compile_options(${THIS_PROJECT} PRIVATE
 		-Wno-format
 		-Wno-multichar

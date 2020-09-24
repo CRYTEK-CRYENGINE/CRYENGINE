@@ -61,6 +61,8 @@ namespace Cry
 			virtual void ApplySingleThrust(float thrust);
 			
 		protected:
+			void RequestPoststep();
+
 			bool m_bEnableConstantThrustByDefault = true;
 			float m_constantThrust = 1;
 

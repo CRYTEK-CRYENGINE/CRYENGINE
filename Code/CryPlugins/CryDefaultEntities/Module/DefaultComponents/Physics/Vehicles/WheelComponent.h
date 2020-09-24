@@ -43,8 +43,8 @@ namespace Cry
 			virtual IGeometry* CreateGeometry() const final
 			{
 				primitives::cylinder primitive;
-				primitive.center = ZERO;
-				primitive.axis = Vec3(1, 0, 0);
+				primitive.center = m_center;
+				primitive.axis = m_axis;
 				primitive.r = m_radius;
 				primitive.hh = m_height * 0.5f;
 
@@ -62,10 +62,16 @@ namespace Cry
 				desc.SetComponentFlags({ IEntityComponent::EFlags::Transform, IEntityComponent::EFlags::Socket, IEntityComponent::EFlags::Attach });
 				desc.AddComponentInteraction<CVehiclePhysicsComponent>(SEntityComponentRequirements::EType::HardDependency);
 
+				desc.AddMember(&CWheelComponent::m_filePath, 'file', "File", "File", "Determines the CGF to load", "");
+				desc.AddMember(&CWheelComponent::m_materialPath, 'mtl', "Material", "Material", "Specifies the override material for the selected object", "");
+				desc.AddMember(&CWheelComponent::m_castShadows, 'shad', "Shadows", "Cast Shadows", "Sets whether the wheel will cast shadows (only works if cgf is specified)", true);
+
 				desc.AddMember(&CWheelComponent::m_radius, 'radi', "Radius", "Radius", "Radius of the cylinder", 0.5f);
 				desc.AddMember(&CWheelComponent::m_height, 'heig', "Height", "Width", "Width of the cylinder", 0.1f);
 
+
 				desc.AddMember(&CWheelComponent::m_physics, 'phys', "Physics", "Physics Settings", "Physical properties for the object, only used if a simple physics or character controller is applied to the entity.", SPhysicsParameters());
+
 
 				desc.AddMember(&CWheelComponent::m_surfaceTypeName, 'surf', "Surface", "Surface Type", "Surface type assigned to this object, determines its physical properties", "");
 				desc.AddMember(&CWheelComponent::m_axleIndex, 'axle', "AxleIndex", "Axle Index", nullptr, 0);
@@ -80,6 +86,11 @@ namespace Cry
 			}
 
 			virtual void SetAxleIndex(int index) { m_axleIndex = index; }
+
+			virtual void Initialize() override;
+			virtual void ProcessEvent(const SEntityEvent& event) override;
+
+			void ApplyStatObj(bool onInit=false);
 
 #ifndef RELEASE
 			// IEntityComponentPreviewer
@@ -115,6 +126,14 @@ namespace Cry
 			// ~IEntityComponentPreviewer
 #endif
 
+			Schematyc::GeomFileName m_filePath;
+			Schematyc::MaterialFileName m_materialPath;
+			bool m_castShadows = true;
+
+			_smart_ptr<IStatObj> m_pStatObj;
+
+			Vec3  m_center = Vec3(ZERO);
+			Vec3  m_axis = Vec3(1, 0, 0);
 			Schematyc::Range<0, 1000000> m_radius = 0.5f;
 			Schematyc::Range<0, 1000000> m_height = 0.1f;
 

@@ -81,6 +81,15 @@ static void SignalEventAreaChange( CPhysicalWorld* pWorld, CPhysArea* pArea, Vec
 		epac.qContainer=pArea->m_pContainerEnt->m_qrot; epac.posContainer=pArea->m_pContainerEnt->m_pos;
 		epac.pos = (epac.pos-epac.posContainer)*epac.qContainer;
 		epac.q = !epac.qContainer*epac.q;
+		pWorld->TransformToGrid(pArea->m_pContainerEnt, &pWorld->m_entgrid, epac.posContainer,epac.qContainer);
+	}	else {
+		pWorld->TransformToGrid(pArea, &pWorld->m_entgrid, epac.pos,epac.q);
+		if (pWorld->GetGrid(pArea)!=&pWorld->m_entgrid && !pArea->m_pSurface) {
+			// for static volumes in local grids, emulate a dummy attachment to sync the render node
+			QuatT diffFromOrg = QuatT(epac.q,epac.pos) * QuatT(Quat(pArea->m_R0),pArea->m_offset0).GetInverted();
+			epac.posContainer=diffFromOrg.t; epac.qContainer=diffFromOrg.q;
+			epac.pContainer = &g_StaticPhysicalEntity;
+		}
 	}
 	epac.depth = -pArea->m_zlim[0];
 	pWorld->OnEvent(0,&epac);
@@ -213,12 +222,15 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 {
 	int bRes=1,bUseBuoy=0,bDiffGrid=0;
 	QuatT transG(IDENTITY);
-	if (bDiffGrid = pent && m_pWorld->GetGrid(this)!=m_pWorld->GetGrid(pent))
+	Vec3 dvG(ZERO);
+	if (bDiffGrid = pent && m_pWorld->GetGrid(this)!=m_pWorld->GetGrid(pent))	{
 		transG = GridTrans((CPhysicalPlaceholder*)pent,this);
+		dvG = (m_pWorld->GetGrid(this)->m_velW-m_pWorld->GetGrid(pent)->m_velW)*m_pWorld->GetGrid(pent)->m_transW.q;
+	}
 	Vec3 ptloc = ((transG*pt-m_offset)*m_R)*m_rscale;
 
 	if (!is_unused(m_pb.waterPlane.origin) && fabs(m_pb.waterDensity)+fabs(m_pb.waterResistance)>0.0f &&
-			!(pent && ((CPhysicalEntity*)pent)->m_flags & pef_ignore_ocean && this==m_pWorld->m_pGlobalArea)) 
+			!(pent && ((CPhysicalPlaceholder*)pent)->m_id>=0 && (((CPhysicalEntity*)pent)->m_flags & pef_ignore_ocean || m_pWorld->GetGrid(pent)!=m_pWorld->GetGrid(this)) && this==m_pWorld->m_pGlobalArea)) 
 	{
 		if (m_pb.iMedium==iMedium0)
 			nBuoys=0,iMedium0=-1,bRes=0;
@@ -388,7 +400,7 @@ int CPhysArea::ApplyParams(const Vec3& pt, Vec3& gravity, const Vec3 &vel, pe_pa
 	if (bUseBuoy & bDiffGrid) {
 		pbdst[nBuoys].waterPlane.origin = transG.GetInverted()*pbdst[nBuoys].waterPlane.origin;
 		pbdst[nBuoys].waterPlane.n = !transG.q*pbdst[nBuoys].waterPlane.n;
-		pbdst[nBuoys].waterFlow = !transG.q*pbdst[nBuoys].waterFlow;
+		pbdst[nBuoys].waterFlow = !transG.q*pbdst[nBuoys].waterFlow+dvG;
 	}
 
 	return bRes&bUseBuoy;
@@ -725,6 +737,20 @@ int CPhysArea::SetParams(pe_params *_params, int bThreadSafe)
 		get_xqs_from_matrices(params->pMtx3x4,params->pMtx3x3, params->pos,params->q,params->scale);
 		Vec3 pos,sz;
 		Vec3 lastPos = m_offset - m_offset0;
+		SEntityGrid *pgridCur = m_pWorld->GetGrid(this), *pgridNew = is_unused(params->pGridRefEnt) ? pgridCur : 
+			(!params->pGridRefEnt || params->pGridRefEnt==WORLD_ENTITY ? &m_pWorld->m_entgrid : m_pWorld->GetGrid(params->pGridRefEnt));
+		if (pgridNew != pgridCur) {
+			{ WriteLock lockG(m_pWorld->m_lockGrid);
+				m_pWorld->DetachEntityGridThunks(this);
+			}
+			QuatT dtrans = pgridNew->m_transW.GetInverted()*pgridCur->m_transW, transNew=dtrans*QuatT(Quat(m_R*m_R0.T()),lastPos);
+			m_pWorld->SetGrid(this, pgridNew);
+			params->pos = transNew.t; params->q = transNew.q;
+			if (!is_unused(m_pb.waterPlane.origin)) {
+				m_pb.waterPlane.origin = dtrans*m_pb.waterPlane.origin;
+				m_pb.waterPlane.n = dtrans.q*m_pb.waterPlane.n;
+			}
+		}
 		if (!is_unused(params->pos)) m_offset = m_offset0+params->pos;
 		if (!is_unused(params->q)) m_R = Matrix33(params->q)*m_R0;
 		if (!is_unused(params->scale)) m_rscale = 1/(m_scale = params->scale);
@@ -751,6 +777,8 @@ int CPhysArea::SetParams(pe_params *_params, int bThreadSafe)
 			m_BBox[0] -= Vec3(m_zlim[0],m_zlim[0],m_zlim[0]);
 			m_BBox[1] += Vec3(m_zlim[0],m_zlim[0],m_zlim[0]);
 		}
+		if (m_pWaterMan)
+			m_pWaterMan->SetViewerPos((m_BBox[0]+m_BBox[1])*0.5f);
 		m_pWorld->RepositionArea(this, boxPrev);
 		return 1;
 	}
@@ -1347,7 +1375,7 @@ void CPhysArea::Update(float dt)
 		}
 		float dim = max(BBox[1].x-BBox[0].x,BBox[1].y-BBox[0].y)*m_scale;
 		int nCells = float2int(dim*(1.0f+m_sizeReserve)/m_szCell)+1|1;
-		if (nCells<=1)
+		if (nCells<=1 || nCells>1000000)
 			return;
 		WriteLock lock(m_pWorld->m_lockWaterMan);
 		m_pWaterMan = new CWaterMan(m_pWorld,this);

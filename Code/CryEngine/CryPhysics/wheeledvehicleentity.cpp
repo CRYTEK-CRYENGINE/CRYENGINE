@@ -10,6 +10,7 @@
 #include "physicalplaceholder.h"
 #include "physicalentity.h"
 #include "geoman.h"
+#include "trimesh.h"
 #include "physicalworld.h"
 #include "rigidentity.h"
 #include "wheeledvehicleentity.h"
@@ -50,7 +51,7 @@ CWheeledVehicleEntity::CWheeledVehicleEntity(CPhysicalWorld *pworld, IGeneralMem
 	, m_lockVehicle(0)
 	, m_pullTilt(0.0f)
 	, m_drivingTorque(0.0f)
-	, m_maxTilt(0.866f)
+	, m_maxTilt(0.5f)
 	, m_wheelMassScale(0.0f)
 {
 	m_engineMinw = m_engineMaxw*0.05f;
@@ -144,7 +145,7 @@ int CWheeledVehicleEntity::SetParams(pe_params *_params, int bThreadSafe)
 		if (!is_unused(params->steerTrackNeutralTurn)) 
 			m_kSteerToTrack = params->steerTrackNeutralTurn>0 ? 2.0f/params->steerTrackNeutralTurn : 0;
     if (!is_unused(params->pullTilt)) m_pullTilt = params->pullTilt; 
-		if (!is_unused(params->maxTilt)) m_maxTilt = params->maxTilt;
+		if (!is_unused(params->maxTilt)) m_maxTilt = cos(params->maxTilt);
 		if (!is_unused(params->bKeepTractionWhenTilted)) m_bKeepTractionWhenTilted = params->bKeepTractionWhenTilted;
 		if (!is_unused(params->wheelMassScale)) m_wheelMassScale = params->wheelMassScale;
 		return 1;
@@ -638,8 +639,8 @@ int CWheeledVehicleEntity::AddGeometry(phys_geometry *pgeom, pe_geomparams *_par
 		m_susp[idx].contact.Pspare = 0;
 		m_susp[idx].pCollEvent = 0;
 		box bbox; pgeom->pGeom->GetBBox(&bbox);
-		m_susp[idx].r = max(max(bbox.size.x,bbox.size.y),bbox.size.z);
-		m_susp[idx].width = min(min(bbox.size.x,bbox.size.y),bbox.size.z);
+		m_susp[idx].r = max(max(bbox.size.x,bbox.size.y),bbox.size.z)*params->scale;
+		m_susp[idx].width = min(min(bbox.size.x,bbox.size.y),bbox.size.z)*params->scale;
 		assert(density);
 		m_susp[idx].Iinv = 1.0f/(max(max(pgeom->Ibody.x,pgeom->Ibody.y),pgeom->Ibody.z)*density);
 		m_susp[idx].rinv = 1.0f/m_susp[idx].r;
@@ -839,17 +840,19 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 			ip.time_interval = time_interval*1.4f;
 		}
 		Vec3 partBBox[2];
+		newlen = m_susp[iwheel].fullen;
 
 		for(ient=0;ient<nents;ient++) for(j=0; j<pentlist[ient]->m_nParts; j++) 
 		if (pentlist[ient]->m_parts[j].flags & m_susp[iwheel].flagsCollider0 && 
 				((pentlist[ient]->m_parts[j].BBox[1]-pentlist[ient]->m_parts[j].BBox[0]).len2()==0 || AABB_overlap(pentlist[ient]->GetPartBBox(j,partBBox,this),BBoxWheel))) 
 		{
 			pentlist[ient]->GetPartTransform(j, gwd[1].offset,gwd[1].R,gwd[1].scale, this);
+			IGeometry *pGeom1 = pentlist[ient]->m_parts[j].pPhysGeomProxy->pGeom;
 			if (!bRayCast)
-				ncontacts = m_parts[i].pPhysGeomProxy->pGeom->Intersect(pentlist[ient]->m_parts[j].pPhysGeomProxy->pGeom, gwd+0,gwd+1, &ip, pcontacts);
+				ncontacts = m_parts[i].pPhysGeomProxy->pGeom->Intersect(pGeom1, gwd+0,gwd+1, &ip, pcontacts);
 			else {
 				ip.bSweepTest = false;
-				ncontacts = pentlist[ient]->m_parts[j].pPhysGeomProxy->pGeom->Intersect(&aray, gwd+1,0, &ip, pcontacts);
+				ncontacts = pGeom1->Intersect(&aray, gwd+1,0, &ip, pcontacts);
 				for(icont=0; icont<ncontacts; icont++)
 					pcontacts[icont].n.Flip();
 				ip.bSweepTest = true;
@@ -857,6 +860,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 
 			for(icont=0; icont<ncontacts; icont++) {
 				pcontacts[icont].t -= m_susp[iwheel].r*bRayCast;
+				newlen = m_susp[iwheel].curlen;
 				if (!ip.bSweepTest) {
 					if (pcontacts[icont].vel>0) {
 						if (!bHasContacts && sqr(pcontacts[icont].t)>unproj.len2())
@@ -865,8 +869,21 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 						pcontacts[icont].n = -pcontacts[icont].dir;
 				}
 				tcur = ip.bSweepTest ? ip.time_interval-pcontacts[icont].t : pcontacts[icont].t*-(pcontacts[icont].dir*axisz);
+				if (pcontacts[icont].iFeature[1] & 0xA0) switch(pGeom1->GetType()) {
+				case GEOM_HEIGHTFIELD: case GEOM_TRIMESH:
+					// for mesh edge contacts, check if the contact normal is between the normals of the corresponding triangles; correct it otherwise
+					// (for sweep checks contact normal can be an incorrect open-edge one due to premature check exit on distance limit)
+					CTriMesh *pMesh = (CTriMesh*)pGeom1;
+					int ibuddy = pMesh->m_pTopology[pcontacts[icont].iPrim[1]].ibuddy[pcontacts[icont].iFeature[1] & 3];
+					if (ibuddy>=0) {
+						Vec3 ntri[2]={ pMesh->m_pNormals[pcontacts[icont].iPrim[1]], pMesh->m_pNormals[ibuddy] };
+						Vec3 ncnt = -pcontacts[icont].n*gwd[1].R;
+						if ((ncnt^ntri[0])*(ncnt^ntri[1])>0)
+							pcontacts[icont].n = -(gwd[1].R*(ntri[0]+ntri[1]).normalized());
+					}
+				}
 				n_accum += pcontacts[icont].n*-tcur;
-				if (fabs_tpl(pcontacts[icont].n*axisy) < m_maxTilt) {
+				if (fabs_tpl(pcontacts[icont].n*axisz) > m_maxTilt) {
 					if (tcur>tmax/*&& (ip.bSweepTest || pcontacts[icont].vel>0)*/)	{
 						tmax = tcur; dirmax = pcontacts[icont].dir; m_susp[iwheel].bContact = 1;
 						m_susp[iwheel].pent = pentlist[ient]; m_susp[iwheel].ipart = j;
@@ -885,8 +902,7 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 							m_susp[iwheel].surface_idx[1] = pentlist[ient1]->GetMatId(pentlist[ient1]->m_parts[j1].pPhysGeom->surface_idx,j1);
 					}
 					AddCollider(pentlist[ient]);
-				} else if (pcontacts[icont].n*axisz > -0.01f && // if contact normal is too steep (but not negative), 
-									pentlist[ient]->GetRigidBody(j)->Minv < m_body.Minv*10.f && // ..and colliding body is not loo light (too avoid degeneracy)
+				} else if (pentlist[ient]->GetRigidBody(j)->Minv < m_body.Minv*10.f && // if colliding body is not loo light (too avoid degeneracy)
 									(m_kSteerToTrack==0 || m_susp[iwheel].fullen==0)) // never do it for tank's road wheels
 					tmaxTilted = max_safe(tmaxTilted,tcur);
 			}
@@ -896,11 +912,10 @@ void CWheeledVehicleEntity::CheckAdditionalGeometry(float time_interval)
 		//endwheel:
 		if (tmaxTilted>tmax*1.01f) {
 			m_parts[i].flags = m_susp[iwheel].flags0; m_parts[i].flagsCollider = m_susp[iwheel].flagsCollider0;
-			m_susp[iwheel].bContact &= m_bKeepTractionWhenTilted; // treat wheel as part of vehicle's rigid geometry						
+			m_susp[iwheel].bContact &= m_bKeepTractionWhenTilted; // treat wheel as part of vehicle's rigid geometry
 		}
 		m_posNew += unproj;
 		m_body.pos += unproj;
-		newlen = m_susp[iwheel].fullen;
 
 		if (m_susp[iwheel].bContact) {
 			m_susp[iwheel].vrel = m_body.v+(m_body.w^m_susp[iwheel].ptcontact-m_body.pos);

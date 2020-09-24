@@ -12,12 +12,6 @@ namespace EditorSubstance
 {
 	namespace Renderers
 	{
-
-		CCompressedRenderer::CCompressedRenderer() : CInstanceRenderer()
-		{
-
-		}
-
 		void CCompressedRenderer::FillVirtualOutputRenderData(const ISubstancePreset* preset, const SSubstanceOutput& output, std::vector<SSubstanceRenderData>& renderData)
 		{
 			STexturePreset presetConfig = CManager::Instance()->GetConfigurationForPreset(output.preset);
@@ -144,7 +138,6 @@ namespace EditorSubstance
 					UpdateTexture(result.get(), (SGeneratedOutputData*)(*itr)->mUserData);
 				}
 			}
-
 		}
 
 		void CCompressedRenderer::UpdateTexture(SubstanceAir::RenderResult* result, SGeneratedOutputData* data)

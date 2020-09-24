@@ -1535,236 +1535,228 @@ struct vtxthunk {
 };
 int g_bBruteforceTriangulation = 0, g_nTriangulationErrors = 0;
 
-int TriangulatePolyBruteforce(Vec2 *pVtx, int nVtx, int *pTris, int szTriBuf)
+int TriangulatePolyBruteforce(Vec2 *pVtx, int nVtx, int *pTris,int szTriBuf)
 {
-	int i, nThunks, nNonEars, nTris = 0;
-	vtxthunk *ptr, *ptr0, bufThunks[32], *pThunks = nVtx <= 31 ? bufThunks : new vtxthunk[nVtx + 1];
+	int i,nThunks,nNonEars,nTris=0;
+	vtxthunk *ptr,*ptr0,bufThunks[32],*pThunks = nVtx<=31 ? bufThunks:new vtxthunk[nVtx+1];
 
 	ptr = ptr0 = pThunks;
-	for (i = nThunks = 0; i < nVtx; i++) if (!is_unused(pVtx[i].x)) {
-		pThunks[nThunks].next[0] = pThunks + nThunks - 1;
-		pThunks[nThunks].next[1] = pThunks + nThunks + 1;
-		pThunks[nThunks].pt = pVtx + i;
-		ptr = pThunks + nThunks++;
+	for(i=nThunks=0;i<nVtx;i++) if (!is_unused(pVtx[i].x)) {
+		pThunks[nThunks].next[0] = pThunks+nThunks-1; 
+		pThunks[nThunks].next[1] = pThunks+nThunks+1;
+		pThunks[nThunks].pt = pVtx+i;
+		ptr = pThunks+nThunks++; 
 	}
-	if (nThunks < 3)
+	if (nThunks<3)
 		return 0;
 	ptr->next[1] = ptr0; ptr0->next[0] = ptr;
-	for (i = 0; i < nThunks; i++)
-		pThunks[i].bProcessed = (*pThunks[i].next[1]->pt - *pThunks[i].pt ^ *pThunks[i].next[0]->pt - *pThunks[i].pt) > 0;
+	for(i=0;i<nThunks;i++)
+		pThunks[i].bProcessed = (*pThunks[i].next[1]->pt-*pThunks[i].pt ^ *pThunks[i].next[0]->pt-*pThunks[i].pt)>0;
 
-	for (nNonEars = 0; nNonEars < nThunks && nTris < szTriBuf; ptr0 = ptr0->next[1]) {
-		if (nThunks == 3) {
-			pTris[nTris * 3] = ptr0->pt - pVtx; pTris[nTris * 3 + 1] = ptr0->next[1]->pt - pVtx;
-			pTris[nTris * 3 + 2] = ptr0->next[0]->pt - pVtx; nTris++;
+	for(nNonEars=0; nNonEars<nThunks && nTris<szTriBuf; ptr0=ptr0->next[1]) {
+		if (nThunks==3) {
+			pTris[nTris*3] = ptr0->pt-pVtx; pTris[nTris*3+1] = ptr0->next[1]->pt-pVtx; 
+			pTris[nTris*3+2] = ptr0->next[0]->pt-pVtx; nTris++;
 			break;
 		}
-		for (i = 0; (*ptr0->next[1]->pt - *ptr0->pt^*ptr0->next[0]->pt - *ptr0->pt) < 0 && i < nThunks; ptr0 = ptr0->next[1], i++);
-		if (i == nThunks)
+		for(i=0; (*ptr0->next[1]->pt-*ptr0->pt^*ptr0->next[0]->pt-*ptr0->pt)<0 && i<nThunks; ptr0=ptr0->next[1],i++);
+		if (i==nThunks)
 			break;
-		for (ptr = ptr0->next[1]->next[1]; ptr != ptr0->next[0] && ptr->bProcessed; ptr = ptr->next[1]);	// find the 1st non-convex vertex after ptr0
-		for (; ptr != ptr0->next[0] && min(min(*ptr0->pt - *ptr0->next[0]->pt ^ *ptr->pt - *ptr0->next[0]->pt,
-			*ptr0->next[1]->pt - *ptr0->pt ^ *ptr->pt - *ptr0->pt),
-			*ptr0->next[0]->pt - *ptr0->next[1]->pt ^ *ptr->pt - *ptr0->next[1]->pt) < 0; ptr = ptr->next[1]);
-		if (ptr == ptr0->next[0]) { // vertex is an ear, output the corresponding triangle
-			pTris[nTris * 3] = ptr0->pt - pVtx; pTris[nTris * 3 + 1] = ptr0->next[1]->pt - pVtx;
-			pTris[nTris * 3 + 2] = ptr0->next[0]->pt - pVtx;	nTris++;
-			ptr0->next[1]->next[0] = ptr0->next[0];
+		for(ptr=ptr0->next[1]->next[1]; ptr!=ptr0->next[0] && ptr->bProcessed; ptr=ptr->next[1]);	// find the 1st non-convex vertex after ptr0
+		for(; ptr!=ptr0->next[0] && min(min(*ptr0->pt-*ptr0->next[0]->pt ^ *ptr->pt-*ptr0->next[0]->pt,
+																				*ptr0->next[1]->pt-*ptr0->pt ^ *ptr->pt-*ptr0->pt),
+																				*ptr0->next[0]->pt-*ptr0->next[1]->pt ^ *ptr->pt-*ptr0->next[1]->pt)<0; ptr=ptr->next[1]);
+		if (ptr==ptr0->next[0]) { // vertex is an ear, output the corresponding triangle
+			pTris[nTris*3] = ptr0->pt-pVtx; pTris[nTris*3+1] = ptr0->next[1]->pt-pVtx; 
+			pTris[nTris*3+2] = ptr0->next[0]->pt-pVtx;	nTris++; 
+			ptr0->next[1]->next[0] = ptr0->next[0]; 
 			ptr0->next[0]->next[1] = ptr0->next[1];
-			nThunks--; nNonEars = 0;
-		}
-		else
+			nThunks--; nNonEars=0;
+		}	else
 			nNonEars++;
 	}
 
-	if (pThunks != bufThunks) delete[] pThunks;
+	if (pThunks!=bufThunks) delete[] pThunks;
 	return nTris;
 }
 
-int TriangulatePoly(Vec2 *pVtx, int nVtx, int *pTris, int szTriBuf)
+int TriangulatePoly(Vec2 *pVtx, int nVtx, int *pTris,int szTriBuf)
 {
-	if (nVtx < 3)
+	if (nVtx<3)
 		return 0;
-	vtxthunk *pThunks, *pPrevThunk, *pContStart, **pSags, **pBottoms, *pPinnacle, *pBounds[2], *pPrevBounds[2], *ptr, *ptr_next;
-	vtxthunk bufThunks[32], *bufSags[16], *bufBottoms[16];
-	int i, nThunks, nBottoms = 0, nSags = 0, iBottom = 0, nConts = 0, j, isag, nThunks0, nTris = 0, nPrevSags, nTrisCnt, iter, nDegenTris = 0;
-	float ymax, ymin, e, area0 = 0, area1 = 0, cntarea, minCntArea;
+	vtxthunk *pThunks,*pPrevThunk,*pContStart,**pSags,**pBottoms,*pPinnacle,*pBounds[2],*pPrevBounds[2],*ptr,*ptr_next;
+	vtxthunk bufThunks[32],*bufSags[16],*bufBottoms[16];
+	int i,nThunks,nBottoms=0,nSags=0,iBottom=0,nConts=0,j,isag,nThunks0,nTris=0,nPrevSags,nTrisCnt,iter,nDegenTris=0;
+	float ymax,ymin,area0=0,area1=0,cntarea,minCntArea;
 
-	isag = is_unused(pVtx[0].x); ymin = ymax = pVtx[isag].y;
-	for (i = isag; i < nVtx; i++) if (!is_unused(pVtx[i].x)) {
-		ymin = min(ymin, pVtx[i].y); ymax = max(ymax, pVtx[i].y);
+	isag = is_unused(pVtx[0].x); ymin=ymax = pVtx[isag].y;
+	for(i=isag; i<nVtx; i++) if (!is_unused(pVtx[i].x)) {
+		ymin = min(ymin,pVtx[i].y); ymax = max(ymax,pVtx[i].y);
 	}
-	e = (ymax - ymin)*0.0005f;
-	for (i = 1 + isag; i < nVtx; i++) if (!is_unused(pVtx[i].x)) {
-		j = i < nVtx - 1 && !is_unused(pVtx[i + 1].x) ? i + 1 : isag;
-		if ((ymin = min(pVtx[j].y, pVtx[i - 1].y)) > pVtx[i].y - e)
-			if ((pVtx[j] - pVtx[i] ^ pVtx[i - 1] - pVtx[i]) > 0)
+	for(i=1+isag; i<nVtx; i++) if (!is_unused(pVtx[i].x)) {
+		j = i<nVtx-1 && !is_unused(pVtx[i+1].x) ? i+1 : isag;
+		if (pVtx[j].y>pVtx[i].y && pVtx[i-1].y>=pVtx[i].y) 
+			if ((pVtx[j]-pVtx[i] ^ pVtx[i-1]-pVtx[i])>0)
 				nBottoms++; // we have a bottom
-			else if (ymin > pVtx[i].y + 1E-8f)
+			else
 				nSags++;	// we have a sag
+	}	else {
+		nConts++; isag=++i;
 	}
-	else {
-		nConts++; isag = ++i;
-	}
-	nSags += nConts;
-	if (nConts - 2 >> 31 & g_bBruteforceTriangulation)
-		return TriangulatePolyBruteforce(pVtx, nVtx, pTris, szTriBuf);
-	pThunks = nVtx + nSags * 2 <= CRY_ARRAY_COUNT(bufThunks) ? bufThunks : new vtxthunk[nVtx + nSags * 2];
+	nSags += nConts; 
+	if (nConts-2>>31 & g_bBruteforceTriangulation)
+		return TriangulatePolyBruteforce(pVtx,nVtx,pTris,szTriBuf);
+	pThunks = nVtx+nSags*2<=CRY_ARRAY_COUNT(bufThunks) ? bufThunks : new vtxthunk[nVtx+nSags*2];
 
-	for (i = nThunks = 0, pContStart = pPrevThunk = pThunks; i < nVtx; i++) if (!is_unused(pVtx[i].x)) {
-		pThunks[nThunks].next[1] = pThunks + nThunks;
+	for(i=nThunks=0,pContStart=pPrevThunk=pThunks; i<nVtx; i++) if (!is_unused(pVtx[i].x)) {
+		pThunks[nThunks].next[1] = pThunks+nThunks;
 		pThunks[nThunks].next[1] = pPrevThunk->next[1];
-		pPrevThunk->next[1] = pThunks + nThunks;
+		pPrevThunk->next[1] = pThunks+nThunks;
 		pThunks[nThunks].next[0] = pPrevThunk;
 		pThunks[nThunks].jump = 0;
-		pPrevThunk = pThunks + nThunks;
+		pPrevThunk = pThunks+nThunks;
 		pThunks[nThunks].bProcessed = 0;
 		pThunks[nThunks++].pt = &pVtx[i];
-	}
-	else {
+	} else {
 		pPrevThunk->next[1] = pContStart;
-		pContStart->next[0] = pThunks + nThunks - 1;
-		pContStart = pPrevThunk = pThunks + nThunks;
+		pContStart->next[0] = pThunks+nThunks-1;
+		pContStart = pPrevThunk = pThunks+nThunks;
 	}
 
-	for (i = j = 0, cntarea = 0, minCntArea = 1; i < nThunks; i++) {
+	for(i=j=0,cntarea=0,minCntArea=1; i<nThunks; i++) {
 		cntarea += *pThunks[i].pt ^ *pThunks[i].next[1]->pt; j++;
-		if (pThunks[i].next[1] != pThunks + i + 1) {
-			if (j >= 3) {
+		if (pThunks[i].next[1]!=pThunks+i+1) {
+			if (j>=3) {
 				area0 += cntarea;
-				minCntArea = min(cntarea, minCntArea);
-			}
+				minCntArea = min(cntarea,minCntArea); 
+			} 
 			cntarea = 0; j = 0;
 		}
 	}
-	if (minCntArea > 0 && nConts > 1) {
+	if (minCntArea>0 && nConts>1) {
 		// if all contours are positive, triangulate them as separate (it's more safe)
-		for (i = 0; i < nThunks; i++) if (pThunks[i].next[0] != pThunks + i - 1) {
-			nTrisCnt = TriangulatePoly(pThunks[i].pt, (pThunks[i].next[0]->pt - pThunks[i].pt) + 2, pTris + nTris * 3, szTriBuf - nTris * 3);
-			for (j = 0, isag = pThunks[i].pt - pVtx; j < nTrisCnt * 3; j++)
-				pTris[nTris * 3 + j] += isag;
-			i = pThunks[i].next[0] - pThunks;	nTris += nTrisCnt;
+		for(i=0; i<nThunks; i++) if (pThunks[i].next[0]!=pThunks+i-1) {
+			nTrisCnt = TriangulatePoly(pThunks[i].pt,(pThunks[i].next[0]->pt-pThunks[i].pt)+2, pTris+nTris*3,szTriBuf-nTris*3);
+			for(j=0,isag=pThunks[i].pt-pVtx; j<nTrisCnt*3; j++) 
+				pTris[nTris*3+j] += isag;
+			i = pThunks[i].next[0]-pThunks;	nTris += nTrisCnt;
 		}
-		if (pThunks != bufThunks) delete[] pThunks;
+		if (pThunks!=bufThunks) delete[] pThunks;
 		return nTris;
 	}
 
-	pSags = nSags <= CRY_ARRAY_COUNT(bufSags) ? bufSags : new vtxthunk*[nSags];
-	pBottoms = nSags + nBottoms <= CRY_ARRAY_COUNT(bufBottoms) ? bufBottoms : new vtxthunk*[nSags + nBottoms];
+	pSags = nSags<=CRY_ARRAY_COUNT(bufSags) ? bufSags : new vtxthunk*[nSags]; 
+	pBottoms = nSags+nBottoms<=CRY_ARRAY_COUNT(bufBottoms) ? bufBottoms : new vtxthunk*[nSags+nBottoms];
 
-	for (i = nSags = nBottoms = 0; i < nThunks; i++) {
-		if ((ymin = min(pThunks[i].next[1]->pt->y, pThunks[i].next[0]->pt->y)) > pThunks[i].pt->y - e)
-			if ((*pThunks[i].next[1]->pt - *pThunks[i].pt ^ *pThunks[i].next[0]->pt - *pThunks[i].pt) >= 0)
-				pBottoms[nBottoms++] = pThunks + i; // we have a bottom
-			else if (ymin > pThunks[i].pt->y + e)
-				pSags[nSags++] = pThunks + i;	// we have a sag
+	for(i=nSags=nBottoms=0; i<nThunks; i++)	{
+		if (pThunks[i].next[1]->pt->y>pThunks[i].pt->y && pThunks[i].next[0]->pt->y>=pThunks[i].pt->y) 
+			if ((*pThunks[i].next[1]->pt-*pThunks[i].pt ^ *pThunks[i].next[0]->pt-*pThunks[i].pt)>=0)
+				pBottoms[nBottoms++] = pThunks+i; // we have a bottom
+			else
+				pSags[nSags++] = pThunks+i;	// we have a sag
 	}
-	iBottom = -1; pBounds[0] = pBounds[1] = pPrevBounds[0] = pPrevBounds[1] = 0;
-	nThunks0 = nThunks; nPrevSags = nSags; iter = nThunks * 4;
+	iBottom = -1; pBounds[0]=pBounds[1] = pPrevBounds[0]=pPrevBounds[1] = 0;
+	nThunks0 = nThunks; nPrevSags = nSags; iter = nThunks*4;
 
 	do {
-	nextiter:
+		nextiter:
 		if (!pBounds[0]) { // if bounds are empty, get the next available bottom
-			for (++iBottom; iBottom < nBottoms && !pBottoms[iBottom]->next[0]; iBottom++);
-			if (iBottom >= nBottoms) break;
-			pBounds[0] = pBounds[1] = pPinnacle = pBottoms[iBottom];
+			for(++iBottom; iBottom<nBottoms && !pBottoms[iBottom]->next[0]; iBottom++);
+			if (iBottom>=nBottoms) break;
+			pBounds[0]=pBounds[1]=pPinnacle = pBottoms[iBottom];
 		}
-		pBounds[0]->bProcessed = pBounds[1]->bProcessed = 1;
-		if (pBounds[0] == pPrevBounds[0] && pBounds[1] == pPrevBounds[1] && nSags == nPrevSags || !pBounds[0]->next[0] || !pBounds[1]->next[0]) {
-			pBounds[0] = pBounds[1] = 0; continue;
+		pBounds[0]->bProcessed=pBounds[1]->bProcessed = 1;
+		if (pBounds[0]==pPrevBounds[0] && pBounds[1]==pPrevBounds[1] && nSags==nPrevSags || !pBounds[0]->next[0] || !pBounds[1]->next[0]) {
+			pBounds[0]=pBounds[1] = 0; continue;
 		}
-		pPrevBounds[0] = pBounds[0]; pPrevBounds[1] = pBounds[1];	nPrevSags = nSags;
+		pPrevBounds[0]=pBounds[0]; pPrevBounds[1]=pBounds[1];	nPrevSags=nSags;
 
 		// check if left or right is a top
-		for (i = 0; i < 2; i++)
-			if (pBounds[i]->next[0]->pt->y < pBounds[i]->pt->y && pBounds[i]->next[1]->pt->y <= pBounds[i]->pt->y &&
-				(*pBounds[i]->next[0]->pt - *pBounds[i]->pt ^ *pBounds[i]->next[1]->pt - *pBounds[i]->pt) > 0)
-			{
-				if (pBounds[i]->jump) do {
-					ptr = pBounds[i]->jump;	pBounds[i]->jump = 0; pBounds[i] = ptr;
-				} while (pBounds[i]->jump);
-				else {
-					pBounds[i]->jump = pBounds[i ^ 1];
-					pBounds[0] = pBounds[1] = 0; goto nextiter;
-				}
-				if (!pBounds[0]->next[0] || !pBounds[1]->next[0]) {
-					pBounds[0] = pBounds[1] = 0; goto nextiter;
-				}
+		for(i=0; i<2; i++) 
+		if (pBounds[i]->next[0]->pt->y<pBounds[i]->pt->y && pBounds[i]->next[1]->pt->y<=pBounds[i]->pt->y &&
+				(*pBounds[i]->next[0]->pt-*pBounds[i]->pt ^ *pBounds[i]->next[1]->pt-*pBounds[i]->pt) > 0)
+		{
+			if (pBounds[i]->jump) do {
+				ptr=pBounds[i]->jump;	pBounds[i]->jump=0; pBounds[i]=ptr;
+			}	while(pBounds[i]->jump);
+			else {
+				pBounds[i]->jump = pBounds[i^1];
+				pBounds[0]=pBounds[1] = 0; goto nextiter;
 			}
-		i = isneg(pBounds[1]->next[1]->pt->y - pBounds[0]->next[0]->pt->y);
-		ymax = pBounds[i ^ 1]->next[i ^ 1]->pt->y;
+			if (!pBounds[0]->next[0] || !pBounds[1]->next[0]) {
+				pBounds[0]=pBounds[1] = 0; goto nextiter;
+			}
+		}
+		i = isneg(pBounds[1]->next[1]->pt->y-pBounds[0]->next[0]->pt->y);
+		ymax = pBounds[i^1]->next[i^1]->pt->y;
 		ymin = min(pBounds[0]->pt->y, pBounds[1]->pt->y);
 
-		for (j = 0, isag = -1; j < nSags; j++) if (inrange(pSags[j]->pt->y, ymin, ymax) && // find a sag in next left-left-right-next right quad
-			pSags[j] != pBounds[0]->next[0] && pSags[j] != pBounds[1]->next[1] &&
-			(*pBounds[0]->pt - *pBounds[0]->next[0]->pt ^ *pSags[j]->pt - *pBounds[0]->next[0]->pt) >= 0 &&
-			(*pBounds[1]->pt - *pBounds[0]->pt ^ *pSags[j]->pt - *pBounds[0]->pt) >= 0 &&
-			(*pBounds[1]->next[1]->pt - *pBounds[1]->pt ^ *pSags[j]->pt - *pBounds[1]->pt) >= 0 &&
-			(*pBounds[0]->next[0]->pt - *pBounds[1]->next[1]->pt ^ *pSags[j]->pt - *pBounds[1]->next[1]->pt) >= 0)
-		{
-			ymax = pSags[j]->pt->y; isag = j;
-		}
+		for(j=0,isag=-1; j<nSags; j++) if (inrange(pSags[j]->pt->y, ymin,ymax) && // find a sag in next left-left-right-next right quad
+			pSags[j]!=pBounds[0]->next[0] && pSags[j]!=pBounds[1]->next[1] &&
+			(*pBounds[0]->pt-*pBounds[0]->next[0]->pt ^ *pSags[j]->pt-*pBounds[0]->next[0]->pt)>=0 &&
+			(*pBounds[1]->pt-*pBounds[0]->pt ^ *pSags[j]->pt-*pBounds[0]->pt)>=0 &&
+			(*pBounds[1]->next[1]->pt-*pBounds[1]->pt ^ *pSags[j]->pt-*pBounds[1]->pt)>=0 &&
+			(*pBounds[0]->next[0]->pt-*pBounds[1]->next[1]->pt ^ *pSags[j]->pt-*pBounds[1]->next[1]->pt)>=0)
+		{ ymax = pSags[j]->pt->y; isag = j; }
 
-		if (isag >= 0) { // build a bridge between the sag and the highest active point
+		if (isag>=0) { // build a bridge between the sag and the highest active point
 			if (pSags[isag]->next[0]) {
-				pPinnacle->next[1]->next[0] = pThunks + nThunks; pSags[isag]->next[0]->next[1] = pThunks + nThunks + 1;
-				pThunks[nThunks].next[0] = pThunks + nThunks + 1;	pThunks[nThunks].next[1] = pPinnacle->next[1];
-				pThunks[nThunks + 1].next[1] = pThunks + nThunks;	pThunks[nThunks + 1].next[0] = pSags[isag]->next[0];
+				pPinnacle->next[1]->next[0] = pThunks+nThunks; pSags[isag]->next[0]->next[1] = pThunks+nThunks+1;
+				pThunks[nThunks].next[0] = pThunks+nThunks+1;	pThunks[nThunks].next[1] = pPinnacle->next[1];
+				pThunks[nThunks+1].next[1] = pThunks+nThunks;	pThunks[nThunks+1].next[0] = pSags[isag]->next[0];
 				pPinnacle->next[1] = pSags[isag]; pSags[isag]->next[0] = pPinnacle;
-				pThunks[nThunks].pt = pPinnacle->pt; pThunks[nThunks + 1].pt = pSags[isag]->pt;
-				pThunks[nThunks].jump = pThunks[nThunks + 1].jump = 0;
-				pThunks[nThunks].bProcessed = pThunks[nThunks + 1].bProcessed = 0;
-				if (pBounds[1] == pPinnacle)
-					pBounds[1] = pThunks + nThunks;
-				for (ptr = pThunks + nThunks, j = 0; ptr != pBounds[1]->next[1] && j < nThunks; ptr = ptr->next[1], j++)
-					if (min(ptr->next[0]->pt->y, ptr->next[1]->pt->y) > ptr->pt->y) { // ptr is a bottom
+				pThunks[nThunks].pt = pPinnacle->pt; pThunks[nThunks+1].pt = pSags[isag]->pt;
+				pThunks[nThunks].jump = pThunks[nThunks+1].jump = 0;
+				pThunks[nThunks].bProcessed = pThunks[nThunks+1].bProcessed = 0;
+				if (pBounds[1]==pPinnacle)
+					pBounds[1] = pThunks+nThunks;
+				for(ptr=pThunks+nThunks,j=0; ptr!=pBounds[1]->next[1] && j<nThunks; ptr=ptr->next[1],j++)
+					if (min(ptr->next[0]->pt->y,ptr->next[1]->pt->y) > ptr->pt->y) { // ptr is a bottom
 						pBottoms[nBottoms++] = ptr; break;
 					}
-				pBounds[1] = pPinnacle;	pPinnacle = pSags[isag];
+				pBounds[1] = pPinnacle;	pPinnacle = pSags[isag]; 
 				nThunks += 2;
 			}
-			for (j = isag; j < nSags - 1; j++) pSags[j] = pSags[j + 1];
+			for(j=isag;j<nSags-1;j++) pSags[j]=pSags[j+1];
 			--nSags;
 			continue;
 		}
 
 		// create triangles featuring the new vertex
-		for (ptr = pBounds[i]; ptr != pBounds[i ^ 1] && nTris < szTriBuf; ptr = ptr_next)
-			if ((*ptr->next[i ^ 1]->pt - *ptr->pt ^ *ptr->next[i]->pt - *ptr->pt)*(1 - i * 2) > 0 || pBounds[0]->next[0] == pBounds[1]->next[1]) {
+		for(ptr=pBounds[i]; ptr!=pBounds[i^1] && nTris<szTriBuf; ptr=ptr_next)
+			if ((*ptr->next[i^1]->pt-*ptr->pt ^ *ptr->next[i]->pt-*ptr->pt)*(1-i*2)>0 || pBounds[0]->next[0]==pBounds[1]->next[1]) {
 				// output the triangle
-				pTris[nTris * 3] = pBounds[i]->next[i]->pt - pVtx; pTris[nTris * 3 + 1 + i] = ptr->pt - pVtx;
-				pTris[nTris * 3 + 2 - i] = ptr->next[i ^ 1]->pt - pVtx;
-				Vec2 edge0 = pVtx[pTris[nTris * 3 + 1]] - pVtx[pTris[nTris * 3]], edge1 = pVtx[pTris[nTris * 3 + 2]] - pVtx[pTris[nTris * 3]];
+				pTris[nTris*3] = pBounds[i]->next[i]->pt-pVtx; pTris[nTris*3+1+i] = ptr->pt-pVtx; 
+				pTris[nTris*3+2-i] = ptr->next[i^1]->pt-pVtx;
+				Vec2 edge0=pVtx[pTris[nTris*3+1]]-pVtx[pTris[nTris*3]], edge1=pVtx[pTris[nTris*3+2]]-pVtx[pTris[nTris*3]];
 				float darea = edge0 ^ edge1;
-				area1 += darea;
-				nDegenTris += isneg(sqr(darea) - sqr(0.02f)*(edge0*edge0)*(edge1*edge1));
+				area1 += darea;	
+				nDegenTris += isneg(sqr(darea)-sqr(0.02f)*(edge0*edge0)*(edge1*edge1));
 				nTris++;
-				ptr->next[i ^ 1]->next[i] = ptr->next[i]; ptr->next[i]->next[i ^ 1] = ptr->next[i ^ 1];
-				pBounds[i] = ptr_next = ptr->next[i ^ 1];
-				if (pPinnacle == ptr)
+				ptr->next[i^1]->next[i] = ptr->next[i]; ptr->next[i]->next[i^1] = ptr->next[i^1];
+				pBounds[i] = ptr_next = ptr->next[i^1]; 
+				if (pPinnacle==ptr) 
 					pPinnacle = ptr->next[i];
-				ptr->next[0] = ptr->next[1] = 0; ptr->bProcessed = 1;
-			}
-			else
+				ptr->next[0]=ptr->next[1] = 0; ptr->bProcessed = 1;
+			}	else
 				break;
 
-		if ((pBounds[i] = pBounds[i]->next[i]) == pBounds[i ^ 1]->next[i ^ 1])
-			pBounds[0] = pBounds[1] = 0;
+		if ((pBounds[i] = pBounds[i]->next[i])==pBounds[i^1]->next[i^1])
+			pBounds[0]=pBounds[1] = 0;
 		else if (pBounds[i]->pt->y > pPinnacle->pt->y)
 			pPinnacle = pBounds[i];
-	} while (nTris < szTriBuf && --iter);
+	}	while (nTris<szTriBuf && --iter);
 
-	if (pThunks != bufThunks) delete[] pThunks;
-	if (pBottoms != bufBottoms) delete[] pBottoms;
-	if (pSags != bufSags) delete[] pSags;
+	if (pThunks!=bufThunks) delete[] pThunks;
+	if (pBottoms!=bufBottoms) delete[] pBottoms;
+	if (pSags!=bufSags) delete[] pSags;
 
-	int bProblem = nTris<nThunks0 - nConts * 2 || fabs_tpl(area0 - area1)>area0*0.003f || nTris >= szTriBuf;
+	int bProblem = nTris<nThunks0-nConts*2 || fabs_tpl(area0-area1)>area0*0.003f || nTris>=szTriBuf;
 	if (bProblem || nDegenTris)
-		if (nConts == 1)
-			return TriangulatePolyBruteforce(pVtx, nVtx, pTris, szTriBuf);
-		else
-			g_nTriangulationErrors += bProblem;
+		if (nConts==1)
+			return TriangulatePolyBruteforce(pVtx,nVtx,pTris,szTriBuf);
+		else 
+			g_nTriangulationErrors+=bProblem;
 
 	return nTris;
 }
-

@@ -1,33 +1,34 @@
-// Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2020 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include <StdAfx.h>
 #include "LevelLayerModel.h"
 
-#include "IObjectManager.h"
-#include "Objects/ObjectLayer.h"
-#include "Objects/ObjectLayerManager.h"
+#include "CryIcon.h"
+#include "HyperGraph/FlowGraphHelpers.h"
+#include "IEditorImpl.h"
+#include "Material/Material.h"
 #include "Objects/BrushObject.h"
 #include "Objects/EntityObject.h"
 #include "Objects/GeomEntity.h"
 #include "Objects/Group.h"
-#include "Objects/PrefabObject.h"
-#include "Material/Material.h"
-#include "HyperGraph/FlowGraphHelpers.h"
-#include "VersionControl/UI/VersionControlUIHelper.h"
-
-#include <CrySystem/ISystem.h>
-#include <ProxyModels/ItemModelAttribute.h>
-#include <CrySerialization/Enum.h>
-#include "QAdvancedItemDelegate.h"
-#include "CryIcon.h"
-#include "QtUtil.h"
-#include "DragDrop.h"
-#include "IEditorImpl.h"
 #include "Objects/ObjectManager.h"
+#include "Objects/ObjectLayer.h"
+#include "Objects/ObjectLayerManager.h"
+#include "Objects/PrefabObject.h"
+
+#include <DragDrop.h>
+#include <IObjectManager.h>
+#include <ProxyModels/ItemModelAttribute.h>
+#include <QAdvancedItemDelegate.h>
+#include <QtUtil.h>
+#include <VersionControl/UI/VersionControlUIHelper.h>
+
 #include <Cry3DEngine/ISurfaceType.h>
 #include <Cry3DEngine/I3DEngine.h>
 #include <Cry3DEngine/IRenderNode.h>
 #include <CryAnimation/ICryAnimation.h>
+#include <CrySerialization/Enum.h>
+#include <CrySystem/ISystem.h>
 
 #include <QApplication>
 
@@ -247,7 +248,9 @@ QVariant CLevelLayerModel::data(const QModelIndex& index, int role) const
 	case (int)CLevelModel::Roles::TypeCheckRole:
 		return (int)eLevelElement_Object;
 	case (int)Roles::InternalPointerRole:
-		return reinterpret_cast<intptr_t>(ObjectFromIndex(index));
+		{
+			return reinterpret_cast<intptr_t>(ObjectFromIndex(index));
+		}
 	case Qt::DisplayRole:
 	case Qt::ToolTipRole:
 	case Qt::EditRole:
@@ -272,6 +275,15 @@ QVariant CLevelLayerModel::data(const QModelIndex& index, int role) const
 					}
 				case eObjectColumns_Type:
 					return Serialization::getEnumDescription<ObjectType>().label(pObject->GetType());
+				case eObjectColumns_Visible:
+					return pObject->IsVisible();
+				case eObjectColumns_Frozen:
+					return pObject->IsFrozen();
+				case eObjectColumns_LayerColor:
+					{
+						ColorB color = pObject->GetColor();
+						return QColor::fromRgb(color.r, color.g, color.b);
+					}
 				case eObjectColumns_TypeDesc:
 					return (const char*)pObject->GetTypeDescription();
 				case eObjectColumns_DefaultMaterial:

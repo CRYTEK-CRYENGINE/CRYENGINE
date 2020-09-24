@@ -53,6 +53,8 @@ if (EXISTS "${SDK_DIR}/FbxSdk")
 endif()
 if (EXISTS "${SDK_DIR}/SubstanceEngines")
 	option(OPTION_SUBSTANCE_SUPPORT "Support Substance Integration" ON)
+else()
+	unset(OPTION_SUBSTANCE_SUPPORT CACHE)
 endif()
 option(OPTION_PCH "Enable Precompiled Headers" OFF)
 

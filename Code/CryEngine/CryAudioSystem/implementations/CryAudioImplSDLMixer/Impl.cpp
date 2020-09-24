@@ -50,6 +50,7 @@ constexpr int g_supportedFormats = MIX_INIT_FLAC | MIX_INIT_MP3 | MIX_INIT_OGG |
 constexpr int g_sampleRate = 48000;
 constexpr int g_bufferSize = 4096;
 static string s_localizedAssetsPath = "";
+static string s_fileLocation = "";
 
 enum class EChannelFinishedRequestQueueId : EnumFlagsType
 {
@@ -77,7 +78,7 @@ std::vector<CListener*> g_constructedListeners;
 //////////////////////////////////////////////////////////////////////////
 void LoadMetadata(string const& path, bool const isLocalized)
 {
-	string const rootDir = isLocalized ? s_localizedAssetsPath : s_regularAssetsPath;
+	string const rootDir = (isLocalized ? s_localizedAssetsPath : s_regularAssetsPath) + "/";
 
 	_finddata_t fd;
 	ICryPak* pCryPak = gEnv->pCryPak;
@@ -289,7 +290,7 @@ SampleId LoadSample(string const& sampleFilePath, bool const onlyMetadata, bool 
 
 	if (stl::find_in_map(g_sampleData, id, nullptr) == nullptr)
 	{
-		string const assetPath = (isLocalized ? s_localizedAssetsPath : s_regularAssetsPath) + sampleFilePath;
+		string const assetPath = (isLocalized ? s_localizedAssetsPath : s_regularAssetsPath) + "/" + sampleFilePath;
 
 		if (onlyMetadata)
 		{
@@ -714,12 +715,12 @@ bool CImpl::ConstructFile(XmlNodeRef const& rootNode, SFileInfo* const pFileInfo
 
 			char const* const szPath = rootNode->getAttr(g_szPathAttribute);
 			string const filePath = GetFullFilePath(szFileName, szPath);
-			string const fullFilePath = (pFileInfo->isLocalized ? s_localizedAssetsPath : s_regularAssetsPath) + filePath;
+			string const fullFilePath = (pFileInfo->isLocalized ? s_localizedAssetsPath : s_regularAssetsPath) + "/" + filePath;
 			cry_strcpy(pFileInfo->filePath, fullFilePath.c_str());
 			SampleId const sampleId = LoadSample(filePath, true, pFileInfo->isLocalized);
 
 			MEMSTAT_CONTEXT(EMemStatContextType::AudioImpl, "CryAudio::Impl::SDL_mixer::CFile");
-			pFileInfo->pImplData = new CFile(sampleId);
+			pFileInfo->pImplData = new CFile(sampleId, szPath);
 
 			isConstructed = true;
 		}
@@ -732,6 +733,26 @@ bool CImpl::ConstructFile(XmlNodeRef const& rootNode, SFileInfo* const pFileInfo
 void CImpl::DestructFile(IFile* const pIFile)
 {
 	delete pIFile;
+}
+
+///////////////////////////////////////////////////////////////////////////
+char const* CImpl::GetFileLocation(IFile* const pIFile) const
+{
+	s_fileLocation = s_localizedAssetsPath;
+
+	if (pIFile != nullptr)
+	{
+		auto const pFile = static_cast<CFile*>(pIFile);
+		char const* const szPath = pFile->GetPath();
+
+		if ((szPath != nullptr) && (szPath[0] != '\0'))
+		{
+			s_fileLocation += "/";
+			s_fileLocation += szPath;
+		}
+	}
+
+	return s_fileLocation.c_str();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1150,7 +1171,6 @@ void CImpl::SetLanguage(char const* const szLanguage)
 		s_localizedAssetsPath += g_szImplFolderName;
 		s_localizedAssetsPath += "/";
 		s_localizedAssetsPath += g_szAssetsFolderName;
-		s_localizedAssetsPath += "/";
 
 		if (shouldReload)
 		{

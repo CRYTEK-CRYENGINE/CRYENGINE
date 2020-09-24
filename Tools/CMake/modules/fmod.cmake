@@ -26,6 +26,17 @@ elseif(DURANGO)
 	set_target_properties(fmodstudio PROPERTIES IMPORTED_IMPLIB "${FMOD_DIR}/xboxone/api/studio/lib/fmodstudio_vc.lib")
 	set_target_properties(fmodstudio PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${FMOD_DIR}/xboxone/api/studio/inc")
 
+elseif(ORBIS)
+	add_library(fmod INTERFACE IMPORTED GLOBAL)
+	set(FMOD_DLL "${FMOD_DIR}/ps4/api/core/lib/libfmod.prx")
+	target_link_libraries(fmod INTERFACE "${FMOD_DIR}/ps4/api/core/lib/libfmod_stub_weak.a")
+	set_target_properties(fmod PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${FMOD_DIR}/ps4/api/core/inc")
+
+	add_library(fmodstudio INTERFACE IMPORTED GLOBAL)
+	set(FMODSTUDIO_DLL "${FMOD_DIR}/ps4/api/studio/lib/libfmodstudio.prx")
+	target_link_libraries(fmodstudio INTERFACE "${FMOD_DIR}/ps4/api/studio/lib/libfmodstudio_stub_weak.a")
+	set_target_properties(fmodstudio PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${FMOD_DIR}/ps4/api/studio/inc")
+
 elseif(LINUX)
 	add_library(fmod SHARED IMPORTED GLOBAL)
 	set(FMOD_DLL "${FMOD_DIR}/linux/api/core/lib/x86_64/libfmod.so")
@@ -50,7 +61,12 @@ elseif(ANDROID)
 
 endif()
 
-if(AUDIO_FMOD AND FMOD_DLL)
-	deploy_runtime_files("${FMOD_DLL}")
-	deploy_runtime_files("${FMODSTUDIO_DLL}")
+if(AUDIO_FMOD)
+	if(FMOD_DLL)
+		deploy_runtime_files("${FMOD_DLL}")
+	endif()
+	
+	if(FMODSTUDIO_DLL)
+		deploy_runtime_files("${FMODSTUDIO_DLL}")
+	endif()
 endif()

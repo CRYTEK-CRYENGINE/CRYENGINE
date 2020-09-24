@@ -72,6 +72,8 @@ public:
 
 	// ~Explorer::IExplorerEntryProvider
 
+	void RemoveUnsavedQueries();
+
 signals:
 	void DocumentAboutToBeRemoved(CUqsQueryDocument* pDocument);
 
@@ -79,7 +81,6 @@ private:
 
 	void ActionDeleteQuery(Explorer::ActionContext& x);
 
-	void RemoveAllNeverSavedQueries();
 	void DeleteQueryByEntryId(uint id);
 
 	void UpdateQueryEntryPakState(const Explorer::SEntry<SUqsQueryEntry>& entry);

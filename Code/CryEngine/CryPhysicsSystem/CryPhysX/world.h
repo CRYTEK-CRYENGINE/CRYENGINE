@@ -98,7 +98,7 @@ public:
 	virtual void RasterizeEntities(const primitives::grid3d& grid, uchar* rbuf, int objtypes, float massThreshold, const Vec3& offsBBox, const Vec3& sizeBBox, 
 		int flags, IPhysicalEntity* pentOnlyThis) { CRY_PHYSX_LOG_FUNCTION; }
 
-	virtual int   DeformPhysicalEntity(IPhysicalEntity* pent, const Vec3& ptHit, const Vec3& dirHit, float r, int flags = 0) { CRY_PHYSX_LOG_FUNCTION; _RETURN_INT_DUMMY_; }
+	virtual int   DeformPhysicalEntity(IPhysicalEntity* pent, const Vec3& ptHit, const Vec3& dirHit, float r, int flags = 0, const Vec3& dirUp = Vec3(ZERO)) { CRY_PHYSX_LOG_FUNCTION; _RETURN_INT_DUMMY_; }
 	virtual void  UpdateDeformingEntities(float time_interval = 0.01f) { CRY_PHYSX_LOG_FUNCTION; } //!< normally this happens during TimeStep
 	virtual float CalculateExplosionExposure(pe_explosion* pexpl, IPhysicalEntity* pient) { CRY_PHYSX_LOG_FUNCTION; _RETURN_FLOAT_DUMMY_; }
 

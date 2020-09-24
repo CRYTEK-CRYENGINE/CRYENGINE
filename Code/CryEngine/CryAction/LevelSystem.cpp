@@ -721,7 +721,7 @@ bool CLevelInfo::ReadInfo()
 
 						if (gameTypeName)
 						{
-							ILevelInfo::TGameTypeInfo info;
+							ILevelInfo::SGameTypeInfo info;
 
 							info.cgfCount = 0;
 							gameTypeNode->getAttr("CGFCount", info.cgfCount);
@@ -855,7 +855,7 @@ void CLevelInfo::ReadMetaData()
 }
 
 //------------------------------------------------------------------------
-const ILevelInfo::TGameTypeInfo* CLevelInfo::GetDefaultGameType() const
+const ILevelInfo::SGameTypeInfo* CLevelInfo::GetDefaultGameType() const
 {
 	if (!m_gameTypes.empty())
 	{

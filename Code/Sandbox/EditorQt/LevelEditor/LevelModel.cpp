@@ -1,24 +1,23 @@
-// Copyright 2001-2019 Crytek GmbH / Crytek Group. All rights reserved.
+// Copyright 2001-2020 Crytek GmbH / Crytek Group. All rights reserved.
 
 #include "StdAfx.h"
 #include "LevelModel.h"
 
-#include "QtUtil.h"
-
 #include "Objects/ObjectLayer.h"
 #include "Objects/ObjectLayerManager.h"
-#include "CryCore/ToolsHelpers/GuidUtil.h"
-
-#include "CryIcon.h"
-#include "QAdvancedItemDelegate.h"
-#include "ProxyModels/ItemModelAttribute.h"
 #include "LevelLayerModel.h"
-#include "DragDrop.h"
 #include "IEditorImpl.h"
+#include "CryIcon.h"
 
-#include "VersionControl/VersionControl.h"
-#include "VersionControl/AssetsVCSStatusProvider.h"
-#include "VersionControl/UI/VersionControlUIHelper.h"
+#include <DragDrop.h>
+#include <ProxyModels/ItemModelAttribute.h>
+#include <QAdvancedItemDelegate.h>
+#include <QtUtil.h>
+#include <VersionControl/AssetsVCSStatusProvider.h>
+#include <VersionControl/UI/VersionControlUIHelper.h>
+#include <VersionControl/VersionControl.h>
+
+#include <CryCore/ToolsHelpers/GuidUtil.h>
 
 #include <QMimeData>
 #include <QApplication>
@@ -417,6 +416,11 @@ QVariant CLevelModel::data(const QModelIndex& index, int role) const
 		case ELayerColumns::eLayerColumns_Visible:
 			switch (role)
 			{
+			case Qt::DisplayRole:
+			case Qt::EditRole:
+			{
+				return pLayer->IsVisible();
+			}
 			case Qt::CheckStateRole:
 				{
 					CObjectLayer* pParent = pLayer->GetParent();
@@ -438,6 +442,11 @@ QVariant CLevelModel::data(const QModelIndex& index, int role) const
 		case ELayerColumns::eLayerColumns_Frozen:
 			switch (role)
 			{
+			case Qt::DisplayRole:
+			case Qt::EditRole:
+			{
+				return pLayer->IsFrozen();
+			}
 			case Qt::CheckStateRole:
 				return pLayer->IsFrozen(false) ? Qt::Checked : Qt::Unchecked;
 			case QAdvancedItemDelegate::s_IconOverrideRole:
@@ -509,6 +518,8 @@ QVariant CLevelModel::data(const QModelIndex& index, int role) const
 		case ELayerColumns::eLayerColumns_Color:
 			switch (role)
 			{
+			case Qt::DisplayRole:
+			case Qt::EditRole:
 			case Qt::DecorationRole:
 				{
 					ColorB color = pLayer->GetColor();

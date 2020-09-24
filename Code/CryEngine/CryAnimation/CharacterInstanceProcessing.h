@@ -154,6 +154,15 @@ public:
 			ctx.state = f(ctx);
 		}
 	}
+	template<class Function>
+	void ExecuteForAllInReverseOrder(Function f)
+	{
+		for (int i = m_numContexts - 1; i >= 0; --i)
+		{
+			auto& ctx = m_contexts[i];
+			ctx.state = f(ctx);
+		}
+	}
 	SContext& AppendContext();
 	void      ClearContexts();
 	int       GetNumberOfContexts() const { return m_numContexts; };

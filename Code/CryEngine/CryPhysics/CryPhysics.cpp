@@ -136,7 +136,7 @@ public:
 		g_subrefBuf[4].set((int)((INT_PTR)&ppt.pMatMapping-(INT_PTR)&ppt), 0,(int)((INT_PTR)&ppt.nMats-(INT_PTR)&ppt), sizeof(int), 0);
 
 		pe_params_sensors ps;
-		g_subrefParams[pe_params_sensors::type_id] = g_subrefBuf+4;
+		g_subrefParams[pe_params_sensors::type_id] = g_subrefBuf+5;
 		g_subrefBuf[5].set((int)((INT_PTR)&ps.pOrigins-(INT_PTR)&ps), 0,(int)((INT_PTR)&ps.nSensors-(INT_PTR)&ps), sizeof(Vec3), g_subrefBuf+6);
 		g_subrefBuf[6].set((int)((INT_PTR)&ps.pDirections-(INT_PTR)&ps), 0,(int)((INT_PTR)&ps.nSensors-(INT_PTR)&ps), sizeof(Vec3), 0);
 

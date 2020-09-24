@@ -227,7 +227,7 @@ static MonoInternals::MonoObject* GetOrCreateComponent(IEntity* pEntity, uint64 
 	CManagedEntityComponent* pComponent = static_cast<CManagedEntityComponent*>(pEntity->GetComponentByTypeId(id));
 	if (pComponent == nullptr)
 	{
-		pComponent = static_cast<CManagedEntityComponent*>(pEntity->CreateComponentByInterfaceID(id, false));
+		pComponent = static_cast<CManagedEntityComponent*>(pEntity->CreateComponentByInterfaceID(id));
 	}
 
 	return pComponent->GetObject()->GetManagedObject();

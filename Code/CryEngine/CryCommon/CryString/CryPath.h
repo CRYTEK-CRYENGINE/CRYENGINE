@@ -842,6 +842,10 @@ inline string GetProjectFile()
 			{
 				projectFilePath = pSysProject->GetString();
 			}
+			else
+			{
+				projectFilePath = "game.cryproject";
+			}
 		}
 
 		if (PathUtil::IsRelativePath(projectFilePath))

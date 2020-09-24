@@ -15,8 +15,14 @@ void LogPrintf(const char* szFormat, ...);
 namespace Private_WriteProxies
 {
 
-static IStatObj* SaveProxies(IStatObj* pStatObj, const SProxyTree* pProxyTree, const SProxyTree::SNode* pProxyTreeNode, int& nProxies, int slotParent = 0)
+static IStatObj* SaveProxies(IStatObj* pStatObj, const SProxyTree* pProxyTree, const SProxyTree::SNode* pProxyTreeNode, int& nProxies)
 {
+	int slotParent = pStatObj->GetSubObjectCount() - 1;
+	while (slotParent >= 0 && pStatObj->GetSubObject(slotParent)->name != pProxyTreeNode->m_name)
+	{
+		slotParent--;
+	}
+
 	for (size_t i = 0; i < pProxyTreeNode->m_physGeometryCount; ++i)
 	{
 		phys_geometry* const pProxyGeom = pProxyTree->m_physGeometries[pProxyTreeNode->m_firstPhysGeometryIndex + i];
@@ -26,7 +32,11 @@ static IStatObj* SaveProxies(IStatObj* pStatObj, const SProxyTree* pProxyTree, c
 			IStatObj* pMeshObj = pStatObj;
 			pStatObj = gEnv->p3DEngine->CreateStatObj();
 			pStatObj->FreeIndexedMesh();
-			pStatObj->AddSubObject(pMeshObj);
+			pStatObj->AddSubObject(pMeshObj).name = pProxyTreeNode->m_name;
+			pStatObj->SetMaterial(pMeshObj->GetMaterial());
+			pStatObj->SetFilePath(pMeshObj->GetFilePath());
+			pMeshObj->SetGeoName(pProxyTreeNode->m_name);
+			slotParent = 0;
 		}
 		IStatObj* pProxObj = gEnv->p3DEngine->CreateStatObj();
 		static CMesh meshDummy;
@@ -59,16 +69,10 @@ static IStatObj* SaveProxies(IStatObj* pStatObj, const SProxyTree* pProxyTree, c
 		nProxies++;
 	}
 
-	slotParent = pStatObj->GetSubObjectCount() - 1;
-	while (slotParent >= 0 && pStatObj->GetSubObject(slotParent)->name != pProxyTreeNode->m_name)
-	{
-		slotParent--;
-	}
-
 	for (size_t i = 0; i < pProxyTreeNode->m_childCount; ++i)
 	{
 		const SProxyTree::SNode* const pChildNode = &pProxyTree->m_nodes[pProxyTreeNode->m_firstChildIndex + i];
-		pStatObj = SaveProxies(pStatObj, pProxyTree, pChildNode, nProxies, slotParent);
+		pStatObj = SaveProxies(pStatObj, pProxyTree, pChildNode, nProxies);
 	}
 
 	return pStatObj;

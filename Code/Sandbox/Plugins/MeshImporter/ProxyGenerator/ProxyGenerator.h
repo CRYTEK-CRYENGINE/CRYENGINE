@@ -66,4 +66,5 @@ private:
 	int m_hitShift;
 	int m_proxyIsland;
 	uint64 m_hitmask;
+	bool m_voxelsShown = false;
 };

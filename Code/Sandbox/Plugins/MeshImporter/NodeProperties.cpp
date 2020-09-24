@@ -62,6 +62,7 @@ CNodeProperties::CNodeProperties()
 	  "Mass",
 	  "Mass defines the weight of an object based on real world physics in kg.\n"
 	  "Mass=0 sets the object to \"unmovable\".");
+	m_groups[eGroup_Default].properties.back().floatValue = -1;
 
 	m_groups[eGroup_Default].properties.emplace_back(
 	  EValueType::eFloat,
@@ -70,6 +71,7 @@ CNodeProperties::CNodeProperties()
 	  "The engine automatically calculates the mass for an object.\n"
 	  "based on the density and the bounding box of an object.\n"
 	  "Can be used alternatively to mass.");
+	m_groups[eGroup_Default].properties.back().floatValue = -1;
 
 	m_groups[eGroup_Default].properties.emplace_back(
 	  EValueType::eBool,

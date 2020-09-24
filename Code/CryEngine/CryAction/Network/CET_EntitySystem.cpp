@@ -108,7 +108,7 @@ public:
 				// if we're about to load a new level and throw this data away
 				if (!m_loadingNewLevel)
 				{
-					const ILevelInfo::TGameTypeInfo* pGameTypeInfo = pLevel->GetDefaultGameType();
+					const ILevelInfo::SGameTypeInfo* pGameTypeInfo = pLevel->GetDefaultGameType();
 					const char* const szGameTypeName = pGameTypeInfo ? pGameTypeInfo->name.c_str() : "";
 					gEnv->pAISystem->LoadLevelData(pLevel->GetPath(), szGameTypeName);
 				}

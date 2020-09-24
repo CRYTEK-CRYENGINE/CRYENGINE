@@ -17,6 +17,7 @@
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QDesktopServices>
+#include <QCloseEvent>
 
 #include <QtUtil.h>
 
@@ -150,6 +151,17 @@ const char* CMainEditorWindow::GetPaneTitle() const
 
 void CMainEditorWindow::OnEditorNotifyEvent(EEditorNotifyEvent ev)
 {
+}
+
+void CMainEditorWindow::closeEvent(QCloseEvent* pEvent)
+{
+	if (m_pCurrentDocument)
+	{
+		CQueryListProvider& queryListProvider = m_editorContext.GetQueryListProvider();
+		queryListProvider.RemoveUnsavedQueries();
+	}
+
+	pEvent->accept();
 }
 
 void CMainEditorWindow::customEvent(QEvent* event)

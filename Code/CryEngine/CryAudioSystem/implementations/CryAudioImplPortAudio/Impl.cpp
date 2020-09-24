@@ -341,6 +341,12 @@ void CImpl::DestructFile(IFile* const pIFile)
 	delete pIFile;
 }
 
+///////////////////////////////////////////////////////////////////////////
+char const* CImpl::GetFileLocation(IFile* const pIFile) const
+{
+	return m_localizedSoundBankFolder.c_str();
+}
+
 //////////////////////////////////////////////////////////////////////////
 void CImpl::GetInfo(SImplInfo& implInfo) const
 {

@@ -67,7 +67,7 @@ void CSubstanceOutputEditorDialog::customEvent(QEvent* e)
 
 void CSubstanceOutputEditorDialog::OnPreviewUpdated(SubstanceAir::RenderResult* result, EditorSubstance::Renderers::SPreviewGeneratedOutputData* data)
 {
-	if (data->presetInstanceID == m_pPreset->GetInstanceID())
+	if (m_pPreset && data->presetInstanceID == m_pPreset->GetInstanceID())
 	{
 		auto node = m_editorWidget->GetGraphViewModel()->GetNodeItemById(data->outputName + OutputEditor::CSubstanceOutputNodeBase::GetIdSuffix(data->isVirtual ? OutputEditor::eInput : OutputEditor::eOutput));
 		if (node)

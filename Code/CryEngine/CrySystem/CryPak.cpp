@@ -1379,9 +1379,9 @@ bool CCryPak::IsFolder(const char* sPath)
 	if (fullPath.empty())
 		return false;
 
-	DWORD attrs = GetFileAttributes(fullPath);
-
-	if (attrs == FILE_ATTRIBUTE_DIRECTORY)
+	const DWORD attrs = GetFileAttributes(fullPath);
+	if (attrs != INVALID_FILE_ATTRIBUTES && 
+		attrs & FILE_ATTRIBUTE_DIRECTORY)
 	{
 		return true;
 	}

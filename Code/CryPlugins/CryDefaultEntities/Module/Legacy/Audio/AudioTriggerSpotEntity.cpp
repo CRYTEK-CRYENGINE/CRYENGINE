@@ -41,12 +41,6 @@ CAudioTriggerSpotEntity::CAudioTriggerSpotEntity()
 	gEnv->pAudioSystem->AddRequestListener(&CAudioTriggerSpotEntity::OnAudioTriggerFinished, this, CryAudio::ESystemEvents::TriggerFinished);
 }
 
-CAudioTriggerSpotEntity::~CAudioTriggerSpotEntity()
-{
-	gEnv->pAudioSystem->RemoveRequestListener(&CAudioTriggerSpotEntity::OnAudioTriggerFinished, this);
-	Stop();
-}
-
 void CAudioTriggerSpotEntity::ProcessEvent(const SEntityEvent& event)
 {
 	if (gEnv->IsDedicated())
@@ -73,6 +67,12 @@ void CAudioTriggerSpotEntity::ProcessEvent(const SEntityEvent& event)
 	case ENTITY_EVENT_UPDATE:
 		{
 			DebugDraw();
+		}
+		break;
+	case ENTITY_EVENT_DONE:
+		{
+			gEnv->pAudioSystem->RemoveRequestListener(&CAudioTriggerSpotEntity::OnAudioTriggerFinished, this);
+			Stop();
 		}
 		break;
 	}

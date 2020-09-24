@@ -46,7 +46,7 @@ struct SRecording_FrameData : SRecording_Packet
 class CRecordingBuffer
 {
 public:
-	class iterator : public std::iterator<std::forward_iterator_tag, SRecording_Packet>
+	class iterator
 	{
 	public:
 		iterator(CRecordingBuffer* pBuffer, size_t offset) : m_pRecordingBuffer(pBuffer), m_offset(offset)

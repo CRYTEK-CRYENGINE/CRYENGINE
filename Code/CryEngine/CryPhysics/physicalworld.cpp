@@ -392,6 +392,7 @@ void CPhysicalWorld::Init()
 	m_pTmpEntList=0; m_pTmpEntList1=0; m_pGroupMass=0; m_pMassList = 0; m_pGroupIds = 0; m_pGroupNums = 0;
 	m_nEnts = 0; m_nEntsAlloc = 0; m_bEntityCountReserved = 0;
 	m_entgrid.Init();
+	SetGrid(&m_entgrid,&m_entgrid);
 	m_gthunks = 0;
 	m_thunkPoolSz = 0;
 	m_timePhysics = m_timeSurplus = 0;
@@ -935,6 +936,12 @@ int SEntityGrid::SetParams(pe_params* _params, int bThreadSafe)
 	if (_params->type==pe_simulation_params::type_id) {
 		pe_simulation_params *params = (pe_simulation_params*)_params;
 		if (!is_unused(params->minEnergy)) m_dvSleep2 = params->minEnergy;
+		return 1;
+	}
+	if (_params->type==pe_params_bbox::type_id) {
+		pe_params_bbox *params = (pe_params_bbox*)_params;
+		if (!is_unused(params->BBox[0])) m_BBox[0] = params->BBox[0];
+		if (!is_unused(params->BBox[1])) m_BBox[1] = params->BBox[1];
 		return 1;
 	}
 	return 0;
@@ -3263,33 +3270,60 @@ int CPhysicalWorld::RepositionEntity(CPhysicalPlaceholder *pobj, int flags, Vec3
 					Vec3 com = pgrid1->m_transInHost.GetInverted()*pgrid1->m_com*pent->m_qrot;
 					pe_action_impulse ai;
 					ai.iSource = 5;
-					for(ithunk=m_gthunks[pgrid1->m_iGThunk0].inext; ithunk && m_gthunks[ithunk].pent; ithunk=m_gthunks[ithunk].inext)
-						if (IsPortal(m_gthunks[ithunk]))
-							SyncPortal(m_gthunks[ithunk].pent);
-						else if ((unsigned int)m_gthunks[ithunk].pent->m_iSimClass-1u < 2u) {
-							CPhysicalEntity *pent1 = (CPhysicalEntity*)m_gthunks[ithunk].pent;
-							int nbodies = pent1->GetType()!=PE_ARTICULATED ? 1:pent1->m_nParts-1, nimp=0;
-							RigidBody *pbodyPrev=nullptr, *pbody;
-							CPhysicalEntity **pcoll;
-							for(i=pent1->GetColliders(pcoll)-1,j=-1; i>=0; i--)
-								if (GetGrid(pcoll[i])!=pgrid1)
-									pcoll[j=i]->Awake();
-							for(ai.ipart=0; ai.ipart<nbodies; ai.ipart++,pbody=pbodyPrev) {
-								if ((pbody = pent1->GetRigidBody(ai.ipart))==pbodyPrev)
+					int iCaller = get_iCaller();
+					CPhysicalEntity **pentList;
+					int nEnts=0,nPortals=0, szList=GetTmpEntList(pentList, iCaller);
+					{ ReadLock lockG(m_lockGrid);
+						for(ithunk=m_gthunks[pgrid1->m_iGThunk0].inext; ithunk && m_gthunks[ithunk].pent; ithunk=m_gthunks[ithunk].inext) {
+							int notPortal=0;
+							CPhysicalPlaceholder *pent = m_gthunks[ithunk].pent;
+							if (notPortal = !IsPortal(m_gthunks[ithunk])) {
+								if (pent->GetType()==PE_AREA)
+									ActivateArea((CPhysArea*)pent);	
+								if ((unsigned int)m_gthunks[ithunk].iSimClass-1u >= 2u)
 									continue;
-								Vec3 dvLoc = dv + (dw ^ pbody->pos-com);
-								if (j==-1 && dvLoc.len2()<pgrid1->m_dvSleep2*sqr(pent->GetLastTimeStep(0)))
-									continue;
-								ai.impulse = -dvLoc*pbody->M;
-								ai.angImpulse = pbody->q*(pbody->Ibody*(!pbody->q*-dw));
-								pent1->Action(&ai); nimp++;
+								pent = m_gthunks[ithunk].pent->GetEntity();
 							}
-							if (min(nbodies-1,nimp)>0) {
-								pe_action_awake aa;
-								aa.minAwakeTime = 0.01f;
-								pent1->Action(&aa);
+							if (!(pent->m_bProcessed & 1<<iCaller)) {
+								if (nEnts>=szList)
+									szList = ReallocTmpEntList(pentList,iCaller,szList+1024);	
+								AtomicAdd(&pent->m_bProcessed, 1<<iCaller);
+								pentList[nEnts++] = (CPhysicalEntity*)pent;
+								if (!notPortal)
+									swap(pentList[nPortals++], pentList[nEnts-1]);
 							}
 						}
+					}
+					for(i=0;i<nPortals;i++)	{
+						SyncPortal(pentList[i]);
+						AtomicAdd(&pentList[i]->m_bProcessed, -(1<<iCaller));
+					}
+					for(;i<nEnts;i++) {
+						CPhysicalEntity *pent = pentList[i];
+						int nbodies = pent->GetType()!=PE_ARTICULATED ? 1:pent->m_nParts-1, nimp=0;
+						RigidBody *pbodyPrev=nullptr, *pbody;
+						CPhysicalEntity **pcoll; j=-1;
+						int outsideColl = -1;
+						for(int icoll=pent->GetColliders(pcoll)-1; icoll>=0; icoll--)
+							if (GetGrid(pcoll[icoll])!=pgrid1)
+								pcoll[outsideColl=icoll]->Awake();
+						for(ai.ipart=0; ai.ipart<nbodies; ai.ipart++,pbody=pbodyPrev) {
+							if ((pbody = pent->GetRigidBody(ai.ipart))==pbodyPrev)
+								continue;
+							Vec3 dvLoc = dv + (dw ^ pbody->pos-com);
+							if (outsideColl==-1 && dvLoc.len2()<pgrid1->m_dvSleep2*sqr(pent->GetLastTimeStep(0)))
+								continue;
+							ai.impulse = -dvLoc*pbody->M;
+							ai.angImpulse = pbody->q*(pbody->Ibody*(!pbody->q*-dw));
+							pent->Action(&ai); nimp++;
+						}
+						if (min(nbodies-1,nimp)>0) {
+							pe_action_awake aa;
+							aa.minAwakeTime = 0.01f;
+							pent->Action(&aa);
+						}
+						AtomicAdd(&pent->m_bProcessed, -(1<<iCaller));
+					}				
 				}
 			}
 
@@ -3381,7 +3415,7 @@ float CPhysicalWorld::IsAffectedByExplosion(IPhysicalEntity *pobj, Vec3 *impulse
 	return 0.0f;
 }
 
-int CPhysicalWorld::DeformPhysicalEntity(IPhysicalEntity *pient, const Vec3 &ptHit,const Vec3 &dirHit,float r, int flags)
+int CPhysicalWorld::DeformPhysicalEntity(IPhysicalEntity *pient, const Vec3 &ptHit,const Vec3 &dirHit,float r, int flags, const Vec3& dirUp)
 {
 	// craig - experimental fix: i think the random number in GetExplosionShape() is upsetting things in MP
 	SScopedRandomSeedChange randomSeedChange;
@@ -3411,7 +3445,9 @@ int CPhysicalWorld::DeformPhysicalEntity(IPhysicalEntity *pient, const Vec3 &ptH
 		if ((pent->m_parts[i].flags & (geom_colltype_explosion|geom_removed))==geom_colltype_explosion && pent->m_parts[i].idmatBreakable>=0) {
 			pent->m_parts[i].pPhysGeomProxy->pGeom->GetBBox(&bbox);
 			zaxObj = pent->m_qrot*(pent->m_parts[i].q*bbox.Basis.GetRow(idxmax3(bbox.size)));
-			if (pent->m_iSimClass>0 || fabs_tpl(zaxObj*zaxWorld)<0.7f)
+			if (dirUp.len2())
+				zax = dirUp;
+			else if (pent->m_iSimClass>0 || fabs_tpl(zaxObj*zaxWorld)<0.7f)
 				(zax = zaxObj-dirHit*(zaxObj*dirHit)).normalize();
 			else zax = zaxWorld;
 			gwd1.R.SetColumn(0,dirHit^zax); gwd1.R.SetColumn(1,dirHit); gwd1.R.SetColumn(2,zax);
