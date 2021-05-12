@@ -64,6 +64,7 @@ SPendingListenerForStimulus::SPendingListenerForStimulus()
 
 SPendingListenerForStimulus::SPendingListenerForStimulus(const SPendingListenerForStimulus& other)
 	: listenerEntityId(other.listenerEntityId)
+	, stimulusParamsIndex(other.stimulusParamsIndex)
 	, queuedRayInfos(other.queuedRayInfos)
 {
 }
@@ -71,6 +72,7 @@ SPendingListenerForStimulus::SPendingListenerForStimulus(const SPendingListenerF
 void SPendingListenerForStimulus::Clear()
 {
 	listenerEntityId = INVALID_ENTITYID;
+	stimulusParamsIndex = -1;
 	queuedRayInfos.clear();
 }
 
