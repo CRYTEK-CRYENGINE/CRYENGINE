@@ -160,7 +160,7 @@ private:
 	CDescriptorHeap m_ResourceDescriptorScratchSpace;
 
 	#if defined(_ALLOW_INITIALIZER_LISTS)
-	CDescriptorHeap              m_GlobalDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
+	CDescriptorHeap*              m_GlobalDescriptorHeaps[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 	#else
 	std::vector<CDescriptorHeap> m_GlobalDescriptorHeaps;
 	#endif
