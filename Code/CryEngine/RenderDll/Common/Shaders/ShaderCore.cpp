@@ -1453,7 +1453,7 @@ void CShaderMan::mfLoadBasicSystemShaders()
 
 	if (!m_bLoadedSystem)
 	{
-		sLoadShader("Fallback", s_ShaderFallback);
+		sLoadShader("FallBack", s_ShaderFallback);
 		sLoadShader("FixedPipelineEmu", s_ShaderFPEmu);
 		sLoadShader("Scaleform", s_ShaderScaleForm);
 
@@ -1476,7 +1476,7 @@ void CShaderMan::mfLoadDefaultSystemShaders()
 	{
 		m_bLoadedSystem = true;
 
-		sLoadShader("Fallback", s_ShaderFallback);
+		sLoadShader("FallBack", s_ShaderFallback);
 		sLoadShader("FixedPipelineEmu", s_ShaderFPEmu);
 		sLoadShader("Scaleform", s_ShaderScaleForm);
 		sLoadShader("Light", s_ShaderLightStyles);
